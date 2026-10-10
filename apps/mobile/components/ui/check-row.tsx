@@ -99,12 +99,12 @@ function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked,
   const calendarDay = variant === 'calendar-day'
   return (
     <View data-slot="list-row-body" style={[styles.personalRow, getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined))]}>
-      <PersonalControl tokens={tokens} fillStyle={calendarDay ? { ...styles.labelFill, ...styles.calendarDayLabelFill } : styles.labelFill} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
+      <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={calendarDay ? { ...styles.labelFill, ...styles.calendarDayLabelFill } : styles.labelFill} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
         <PersonalText style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, calendarDay ? styles.calendarDayValue : null, { color: tokens.fg2 }]}>{value}</Text> : null}
       </PersonalControl>
-      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} containContent hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} containContent focusable={!disabled && !loading} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
       </PersonalControl>
     </View>

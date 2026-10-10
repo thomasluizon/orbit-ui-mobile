@@ -50,7 +50,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
   }
 
   return (
-    <View style={{ width: '100%', marginTop: 8 }}>
+    <View style={{ width: '100%' }}>
       <BlockFrame
         state="resting"
         title={t('chat.insight.title')}

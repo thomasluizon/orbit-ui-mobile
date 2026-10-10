@@ -110,14 +110,14 @@ export function MessageBubble({
         className={
           isUser
             ? 'max-w-[80%] flex flex-col items-end'
-            : 'flex-1 min-w-0 flex flex-col items-start'
+            : 'flex-1 min-w-0 flex flex-col gap-4'
         }
       >
         <span id={senderLabelId} className="sr-only">
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
-        <div className={`flex max-w-full flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
+        {(isUser || hasChatProse(sourceText) || message.imageUrl) && <div className={`flex max-w-full flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
         <div
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={
@@ -157,7 +157,7 @@ export function MessageBubble({
             {copied ? t('chat.copied') : t('chat.copy')}
           </PillButton>
         )}
-        </div>
+        </div>}
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />
@@ -170,7 +170,7 @@ export function MessageBubble({
         <MessageMetricsBlocks message={message} isStreaming={isStreaming} />
 
         {!isUser && relatedSurfaces.length > 0 && (
-          <div className="mt-2 w-full">
+          <div className="w-full">
             <span
               className="block"
               style={{
@@ -205,7 +205,7 @@ export function MessageBubble({
         )}
 
         {!isUser && suggestionActions.length > 0 && (
-          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+          <div className="flex w-full flex-col gap-4">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
               return dismissedBreakdowns.has(actionKey) ? null : (
@@ -223,7 +223,7 @@ export function MessageBubble({
         )}
 
         {!isUser && clarificationActions.length > 0 && (
-          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+          <div className="flex w-full flex-col gap-4">
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
@@ -245,7 +245,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
-          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+          <div className="flex w-full flex-col gap-4">
             {message.pendingOperations.map((pendingOperation) => (
               <PendingOperationCard
                 key={pendingOperation.id}
@@ -264,7 +264,7 @@ export function MessageBubble({
         )}
 
         {!isUser && operationBlocks.outcomes.length > 0 && (
-          <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
+          <div className="flex w-full flex-col gap-4">
             <OperationOutcomes outcomes={operationBlocks.outcomes} />
           </div>
         )}

@@ -20,7 +20,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     : [{ id: 'due', label: t('chat.daySummary.doneOfDue', { done: daySummary.done, due: daySummary.due }) }]
   rows.push({ id: 'overdue', label: t('chat.daySummary.overdue'), control: figure(daySummary.overdueCount) })
   rows.push({ id: 'streak', label: t('chat.daySummary.streak'), control: figure(daySummary.currentStreak) })
-  return <View style={{ width: '100%', marginTop: 8 }}>
+  return <View style={{ width: '100%' }}>
     <BlockFrame state="resting" title={t('chat.daySummary.title')} count={null} items={rows}
       body={daySummary.due > 0 && daySummary.completionRate != null
         ? <ProgressRing value={daySummary.completionRate} label={t('chat.daySummary.ring', { done: daySummary.done, due: daySummary.due })} />

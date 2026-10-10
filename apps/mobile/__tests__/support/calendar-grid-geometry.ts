@@ -73,7 +73,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       : selected.get('calendar-grid')!.getChild(0)
     const frame = view === 'range' ? card : selected.get('calendar-grid')!
     const grid = selected.get('month-grid-7-columns') ?? card
-    const row = isLoading && view === 'month' ? card.getChild(0).getChild(0) : selected.get('month-grid-row-0')!
+    const row = selected.get('month-grid-row-0')!
     const slots = Array.from({ length: row.getChildCount() }, (_, index) => row.getChild(index))
     const selector = selected.get('segmented-control-enabled')
     const bounds = (node: YogaNode) => {
@@ -92,7 +92,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       contentWidth: width - 32,
       inlineInset: frame.getComputedPadding(Yoga.EDGE_LEFT),
       frameWidth: frame.getComputedWidth(),
-      loadingRowWidth: isLoading && view === 'month' ? card.getChild(0).getChild(0).getComputedWidth() : undefined,
+      loadingRowWidth: isLoading && view === 'month' ? row.getComputedWidth() : undefined,
       placeholders: placeholders.map(({ node, column, ancestors }) => ({
         center: ancestors.reduce((offset, ancestor) => offset + ancestor.getComputedLeft(), 0) + node.getComputedWidth() / 2,
         columnCenter: column.getComputedWidth() / 2,
@@ -101,5 +101,40 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       })),
       targets: targets.map((node) => ({ width: node.getComputedWidth(), height: node.getComputedHeight(), columnWidth: node.getParent()!.getComputedWidth() })),
     }
+  } finally { root.freeRecursive(); config.free() }
+}
+
+export function measureDaySurface(host: GeometryHost | GeometryHost[], width: number) {
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(0)
+  const records: { node: YogaNode; column?: YogaNode; testID?: string; style: ViewStyle; day: boolean }[] = []
+  function build(current: GeometryHost, column?: YogaNode, day = false): YogaNode {
+    const node = Yoga.Node.create(config)
+    const declared = current.props.style
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+    applyGridStyle(node, style)
+    const currentColumn = style.flex === 1 ? node : column
+    const currentDay = day || Boolean(current.props.testID?.startsWith('calendar-day-slot-') || current.props.testID?.startsWith('day-cell-'))
+    records.push({ node, column: currentColumn, testID: current.props.testID, style, day: currentDay })
+    for (const child of current.children ?? []) {
+      if (typeof child !== 'string') node.insertChild(build(child, currentColumn, currentDay), node.getChildCount())
+    }
+    return node
+  }
+  const root = build(Array.isArray(host) ? { props: {}, children: host } : host)
+  const bounds = (node: YogaNode) => {
+    let left = 0
+    let top = 0
+    let ancestor: YogaNode | null = node
+    while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+    const width = node.getComputedWidth()
+    const height = node.getComputedHeight()
+    return { left, top, width, height, centerX: left + width / 2, centerY: top + height / 2 }
+  }
+  try {
+    root.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
+    return records.map(({ node, column, testID, style, day }) => ({
+      testID, style, day, ...bounds(node), column: bounds(column ?? root),
+    }))
   } finally { root.freeRecursive(); config.free() }
 }

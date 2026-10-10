@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { useLocale, useTranslations } from 'next-intl'
@@ -30,15 +30,15 @@ export function CalendarAgendaView({
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null)
+  const [selectedEntry, setSelectedEntry] = useAccountScopedState<CalendarDayEntry | null>(null)
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
 
   return (
     <div
       data-testid="calendar-agenda-view"
       aria-busy={isLoading}
-      className="flex max-w-[560px] flex-col"
-      style={{ gap: 16, padding: '0 16px 24px' }}
+      className="orbit-content-frame flex flex-col"
+      style={{ gap: 16, paddingBottom: 24 }}
     >
       {isLoading ? dates.map((date, index) => (
         <div key={formatAPIDate(date)} data-testid="calendar-agenda-loading-day">

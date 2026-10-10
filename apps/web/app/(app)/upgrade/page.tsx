@@ -40,9 +40,9 @@ import { useHeldAccountId } from '@/stores/auth-store'
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 
-function upgradeBodyClassName(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
+function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
   const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
-  return `w-full flex-1 px-4 pt-4 ${isPitch ? 'max-w-[652px]' : 'max-w-[560px]'}`
+  return isPitch ? 'pitch' : undefined
 }
 
 export default function UpgradePage() {
@@ -255,7 +255,7 @@ export default function UpgradePage() {
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className={upgradeBodyClassName(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="orbit-content-frame flex-1 pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>

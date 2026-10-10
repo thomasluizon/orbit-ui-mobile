@@ -24,10 +24,18 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
+  if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
   if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
   if (style.justifyContent === 'space-between') node.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
+}
+
+function applyMargins(node: YogaNode, style: ViewStyle) {
+  for (const [property, edge] of [['margin', Yoga.EDGE_ALL], ['marginTop', Yoga.EDGE_TOP], ['marginBottom', Yoga.EDGE_BOTTOM]] as const) {
+    if (typeof style[property] === 'number') node.setMargin(edge, style[property])
+  }
 }
 
 function applyStyle(node: YogaNode, style: ViewStyle) {
@@ -36,9 +44,11 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
   if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
+  if (style.maxWidth === '100%') node.setMaxWidth('100%')
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
+  applyMargins(node, style)
   for (const [property, edge] of [['top', Yoga.EDGE_TOP], ['bottom', Yoga.EDGE_BOTTOM], ['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT]] as const) {
     if (typeof style[property] === 'number') node.setPosition(edge, style[property])
   }

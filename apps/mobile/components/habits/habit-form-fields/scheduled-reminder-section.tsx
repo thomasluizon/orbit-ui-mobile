@@ -28,7 +28,7 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
 }>) {
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected });
   return (
-    <Pressable
+    <Pressable focusInset selectionRingWidth={1}
       {...navigationProps}
       ref={elementRef}
       style={({ pressed }) => [

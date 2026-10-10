@@ -12,14 +12,17 @@ async function expectPeriodFillsColumn(control: Locator) {
     const column = group.parentElement!.parentElement!.getBoundingClientRect()
     const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
       const box = segment.getBoundingClientRect()
-      return { top: box.top, width: box.width, height: box.height }
+      const range = document.createRange()
+      range.selectNodeContents(segment.querySelector('span')!)
+      return { top: box.top, width: box.width, labelWidth: range.getBoundingClientRect().width, height: box.height }
     })
     return { left: bounds.left, width: bounds.width, columnLeft: column.left, columnWidth: column.width, segments }
   })
   expect(geometry.left).toBeCloseTo(geometry.columnLeft, 0)
   expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
   expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
-  expect(geometry.segments[0]!.width).toBeCloseTo(geometry.segments[1]!.width, 0)
+  const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
+  expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
   for (const segment of geometry.segments) expect(segment.height).toBeGreaterThanOrEqual(48)
   await expectLabelsFit(control.page(), control)
 }

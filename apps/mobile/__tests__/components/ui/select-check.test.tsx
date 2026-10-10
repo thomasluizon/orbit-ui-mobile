@@ -142,9 +142,9 @@ describe('select-check RadioRow group', () => {
     )[0]
 
     const tokens = createTokensV2('purple', 'dark')
-    expect(selected.props.style({ pressed: false })).toEqual(expect.arrayContaining([
-      expect.objectContaining({ backgroundColor: tokens.selectionBg, borderColor: tokens.primary }),
-    ]))
+    expect(StyleSheet.flatten(selected.props.style({ pressed: false }))).toMatchObject({
+      backgroundColor: tokens.selectionBg, borderColor: tokens.primary, borderWidth: 1.5,
+    })
     const unselectedGlyph = tree.root.findAllByType(RadioGlyph)[1].findByType(View)
     expect(unselectedGlyph.props.style).toEqual(expect.arrayContaining([
       { borderWidth: 2, borderColor: tokens.trackEmpty },
@@ -189,7 +189,8 @@ describe('select-check RadioRow group', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
 
-    void act(() => radios[1]!.props.onFocus())
+    const target = {}
+    void act(() => radios[1]!.props.onFocus({ target, currentTarget: target }))
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
     expect(focused).toEqual([])

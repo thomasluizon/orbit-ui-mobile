@@ -9,6 +9,7 @@ import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
 import {
   bulkCreateRequestSchema,
   bulkCreateResponseSchema,
+  calendarMonthResponseSchema,
   createPaginatedSchema,
   habitScheduleItemSchema,
   habitTagSchema,
@@ -18,6 +19,8 @@ import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { checklistTemplateSchema } from '@orbit/shared/types/checklist-template'
 import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { clarificationResolveFixture } from './fixtures/chat'
 import { profileFixture } from './fixtures/profile'
 import { accountEventTicketFixture } from './fixtures/account-events'
 import { configFixture } from './fixtures/config'
@@ -32,6 +35,7 @@ import {
   habitCountFixture,
 } from './fixtures/collections'
 import { notificationsFixture, referralDashboardFixture } from './fixtures/secondary'
+import { emptyCalendarMonthFixture } from './fixtures/calendar'
 import { mintHermeticJwt } from '../hermetic-session'
 import { createSessionFixtureStore, readFixtureSession } from './session-fixtures'
 
@@ -42,11 +46,20 @@ const habitMutations: { method: string; path: string; body: unknown }[] = []
 interface MockRoute {
   method: string
   path: string
+  matchPath?: RegExp
   schema: ZodType
   body: unknown
 }
 
 const routes: MockRoute[] = [
+  {
+    method: 'POST',
+    path: '/api/ai/clarifications/:operationId/resolve',
+    matchPath: /^\/api\/ai\/clarifications\/[^/]+\/resolve$/,
+    schema: agentExecuteOperationResponseSchema,
+    body: clarificationResolveFixture,
+  },
+  { method: 'GET', path: '/api/habits/calendar-month', schema: calendarMonthResponseSchema, body: emptyCalendarMonthFixture },
   { method: 'POST', path: '/api/events/ticket', schema: accountEventTicketSchema, body: accountEventTicketFixture },
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
   { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
@@ -319,7 +332,8 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     return
   }
 
-  const route = routes.find((entry) => entry.method === method && entry.path === pathname)
+  const route = routes.find((entry) => entry.method === method &&
+    (entry.matchPath ? entry.matchPath.test(pathname) : entry.path === pathname))
   if (route) {
     sendFixtureRoute(req, res, route, session, url)
     return

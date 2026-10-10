@@ -30,7 +30,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
       : undefined
 
   return (
-    <div className="mt-2 w-full md:max-w-[65ch]">
+    <div className="w-full">
       <BlockFrame
         state="resting"
         title={habitId && habitTitle ? t('chat.metrics.habitTitle', { name: habitTitle }) : t('chat.metrics.title')}

@@ -15,7 +15,7 @@ import {
   formatAPIDate,
   splitCalendarMonthRange,
 } from '@orbit/shared/utils'
-import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema, type CalendarMonthResponse } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 async function fetchCalendarMonth(
@@ -28,7 +28,7 @@ async function fetchCalendarMonth(
     const body = (await res.json().catch(() => null)) as { error?: string } | null
     throw new ApiClientError(res.status, body?.error ?? `Failed with status ${res.status}`)
   }
-  return res.json() as Promise<CalendarMonthResponse>
+  return calendarMonthResponseSchema.parse(await res.json())
 }
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {

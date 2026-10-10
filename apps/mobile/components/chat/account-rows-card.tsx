@@ -52,7 +52,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   }
 
   const referral = accountRows.kind === 'referral'
-  return <View style={{ width: '100%', marginTop: 8 }}>
+  return <View style={{ width: '100%' }}>
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.account.title.${accountRows.kind}`)} count={null} items={[]}
       body={<View style={{ gap: 12 }}>
         <SettingsGroup>{rows}</SettingsGroup>

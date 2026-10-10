@@ -26,7 +26,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
-    <View testID="day-disc" style={[styles.disc, { width: '100%', aspectRatio: 1, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
+    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
       {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       {outcome === 'partial' ? (
         <Svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={styles.arc}>
@@ -57,7 +57,7 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
   if (outcome === 'full') textColor = tokens.bg
   else if (missed) textColor = tokens.fg2
   return (
-    <View testID="day-disc" style={[styles.disc, { width: '100%', aspectRatio: 1, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
@@ -69,60 +69,46 @@ type MobileDayCellProps = DayCellProps & {
   accessibilityState?: AccessibilityState
 }
 
+function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ props: DayCellProps; size: number; tokens: Tokens; pressed: boolean; focused: boolean }>) {
+  const outcome = resolveDayCellOutcome(props)
+  const contents = props.future
+    ? <Text testID="day-future-numeral" style={[styles.numeral, { color: tokens.fg2 }]}>{props.day}</Text>
+    : props.habitHistory
+      ? <HabitHistoryContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
+      : <DayCellContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
+  const ring = props.today || props.selected || focused || props.focused
+    ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
+    : null
+  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : pressed ? 'transparent' : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
+    {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
+    {contents}
+    {ring}
+  </View></View>
+}
+
 export function DayCell(props: Readonly<MobileDayCellProps>) {
   const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
   const interactive = Boolean(props.loggable) && !props.outsideMonth
-  const containerStyle = [
-    styles.container,
-    { width: props.size ?? '100%' as const, minHeight: size, borderRadius: size / 2, overflow: 'hidden' as const },
-    props.outsideMonth ? styles.outsideMonth : null,
-  ]
-  const state = { ...props.accessibilityState, disabled: !props.loggable }
+  const containerStyle = [styles.container, { width: '100%' as const, minHeight: Math.max(size, MONTH_GRID_TARGET_MIN) }, props.outsideMonth ? styles.outsideMonth : null]
+  const state = { ...props.accessibilityState, selected: props.selected, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
-  const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} pressed={pressed} />
-    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} pressed={pressed} />
-  const todayRing = props.today
-    ? <View pointerEvents="none" testID="day-today-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
-    : null
+  const interacting = pressed || hovered || Boolean(props.pressed)
+  const circle = <DayCellCircle props={props} size={size} tokens={tokens} pressed={interacting} focused={focused} />
 
   if (interactive) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={buildDayCellAccessibleName(props, outcome)}
-        accessibilityState={state}
-        onPress={props.onPress}
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
-        testID={testID}
-        style={containerStyle}
-      >
-        {pressed ? <PressFill size={size} tokens={tokens} /> : null}
-        <View style={{ width: '100%', maxWidth: size }}>{contents}</View>
-        {todayRing}
-      </Pressable>
-    )
+    return <Pressable accessibilityRole="button" accessibilityLabel={buildDayCellAccessibleName(props, outcome)} accessibilityState={state}
+      onPress={props.onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+      onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+      testID={testID} style={containerStyle}>{circle}</Pressable>
   }
-
-  return (
-    <View
-      accessibilityRole="image"
-      accessibilityLabel={props.outsideMonth ? undefined : buildDayCellAccessibleName(props, outcome)}
-      accessibilityState={state}
-      accessibilityElementsHidden={props.outsideMonth}
-      importantForAccessibility={props.outsideMonth ? 'no-hide-descendants' : 'auto'}
-      testID={testID}
-      style={containerStyle}
-    >
-      <View style={{ width: '100%', maxWidth: size }}>{contents}</View>
-      {todayRing}
-    </View>
-  )
+  return <View accessibilityRole="image" accessibilityLabel={props.outsideMonth ? undefined : buildDayCellAccessibleName(props, outcome)} accessibilityState={state}
+    accessibilityElementsHidden={props.outsideMonth} importantForAccessibility={props.outsideMonth ? 'no-hide-descendants' : 'auto'} testID={testID} style={containerStyle}>{circle}</View>
 }
 
 const styles = StyleSheet.create({

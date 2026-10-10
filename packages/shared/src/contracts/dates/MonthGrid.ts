@@ -4,5 +4,6 @@ export interface MonthGridProps {
   children?: React.ReactNode
   gap?: string | number
   label?: string
+  loadingLabel?: string
   minimumDayGridHeight?: number
 }

@@ -34,7 +34,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
       : undefined
 
   return (
-    <View style={{ width: '100%', marginTop: 8 }}>
+    <View style={{ width: '100%' }}>
       <BlockFrame
         state="resting"
         title={habitId && habitTitle ? t('chat.metrics.habitTitle', { name: habitTitle }) : t('chat.metrics.title')}

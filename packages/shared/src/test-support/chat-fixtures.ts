@@ -143,7 +143,7 @@ export function makeClarificationPreviewMessage(overrides: Partial<ChatMessage> 
       type: 'CreateHabit', status: 'NeedsClarification', entityName: 'Beber água',
       clarificationRequest: {
         question: 'habits.clarification.questionFallback',
-        operationId: '00000000-0000-0000-0000-000000000001',
+        operationId: '00000000-0000-4000-8000-000000000001',
         missingArgumentKey: 'frequency_unit',
         quickActions: [{ label: 'habits.clarification.quickAction.daily', value: 'daily' }],
       },

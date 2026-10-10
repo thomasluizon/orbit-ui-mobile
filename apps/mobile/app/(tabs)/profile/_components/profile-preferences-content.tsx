@@ -1,3 +1,4 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import { ListRow } from '@/components/ui/list-row'
@@ -9,7 +10,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { useTranslation } from 'react-i18next'
 import { RowList } from '@/components/ui/row-list'
 import { useMemo } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
 interface ProfileContentProps {
@@ -39,13 +40,13 @@ function buildPreferenceRows(
       {(['dark', 'light'] as const).map((mode) => {
         const selected = controls.currentTheme === mode
         return (
-          <Pressable
+          <Pressable selectionRingWidth={1.5}
             key={mode}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             accessibilityLabel={t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
             onPress={() => controls.handleThemeModeChange(mode)}
-            style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline }}
+            style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : pressed ? tokens.bgHover : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: tokens.hairline })}
           >
             <Text style={{ color: selected ? tokens.fg1 : tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}</Text>
           </Pressable>

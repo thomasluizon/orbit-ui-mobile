@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -29,17 +30,18 @@ export function CalendarAgendaView({
   isLoading,
   loadingLabel,
 }: Readonly<CalendarAgendaViewProps>) {
+  const contentFrameStyle = useContentFrameStyle()
   const { t, i18n } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = createTokensV2(currentScheme, currentTheme);
-  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null);
+  const [selectedEntry, setSelectedEntry] = useAccountScopedState<CalendarDayEntry | null>(null);
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
 
   return (
     <View
       testID="calendar-agenda-view"
       accessibilityState={{ busy: isLoading }}
-      style={styles.agendaView}
+      style={[contentFrameStyle, styles.agendaView]}
     >
       {isLoading ? dates.map((date, index) => (
         <View key={formatAPIDate(date)} testID="calendar-agenda-loading-day">
@@ -103,7 +105,7 @@ export function CalendarAgendaView({
 
 
 const styles = StyleSheet.create({
-  agendaView: { alignSelf: 'flex-start', gap: 16, maxWidth: 560, paddingHorizontal: 16, width: '100%' },
+  agendaView: { gap: 16 },
   agendaDay: { gap: 4 },
   agendaHeading: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 22 },
   agendaEmpty: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

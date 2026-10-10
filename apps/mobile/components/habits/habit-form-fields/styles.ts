@@ -194,7 +194,6 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     whenButtonActive: {
       backgroundColor: tintFromPrimary(tokens, 0.12),
-      borderColor: tokens.primary,
     },
     whenButtonText: {
       fontFamily: "Geist_500Medium",
@@ -374,7 +373,6 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiCategoryTabActive: {
       backgroundColor: tintFromPrimary(tokens, 0.12),
-      borderColor: tokens.primary,
     },
     emojiCategoryTabText: {
       fontFamily: "Geist_500Medium",
@@ -418,7 +416,6 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiOptionSelected: {
       backgroundColor: tintFromPrimary(tokens, 0.1),
-      borderColor: tokens.primary,
     },
     emojiOptionText: {
       fontSize: 22,

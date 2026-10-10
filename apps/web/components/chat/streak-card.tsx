@@ -24,7 +24,7 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
   const discs = (streakCard.achievementDiscs ?? streakCard.recentAchievements).slice(0, 6)
   const number = new Intl.NumberFormat(locale)
   const currentLevelXp = xpRequiredForLevel(streakCard.level)
-  return <div className="mt-2 w-full md:max-w-[65ch]">
+  return <div className="w-full">
     <BlockFrame state="resting" title={t('chat.streakCard.title')} count={null}
       body={<div className="flex flex-col gap-2"><DayStrip scope="account" days={days.map((day) => day.status)} labels={days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date))} words={words} label={t('chat.streakCard.days')} /><p className="text-xs text-[var(--fg-3)]">{Object.values(words).join(' · ')}</p></div>}
       items={[

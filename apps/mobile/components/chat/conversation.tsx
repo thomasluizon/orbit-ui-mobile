@@ -109,6 +109,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   const {
     flatListRef,
+    threadScroll,
+    trackCardOperation: trackOperation,
     messages,
     isTyping,
     streamingMessageId,
@@ -126,7 +128,22 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = chat;
-  const keyboardScroll = useConversationKeyboardScroll(flatListRef);
+  const keyboardScroll = useConversationKeyboardScroll(flatListRef, threadScroll.isFollowing);
+  const initialScrollPending = useRef(true);
+  useEffect(() => { threadScroll.followLatest(); }, [threadScroll]);
+
+  const onContentSizeChange = useCallback(() => {
+    if (!threadScroll.isFollowing()) return;
+    if (initialScrollPending.current) {
+      flatListRef.current?.scrollToEnd({ animated: false });
+      initialScrollPending.current = false;
+    } else scrollToBottom();
+  }, [flatListRef, scrollToBottom, threadScroll]);
+
+  const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
+    threadScroll.followLatest();
+    return trackOperation(operation);
+  }, [trackOperation, threadScroll]);
 
 
   const announcedMessageIds = useRef(new Set<string>());
@@ -210,7 +227,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   return (
-    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
+    <ChatCardOperationContext.Provider value={trackCardOperation}>
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <View style={styles.content}>
         <AppBar
@@ -242,9 +259,16 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               keyExtractor={keyExtractor}
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={scrollToBottom}
-              onScroll={keyboardScroll.onScroll}
-              onLayout={keyboardScroll.onLayout}
+              onContentSizeChange={onContentSizeChange}
+              onScroll={(event) => {
+                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                threadScroll.recordScroll(contentOffset.y, contentSize.height - layoutMeasurement.height);
+              }}
+              scrollEventThrottle={16}
+              onLayout={() => {
+                keyboardScroll.onLayout();
+                if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
+              }}
               ListFooterComponent={activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}

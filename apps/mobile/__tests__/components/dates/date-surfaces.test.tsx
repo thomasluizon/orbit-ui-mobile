@@ -1,11 +1,12 @@
 import React from 'react'
-import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayStrip } from '@/components/dates/day-strip'
 import { EventRow } from '@/components/dates/event-row'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { measureDaySurface, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
 import { createTokensV2 } from '@/lib/theme'
 
 interface TestNode {
@@ -89,6 +90,40 @@ describe('DayStrip', () => {
 })
 
 describe('DayCell', () => {
+  it.each([false, true].flatMap((selected) => ['press', 'hover'].map((phase) => ({ selected, phase }))))('replaces the well on $phase with selected=$selected', ({ selected, phase }) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<DayCell day={12} loggable selected={selected} today words={cellWords} scheduled={4} done={1} onPress={() => {}} />)
+    const cell = tree.root.findByProps({ testID: 'day-cell-partial' })
+    const circleStyle = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'day-circle' }).props.style as StyleProp<ViewStyle>)
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    const activate = cell.props[phase === 'press' ? 'onPressIn' : 'onHoverIn']
+    const deactivate = cell.props[phase === 'press' ? 'onPressOut' : 'onHoverOut']
+    expect(activate).toBeTypeOf('function')
+    TestRenderer.act(() => { (activate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    const fills = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'day-press-fill')
+    expect(fills).toHaveLength(selected ? 0 : 1)
+    for (const fill of fills) expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.bgHover)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-today-ring' }).props.style as StyleProp<ViewStyle>)).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    TestRenderer.act(() => { (deactivate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    expect(tree.root.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
+  })
+
+  it('centres today and its status mark in a wide habit history slot', () => {
+    const tree = render(<View style={{ width: 97 }}><DayCell day={11} today habitHistory scheduled={1} done={1} words={cellWords} /></View>)
+    const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)
+    const ring = boxes.find((box) => box.testID === 'day-today-ring')!
+    const disc = boxes.find((box) => box.testID === 'day-disc')!
+    expect(ring.width).toBe(44)
+    expect(ring.height).toBe(44)
+    expect(disc.width).toBe(34)
+    expect(disc.height).toBe(34)
+    expect(ring.centerX).toBe(48.5)
+    expect(disc.centerX).toBe(ring.centerX)
+    expect(disc.centerY).toBe(ring.centerY)
+  })
+
   it('renders a loggable button and presses once', () => {
     const onPress = vi.fn()
     const tree = render(<DayCell day={12} label="March 12" loggable words={cellWords} scheduled={4} done={1} onPress={onPress} />)
@@ -124,13 +159,13 @@ describe('DayCell', () => {
       (node) => node.type === 'Circle' && node.props.strokeDasharray === undefined,
     )[0]
     expect(oneThirdTrack?.props.stroke).toBe(createTokensV2('purple', 'dark').statusEmpty)
-    expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 42 / 3, Math.PI * 42])
+    expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 32 / 3, Math.PI * 32])
 
     const twoThirds = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
     const twoThirdsArc = twoThirds.root.findAll(
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
-    expect(twoThirdsArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 2 / 3, Math.PI * 42])
+    expect(twoThirdsArc?.props.strokeDasharray).toEqual([Math.PI * 32 * 2 / 3, Math.PI * 32])
   })
 
   it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {
@@ -184,7 +219,7 @@ describe('MonthGrid', () => {
     const headerStyle = tree.root.findByProps({ testID: 'month-grid-header' }).props.style
     const daysStyle = tree.root.findByProps({ testID: 'month-grid-days' }).props.style
     const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
-    expect(headerStyle).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0, marginBottom: 0 })]))
+    expect(headerStyle).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0 })]))
     expect(daysStyle).toEqual(expect.objectContaining({ rowGap: 0 }))
     expect(row.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ columnGap: 0 })]))
     const slots = row.findAll(

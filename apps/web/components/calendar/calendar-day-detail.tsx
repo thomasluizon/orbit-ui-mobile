@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 
 interface CalendarDayDetailProps {
+  loadingLabel?: string
   dateStr: string | null
   today: string
   entries: CalendarDayEntry[]
@@ -102,6 +103,7 @@ function getEntryOutcome(
 }
 
 function CalendarDayCheckRow({
+  disabled,
   entry,
   value,
   isPending,
@@ -109,6 +111,7 @@ function CalendarDayCheckRow({
   onEntryChange,
   onOpenTitle,
 }: Readonly<{
+  disabled?: boolean
   entry: CalendarDayEntry
   value: string
   isPending: boolean
@@ -130,6 +133,7 @@ function CalendarDayCheckRow({
 
   return (
     <CheckRow
+      disabled={disabled}
       label={entry.title}
       textMode="personal"
       variant="calendar-day"
@@ -196,6 +200,7 @@ function CalendarDayRows({
 }
 
 export function CalendarDayDetail({
+  loadingLabel,
   dateStr,
   today,
   entries,
@@ -257,14 +262,19 @@ export function CalendarDayDetail({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <div className="flex flex-col" style={{ gap: 4 }}>
         {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
-        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: 0 }}>
+        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: 0, visibility: loadingLabel ? 'hidden' : undefined }}>
           {summary}
         </p>
       </div>
-      {filteredEntries.length === 0 ? (
+      {!loadingLabel && filteredEntries.length === 0 ? (
         <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.noHabitsScheduled')}</p>
       ) : null}
-      {filteredEntries.length > 0 ? (
+      {loadingLabel ? <div data-testid="calendar-day-skeleton" className="relative">
+        <div inert aria-hidden="true" style={{ visibility: 'hidden' }}>
+          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} value={displayTime('00:00')} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
+        </div>
+        <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
+      </div> : filteredEntries.length > 0 ? (
         <div className="flex flex-col">
           <CalendarDayRows
             dateStr={dateStr}
@@ -299,6 +309,7 @@ export function CalendarDayDetail({
   return (
     <section
       aria-label={formattedDate}
+      aria-busy={loadingLabel ? true : undefined}
       data-field-surface="card"
       className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
       style={{ padding: 24 }}

@@ -13,6 +13,7 @@ import { recapResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRecapRequestUrl } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectFullTouchTarget, expectHoverOnHitArea } from './press-shape-helpers'
+import { expectDayCircleHover } from './calendar-day-circle-helpers'
 import { expectInteractionFill } from './label-interaction-fill'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -161,7 +162,7 @@ for (const width of [412, 1280] as const) {
       await monthPicker.getByRole('button', { pressed: true }).click()
       await monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
-      await expectHoverOnHitArea(page.locator('button[data-testid^="calendar-day-select-"]').first(), 'pill')
+      await expectDayCircleHover(page.locator('button[data-testid^="calendar-day-select-"]').first())
     })
 
     test('fills checklist, reminder, and date-picker targets', async ({ page }) => {

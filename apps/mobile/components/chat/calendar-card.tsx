@@ -30,7 +30,7 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
       ...(failed ? { status: 'failed' as const, statusLabel: t(`chat.calendarCard.syncState.${calendarCard.sync.status}`) } : {}),
     })
   }
-  return <View style={{ width: '100%', marginTop: 8 }}>
+  return <View style={{ width: '100%' }}>
     <BlockFrame state="resting" title={t('chat.calendarCard.title')} count={calendarCard.events.length} items={items}
       body={calendarCard.events.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.calendarCard.empty')}</Text> : undefined}
       actions={<Button variant="ghost" size="sm" onClick={() => router.push('/calendar')}>{t('chat.calendarCard.open')}</Button>} />

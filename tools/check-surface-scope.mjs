@@ -822,17 +822,17 @@ function surfaceStateKey(state, sourceFile) {
   return key
 }
 
-function openingSurfaces(opening, sourceFile, state) {
-  const key = surfaceStateKey(state, sourceFile)
+function openingSurfaces(opening, sourceFile, state, openings) {
+  const key = `${surfaceStateKey(state, sourceFile)}:${openings?.map((node) => `${node.getSourceFile().fileName}:${node.pos}`).join(",") ?? ""}`
   const cached = openingSurfaceCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
-  const surfaces = measureOpeningSurfaces(opening, sourceFile, state)
+  const surfaces = measureOpeningSurfaces(opening, sourceFile, state, openings)
   cached.set(key, surfaces)
   openingSurfaceCache.set(opening, cached)
   return surfaces
 }
 
-function measureOpeningSurfaces(opening, sourceFile, state) {
+function measureOpeningSurfaces(opening, sourceFile, state, openings) {
   const surfaces = new Set()
   for (const attribute of opening.attributes.properties) {
     if (!ts.isJsxAttribute(attribute) || !["className", "style", "backgroundColor", "background"].includes(propertyName(attribute.name))) continue
@@ -841,7 +841,8 @@ function measureOpeningSurfaces(opening, sourceFile, state) {
       for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile, state)) surfaces.add(surface)
     }
   }
-  for (const [name, value] of matchingCssProperties(opening, sourceFile, state)) {
+  const css = matchingCssProperties(opening, sourceFile, state, openings)
+  for (const [name, value] of css) {
     if (!/^background(?:-color)?$/.test(name)) continue
     for (const match of tokenMatches(value)) {
       const surface = SURFACE_TOKENS.get(match.token)
@@ -990,7 +991,7 @@ function readCssRules(repositoryRoot) {
       properties.set(declaration.prop, declaration.value)
       if (declaration.important) important.add(declaration.prop)
     })
-    if (![...properties.keys()].some((name) => name.startsWith("--") || /^background(?:-color)?$/.test(name))) return
+    if (![...properties.keys()].some((name) => name.startsWith("--") || /^(?:background(?:-color)?|opacity)$/.test(name))) return
     const expanded = rule.selector.replace(/:is\(([^()]*)\)/g, (_, choices) => `{${choices}}`)
     const alternatives = expanded.match(/\{([^}]+)\}/)
     const selectors = alternatives
@@ -1146,19 +1147,19 @@ function selectorMatches(selector, opening, syntax, state) {
   return matched
 }
 
-function matchesSelectorAncestry(selector, opening, syntax, state) {
+function matchesSelectorAncestry(selector, opening, syntax, state, openings = paintOpenings(opening)) {
   const compounds = selector.split(/\s+(?![^[]*\])/)
   if (!matchesCompound(compounds.pop(), opening, syntax, state)) return false
-  let parent = opening.parent
+  let index = openings.length - 2
   while (compounds.length > 0) {
     const compound = compounds.pop()
     if (compound === ">" || compound === "+" || compound === "~") return false
     let matched = false
-    for (; parent; parent = parent.parent) {
-      if (ts.isJsxElement(parent) && parent.openingElement !== opening
-        && matchesCompound(compound, parent.openingElement, syntax, state)) {
+    for (; index >= 0; index--) {
+      const parent = openings[index]
+      if (matchesCompound(compound, parent, parent.getSourceFile(), state)) {
         matched = true
-        parent = parent.parent
+        index--
         break
       }
     }
@@ -1179,15 +1180,24 @@ function paintOpenings(node) {
 
 const cssPropertyCache = new WeakMap()
 
-function matchingCssProperties(opening, syntax, state) {
-  const key = surfaceStateKey(state, syntax)
+function matchingCssProperties(opening, syntax, state, openings) {
+  const key = `${surfaceStateKey(state, syntax)}:${openings?.map((node) => `${node.getSourceFile().fileName}:${node.pos}`).join(",") ?? ""}`
   const cached = cssPropertyCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
+  const properties = resolveCssProperties(opening, syntax, state, openings)
+  cached.set(key, properties)
+  cssPropertyCache.set(opening, cached)
+  return properties
+}
+
+function resolveCssProperties(opening, syntax, state, openings) {
   const properties = new Map()
   const winners = new Map()
   for (const rule of state?.cssRules ?? []) {
     if (rule.mode && rule.mode !== state.mode) continue
-    if (!selectorMatches(rule.selector, opening, syntax, state)) continue
+    const matched = openings ? matchesSelectorAncestry(rule.selector, opening, syntax, state, openings)
+      : selectorMatches(rule.selector, opening, syntax, state)
+    if (!matched) continue
     for (const [name, value] of rule.properties) {
       const winner = winners.get(name)
       const importance = Number(rule.important.has(name))
@@ -1197,15 +1207,13 @@ function matchingCssProperties(opening, syntax, state) {
       properties.set(name, value)
     }
   }
-  cached.set(key, properties)
-  cssPropertyCache.set(opening, cached)
   return properties
 }
 
 function scopedForeground(token, openings, state) {
   const properties = new Map()
-  for (const opening of openings) {
-    const local = new Map([...matchingCssProperties(opening, opening.getSourceFile(), state)].filter(([name]) => name.startsWith("--")))
+  for (const [index, opening] of openings.entries()) {
+    const local = new Map([...matchingCssProperties(opening, opening.getSourceFile(), state, openings.slice(0, index + 1))].filter(([name]) => name.startsWith("--")))
     const resolveValue = (value, seen = new Set()) => {
       const alias = value.match(/^var\((--[\w-]+)\)$/)?.[1]
       if (!alias || seen.has(alias)) return value
@@ -1239,8 +1247,9 @@ function coveringFillComponents(syntaxes) {
         const classes = attributeText(node, "className", syntax) ?? ""
         const owner = owningFunctionName(node)
         if (owner && /\babsolute\b/.test(classes) && /\binset-0\b/.test(classes)
-          && /\bbg-\[var\(--bg-hover\)\]/.test(classes) && /\bgroup-hover:opacity-100\b/.test(classes)) {
-          fills.set(componentIdentity(syntax, owner), "hover")
+          && /\bbg-\[var\(--bg-hover\)\]/.test(classes)) {
+          const identity = componentIdentity(syntax, owner)
+          fills.set(identity, [...(fills.get(identity) ?? []), node])
         }
       }
       ts.forEachChild(node, visit)
@@ -1252,19 +1261,30 @@ function coveringFillComponents(syntaxes) {
 
 const coveringPaintCache = new WeakMap()
 
-function coveringPaint(opening, state) {
-  if (state.interaction !== "hover" || !state.coverFills || !ts.isJsxOpeningElement(opening)) return []
-  if (coveringPaintCache.has(opening)) return coveringPaintCache.get(opening)
+function coveringPaint(opening, state, openings) {
+  if (state.interaction === "rest" || !state.coverFills || !ts.isJsxOpeningElement(opening)) return []
+  const key = `${surfaceStateKey(state)}:${openings.map((node) => `${node.getSourceFile().fileName}:${node.pos}`).join(",")}`
+  const cached = coveringPaintCache.get(opening) ?? new Map()
+  if (cached.has(key)) return cached.get(key)
   const element = opening.parent
   if (!ts.isJsxElement(element)) return []
   const fills = element.children.flatMap((child) => {
     const cover = ts.isJsxSelfClosingElement(child) ? child : ts.isJsxElement(child) ? child.openingElement : undefined
     if (!cover) return []
     const target = calledComponent(cover, cover.getSourceFile(), state.syntaxes)
-    const fill = state.coverFills.get(target)
-    return fill ? [fill] : []
+    return (state.coverFills.get(target) ?? []).flatMap((fill) => {
+      const ancestry = [...openings, cover, ...paintOpenings(fill)]
+      const fillState = callerState(ancestry, fill, state)
+      if (!reachableInState(fill, fillState)) return []
+      const opacity = resolveCssProperties(fill, fill.getSourceFile(), fillState, ancestry).get("opacity")
+      const classes = attributeText(fill, "className", fill.getSourceFile()) ?? ""
+      const visible = opacity === undefined ? state.interaction === "hover" && /\bgroup-hover:opacity-100\b/.test(classes)
+        : Number(opacity) === 1
+      return visible ? ["hover"] : []
+    })
   })
-  coveringPaintCache.set(opening, fills)
+  cached.set(key, fills)
+  coveringPaintCache.set(opening, cached)
   return fills
 }
 
@@ -1515,7 +1535,7 @@ function promotedNativeForeground(node, token, state) {
   return enabled.length > 0 && disabled.length === 0 ? "--fg-2" : token
 }
 
-function foregroundSiteSurfaces(opening, context, node, state) {
+function foregroundSiteSurfaces(opening, context, node, state, openings) {
   const selected = localObjectMemberPath(node, node.getSourceFile())
   const backgrounds = selected?.object.properties.filter((property) => ts.isPropertyAssignment(property)
     && /^background(?:Color)?$/.test(propertyName(property.name))) ?? []
@@ -1525,7 +1545,7 @@ function foregroundSiteSurfaces(opening, context, node, state) {
   const usesBackground = bindings.some((binding) => text.includes(`${binding}.background`))
     || (openingElement(context.site) === opening && bindings.some((binding) => attributeText(opening, "style", opening.getSourceFile()) === binding))
   return backgrounds.length && usesBackground ? backgrounds.flatMap((property) => expressionSurfaces(property.initializer, node.getSourceFile(), state))
-    : openingSurfaces(opening, opening.getSourceFile(), state)
+    : openingSurfaces(opening, opening.getSourceFile(), state, openings)
 }
 
 function inspectSources(repositoryRoot, declarations) {
@@ -1579,20 +1599,20 @@ function inspectSources(repositoryRoot, declarations) {
               if (state.assignments.length === 0 || !reachableInState(context.site, state)) continue
               const surfaces = new Set()
               for (const [index, opening] of openings.entries()) {
-                for (const surface of foregroundSiteSurfaces(opening, context, node, state)) surfaces.add(surface)
+                for (const surface of foregroundSiteSurfaces(opening, context, node, state, openings.slice(0, index + 1))) surfaces.add(surface)
                 for (const surface of projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)) surfaces.add(surface)
-                for (const surface of coveringPaint(opening, state)) surfaces.add(surface)
+                for (const surface of coveringPaint(opening, state, openings.slice(0, index + 1))) surfaces.add(surface)
               }
               if (surfaces.size === 0 && (path.startsWith("apps/web/") ? canvasPainted : nativeCanvasPainted)) surfaces.add("canvas")
               const stack = []
               for (const [index, opening] of openings.entries()) {
-                const paints = [...foregroundSiteSurfaces(opening, context, node, state), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
+                const paints = [...foregroundSiteSurfaces(opening, context, node, state, openings.slice(0, index + 1)), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
                 if (paints.includes("hover")) stack.push("hover")
                 else if (paints.length > 0) {
                   if (paints[0] === "canvas") stack.length = 0
                   stack.push(paints[0])
                 }
-                stack.push(...coveringPaint(opening, state))
+                stack.push(...coveringPaint(opening, state, openings.slice(0, index + 1)))
               }
               if (stack.length > 0 && stack[0] !== "canvas") stack.unshift("canvas")
               const supplied = optionalForeground(node, context)

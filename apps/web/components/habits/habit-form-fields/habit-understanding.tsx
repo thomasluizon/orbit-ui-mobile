@@ -113,7 +113,7 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
           const selected = daily || days.includes(day.value)
           return (
             <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-              className={`habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
+              className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
               onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
           )
         })}

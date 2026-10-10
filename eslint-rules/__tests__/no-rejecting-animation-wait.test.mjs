@@ -10,6 +10,7 @@ RuleTester.it = it
 RuleTester.afterAll = afterAll
 const tester = new RuleTester({ languageOptions: { parser } })
 const unsafeWait = 'Promise.all(document.getAnimations().map(animation => animation.finished))'
+const webRoot = fileURLToPath(new URL('../../apps/web/', import.meta.url))
 
 tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wait.cjs'), {
   valid: [
@@ -19,7 +20,10 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
     'Promise[method]([animation.finished])',
     'Promise.all(animations.map(animation => animation[completion]))',
   ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts' })).concat([
-    { code: unsafeWait, filename: 'apps/web/__tests__/support/settle-animations.test.ts' },
+    {
+      code: unsafeWait,
+      filename: fileURLToPath(new URL('../../apps/web/__tests__/support/settle-animations.test.ts', import.meta.url)),
+    },
   ]),
   invalid: [
     unsafeWait,
@@ -27,15 +31,17 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
     'Promise["all"]([animation["finished"]])',
     'const completions = animations.map(animation => animation.finished); Promise.all(completions)',
     'const completion = animation.finished; const completions = [completion]; Promise.all(completions)',
-  ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts', errors: [{ messageId: 'rejectingWait' }] })),
+  ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts', errors: [{ messageId: 'rejectingWait' }] })).concat([
+    {
+      code: unsafeWait,
+      filename: fileURLToPath(new URL('../../apps/web/e2e/layout/animation-settlement.spec.ts', import.meta.url)),
+      errors: [{ messageId: 'rejectingWait' }],
+    },
+  ]),
 })
 
 it('enforces the web e2e scope through the installed ESLint config', async () => {
-  const webRoot = fileURLToPath(new URL('../../apps/web/', import.meta.url))
   const eslint = new ESLint({ cwd: webRoot })
-  const inside = await eslint.lintText(unsafeWait, { filePath: 'e2e/layout/animation-settlement.spec.ts' })
-  const outside = await eslint.lintText(unsafeWait, { filePath: '__tests__/support/settle-animations.test.ts' })
-  expect(inside[0].messages.filter((message) => message.ruleId === 'local/no-rejecting-animation-wait'))
-    .toMatchObject([{ severity: 2 }])
-  expect(outside[0].messages.filter((message) => message.ruleId === 'local/no-rejecting-animation-wait')).toEqual([])
-}, 60_000)
+  const config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+  expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
+})

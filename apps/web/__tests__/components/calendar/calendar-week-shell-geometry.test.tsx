@@ -54,7 +54,7 @@ describe('Calendar week through the destination shell and route transition', () 
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([412, 1100, 1352].flatMap((width) => [1, 2].flatMap((scale) => (['light', 'dark'] as const).map((theme) => ({ width, scale, theme })))))('pins the week lanes with one hour scroll owner at $width, $scale text, $theme', async ({ width, scale, theme }) => {
+  it.each([412, 600, 1100, 1352].flatMap((width) => [1, 2].flatMap((scale) => (['light', 'dark'] as const).map((theme) => ({ width, scale, theme })))))('pins the week lanes with one hour scroll owner at $width, $scale text, $theme', async ({ width, scale, theme }) => {
     route.pathname = '/calendar'
     const view = renderDestination(weekBody())
     const page = await browser.newPage({ viewport: { width, height: width === 412 ? 640 : 726 } })

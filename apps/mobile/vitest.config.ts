@@ -82,7 +82,6 @@ export default defineConfig({
         'components/ui/app-toast.tsx',
         'components/ui/bottom-sheet-app-text-input.tsx',
         'components/ui/expiry-warning.tsx',
-        'components/ui/tag-chip.tsx',
         'components/ui/theme-toggle.tsx',
         'components/ui/trial-expired-modal.tsx',
         'components/ui/year-picker.tsx',

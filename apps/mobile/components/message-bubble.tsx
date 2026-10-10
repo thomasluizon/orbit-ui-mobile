@@ -72,6 +72,39 @@ function MessageCopyControl({ sourceText }: Readonly<{
   );
 }
 
+function MessageProse({ message, sourceText, styles }: Readonly<{
+  message: MessageBubbleProps['message'];
+  sourceText: string;
+  styles: ReturnType<typeof createStyles>;
+}>) {
+  const { t } = useTranslation();
+  const isUser = message.role === "user";
+  if (!isUser && !hasChatProse(sourceText) && !message.imageUrl) return null;
+  return (
+    <View style={[styles.proseStack, isUser ? styles.userProseStack : null]}>
+      <View
+        style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
+      >
+        {message.imageUrl && (
+          <Image
+            source={{ uri: message.imageUrl }}
+            accessibilityLabel={t("chat.attachmentPreview")}
+            style={styles.imageAttachment}
+            resizeMode="cover"
+            resizeMethod="resize"
+          />
+        )}
+
+        <Markdown tone="thread">
+          {isUser ? message.content : sourceText}
+        </Markdown>
+      </View>
+
+      {!isUser && hasChatProse(sourceText) ? <MessageCopyControl sourceText={sourceText} /> : null}
+    </View>
+  );
+}
+
 function MessageDataLists({
   message,
   onActionChipClick,
@@ -160,27 +193,7 @@ export function MessageBubble({
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
-        <View style={[styles.proseStack, isUser ? styles.userProseStack : null]}>
-        <View
-          style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
-        >
-          {message.imageUrl && (
-            <Image
-              source={{ uri: message.imageUrl }}
-              accessibilityLabel={t("chat.attachmentPreview")}
-              style={styles.imageAttachment}
-              resizeMode="cover"
-              resizeMethod="resize"
-            />
-          )}
-
-          <Markdown tone="thread">
-            {isUser ? message.content : sourceText}
-          </Markdown>
-        </View>
-
-        {!isUser && hasChatProse(sourceText) ? <MessageCopyControl sourceText={sourceText} /> : null}
-        </View>
+        <MessageProse message={message} sourceText={sourceText} styles={styles} />
 
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
@@ -338,7 +351,7 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
       minWidth: 0,
       flexDirection: "column",
-      alignItems: "flex-start",
+      gap: 16,
     },
 
     proseStack: {
@@ -379,7 +392,6 @@ function createStyles(tokens: AppTokens) {
       marginBottom: 8,
     },
     relatedContainer: {
-      marginTop: 8,
       width: "100%",
     },
     relatedTitle: {
@@ -414,13 +426,11 @@ function createStyles(tokens: AppTokens) {
     },
 
     breakdownContainer: {
-      gap: 12,
-      marginTop: 12,
+      gap: 16,
       width: "100%",
     },
     operationStack: {
-      gap: 12,
-      marginTop: 12,
+      gap: 16,
       width: "100%",
     },
   });

@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
@@ -148,6 +149,44 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
           await expect.poll(() => hasVisibleHour(scroller)).toBe(true)
         })
       }
+    })
+  }
+}
+
+for (const viewport of [{ width: 1100, height: 726 }, { width: 840, height: 726 }]) {
+  for (const [language, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    test.describe(`Week opening after pane shrink at ${viewport.width}x${viewport.height} in ${language}`, () => {
+      const localizedProfile = profileSchema.parse({ ...profile, language })
+      test.use({ appLocale: language, viewport, layoutProfile: localizedProfile })
+      test.beforeEach(async ({ context }) => {
+        await setLayoutProfileSession(context, localizedProfile)
+        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
+          (route) => route.fulfill({ json: calendarMonth }))
+      })
+
+      test('holds now in the upper third when an oversized day pane becomes pinned', async ({ page }) => {
+        await page.goto('/calendar')
+        const oversizedPane = await page.addStyleTag({ content: '[data-testid="time-grid-all-day-band"] { min-height: 300px !important; }' })
+        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        const scroller = page.getByTestId('time-grid-hour-scroller')
+        const pane = scroller.getByTestId('time-grid-day-pane')
+        await expect(pane).toHaveAttribute('data-pinning', 'scrolling')
+        await expect.poll(() => scroller.evaluate((element) => {
+          const viewport = element.getBoundingClientRect()
+          const now = element.querySelector('[data-today="true"] > [role="img"]')!.getBoundingClientRect()
+          return element.scrollTop > 0 && now.top >= viewport.top && now.top <= viewport.top + element.clientHeight / 3
+        })).toBe(true)
+        await oversizedPane.evaluate((element) => element.parentNode!.removeChild(element))
+        await expect(pane).toHaveAttribute('data-pinning', 'pinned')
+        await expect.poll(() => scroller.evaluate((element) => {
+          const viewport = element.getBoundingClientRect()
+          const pane = element.querySelector('[data-testid="time-grid-day-pane"]')!.getBoundingClientRect()
+          const now = element.querySelector('[data-today="true"] > [role="img"]')!.getBoundingClientRect()
+          const hourTop = Math.max(viewport.top + element.clientTop, pane.bottom)
+          const hourBottom = viewport.top + element.clientTop + element.clientHeight
+          return now.top >= hourTop && now.top <= hourTop + (hourBottom - hourTop) / 3
+        })).toBe(true)
+      })
     })
   }
 }

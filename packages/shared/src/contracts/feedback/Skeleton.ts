@@ -45,6 +45,7 @@ export type SkeletonProps =
     }
   | {
       variant: 'grid'
+      circular?: boolean
       label: string
       grouped?: never
       rows: number
@@ -54,6 +55,7 @@ export type SkeletonProps =
     }
   | {
       variant: 'grid'
+      circular?: boolean
       grouped: true
       label?: never
       rows: number

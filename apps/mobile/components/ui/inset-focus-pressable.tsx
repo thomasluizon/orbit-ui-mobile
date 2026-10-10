@@ -1,12 +1,16 @@
-import { useMemo, useState, type Ref } from 'react'
-import { Pressable, StyleSheet, View, type ColorValue, type PressableProps, type ViewStyle } from 'react-native'
+import { useMemo, useState, type ReactNode, type Ref } from 'react'
+import { Pressable, StyleSheet, View, type ColorValue, type PressableProps, type PressableStateCallbackType, type ViewStyle } from 'react-native'
+import { selectedBorderStyle } from './selected-focus-indicator'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export interface InsetFocusPressableProps extends PressableProps {
+export interface InsetFocusPressableProps extends Omit<PressableProps, 'children'> {
+  children?: ReactNode | ((state: PressableStateCallbackType & { focused: boolean }) => ReactNode)
   ref?: Ref<View>
   focusOffset?: number
   focusColor?: ColorValue
+  selectionRingWidth?: number
+  selectionRingColor?: ColorValue
 }
 
 export function InsetFocusPressable({
@@ -16,6 +20,8 @@ export function InsetFocusPressable({
   children,
   focusOffset = -4,
   focusColor,
+  selectionRingWidth,
+  selectionRingColor,
   ...props
 }: Readonly<InsetFocusPressableProps>) {
   const [focused, setFocused] = useState(false)
@@ -28,12 +34,13 @@ export function InsetFocusPressable({
       onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false); onBlur?.(event) }}
       style={(state) => [
         typeof style === 'function' ? style(state) : style,
+        selectedBorderStyle(Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked), focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
       ]}
     >
       {(state) => {
         const shape = StyleSheet.flatten<ViewStyle | undefined>(typeof style === 'function' ? style(state) : style)
         return <>
-          {typeof children === 'function' ? children(state) : children}
+          {typeof children === 'function' ? children({ ...state, focused }) : children}
           {focused && !props.disabled ? <View
             pointerEvents="none"
             accessible={false}

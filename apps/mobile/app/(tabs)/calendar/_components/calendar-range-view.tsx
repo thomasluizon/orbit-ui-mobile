@@ -58,9 +58,9 @@ export function CalendarRangeView({
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
                 <View style={styles.loadingCell}>{index === 0 ? (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
                 )}</View>
               </View>
             ))}
