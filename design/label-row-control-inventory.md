@@ -2,7 +2,7 @@
 
 **At a glance:** ListRow consumers whose inline values, badges, chevrons or switches share the label alignment contract on web and Android.
 
-At the default text size, the label and inline accessory share a vertical centre. When the label wraps at accessibility text sizes, the accessory aligns to the first line. Both adapters own this behavior in `components/ui/list-row.tsx`; consumers inherit it without individual offsets.
+At the default text size, the label and inline accessory share a vertical centre. When the label wraps at accessibility text sizes, the accessory aligns to the first line. Toggle rows also use label mode even when their consumers omit `textMode`. Both adapters own this behavior in `components/ui/list-row.tsx`; consumers inherit it without individual offsets.
 
 | Surface | Rows | Web owner | Android owner |
 | --- | --- | --- | --- |
@@ -12,6 +12,9 @@ At the default text size, the label and inline accessory share a vertical centre
 | Product email consent | Marketing consent switch in notification and consent surfaces | `apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx` | `apps/mobile/components/marketing-consent/marketing-consent-section.tsx` |
 | Perfil navigation | Pro status, Pro-gated entries and label chevrons | `apps/web/app/(app)/profile/_components/profile-settings-content.tsx` | `apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx` |
 | Calendar day details | Event counts, reconnect, retry and disclosure rows | `apps/web/components/calendar/calendar-day-detail.tsx`, `apps/web/components/calendar/calendar-day-events.tsx` | `apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx`, `apps/mobile/app/(tabs)/calendar/_components/calendar-day-events.tsx` |
+| Device notifications | Current-device switch, checking and disabled states | `apps/web/components/profile/push-devices-row.tsx` | `apps/mobile/components/profile/push-devices-row.tsx` |
+| Calendar auto-sync | Enabled, disabled and pending auto-sync switch | `apps/web/components/calendar/calendar-sync-boundary.tsx` | `apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx` |
+| Habit detail and create/edit | Avoid-habit and slip-alert switches with descriptions; reminder and scheduled-reminder switches, including inline column placement and Pro-gated alternatives | `apps/web/components/habits/habit-detail-fields.tsx`, `apps/web/components/habits/habit-form-fields.tsx`, `apps/web/components/habits/habit-form-fields/reminder-section.tsx`, `apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx`, `apps/web/components/habits/habit-form-fields/slip-alert-section.tsx` | `apps/mobile/components/habits/habit-detail-fields.tsx`, `apps/mobile/components/habits/habit-form-fields.tsx`, `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx`, `apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx`, `apps/mobile/components/habits/habit-form-fields/slip-alert-section.tsx` |
 | Astra operation editing | Checklist checked state and boolean fields through Switch | `apps/web/components/chat/pending-operation-card.tsx` | `apps/mobile/components/chat/pending-operation-card.tsx` |
 
 Trial-expired paused-feature description rows also use label mode. Their unclipped text geometry remains regression coverage, although they have no inline control.

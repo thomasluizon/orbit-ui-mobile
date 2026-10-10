@@ -71,12 +71,12 @@ describe('inline label row centres in preferences', () => {
         const label = title.getBoundingClientRect()
         const accessory = control.getBoundingClientRect()
         const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
-        return { title: title.textContent, labelHeight: label.height, lineHeight, controlTop: accessory.top, labelBottom: label.bottom,
+        return { title: title.textContent, labelHeight: label.height, lineHeight, controlTop: accessory.top, labelBottom: label.bottom, isValue: control.getAttribute('data-slot') === 'list-row-value',
           offset: label.top + Math.min(label.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
       }))
       expect(rows).toHaveLength(6)
       for (const row of rows) {
-        if (scale === 1 || row.controlTop < row.labelBottom) expect(Math.abs(row.offset), row.title!).toBeLessThanOrEqual(1)
+        if (scale === 1 || !row.isValue || row.controlTop < row.labelBottom) expect(Math.abs(row.offset), row.title!).toBeLessThanOrEqual(1)
       }
     } finally { await page.close() }
   })

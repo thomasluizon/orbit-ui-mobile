@@ -16,7 +16,7 @@ async function expectRowCentres(surface: Locator, scale: number) {
     const title = label.getBoundingClientRect()
     const accessory = control.getBoundingClientRect()
     const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
-    const supportingLine = scale > 1 && accessory.top >= title.bottom
+    const supportingLine = scale > 1 && control.getAttribute('data-slot') === 'list-row-value' && accessory.top >= title.bottom
     return supportingLine ? 0 : Math.abs(title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2)
   }), scale))).toBeLessThanOrEqual(1)
   const rows = await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {
@@ -26,7 +26,7 @@ async function expectRowCentres(surface: Locator, scale: number) {
     const accessory = control.getBoundingClientRect()
     const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
     return { label: label.textContent, lines: title.height / lineHeight, clipped: label.scrollHeight > label.clientHeight + 1,
-      offset: scale > 1 && accessory.top >= title.bottom ? 0 : title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
+      offset: scale > 1 && control.getAttribute('data-slot') === 'list-row-value' && accessory.top >= title.bottom ? 0 : title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
   }), scale)
   for (const row of rows) {
     expect(Math.abs(row.offset), row.label!).toBeLessThanOrEqual(1)
