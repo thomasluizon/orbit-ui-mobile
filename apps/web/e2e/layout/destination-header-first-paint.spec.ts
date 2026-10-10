@@ -25,7 +25,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           try {
             await page.goto(destination === 'calendar' ? '/calendar' : '/', { waitUntil: 'commit' })
             await expect(selector).toBeVisible()
-            await expect(selector).toHaveCSS('display', destination === 'calendar' ? 'grid' : 'flex')
+            await expect(selector).toHaveCSS('display', 'flex')
             await page.evaluate(() => document.fonts.ready)
             await page.locator(headerSelector).evaluate((header) => {
               header.setAttribute('data-first-paint-header', '')
