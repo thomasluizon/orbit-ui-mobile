@@ -1,4 +1,6 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { ActionRow } from './action-row'
+
+import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type {
   BlockFrameItem,
   BlockFrameItemStatus,
@@ -9,7 +11,7 @@ import {
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
-import { useRef, type ReactNode } from 'react'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
@@ -24,6 +26,8 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
 type FrameRowProps = Readonly<{
   item: BlockFrameItem
@@ -70,26 +74,20 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
   return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
-function getRowLayout(item: BlockFrameItem) {
-  const fullWidthLabel = item.wrapLabel && typeof item.label !== 'string' && typeof item.label !== 'number'
-  return {
-    row: [styles.row, fullWidthLabel ? { flexDirection: 'column' as const, alignItems: 'stretch' as const } : undefined],
-    words: [styles.rowWords, fullWidthLabel ? { flex: 0, width: '100%' as const } : undefined],
-    trailing: [styles.trailing, fullWidthLabel ? { alignSelf: 'flex-end' as const } : undefined],
-  }
+function getRowStyle(wrapLabel: boolean | undefined) {
+  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }]
 }
 
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
-  const rowLayout = getRowLayout(item)
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
-      style={rowLayout.row}
+      style={getRowStyle(item.wrapLabel)}
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
-      <View style={rowLayout.words}>
+      <View style={styles.rowWords}>
         {typeof item.label === 'string' || typeof item.label === 'number' ? (
           <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
             {item.label}
@@ -100,7 +98,7 @@ function FrameRow(props: FrameRowProps) {
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
         ) : null}
       </View>
-      <View style={rowLayout.trailing}>
+      <View style={styles.trailing}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <Pressable
@@ -144,19 +142,6 @@ function LoadingBody({ rows, tokens, hasActions }: Readonly<{
       </View>
       {hasActions ? <View style={[styles.actionSkeleton, { backgroundColor: tokens.bgElev2 }]} /> : null}
     </>
-  )
-}
-
-function ActionRow({ children, disabled }: Readonly<{ children: ReactNode; disabled: boolean }>) {
-  return (
-    <View
-      accessibilityState={{ disabled }}
-      importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}
-      pointerEvents={disabled ? 'none' : 'auto'}
-      style={styles.actionContent}
-    >
-      {children}
-    </View>
   )
 }
 
@@ -221,7 +206,14 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
         <Text style={[styles.confirmNote, { color: tokens.fg2 }]}>{frameProps.confirmNote}</Text>
       ) : null}
       {canRenderActions && frameProps.actions != null ? (
-        <ActionRow disabled={frameProps.state === 'acting'}>{frameProps.actions}</ActionRow>
+        <View
+          accessibilityState={{ disabled: frameProps.state === 'acting' }}
+          importantForAccessibility={frameProps.state === 'acting' ? 'no-hide-descendants' : 'auto'}
+          pointerEvents={frameProps.state === 'acting' ? 'none' : 'auto'}
+          style={styles.actionGuard}
+        >
+          <ActionRow>{frameProps.actions}</ActionRow>
+        </View>
       ) : null}
     </View>
   )
@@ -321,10 +313,10 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   rowLabelNode: { minWidth: 0 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },
-  trailing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  trailing: { flexDirection: 'row', flexShrink: 0, flexWrap: 'wrap', maxWidth: '60%', alignItems: 'center', gap: 8 },
   iconButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statusLabel: { fontFamily: 'Geist_400Regular', fontSize: 12 },
+  status: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', alignItems: 'center', gap: 4 },
+  statusLabel: { maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 12 },
   irreversibleMark: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   irreversibleLabel: { fontFamily: 'GeistMono_500Medium', fontSize: 12, textTransform: 'uppercase' },
   loadingBody: { flex: 1, minHeight: 0, gap: 8 },
@@ -335,7 +327,7 @@ const styles = StyleSheet.create({
   staleMessage: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14 },
   refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12 },
   refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
-  actionRow: { gap: 12 },
-  actionContent: { gap: 12 },
+  actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },
+  actionGuard: { padding: actionHitPadding, margin: -actionHitPadding },
   confirmNote: { fontFamily: 'Geist_400Regular', fontSize: 14 },
 })

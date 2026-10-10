@@ -1,9 +1,10 @@
 'use client'
 
+import { ListRow } from '@/components/ui/list-row'
+
 import { useTranslations } from 'next-intl'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { formatCalendarSyncTimestamp, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { Switch } from '@/components/ui/switch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useOffline } from '@/hooks/use-offline'
@@ -46,10 +47,8 @@ export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncCha
       <span className="font-mono tabular-nums">{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</span>
     </div>
     {isConnected ? <>
-      <div className="flex min-h-12 items-start justify-between gap-3">
-        <span className="min-w-0 self-center text-sm text-[var(--fg-2)]">{t('calendar.dayDetail.autoSync')}</span>
-        <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline || pendingAction !== null} onChange={(enabled) => void runAction('toggle', () => onAutoSyncChange(enabled))} label={t('calendar.dayDetail.autoSync')} />
-      </div>
+      {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Calendario syncAuto controls this label under D42. */}
+      <ListRow title={t('calendar.dayDetail.autoSync')} disabled={!isOnline || pendingAction !== null} toggle={{ checked: autoSyncState?.enabled ?? false, onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} />
       <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></div>
     </> : null}
     <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{error ?? (autoSyncState?.status === 'TransientError' ? t('calendar.autoSync.syncFailed') : '')}</p>

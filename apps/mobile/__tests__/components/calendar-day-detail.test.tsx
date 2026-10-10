@@ -3,11 +3,13 @@ import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
@@ -32,11 +34,6 @@ vi.mock('@/components/ui/pill-button', () => ({
     children?: React.ReactNode
     variant?: string
   }) => React.createElement('PillButtonMock', { ...props, variant }, children),
-}))
-
-vi.mock('@/components/ui/capacity-notice', () => ({
-  CapacityNotice: ({ message, body, action }: Record<string, unknown>) =>
-    React.createElement('CapacityNoticeMock', { message, body }, action as React.ReactNode),
 }))
 
 vi.mock('@/components/ui/switch', () => ({
@@ -74,6 +71,7 @@ vi.mock('@/components/ui/input', () => ({
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  children: TestNode[]
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -96,15 +94,18 @@ const translations: Record<string, string> = {
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
   'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
-  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
-  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
-  'calendar.proBoundary.action': 'See Pro',
 }
+
+const detailLocale = { language: 'en' }
 
 const translate = ((key: string, params?: Record<string, unknown>) => {
   if (key === 'calendar.dayDetail.completionSummary') {
     return `${String(params?.done)} of ${String(params?.total)} logged`
   }
+  const boundary = detailLocale.language === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+  if (key === 'calendar.proBoundary.title') return boundary.title
+  if (key === 'calendar.proBoundary.body') return boundary.body
+  if (key === 'calendar.proBoundary.action') return boundary.action
   return translations[key] ?? key
 }) as unknown as TFunction
 
@@ -243,13 +244,17 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail()
     expect(nodes(tree, 'View')[0]?.props.style).toMatchObject({
       backgroundColor: 'rgba(250,250,250,0.04)',
-      borderColor: 'rgba(255,255,255,0.10)',
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: 'solid',
+      outlineColor: 'rgba(255,255,255,0.10)',
       borderRadius: 20,
-      borderWidth: 1,
+      paddingHorizontal: 24,
       paddingVertical: 24,
+      gap: 16,
     })
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 16)).toBe(true)
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 8)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 4)).toBe(true)
+    expect(nodes(tree, 'Text').find((node) => node.props.children === 'nothing due')?.props.style).toContainEqual(expect.objectContaining({ fontFamily: 'GeistMono_400Regular' }))
     expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
     expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
   })
@@ -309,16 +314,44 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
   })
 
-  it('keeps habits and one Pro badge row for a free account', () => {
-    const onViewPro = vi.fn()
-    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+  it.each(['en', 'pt-BR'])('shows the drawn free account notice in %s after Open in Today', (locale) => {
+    detailLocale.language = locale
+    try {
+      const copy = locale === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+      const onViewPro = vi.fn()
+      const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'Meditate')).toBe(true)
+      const notices = nodes(tree, 'View').filter((node) => node.props.testID === 'capacity-notice')
+      expect(notices).toHaveLength(1)
+      const notice = notices[0]!
+      expect(notice.findAll((node) => node.type === 'Text').map((node) => node.props.children)).toEqual([copy.title, copy.body])
+      const actions = notice.findAll((node) => node.type === 'PillButtonMock')
+      expect(actions).toHaveLength(1)
+      expect(actions[0]!.props).toMatchObject({ children: copy.action, size: 'sm', variant: 'primary' })
+      const card = tree.root.findAll((node) => node.type === 'View')[0]!
+      const hostChildren = card.children
+      expect(hostChildren.at(-2)!.findAll((node) => node.type === 'ListRowMock')[0]!.props.title).toBe(en.calendar.goToDay)
+      expect(hostChildren.at(-1)!.findAll((node) => node.type === 'View' && node.props.testID === 'capacity-notice')).toHaveLength(1)
+      TestRenderer.act(() => (actions[0]!.props.onClick as () => void)())
+      expect(onViewPro).toHaveBeenCalledOnce()
+      expect(nodes(tree, 'ListRowMock').some((node) => node.props.title === 'calendar.calendars.title')).toBe(false)
+      expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
+      expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+    } finally {
+      detailLocale.language = 'en'
+    }
+  })
+
+  it.each(['ready', 'not-connected'] as const)('keeps the Pro day card without a notice in %s', (calendarEventsState) => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState })
     expect(nodes(tree, 'Text').some((node) => node.props.children === 'Meditate')).toBe(true)
-    const row = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.calendars.title')
-    expect(row?.props.trailing).toBeDefined()
-    TestRenderer.act(() => (row?.props.onClick as () => void)())
-    expect(onViewPro).toHaveBeenCalledOnce()
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
-    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+    expect(nodes(tree, 'View').filter((node) => node.props.testID === 'capacity-notice')).toHaveLength(0)
+    if (calendarEventsState === 'ready') {
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'calendar.dayDetail.eventsTitle')).toBe(true)
+      expect(nodes(tree, 'Text').some((node) => node.props.children === 'No Google Calendar events on this day.')).toBe(true)
+    } else {
+      expect(nodes(tree, 'ListRowMock').some((node) => node.props.title === 'calendar.calendars.title')).toBe(true)
+    }
   })
 
   it('renders the empty events state after an empty response resolves', () => {
@@ -655,14 +688,10 @@ describe('CalendarDayDetail (mobile)', () => {
   it('routes the panel row through the supplied Today callback', () => {
     const onGoToDay = vi.fn()
     const tree = renderDetail({ onGoToDay })
-    const routeRow = nodes(tree, 'ListRowMock').at(-1)
-    expect(routeRow?.props).toMatchObject({
-      title: 'Open this day on Today',
-      textMode: 'label',
-      icon: 'external-link',
-      chevron: false,
-      onClick: onGoToDay,
-    })
+    const routeRow = nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === en.calendar.goToDay)
+    expect(routeRow?.props).toMatchObject({ compact: true, icon: 'external-link', title: en.calendar.goToDay, textMode: 'label', chevron: false })
+    TestRenderer.act(() => (routeRow?.props.onClick as () => void)())
+    expect(onGoToDay).toHaveBeenCalledOnce()
   })
 
   it('searches a busy day only after opening its events sheet', () => {

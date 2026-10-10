@@ -1,5 +1,6 @@
 import { measureTextOverflow } from './text-overflow-geometry'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { measureOnboardingProStep } from './onboarding-pro-step-geometry'
 import { API } from '@orbit/shared/api'
 import { buildAccountScopedStorageKey, ONBOARDING_PRO_PENDING_KEY } from '@orbit/shared/utils'
@@ -9,22 +10,21 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const branch of ['trial', 'paywall'] as const) {
     for (const width of [412, 1280]) {
       test(`${locale} onboarding ${branch} geometry at ${width}`, async ({ page, context }) => {
         await page.setViewportSize({ width, height: 1800 })
-        const profile = profileSchema.parse({ ...profileFixture, hasCompletedOnboarding: true, language: locale, isTrialActive: branch === 'trial', hasProAccess: branch === 'trial', plan: branch === 'trial' ? 'pro' : 'free', trialEndsAt: branch === 'trial' ? '2026-09-19T12:00:00Z' : '2026-09-01T12:00:00Z' })
+        const profile = profileSchema.parse({ ...profileFixture, hasCompletedOnboarding: true, language: locale, isTrialActive: branch === 'trial', hasProAccess: branch === 'trial', plan: branch === 'trial' ? 'pro' : 'free', trialEndsAt: branch === 'trial' ? '2026-09-11T12:00:00Z' : '2026-09-01T12:00:00Z' })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.subscription.plans, (route) => route.fulfill({ json: subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd'] }))
         await page.addInitScript(({ key, language }) => {
           localStorage.setItem(key, '1')
           document.cookie = `i18n_locale=${language};path=/;samesite=strict`
         }, { key: buildAccountScopedStorageKey(ONBOARDING_PRO_PENDING_KEY, 'hermetic-perf-user'), language: locale })
-        await page.clock.setFixedTime(new Date('2026-09-12T12:00:00Z'))
         await page.goto('/')
         const step = page.locator(`[data-onboarding-step="${branch}"]`)
         await expect(step).toBeVisible()

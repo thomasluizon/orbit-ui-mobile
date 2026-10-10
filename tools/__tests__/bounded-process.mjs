@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 
 import { runBounded } from "../lib/bounded-process.mjs"
@@ -51,4 +52,51 @@ setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
   const alive = processIsRunning(descendantPid)
   T("bounded-process.mjs: the hard bound fires", timed.timedOut === true, JSON.stringify(timed))
   T("bounded-process.mjs: timeout kills the complete process tree", Number.isInteger(descendantPid) && !alive, `descendant ${descendantPid} still alive`)
+
+  const inheritedPids = stage("bounded-process/inherited-pids.json", "")
+  const launcherExit = stage("bounded-process/launcher-exit.json", "")
+  const inheritedScript = stage("bounded-process/inherited-stdio.cjs", `
+const { spawn } = require("node:child_process")
+const { writeFileSync } = require("node:fs")
+const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 10000)"], { stdio: "inherit" })
+writeFileSync(${JSON.stringify(inheritedPids)}, JSON.stringify({ parent: process.pid, descendant: child.pid }))
+child.unref()
+`)
+  // Isolate the awaited runner so a lost deadline fails at the outer watchdog.
+  const inheritedProbe = stage("bounded-process/inherited-probe.mjs", `
+import childProcess from "node:child_process"
+import { writeFileSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const spawn = childProcess.spawn
+childProcess.spawn = (...args) => {
+  const launchedAt = performance.now()
+  const child = spawn(...args)
+  child.once("exit", (status, signal) => writeFileSync(${JSON.stringify(launcherExit)}, JSON.stringify({
+    pid: child.pid, status, signal, elapsedMs: performance.now() - launchedAt,
+    stdoutEnded: child.stdout.readableEnded, stderrEnded: child.stderr.readableEnded,
+  })))
+  return child
+}
+syncBuiltinESMExports()
+const { runBounded } = await import(${JSON.stringify(new URL("../lib/bounded-process.mjs", import.meta.url).href)})
+const started = performance.now()
+const result = await runBounded(process.execPath, [${JSON.stringify(inheritedScript)}], { timeoutMs: ${timeoutMs} })
+process.stdout.write(JSON.stringify({ ...result, elapsedMs: performance.now() - started }))
+`)
+  const observed = spawnSync(process.execPath, [inheritedProbe], { encoding: "utf8", timeout: 5000 })
+  let verdict
+  let pids
+  let exit
+  try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
+  try { pids = JSON.parse(readFileSync(inheritedPids, "utf8")) } catch { pids = null }
+  try { exit = JSON.parse(readFileSync(launcherExit, "utf8")) } catch { exit = null }
+  process.stdout.write(`Bounded inherited stdio probe: ${JSON.stringify({ verdict, pids, exit })}\n`)
+  T("bounded-process.mjs: launcher exits before the deadline with stdout and stderr still open", exit?.pid === pids?.parent && exit?.status === 0 && exit.signal === null && exit.elapsedMs < timeoutMs && !exit.stdoutEnded && !exit.stderrEnded, JSON.stringify({ exit, pids }))
+  T("bounded-process.mjs: inherited stdio remains bounded after launcher exit", observed.status === 0 && verdict?.timedOut === true && verdict.status === 0 && verdict.signal === null && verdict.elapsedMs < timeoutMs + 700, observed.stderr || observed.stdout || String(observed.error))
+  T("bounded-process.mjs: timeout terminates the exited launcher's stdio descendant", Number.isInteger(pids?.descendant) && !processIsRunning(pids.parent) && !processIsRunning(pids.descendant), JSON.stringify(pids))
+  for (const pid of [pids?.parent, pids?.descendant]) {
+    if (processIsRunning(pid)) {
+      try { process.kill(pid, "SIGKILL") } catch { /* the process can exit before cleanup */ }
+    }
+  }
 }

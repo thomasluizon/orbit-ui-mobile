@@ -51,7 +51,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     : <p className="text-pretty text-sm text-[var(--fg-2)] [overflow-wrap:anywhere]">{page.text}</p>
 
   return (
-    <div className="mt-2 w-full md:max-w-[65ch]">
+    <div className="w-full">
       <BlockFrame
         state="resting"
         title={t('chat.insight.title')}
@@ -62,7 +62,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
           <h4 className="text-sm font-medium text-[var(--fg-1)]">{t(page.titleKey)}</h4>
           {body}
         </div>}
-        actions={<div className="flex flex-col gap-3">
+        actions={<div className="basis-full min-w-0">
           <Pager
             index={index}
             count={pages.length}

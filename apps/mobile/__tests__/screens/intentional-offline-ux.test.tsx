@@ -143,6 +143,7 @@ vi.mock('@/stores/offline-sync-store', () => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
   useRouter: mocks.useRouter,
   useLocalSearchParams: mocks.useLocalSearchParams,
 }))
@@ -190,7 +191,7 @@ vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
+vi.mock('@/components/ui/list-row', () => ({
   SettingsRow: () => null,
 }))
 

@@ -1,16 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { measureFieldInset } from './field-inset-geometry'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const width of [412, 1024, 1352] as const) {
-    test.describe(`${locale} Astra panel composer at ${width}px`, () => {
+    test.describe(`${locale} Astra full-screen composer at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
 
       test('fits the placeholder and wrapped text with reachable controls', async ({ page, context }) => {
@@ -18,9 +19,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
 
-        const panel = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
+        const panel = page.locator('[data-shell-conversation="overlay"]')
         await expect(panel).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const field = panel.locator('[data-composer-input]')
@@ -47,7 +48,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.availableWidth).toBeGreaterThanOrEqual(empty.textWidth)
 
-        await field.fill('Astra '.repeat(10))
+        const wrappedText = await field.evaluate((element) => {
+          const input = element as HTMLTextAreaElement
+          const style = getComputedStyle(input)
+          const context = document.createElement('canvas').getContext('2d')!
+          context.font = style.font
+          const availableWidth = input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+          const text = 'Astra '.repeat(Math.ceil(availableWidth / context.measureText('Astra ').width) + 2)
+          return { text, width: context.measureText(text).width, availableWidth }
+        })
+        expect(wrappedText.width).toBeGreaterThan(wrappedText.availableWidth)
+        await field.fill(wrappedText.text)
         const typed = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
           return { clientHeight: input.clientHeight, scrollHeight: input.scrollHeight }
@@ -83,7 +94,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale,
           aiMessagesUsed: state === 'atLimit' ? profileFixture.aiMessagesLimit : 0 })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, route => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/')
         const composer = page.locator('[data-shell-bottom] [data-composer-root]')
         await expect(composer).toHaveAttribute('data-state', state === 'offline' ? 'idle' : state)
@@ -159,7 +170,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
         const draft = 'Astra '.repeat(10)
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
         const overlay = page.locator('[data-shell-conversation="overlay"]')
         await overlay.locator('[data-composer-input]').fill(draft)
         await page.getByRole('button', { name: messages.common.closeConversation }).click()

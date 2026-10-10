@@ -30,9 +30,9 @@ type ExpectedBase = {
   href?: string
   onClick?: () => void
   disabled?: boolean
-  inset?: boolean
+  placement?: 'column'
+  toggle?: { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean }
   compact?: boolean
-  inForm?: boolean
 }
 type ExpectedReadOnlyVariant = ExpectedBase & { readOnly: true; action?: never }
 type ExpectedActionVariant = ExpectedBase & { readOnly?: false; action?: ListRowAction }
@@ -82,9 +82,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['href'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<ListRowProps['disabled'], boolean | undefined>>,
-  Assert<IsExactWidth<ListRowProps['inset'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['compact'], boolean | undefined>>,
-  Assert<IsExactWidth<ListRowProps['inForm'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['readOnly'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['action'], ListRowAction | undefined>>,
 ]

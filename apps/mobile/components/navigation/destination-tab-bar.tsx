@@ -23,6 +23,7 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
   )
 
   const handleTab = (id: string) => {
+    useUIStore.getState().setAstraConversationOpen(false)
     if (!notFound && id === active && pathname === ROOT_PATHS[id]) {
       scrollToTop?.(id)
       return

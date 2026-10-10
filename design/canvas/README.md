@@ -2,7 +2,7 @@
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
 > Twenty-one screens plus the design system tokens, with the native mobile rule and Perfil sub-menu amendments. Build from these. The eleven documents in
-> `superseded/` are a record of an earlier pass and are not a target.
+> `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
 
 ## The authority
 
@@ -16,6 +16,9 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
+| Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
+| #1321 | Calendário's any-time gutter uses `Sem horário` in pt-BR and retains `No set time` in en, at 12 with 1.4 line height and 8 padding inside a gutter of at least 96; the label stays whole on one line at default text size and its cell grows when accessibility text wraps | The prior pt-BR label wrapped inside the drawn gutter, contrary to `DESIGN.md` Bans. Agenda values and entry details share the same no-time wording. |
 | Astra full screen | One conversation layout at every width, with NavHeader, a shared thread, one live chip set and a composer with 16 padding; wide web keeps its sidebar with an Astra row above Hoje and drops the resting Hoje shell composer while retaining the active selection tray in the pinned bottom slot; habit detail keeps its own composer | Astra opens as a layer with no route or Android tab. Compact shells cover the tab bar; wide web replaces the destination column from every Astra entry, including proactive and empty-state actions. The empty disclosure uses `--fg-3` and the close control is 48. App implementation follows in #1295. |
 | 2026-10-04 | Dark `--primary-text` uses `#ED773E` and dark `--track-empty` uses `#8B8B8E`, with their widget mirrors | Each is the first rounded byte at constant source OKLCH hue and chroma with higher lightness. Accent text clears 4.518:1 on card-child hover; the empty track clears 3.001:1 on the calendar card and hover inside a sheet. The immediately preceding bytes measure 4.497:1 and 2.993:1. |
 | Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, grouped date controls and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
@@ -38,6 +41,45 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### Legal title amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Privacy document | Short Privacidade/Privacy header and Política de privacidade/Privacy policy body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Terms document | Short Termos/Terms header and Termos de uso/Terms of use body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Sobre drawing | Privacy selects the privacy row and terms selects the terms row for their prose titles, in both locales and at both drawn widths. |
+
+These read-only documents have no data-loading or empty state. Back navigation and the document
+scroll owners retain their existing behavior.
+
+### Week time grid surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Semana page and week wrapper | Fill the height below the header with one hour scroll owner; 1352x726, 1100x726 and 412x640 cases at font scale 1; 1352x726 and 1100x726 also at font scale 2. The weekday header and any-time lane pin only while together they occupy at most half the hour viewport; larger panes scroll with the hours. |
+| Weekday header | Natural short names, pinned with the lane only while their pane fits within half the hour viewport, one today date disc, day selection and clearance from calendar options. |
+| Any-time gutter and per-day lanes | Empty, one, two and three-or-more habits; named 28 chips inside separate 48 targets and +N day disclosure; long words and unbroken tokens. |
+| Timed blocks | Two-line names, status ring, bad mark and time; concurrent and adjacent lanes, transparent future blocks and full-name disclosure. |
+| Hours and position | Every hour labelled, aligned gutter, horizontal columns, now in today's column and upper third on opening, earlier morning for another week and trailing space at 200% text. |
+| Entry and day disclosures | Existing CalendarEntryDetails and day sheets retained; complete titles, selection and scroll preservation, localized copy and loading, empty and error states. |
+| Drawing and specification | Amended calendar drawing, views note, TimeGrid contract, scroll ownership and docs registry; crowded Chromium unit geometry and CI page layout cases. |
+
+The unit geometry fixtures include crowded lanes and long titles. Whole-page layout and real native
+rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
+screen tests verify native scroll ownership without an emulator.
+
+### Any-time label amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Week time-grid gutter | The shared no-time label fits the 96 minimum gutter in both locales at default text size, including crowded days; accessibility text can wrap and grow the aligned day band. Chromium unit geometry covers 320, 360, 384, 412 and 1352; native unit geometry covers the same widths at font scale 1 and measured growth at font scale 2. The CI label-fit case covers 320, 412 and 1352. |
+| Agenda row value | Untimed entries use the amended shared wording in both locales; populated row tests retain complete accessible announcements and ordering. |
+| Entry details meta line | The existing shared no-time key supplies the amended wording beside the status on both platforms; existing details tests retain complete titles and disclosure behavior. |
+| Calendar drawing | Both locale variants follow the shared gutter wording, padding and line-height contract. |
+
+Loading, empty and error states retain their existing controls; this amendment changes the shared
+no-time wording and gutter geometry rather than the calendar's state or disclosure behavior.
 
 **Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
 drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export

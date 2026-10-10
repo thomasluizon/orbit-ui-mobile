@@ -46,7 +46,7 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
     const messages = locale === 'en' ? en : ptBR
     useShellStore.setState({ paletteOpen: false })
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
+      <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.chat.title, onOpen: vi.fn() }}
         paletteLabel={messages.nav.search} paletteHint={hint}
         onPalette={() => useShellStore.getState().setPaletteOpen(true)} />
       <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />
@@ -97,10 +97,10 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
       for (const keycap of measured.footer) expect.soft(keycap).toEqual(measured.sidebar)
       expect.soft(measured.markedCount).toBe(4)
       for (const state of ['rest', 'hover', 'press']) {
-        if (state !== 'rest') await page.locator('[data-shell-sidebar] button').hover()
+        if (state !== 'rest') await page.locator('[data-shell-sidebar] button:has(kbd)').hover()
         if (state === 'press') await page.mouse.down()
         try {
-          const paint = await page.locator('[data-shell-sidebar] button kbd').evaluate((keycap) => {
+          const paint = await page.locator('[data-shell-sidebar] button:has(kbd) kbd').evaluate((keycap) => {
             keycap.parentElement!.getAnimations().forEach((animation) => animation.finish())
             const layers: string[] = []
             for (let ancestor: Element | null = keycap; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)

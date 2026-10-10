@@ -65,3 +65,27 @@ it.each(['/', '/calendar', '/progress', '/profile'])('reselects the active root 
   expect(mocks.navigate).not.toHaveBeenCalled()
   tree.unmount()
 })
+
+it.each([
+  ['nav.today', '/(tabs)'], ['nav.calendar', '/calendar'],
+  ['nav.progress', '/progress'], ['nav.profile', '/profile'],
+])('closes Astra before navigating through %s', (label, route) => {
+  mocks.navigate.mockClear()
+  useUIStore.getState().setAstraConversationOpen(true)
+  const tree = renderNavigation(<DestinationTabBar pathname="/notifications" />)
+  try {
+    const tab = tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === label)!
+    press(tab)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith(route)
+  } finally { tree.unmount() }
+})
+
+it('closes Astra when reselecting the current destination', () => {
+  useUIStore.getState().setAstraConversationOpen(true)
+  const tree = renderNavigation(<DestinationTabBar pathname="/" />)
+  try {
+    press(tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)!)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  } finally { tree.unmount() }
+})

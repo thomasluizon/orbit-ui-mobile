@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
@@ -10,7 +11,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -52,11 +53,10 @@ for (const width of [1352, 1100, 840, 412]) {
             ...profileFixture, language: locale, currentStreak: 4, longestStreak: 9, totalXp: 150,
           })
           await setLayoutProfileSession(context, profile)
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-          await context.route(new RegExp(`${API.habits.list}(?:\\?.*)?$`), (route) => route.fulfill({ json: habits }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
           await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
 
-          const presentation = width >= 1024 ? 'panel' : 'overlay'
           await page.goto('/')
           await page.getByRole('button', { name: messages.habits.listOptions }).click()
           await page.getByRole('menu', { name: messages.habits.listOptions })
@@ -64,8 +64,10 @@ for (const width of [1352, 1100, 840, 412]) {
           const todayPanel = page.locator('.habit-panel').first()
           await expect(todayPanel).toBeVisible()
           if (panelOpen) {
-            await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
-            await expect(page.locator(`[data-shell-conversation="${presentation}"]`)).toBeVisible()
+            await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
+            await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
+            await expect(page.locator('[data-shell-scroller]')).toBeHidden()
+            await page.getByRole('button', { name: messages.common.closeConversation }).click()
           }
           await page.evaluate(() => document.fonts.ready)
           const today = await readContentEdgesOnceStill(todayPanel)
@@ -73,10 +75,12 @@ for (const width of [1352, 1100, 840, 412]) {
           await page.goto(panelOpen ? '/progress?astra=open' : '/progress')
           await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
           const streak = page.getByRole('region', { name: messages.progressScreen.sections.streak, includeHidden: true })
-          await expect(streak).toBeVisible()
           if (panelOpen) {
-            await expect(page.locator(`[data-shell-conversation="${presentation}"]`)).toBeVisible()
+            await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
+            await expect(page.locator('[data-shell-scroller]')).toBeHidden()
+            await page.getByRole('button', { name: messages.common.closeConversation }).click()
           }
+          await expect(streak).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
           const surfaces = [
             streak,

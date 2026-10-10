@@ -1,6 +1,13 @@
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
+import { createHermeticFixtureRequest } from '@/test-support/hermetic/fixture-request'
+import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -8,7 +15,12 @@ import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <button aria-label="Avisos" /> }))
-vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
+const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
+vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: async () => new Response(JSON.stringify(heldQueries.calendarResponse)) }))
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/api-fetch')>(), fetchJson: () => heldQueries.profileRequest }))
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ syncThemeFromProfile: () => {}, detectAndSaveThemeIfNeeded: () => {} }) }))
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -141,8 +153,11 @@ vi.mock('@/hooks/use-is-desktop', () => ({
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
-vi.mock('@/hooks/use-calendar-data', () => ({
+vi.mock('@/hooks/use-calendar-data', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-calendar-data')>()
+  return ({
   useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
     calendarDataCalls(month)
     return ({
     dayMap: monthQueryState.dayMap,
@@ -152,16 +167,19 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     refresh: monthQueryState.refresh,
     })
   },
-  useCalendarRange: () => ({
+  useCalendarRange: (...args: Parameters<typeof actual.useCalendarRange>) => heldQueries.enabled ? actual.useCalendarRange(...args) : ({
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: rangeFetching,
     error: null,
     refresh: vi.fn(),
   }),
-}))
+})
+})
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/calendar',
+  useParams: () => ({}),
   useRouter: () => ({ push: routerPush, replace: routerReplace }),
   useSearchParams: () => new URLSearchParams(calendarRouteSearch),
 }))
@@ -198,9 +216,10 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))
 
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => profileQueryState,
-}))
+vi.mock('@/hooks/use-profile', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-profile')>()
+  return { useProfile: () => heldQueries.enabled ? actual.useProfile() : ({ ...profileQueryState, profile: profileQueryState.profile ? { ...createMockProfile(), ...profileQueryState.profile } : undefined }) }
+})
 
 vi.mock('@/app/(app)/today-provider', () => ({
   useToday: (timeZone?: string | null) => {
@@ -312,18 +331,19 @@ vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: (props: {
-    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
-    isLoading: boolean
-  }) => {
-    agendaViewProps.dayMap = props.dayMap
-    agendaViewProps.isLoading = props.isLoading
-    return <div data-testid="agenda-view" />
-  },
-}))
+vi.mock('@/components/calendar/calendar-agenda-view', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-agenda-view')>()
+  return {
+    CalendarAgendaView: (props: React.ComponentProps<typeof actual.CalendarAgendaView>) => {
+      agendaViewProps.dayMap = props.dayMap
+      agendaViewProps.isLoading = props.isLoading
+      return <div data-testid="agenda-view"><actual.CalendarAgendaView {...props} /></div>
+    },
+  }
+})
 
 import CalendarPage from '@/app/(app)/calendar/page'
+import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import {
   holdAccount,
@@ -349,7 +369,129 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
   ])
 }
 
+class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode; onError: (error: Error) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error) { this.props.onError(error) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 describe('CalendarPage view switcher', () => {
+  let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
+  beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
+  it('keeps Semana connected and focused with the real calendar query while the profile is pending', async () => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const reportedError = vi.fn()
+    const page = render(<QueryClientProvider client={queryClient}><CalendarRenderBoundary onError={reportedError}><CalendarPage /></CalendarRenderBoundary></QueryClientProvider>)
+    try {
+      const radio = screen.getByRole('radio', { name: 'calendar.view.week' })
+      radio.focus()
+      await waitFor(() => expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body))
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toBe(radio)
+      expect(radio.isConnected).toBe(true)
+      expect(radio).toHaveFocus()
+      await act(async () => { resolveProfile(profileFixture) })
+      await waitFor(() => expect(screen.queryByTestId('calendar-day-skeleton')).toBeNull())
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toBe(radio)
+      expect(radio.isConnected).toBe(true)
+      expect(radio).toHaveFocus()
+    } finally {
+      page.unmount()
+      queryClient.clear()
+      heldQueries.enabled = false
+    }
+  })
+
+  it.each(['month', 'range'] as const)('keeps the %s body mounted when the held profile resolves', async (view) => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const page = render(<QueryClientProvider client={queryClient}><CalendarPage /></QueryClientProvider>)
+    try {
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      await waitFor(() => expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body))
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      const grid = page.container.querySelector('.orbit-calendar-grid-frame')!
+      expect(grid).toBeInTheDocument()
+      const figures = screen.getByTestId('month-stats')
+      const daySlot = view === 'month' ? screen.getByTestId('calendar-day-card-slot') : null
+      await act(async () => { resolveProfile(profileFixture) })
+      await waitFor(() => expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('success'))
+      await waitFor(() => expect(screen.queryByTestId('calendar-day-skeleton')).toBeNull())
+      expect.soft(grid.isConnected).toBe(true)
+      expect.soft(page.container.querySelector('.orbit-calendar-grid-frame')).toBe(grid)
+      expect.soft(screen.getByTestId('month-stats')).toBe(figures)
+      if (daySlot) expect.soft(screen.getByTestId('calendar-day-card-slot')).toBe(daySlot)
+    } finally {
+      page.unmount()
+      queryClient.clear()
+      heldQueries.enabled = false
+    }
+  })
+
+  it.each(['month', 'week', 'range', 'agenda'])('keeps the %s radio and frame mounted when the profile resolves', (selectedView) => {
+    profileQueryState.profile = undefined
+    const page = render(<CalendarPage />)
+    const heading = screen.getByRole('heading', { name: 'nav.calendar' })
+    const options = screen.getByRole('button', { name: 'calendar.options' })
+    const header = screen.getByTestId('calendar-header-group')
+    const radio = screen.getByRole('radio', { name: `calendar.view.${selectedView}` })
+    fireEvent.click(radio)
+    radio.focus()
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+    page.rerender(<CalendarPage />)
+    expect(radio.isConnected).toBe(true)
+    expect(radio).toHaveFocus()
+    expect(screen.getByTestId('calendar-header-group')).toBe(header)
+    expect(screen.getByRole('heading', { name: 'nav.calendar' })).toBe(heading)
+    expect(screen.getByRole('button', { name: 'calendar.options' })).toBe(options)
+  })
+
+  it('keeps the month picker open when the profile resolves', () => {
+    profileQueryState.profile = undefined
+    const page = render(<CalendarPage />)
+    const picker = screen.getByRole('button', { name: /calendar.monthPicker/ })
+    fireEvent.click(picker)
+    expect(picker).toHaveAttribute('aria-expanded', 'true')
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+    page.rerender(<CalendarPage />)
+    expect(picker.isConnected).toBe(true)
+    expect(picker).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'close-overlay' })).toBeInTheDocument()
+  })
+
+  it.each([false, true])('keeps the calendar header inside its shell column through loading and view changes at wide=%s', async (wide) => {
+    isWideDesktopValue = wide
+    const profile = profileQueryState.profile
+    profileQueryState.profile = undefined
+    const view = render(<DestinationShell onCreate={() => {}}><CalendarPage /></DestinationShell>)
+    const header = await screen.findByTestId('calendar-shell-header')
+    const column = view.container.querySelector('[data-shell-column]')
+    expect(column).toBeInTheDocument()
+    expect(header.closest('[data-shell-column]')).toBe(column)
+    expect(header.closest('[data-shell-header]')).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-scroller]')).not.toContainElement(header)
+    profileQueryState.profile = profile
+    view.rerender(<DestinationShell onCreate={() => {}}><CalendarPage /></DestinationShell>)
+    expect(screen.getByTestId('calendar-shell-header').closest('[data-shell-column]')).toBe(column)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    expect(screen.getByTestId('calendar-shell-header').closest('[data-shell-column]')).toBe(column)
+  })
+
   it('returns Semana to profile today across a device week boundary', () => {
     const previousZone = process.env.TZ
     process.env.TZ = 'UTC'
@@ -365,6 +507,47 @@ describe('CalendarPage view switcher', () => {
       expect.soft(current()).toHaveTextContent('Oct 5 to Oct 11')
       fireEvent.click(current())
       expect(current()).toHaveTextContent('Sep 28 to Oct 4')
+    } finally {
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
+      else process.env.TZ = previousZone
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([false, true])('keeps the UTC account-day fallback for a null profile time zone, delayed: %s', (delayed) => {
+    const previousZone = process.env.TZ
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'))
+    const profile = { weekStartDay: 1 as const, timeZone: null, hasProAccess: false }
+    profileQueryState.profile = delayed ? undefined : profile
+    try {
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })).toHaveTextContent('Oct 5 to Oct 11')
+    } finally {
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
+      else process.env.TZ = previousZone
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
+    const previousZone = process.env.TZ
+    process.env.TZ = 'UTC'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'))
+    profileQueryState.profile = undefined
+    try {
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      const current = () => screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })
+      if (navigated) fireEvent.click(screen.getByRole('button', { name: 'common.nextWeek' }))
+      profileQueryState.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true }
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(navigated ? 'Oct 12 to Oct 18' : 'Sep 28 to Oct 4')
     } finally {
       if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
       else process.env.TZ = previousZone
@@ -490,7 +673,7 @@ describe('CalendarPage view switcher', () => {
     monthQueryState.isFetching = view === 'month'
     rangeFetching = view === 'range'
     rerender(<CalendarPage />)
-    expect(screen.getByTestId('calendar-header-group').nextElementSibling).toContainElement(
+    expect(screen.getByTestId('calendar-header-group').parentElement?.nextElementSibling).toContainElement(
       screen.getByTestId(view === 'month' ? 'day-detail' : 'range-view'),
     )
     expect(screen.queryByRole('progressbar')).toBeNull()
@@ -724,13 +907,20 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('switches to the week and range time-grid views', () => {
-    render(<CalendarPage />)
+    const page = render(<CalendarPage />)
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getByTestId('week-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toContainElement(screen.getByTestId('week-view'))
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    for (const view of ['agenda', 'month']) {
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    }
   })
 
   it('keeps the selector in the header and the selected day below the grid at wide width', () => {
@@ -1201,6 +1391,75 @@ describe('CalendarPage view switcher', () => {
     })
 
     afterEach(() => vi.unstubAllGlobals())
+
+    it.each(['week', 'range', 'agenda'])('resets the %s period only on account replacement', async (view) => {
+      const profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+      profileQueryState.profile = profile
+      const page = render(<CalendarPage />)
+      const radio = screen.getByRole('radio', { name: `calendar.view.${view}` })
+      fireEvent.click(radio)
+      const current = () => screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })
+      const initialPeriod = current().textContent
+      fireEvent.click(screen.getByRole('button', { name: view === 'range' ? 'calendar.range.previous' : 'common.nextWeek' }))
+      const browsedPeriod = current().textContent
+      expect(browsedPeriod).not.toBe(initialPeriod)
+      radio.focus()
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(browsedPeriod!)
+      expect(radio).toHaveFocus()
+      await recoverSameAccount('user-1')
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(browsedPeriod!)
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      await replaceAccountWith('user-2')
+      expect(current()).toHaveTextContent(initialPeriod!)
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(initialPeriod!)
+      expect(screen.getByRole('radio', { name: `calendar.view.${view}` })).toBe(radio)
+      expect(radio).toHaveFocus()
+      expect(radio).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it.each(['agenda', 'week'] as const)('clears the %s entry details on account replacement while preserving same-account recovery', async (view) => {
+      const profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+      profileQueryState.profile = profile
+      const title = 'Previous account private habit'
+      rangeDayMap = new Map([[formatAPIDate(new Date()), [{
+        ...monthEntry('private-habit', 'upcoming'), title, dueTime: '09:00',
+      }]]])
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      const radio = screen.getByRole('radio', { name: `calendar.view.${view}` })
+      fireEvent.click(view === 'week' ? screen.getByTestId('time-grid-event') : screen.getByRole('button', { name: 'calendar.entryLabel' }))
+      expect(screen.getByRole('dialog', { name: 'calendar.entryDetails' })).toHaveTextContent(title)
+
+      profileQueryState.profile = undefined
+      rangeDayMap = new Map()
+      monthQueryState.dayMap = new Map()
+      page.rerender(<CalendarPage />)
+      await recoverSameAccount('user-1')
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(screen.getByRole('dialog', { name: 'calendar.entryDetails' })).toHaveTextContent(title)
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      await replaceAccountWith('user-2')
+      expect.soft(screen.queryByRole('dialog', { name: 'calendar.entryDetails' })).toBeNull()
+      expect.soft(document.body).not.toHaveTextContent(title)
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect.soft(screen.queryByRole('dialog', { name: 'calendar.entryDetails' })).toBeNull()
+      expect.soft(document.body).not.toHaveTextContent(title)
+      expect(screen.getByRole('radio', { name: `calendar.view.${view}` })).toBe(radio)
+      expect(radio).toHaveAttribute('aria-checked', 'true')
+    })
 
     it('closes the day panel the previous account opened and returns to today', async () => {
       render(<CalendarPage />)

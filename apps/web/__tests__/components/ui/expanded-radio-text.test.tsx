@@ -9,6 +9,7 @@ import { resolve } from 'node:path'
 import type axe from 'axe-core'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 
 const token = `${'longaddress'.repeat(12)}@example.com`
 const labels = [token, `Read ${token} daily`]
@@ -32,8 +33,6 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { RadioRow } from './components/ui/select-check';
           import { ListRow } from './components/ui/list-row';
           import { PersonalTextDetails } from './components/ui/personal-text-details';
-          import { SettingsRow } from './components/ui/settings-row';
-          import { SettingsGroupRow } from './components/ui/settings-group';
           import { HabitRow } from './components/habits/habit-row';
           import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
@@ -51,20 +50,23 @@ describe('expanded RadioRow personal text in Chromium', () => {
                 root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
               });
             }, []);
+            if (composition === 'expandedStack') return <ListRow title={label} description={label} textMode="personal" personalExpanded onClick={() => {}} accessibilityLabel={label} />;
+            if (composition === 'collapsedStack') return <ListRow title={label} description={label} textMode="personal" onClick={() => {}} accessibilityLabel={label} />;
+            if (composition === 'plainStack') return <ListRow title={label} description={label} wrapTitle onClick={() => {}} accessibilityLabel={label} />;
             if (composition === 'support') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><SupportReplyEmail email={label} /></NextIntlClientProvider>;
             if (composition === 'habit') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><HabitRow habit={createMockHabit({ title: label })} selectMode selected hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }]} /></NextIntlClientProvider>;
-            if (composition === 'settingsMetadata') return <SettingsRow label={label} textMode="personal" desc="Details" value={<span>Value</span>} />;
-            if (composition === 'settingsImage') return <SettingsRow label={label} textMode="personal" value={<span role="img" aria-label="Special value" />} />;
-            if (composition === 'settingsRegion') return <SettingsRow label={label} textMode="personal" value={<span role="region" aria-label="Additional information"><span>{label}</span></span>} />;
-            if (composition === 'settingsEvolvingRegion') return <SettingsRow label={label} textMode="personal" value={<span role={selected ? 'region' : undefined} aria-label={selected ? 'Additional information' : undefined}><span>{label}</span></span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsEvolvingLink') return <SettingsRow label={label} textMode="personal" value={<a href={selected ? '/details' : undefined}>{label}</a>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsEvolvingEditor') return <SettingsRow label={label} textMode="personal" value={<span contentEditable={selected ? true : undefined} suppressContentEditableWarning>{label}</span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsGroupMetadata') return <SettingsGroupRow label={label} textMode="personal" hint="Details" />;
+            if (composition === 'settingsMetadata') return <ListRow accessibilityLabel={label} title={label} textMode="personal" description="Details" trailing={<span>Value</span>} />;
+            if (composition === 'settingsImage') return <ListRow title={label} textMode="personal" trailing={<span role="img" aria-label="Special value" />} />;
+            if (composition === 'settingsRegion') return <ListRow title={label} textMode="personal" trailing={<span role="region" aria-label="Additional information"><span>{label}</span></span>} />;
+            if (composition === 'settingsEvolvingRegion') return <><ListRow title={label} textMode="personal" trailing={<span role={selected ? 'region' : undefined} aria-label={selected ? 'Additional information' : undefined}><span>{label}</span></span>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsEvolvingLink') return <><ListRow title={label} textMode="personal" trailing={<a href={selected ? '/details' : undefined}>{label}</a>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsEvolvingEditor') return <><ListRow title={label} textMode="personal" trailing={<span contentEditable={selected ? true : undefined} suppressContentEditableWarning>{label}</span>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsGroupMetadata') return <ListRow accessibilityLabel={label} title={label} textMode="personal" description="Details" />;
             if (composition === 'disabledRadio') return <RadioRow label={label} textMode="personal" disabled />;
             if (composition === 'disabledList') return <ListRow title={label} textMode="personal" personalExpanded disabled />;
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
-            if (composition === 'settings') return <SettingsRow label={label} textMode="personal" />;
-            if (composition === 'settingsGroup') return <SettingsGroupRow label={label} textMode="personal" />;
+            if (composition === 'settings') return <ListRow title={label} textMode="personal" />;
+            if (composition === 'settingsGroup') return <ListRow title={label} textMode="personal" />;
             if (composition === 'details') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PersonalTextDetails>{label}</PersonalTextDetails></NextIntlClientProvider>;
             return <RadioGroup aria-label="Subjects" onCommit={() => document.getElementById('commits').textContent += 'commit'}>
               <RadioRow label={label} textMode="personal" selected={selected === 0} onSelect={() => select(0)} />
@@ -92,6 +94,47 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  it.each(['expandedStack', 'plainStack', 'collapsedStack'])('uses readable leading for two-line $composition text at doubled text size', async (composition) => {
+    const page = await mount('Pessoa com nome completo', 'light', composition)
+    try {
+      await page.setViewportSize({ width: 412, height: 915 })
+      await page.addStyleTag({ content: ':root { font-size: 32px; }' })
+      await loadAppFonts(page)
+      for (const slot of ['list-row-title', 'list-row-description']) {
+        const text = page.locator(`[data-slot="${slot}"]`)
+        await expect.poll(() => text.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return parseFloat(style.lineHeight) / parseFloat(style.fontSize)
+        })).toBeGreaterThanOrEqual(1.4)
+        const geometry = await text.evaluate((element) => ({ lines: element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight), height: element.clientHeight, scrollHeight: element.scrollHeight }))
+        expect(geometry.lines).toBeCloseTo(2, 1)
+        expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.height)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(['expandedStack', 'plainStack'])('uses readable leading for three-line $composition text and compacts again when widened', async (composition) => {
+    const label = 'Pessoa com um nome completo escrito no próprio perfil e uma descrição longa que continua em várias linhas'
+    const page = await mount(label, 'light', composition)
+    try {
+      for (const slot of ['list-row-title', 'list-row-description']) {
+        const text = page.locator(`[data-slot="${slot}"]`)
+        await expect.poll(() => text.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return parseFloat(style.lineHeight) / parseFloat(style.fontSize)
+        })).toBeGreaterThanOrEqual(1.4)
+        expect(await text.evaluate((element) => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight))).toBeGreaterThan(2)
+      }
+      await page.setViewportSize({ width: 2000, height: 915 })
+      for (const slot of ['list-row-title', 'list-row-description']) {
+        await expect.poll(() => page.locator(`[data-slot="${slot}"]`).evaluate((element) => {
+          const style = getComputedStyle(element)
+          return parseFloat(style.lineHeight) / parseFloat(style.fontSize)
+        })).toBe(1.25)
+      }
+    } finally { await page.close() }
+  })
 
   const cases = labels.flatMap((label) => (['light', 'dark'] as const).map((mode) => ({ label, mode })))
   it.each(cases)('keeps all four sides of the focused outline clear in $mode for $label', async ({ label, mode }) => {

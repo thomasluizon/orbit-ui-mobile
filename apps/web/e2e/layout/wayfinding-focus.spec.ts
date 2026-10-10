@@ -10,7 +10,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { readFieldIndicators, inspectFocusedRing } from './focus-indicators'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Caminhar', dueTime: '08:00:00', children: [] })
@@ -24,8 +24,9 @@ const goalDetail = goalDetailWithMetricsSchema.parse({ goal: { ...goal, progress
 } })
 
 async function installCollections(context: BrowserContext) {
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
   for (const [path, payload] of [
-    [API.habits.list, habits], [API.habits.get(habit.id), habit], [API.habits.logs(habit.id), []],
+    [API.habits.get(habit.id), habit], [API.habits.logs(habit.id), []],
     [API.habits.metrics(habit.id), metrics], [API.goals.list, goals], [API.goals.detail(goal.id), goalDetail],
     [buildRecapRequestUrl('week'), createMockRecap()],
   ] as const) {
@@ -140,8 +141,8 @@ async function inspectDestinations(page: Page) {
 
 async function inspectConversation(page: Page, width: number) {
   await page.goto('/')
-  await page.locator('[data-shell-pinned-slot] [data-open-conversation]').click()
-  const panel = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
+  await page.locator(width >= 1024 ? '[data-shell-astra-row]' : '[data-shell-pinned-slot] [data-open-conversation]').click()
+  const panel = page.locator('[data-shell-conversation="overlay"]')
   await expect(panel).toBeVisible()
   await expectWayfindingFocus(page, panel)
   await expectWayfindingFocus(page, panel.locator('[data-composer-root]'))

@@ -1,12 +1,11 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 
 async function settleFillTransitions(control: Locator) {
-  await control.evaluate(async (element) => {
+  await control.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    await Promise.all(element.getAnimations({ subtree: true })
-      .filter((animation) => animation instanceof CSSTransition)
-      .map((animation) => animation.finished))
   })
+  await control.evaluate(settleAnimations)
 }
 
 async function readFill(control: Locator) {
@@ -33,7 +32,7 @@ async function readFill(control: Locator) {
     }
     const controlBounds = element.getBoundingClientRect()
     const controlStyle = getComputedStyle(element)
-    const visualContent = element.children.length ? fill : element.parentElement!.querySelector('[data-personal-text-content]') ?? fill
+    const visualContent = element.children.length ? element : element.parentElement!.querySelector('[data-personal-text-content]') ?? fill
     const content: DOMRect[] = [...visualContent.querySelectorAll('svg')].map((icon) => icon.getBoundingClientRect())
     const walker = document.createTreeWalker(visualContent, NodeFilter.SHOW_TEXT)
     while (walker.nextNode()) {
@@ -49,11 +48,17 @@ async function readFill(control: Locator) {
     }
     const pixels = (value: string) => Number.parseFloat(value) || 0
     const radius = (value: string, width: number, height: number) => Math.min(pixels(value), width / 2, height / 2)
+    const extendedBounds = { left: controlBounds.left, right: controlBounds.right, top: controlBounds.top, bottom: controlBounds.bottom }
     const pseudoHitExtensions = ['::before', '::after'].filter((pseudo) => {
       const pseudoStyle = getComputedStyle(element, pseudo)
-      return !['none', 'normal'].includes(pseudoStyle.content) && pseudoStyle.position === 'absolute'
+      const extendsTarget = !['none', 'normal'].includes(pseudoStyle.content) && pseudoStyle.position === 'absolute'
         && pseudoStyle.pointerEvents !== 'none'
         && [pseudoStyle.left, pseudoStyle.right, pseudoStyle.top, pseudoStyle.bottom].some((offset) => pixels(offset) < 0)
+      if (!extendsTarget) return false
+      const target = { left: controlBounds.left + pixels(pseudoStyle.left), right: controlBounds.right - pixels(pseudoStyle.right), top: controlBounds.top + pixels(pseudoStyle.top), bottom: controlBounds.bottom - pixels(pseudoStyle.bottom) }
+      const painted = fill !== element && Object.entries(target).every(([edge, value]) => Math.abs(value - bounds[edge as 'left' | 'right' | 'top' | 'bottom']) <= 1)
+      if (painted) Object.assign(extendedBounds, target)
+      return !painted
     })
     const paddings = content.filter((rect) => rect.width > 0).map((rect) => ({
       inline: Math.min(rect.left - bounds.left, bounds.right - rect.right),
@@ -65,18 +70,21 @@ async function readFill(control: Locator) {
         .map((value) => radius(value, bounds.width, bounds.height)),
       controlRadii: [controlStyle.borderTopLeftRadius, controlStyle.borderTopRightRadius, controlStyle.borderBottomRightRadius, controlStyle.borderBottomLeftRadius]
         .map((value) => radius(value, bounds.width, bounds.height)),
-      matchesHitArea: Math.abs(bounds.left - controlBounds.left) <= 1 && Math.abs(bounds.right - controlBounds.right) <= 1
-        && Math.abs(bounds.top - controlBounds.top) <= 1 && Math.abs(bounds.bottom - controlBounds.bottom) <= 1,
+      matchesHitArea: Math.abs(bounds.left - extendedBounds.left) <= 1 && Math.abs(bounds.right - extendedBounds.right) <= 1
+        && Math.abs(bounds.top - extendedBounds.top) <= 1 && Math.abs(bounds.bottom - extendedBounds.bottom) <= 1,
       pseudoHitExtensions, paddings,
     }
   })
 }
 
 export async function expectFillShape(control: Locator, state: string) {
+  await expect.soft(async () => {
+    const fill = await readFill(control)
+    expect(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
+    expect(fill.effectiveOpacity, `${state}: the fill has visible effective opacity`).toBeGreaterThan(0)
+  }).toPass({ timeout: 3000 })
   const fill = await readFill(control)
   expect.soft(fill.matchesHitArea, `${state}: fill covers the control's entire hit area`).toBe(true)
-  expect.soft(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
-  expect.soft(fill.effectiveOpacity, `${state}: the fill has visible effective opacity`).toBeGreaterThan(0)
   for (const [index, radius] of fill.radii.entries()) {
     expect.soft(radius, `${state}: fill uses the control's corner radius`).toBeCloseTo(fill.controlRadii[index]!, 1)
   }
@@ -102,7 +110,7 @@ export async function expectInteractionFill(control: Locator) {
   await expect.poll(async () => {
     const hovered = await readFill(control)
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
-  }, { message: 'hover paints the control fill' }).toBe(true)
+  }, { message: 'hover paints the control fill', timeout: 3000 }).toBe(true)
   await expectFillShape(control, 'hover')
   try {
     await page.mouse.down()

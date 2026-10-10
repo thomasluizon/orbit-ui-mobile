@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -40,7 +41,7 @@ for (const width of [320, 1352]) {
         test.use({ appLocale: locale, layoutProfile: profile, layoutTags: [tags, { scope: 'test' }], viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
           await context.route((url) => url.pathname === API.goals.list, (route) => route.fulfill({ json: goals }))
-          await context.route((url) => url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
           await context.route((url) => url.pathname === API.habits.get(parent.id), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), id: parent.id, title: name, children: [{ ...makeHabitDetailChild(), id: child.id, title: child.title, dueDate: day }] }) }))
         })
 

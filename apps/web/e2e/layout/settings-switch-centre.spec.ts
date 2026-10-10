@@ -4,8 +4,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 async function expectSwitchCentred(control: Locator) {
@@ -35,7 +34,7 @@ for (const width of [412, 1280]) {
       test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'stripe', layoutProfile: profile })
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       })
 
       test('centres the Conta usage analytics label', async ({ page }) => {

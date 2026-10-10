@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -32,7 +32,7 @@ export function CalendarAgendaView({
   const { t, i18n } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = createTokensV2(currentScheme, currentTheme);
-  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null);
+  const [selectedEntry, setSelectedEntry] = useAccountScopedState<CalendarDayEntry | null>(null);
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
 
   return (

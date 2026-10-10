@@ -2,7 +2,8 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -12,8 +13,8 @@ import {
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
-import { ErrorState } from '@/components/ui/error-state'
-import { Badge } from '@/components/ui/badge'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from './calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
@@ -61,16 +62,20 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
-  if (state === 'pro-boundary') return <View testID="calendar-pro-boundary" style={styles.eventSection}>
-    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
-  </View>
+  const { width } = useWindowDimensions()
+  if (state === 'pro-boundary') return <CapacityNotice
+    message={t('calendar.proBoundary.title')}
+    body={t('calendar.proBoundary.body')}
+    // eslint-disable-next-line local/max-button-words -- #1341 requires the granted calendar boundary action.
+    action={<View style={{ alignItems: 'flex-start' }}><PillButton size="sm" variant={width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'} onClick={onViewPro}>{t('calendar.proBoundary.action')}</PillButton></View>}
+  />
   if (state === 'not-connected') return <View style={styles.eventSection}>
     <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </View>
   return <View style={styles.eventSection}>
     <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>{t('calendar.dayDetail.eventsTitle')}</Text>
-    {state === 'loading' ? <View style={{ paddingHorizontal: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></View> : null}
-    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
+    {state === 'loading' ? <View><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></View> : null}
+    {state === 'failed' ? <View style={styles.eventSection}><Text accessibilityLabel={t('calendar.fetchError')} accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.eventErrorText, { color: tokens.fg1 }]}>{t('calendar.fetchError')}</Text><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></View> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents t={t} displayTime={displayTime} calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
   </View>
@@ -182,12 +187,10 @@ export function CalendarDayDetail({
         {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
         <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
 
-        {filteredEntries.length === 0 ? (
-          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-            {t('calendar.noHabitsScheduled')}
-          </Text>
-        ) : null}
       </View>
+      {filteredEntries.length === 0 ? (
+        <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>{t('calendar.noHabitsScheduled')}</Text>
+      ) : null}
 
       {filteredEntries.length > 0 ? (
         <View style={styles.rowList}>
@@ -212,7 +215,7 @@ export function CalendarDayDetail({
 
             return (
               <Pressable key={`${selectedDate}:${entry.habitId}`} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={({ pressed }) => [styles.habitDisclosure, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }}>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                     <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
                     {value ? <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2 }}>{value}</Text> : null}
@@ -260,16 +263,17 @@ export function CalendarDayDetail({
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    container: { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, borderRadius: radius.xl, borderWidth: 1, gap: 24, paddingVertical: 24 },
-    copyBlock: { gap: 8, paddingHorizontal: 16 },
-    rowList: { gap: 8 },
+    container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: 24, paddingVertical: 24 },
+    copyBlock: { gap: 4 },
+    rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
-    summaryText: { fontFamily: 'Geist_400Regular', fontSize: 12 },
-    emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, paddingVertical: 24, textAlign: 'center' },
+    summaryText: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+    emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
     eventSection: { gap: 8 },
-    eventTitle: { paddingHorizontal: 16, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
-    emptyEventText: { paddingHorizontal: 16, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+    eventErrorText: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
+    eventTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
+    emptyEventText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
     fullTitle: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
   })
 }

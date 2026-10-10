@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { RowList } from '@/components/ui/row-list'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
@@ -53,6 +54,7 @@ export default function AboutPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [showGuide, setShowGuide] = useState(false)
   const appVersion = getAppVersion()
@@ -61,7 +63,7 @@ export default function AboutPage() {
     <div className="min-w-0 md:w-full md:max-w-[620px]">
       <div className="flex min-w-0 flex-col">
         <PageHeader
-          backLabel={t('common.backToProfile')}
+          backLabel={backLabel}
           onBack={() => goBackOrFallback('/profile')}
           title={t('about.title')}
         />

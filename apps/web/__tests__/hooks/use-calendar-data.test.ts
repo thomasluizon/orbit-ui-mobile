@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
+import { emptyCalendarMonth } from '../../e2e/layout/calendar-month-fixture'
 
 const mockFetch = vi.fn()
 vi.mock('@/lib/throttle-fetch', () => ({
@@ -27,7 +28,7 @@ describe('useCalendarData', () => {
   })
 
   it('fetches calendar data and builds dayMap', async () => {
-    mockFetch.mockResolvedValue({
+    const response = {
       ok: true,
       json: () =>
         Promise.resolve({
@@ -40,7 +41,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-15', '2025-01-16'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -68,14 +70,28 @@ describe('useCalendarData', () => {
             'h-1': [{ id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' }],
           },
         }),
-    })
+    }
+    let settleResponse!: () => void
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => {
+      settleResponse = () => resolve(response)
+    }))
 
     const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+      '/api/habits/calendar-month?dateFrom=2025-01-01&dateTo=2025-01-31',
+    )
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.isFetching).toBe(true)
+    expect(result.current.dayMap.size).toBe(0)
+
+    await act(async () => { settleResponse() })
     await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.error).toBeNull()
 
     expect(result.current.dayMap.size).toBeGreaterThan(0)
 
@@ -100,6 +116,7 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Week',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-03'],
+              linkedGoals: [],
               instances: [
                 { date: '2024-12-27', status: 'Overdue', logId: null },
                 { date: '2025-01-03', status: 'Overdue', logId: null },
@@ -141,10 +158,7 @@ describe('useCalendarData', () => {
   })
 
   it('returns empty dayMap when no data', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ habits: [], logs: {} }),
-    })
+    mockFetch.mockResolvedValue(new Response(JSON.stringify(emptyCalendarMonth)))
 
     const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
@@ -152,6 +166,13 @@ describe('useCalendarData', () => {
     })
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.dayMap.size).toBe(0)
+  })
+
+  it('reports a malformed calendar response as a query error without throwing during render', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    const { result } = renderHook(() => useCalendarData(new Date(2025, 0, 1)), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.error).not.toBeNull())
     expect(result.current.dayMap.size).toBe(0)
   })
 
@@ -185,7 +206,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2020-06-15'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -239,7 +261,8 @@ describe('useCalendarData', () => {
               frequencyUnit: null,
               frequencyQuantity: null,
               scheduledDates: ['2020-03-10'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -294,7 +317,8 @@ describe('useCalendarRangeChunked', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       scheduledDates: [date],
-      instances: null,
+      instances: [],
+      linkedGoals: [],
       isCompleted: false,
       isGeneral: false,
       isFlexible: false,

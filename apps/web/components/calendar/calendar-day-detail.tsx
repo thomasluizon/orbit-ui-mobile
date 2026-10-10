@@ -16,8 +16,9 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
-import { ErrorState } from '@/components/ui/error-state'
-import { Badge } from '@/components/ui/badge'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
@@ -55,17 +56,21 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   onOpenEvents?: () => void
 }>) {
   const t = useTranslations()
-  if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary">
-    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
-  </div>
+  const wide = useIsWideDesktop()
+  if (state === 'pro-boundary') return <CapacityNotice
+    message={t('calendar.proBoundary.title')}
+    body={t('calendar.proBoundary.body')}
+    // eslint-disable-next-line local/max-button-words -- #1341 requires the granted calendar boundary action.
+    action={<PillButton size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onViewPro}>{t('calendar.proBoundary.action')}</PillButton>}
+  />
   if (state === 'not-connected') return <div>
     <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </div>
   return <div className="flex flex-col gap-2">
-    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, paddingInline: 16, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
-    {state === 'loading' ? <div style={{ paddingInline: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
-    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
-    {state === 'ready' && calendarEvents.length === 0 ? <p className="px-4 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+    {state === 'loading' ? <div><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
+    {state === 'failed' ? <div className="flex flex-col gap-2"><p role="alert" className="m-0 text-base text-[var(--fg-1)]">{t('calendar.fetchError')}</p><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></div> : null}
+    {state === 'ready' && calendarEvents.length === 0 ? <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
   </div>
 }
@@ -177,7 +182,7 @@ function CalendarDayRows({
 
     return (
       <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <span className="flex min-w-0 items-start gap-2 px-4 py-2">
+        <span className="flex min-w-0 items-start gap-2 px-4 py-3">
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
             {value ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
@@ -248,23 +253,18 @@ export function CalendarDayDetail({
   )
 
   const body = (
-    <div className="flex flex-col" style={{ gap: 24 }}>
-      <div className="flex flex-col" style={{ gap: 8, paddingInline: 16 }}>
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <div className="flex flex-col" style={{ gap: 4 }}>
         {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
-        <p className="text-xs text-[var(--fg-3)]" style={{ margin: 0 }}>
+        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: 0 }}>
           {summary}
         </p>
-        {filteredEntries.length === 0 ? (
-          <p
-            className="text-center text-sm text-[var(--fg-3)]"
-            style={{ margin: 0, paddingBlock: 24 }}
-          >
-            {t('calendar.noHabitsScheduled')}
-          </p>
-        ) : null}
       </div>
+      {filteredEntries.length === 0 ? (
+        <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.noHabitsScheduled')}</p>
+      ) : null}
       {filteredEntries.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           <CalendarDayRows
             dateStr={dateStr}
             entries={filteredEntries}
@@ -300,7 +300,7 @@ export function CalendarDayDetail({
       aria-label={formattedDate}
       data-field-surface="card"
       className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
-      style={{ paddingBlock: 24 }}
+      style={{ padding: 24 }}
     >
       {body}
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>

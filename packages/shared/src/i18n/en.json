@@ -109,15 +109,16 @@
   "common": {
     "showFullText": "Show full text: {name}",
     "options": "Options",
-    "backToToday": "Back to today",
-    "backToParentHabit": "Back to parent habit",
+    "backToToday": "Back to Today",
+    "backToParentHabit": "Back to the parent habit",
+    "backToHabit": "Back to the habit",
     "backToDestination": "Back to {destination}",
     "closeConversation": "Close conversation",
     "appName": "Orbit",
     "save": "Save",
     "add": "Add",
     "back": "Go back",
-    "backToProfile": "Back to profile",
+    "backToProfile": "Back to Profile",
     "top": "Top",
     "backToTop": "To top",
     "skipToContent": "Skip to main content",
@@ -454,7 +455,6 @@
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
-    "backToLogin": "Back to login",
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
@@ -521,6 +521,7 @@
       "matchDescription": "in the description",
       "matchTag": "in the tag",
       "matchChild": "inside",
+      "screenTitle": "Search",
       "title": "Search habits",
       "searching": "Searching",
       "emptyTitle": "Nothing found for <queryText>“{query}”</queryText>",
@@ -1036,7 +1037,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open this day on Today",
+    "goToDay": "Open in Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -1063,7 +1064,8 @@
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
-      "untimedCount": "{count} without a set time"
+      "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, =0 {+# more habits on this day} one {+# more habit on this day} other {+# more habits on this day}}"
     },
     "status": {
       "completed": "done",
@@ -2193,7 +2195,8 @@
   },
   "privacy": {
     "close": "Close privacy policy",
-    "title": "Privacy Policy",
+    "title": "Privacy policy",
+    "headerTitle": "Privacy",
     "lastUpdated": "Last updated: September 2026",
     "intro": {
       "title": "Introduction",
@@ -3415,12 +3418,13 @@
     }
   },
   "terms": {
-    "close": "Close terms of service",
-    "title": "Terms of Service",
+    "close": "Close terms of use",
+    "title": "Terms of use",
+    "headerTitle": "Terms",
     "lastUpdated": "Last updated: June 2026",
     "intro": {
       "title": "Agreement",
-      "body": "These Terms of Service govern your use of Orbit, a personal habit tracking app. By creating an account or using Orbit, you agree to these terms. If you do not agree, do not use the app."
+      "body": "These terms of use govern your use of Orbit, a personal habit tracking app. By creating an account or using Orbit, you agree to these terms. If you do not agree, do not use the app."
     },
     "provider": {
       "title": "Who Provides Orbit",

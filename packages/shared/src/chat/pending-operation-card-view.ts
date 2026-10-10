@@ -95,9 +95,7 @@ export interface PendingOperationCardRenderers<Node> {
   editSheet: (props: PendingOperationEditSheetProps) => Node
   removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
   notice: (message: string) => Node
-  actionRow: (...children: Node[]) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
-  spacer: () => Node
   rejected: (message: string) => Node
 }
 
@@ -218,7 +216,7 @@ function pendingActions<Node>(
     busy: card.busy,
   })
   if (action !== 'buttons') return undefined
-  if (card.status === 'failed') return render.actionRow(render.button({
+  if (card.status === 'failed') return render.fragment(render.button({
     label: labels.retry,
     variant: 'primary',
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
@@ -234,18 +232,17 @@ function pendingActions<Node>(
     disabled: revision?.canRevise === true && revision.items.length === 0,
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
-  if (!revision?.canRevise) return render.actionRow(approve, render.spacer(), reject)
+  if (!revision?.canRevise) return render.fragment(reject, approve)
   const firstEditableItem = revision.items.find((item) => item.fields.some(isPendingOperationEditableField))
-  if (!firstEditableItem) return render.actionRow(approve, render.spacer(), reject)
-  return render.actionRow(
-    approve,
+  if (!firstEditableItem) return render.fragment(reject, approve)
+  return render.fragment(
+    reject,
     render.button({
       label: labels.edit,
       variant: 'ghost',
       onClick: () => revision.startEdit(firstEditableItem.itemId),
     }),
-    render.spacer(),
-    reject,
+    approve,
   )
 }
 

@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { PillButton } from '@/components/ui/pill-button'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useLocale, useTranslations } from 'next-intl'
@@ -514,9 +515,9 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           </div>
           {importResult && importResult.habits.length > 0 && (
             <div className="w-full">
-              {importResult.habits.map((habit) => (
-                <SettingsRow key={habit.id} label={habit.title} textMode="personal" accessory="none" />
-              ))}
+              <SettingsGroup>{importResult.habits.map((habit) => (
+                <ListRow key={habit.id} title={habit.title} textMode="personal" chevron={false} />
+              ))}</SettingsGroup>
             </div>
           )}
           <PillButton onClick={onGoToHabits}>

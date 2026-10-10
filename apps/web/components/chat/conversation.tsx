@@ -188,7 +188,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
       <div
         ref={registerChatContainer}
-        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
+        className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ padding: 16 }}
         role="feed"
         aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}

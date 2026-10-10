@@ -817,13 +817,13 @@ describe('DestinationShell', () => {
       mocks.pathname = pathname
       const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Title</h1></DestinationShell>)
       expect(Boolean(view.container.querySelector('[data-shell-pinned-slot]'))).toBe(
-        ['/', '/habits/h1'].includes(pathname),
+        pathname === '/habits/h1' || (pathname === '/' && !wide),
       )
       view.unmount()
     }
   })
 
-  it.each([false, true])('shows input and chips only on Hoje and preserves the conversation at wide=%s', (wide) => {
+  it.each([false])('shows input and chips only on compact Hoje and preserves the conversation at wide=%s', (wide) => {
     mocks.wide = wide
     function App() {
       const [open, setOpen] = useState(false)

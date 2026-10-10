@@ -1,7 +1,6 @@
 'use client'
 
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { ActionRow } from '@/components/ui/action-row'
 
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
@@ -51,17 +50,17 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   return (
     <>
     <BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={(
-      <div className="flex flex-wrap items-center gap-2"><ActionRow>
+      <>
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
         {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
         {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
-          <ActionRow>
+          <>
             <Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button>
             <Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button>
             <Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
-          </ActionRow>
+          </>
         )}
-      </ActionRow></div>
+      </>
     )} />
     <ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} />
     </>

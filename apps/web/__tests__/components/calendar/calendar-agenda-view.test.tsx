@@ -67,7 +67,7 @@ describe('CalendarAgendaView', () => {
         <CalendarAgendaView startDate={startDate} dayMap={entries} displayTime={createTimeDisplay(locale, locale === 'pt-BR').displayTime}
           todayKey={day} isLoading={false} loadingLabel="common.loading" />
       </NextIntlClientProvider>)
-      const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : locale === 'en' ? 'No set time' : 'Sem hora certa'
+      const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : (locale === 'en' ? en : ptBR).calendar.timeGrid.noSetTime
       const row = screen.getByRole('button', { name: `${title}, ${value}, ${locale === 'en' ? scenario.en : scenario.pt}` })
       expect(row.querySelector('[data-slot="list-row-value"]')).toHaveTextContent(value)
       expect(screen.getAllByRole('button')).toHaveLength(1)
@@ -115,7 +115,7 @@ describe('CalendarAgendaView', () => {
       todayKey={formatAPIDate(startDate)} isLoading={false} loadingLabel="common.loading" />)
     const rows = [...container.querySelectorAll<HTMLButtonElement>('[data-testid="calendar-agenda-day"] button')]
     expect(rows.map((row) => row.querySelector('[data-slot="list-row-title"]')?.textContent)).toEqual([entries[2]!.title, entries[3]!.title, entries[1]!.title, entries[0]!.title])
-    expect(rows.map((row) => row.querySelector('[data-slot="list-row-value"]')?.textContent)).toEqual(['Sem hora certa', 'Sem hora certa', '08:00', '21:00'])
+    expect(rows.map((row) => row.querySelector('[data-slot="list-row-value"]')?.textContent)).toEqual([ptBR.calendar.timeGrid.noSetTime, ptBR.calendar.timeGrid.noSetTime, '08:00', '21:00'])
     for (const row of rows) {
       expect(row.style.paddingBlock).toBe('12px')
       expect(row.querySelectorAll('[data-status]')).toHaveLength(1)

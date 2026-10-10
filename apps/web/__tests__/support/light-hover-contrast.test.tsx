@@ -15,9 +15,7 @@ import { DateField } from '@/components/ui/date-field'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -33,9 +31,9 @@ const cases = [
   { name: 'row error', element: <CheckRow label="Checked" checked error="Error" onChange={() => {}} /> },
   { name: 'personal row error', element: <CheckRow label="Personal" textMode="personal" onOpenLabel={() => {}} checked error="Error" value="Value" onChange={() => {}} /> },
   { name: 'list row', element: <ListRow title="Delete" danger description="Description" value="Value" onClick={() => {}} /> },
-  { name: 'settings row', element: <SettingsRow label="Delete" danger desc="Description" value="Value" onClick={() => {}} /> },
-  { name: 'settings group row', element: <SettingsGroupRow label="Preferences" hint="Value" onClick={() => {}} /> },
-  { name: 'settings group value', element: <SettingsGroup items={[{ label: 'Preferences', value: 'Value', onClick: () => {} }]} /> },
+  { name: 'settings row', element: <ListRow textMode="label" title="Delete" danger description="Description" value="Value" onClick={() => {}} /> },
+  { name: 'settings group row', element: <ListRow textMode="label" title="Preferences" description="Value" onClick={() => {}} /> },
+  { name: 'settings group value', element: <SettingsGroup>{[{ label: 'Preferences', value: 'Value', onClick: () => {} }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup> },
 ]
 
 describe('rendered light hover contrast', () => {
@@ -212,7 +210,7 @@ describe('rendered light hover contrast', () => {
     }
 
     if (width === 1352) it('keeps the sidebar account email readable', async () => {
-      const { container, unmount } = render(<ShellWide items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
+      const { container, unmount } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
@@ -240,21 +238,44 @@ describe('rendered light hover contrast', () => {
       } finally { await page.close(); unmount() }
     })
 
-    it('keeps the partial day empty arc visible at ' + width, async () => {
-      const { container, unmount } = render(<DayCell day={16} done={1} scheduled={2} words={{ none: 'Empty', partial: 'Partial', full: 'Done', notScheduled: 'Not scheduled', of: 'of', today: 'Today', readOnly: 'Read only' }} loggable onPress={() => {}} />)
-      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    it.each((['light', 'dark'] as const).flatMap((mode) => ['hover', 'press'].flatMap((phase) => [false, true].flatMap((selected) => [0, 1, 2].map((done) => ({ mode, phase, selected, done }))))))('replaces the day well on $phase in $mode with selected=$selected, done=$done at ' + width, async ({ mode, phase, selected, done }) => {
+      const { container, unmount } = render(<DayCell day={16} done={done} scheduled={2} selected={selected} today words={{ none: 'Empty', partial: 'Partial', full: 'Done', notScheduled: 'Not scheduled', of: 'of', today: 'Today', readOnly: 'Read only' }} loggable onPress={() => {}} />)
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })
       try {
-        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
-        const resting = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
-        await page.locator('button').hover()
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-press-fill]')!).opacity === '1')
-        const stroke = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
-        expect(stroke).toBe(resting)
-        for (const surface of [neutralColors.light.bg, neutralColors.light.bgCard]) {
-          expect(contrastOnSurface(stroke, [surface])).toBeGreaterThanOrEqual(3)
-          expect(contrastOnSurface(stroke, [surface, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
+        const button = page.locator('button')
+        const measure = () => button.evaluate((control) => {
+          const circle = control.querySelector('[data-day-circle]')!
+          const disc = control.querySelector('[data-day-disc]')!
+          const numeral = disc.querySelector('span:last-child')!
+          const fills = [...circle.querySelectorAll('[data-press-fill]')].filter((fill) => Number(getComputedStyle(fill).opacity) > 0).map((fill) => ({ background: getComputedStyle(fill).backgroundColor, disc: fill.closest('[data-day-disc]') !== null }))
+          return { background: getComputedStyle(circle).backgroundColor, disc: getComputedStyle(disc).backgroundColor, text: getComputedStyle(numeral).color,
+            track: control.querySelector('circle') ? getComputedStyle(control.querySelector('circle')!).stroke : getComputedStyle(disc).boxShadow.match(/rgba?\([^)]*\)/)?.[0],
+            ring: getComputedStyle(circle.querySelector('[data-day-position-ring]')!).boxShadow, fills }
+        })
+        const resting = await measure()
+        const rgb = (color: string) => color.startsWith('#') ? `rgb(${[1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16)).join(', ')})` : color.replaceAll(/,\s*/g, ', ')
+        expect(resting.background).toBe(rgb(selected ? resolveWebThemeVariables('orange', mode)['--selection-bg']! : neutralColors[mode].bgWell))
+        await button.hover()
+        await page.waitForTimeout(300)
+        if (phase === 'press') {
+          expect(await measure()).toEqual(resting)
+          await page.mouse.down()
+          await page.waitForTimeout(300)
         }
+        const painted = await measure()
+        expect(painted.background).toBe(selected ? resting.background : 'rgba(0, 0, 0, 0)')
+        expect(painted.fills.filter((fill) => !fill.disc)).toEqual(selected ? [] : [{ background: rgb(neutralColors[mode].bgHover), disc: false }])
+        expect(painted.ring).toBe(resting.ring)
+        expect(painted.track).toBe(resting.track)
+        const layers = [neutralColors[mode].bg, painted.background, ...painted.fills.filter((fill) => !fill.disc).map((fill) => fill.background)]
+        if (painted.track) expect(contrastOnSurface(painted.track, layers)).toBeGreaterThanOrEqual(3)
+        expect(contrastOnSurface(painted.text, [...layers, painted.disc, ...painted.fills.filter((fill) => fill.disc).map((fill) => fill.background)])).toBeGreaterThanOrEqual(4.5)
+        await page.mouse.up()
+        await page.mouse.move(width - 1, 850)
+        await page.waitForTimeout(300)
+        expect(await measure()).toEqual(resting)
       } finally { await page.close(); unmount() }
     })
 
@@ -270,7 +291,7 @@ describe('rendered light hover contrast', () => {
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
         await control.hover()
-        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
+        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!.querySelector('[data-press-fill]') ?? document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
         const colors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
@@ -298,7 +319,7 @@ describe('rendered light hover contrast', () => {
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
         expect(pressOnly).toEqual(expectedPressOnly)
-        const pressedBackground = await control.evaluate((button) => getComputedStyle(button).backgroundColor)
+        const pressedBackground = await control.evaluate((button) => getComputedStyle(button.querySelector('[data-press-fill]') ?? button).backgroundColor)
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
           for (const color of pressOnly) {
             expect(contrastOnSurface(color, [surface, pressedBackground])).toBeGreaterThanOrEqual(4.5)

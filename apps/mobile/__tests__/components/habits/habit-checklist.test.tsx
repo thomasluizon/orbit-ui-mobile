@@ -1,12 +1,13 @@
 import { createElement, useState, type ReactElement } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { StyleSheet, type ViewStyle } from 'react-native'
 
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { i18n } from '@/lib/i18n'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 
 interface RenderedNode {
   type: unknown
@@ -19,6 +20,8 @@ interface RenderedInput extends RenderedNode {
     accessibilityLabel?: string
     onChangeText: (value: string) => void
     onFocus: (event: unknown) => void
+    onSubmitEditing: () => void
+    editable: boolean
     style: readonly unknown[]
     value: string
   }
@@ -41,6 +44,10 @@ const translationMockState = vi.hoisted(() => ({
 }))
 
 const themeState = vi.hoisted(() => ({ mode: 'dark' }))
+beforeEach(async () => {
+  themeState.mode = 'dark'
+  await i18n.changeLanguage('en')
+})
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: themeState.mode }),
 }))
@@ -203,15 +210,69 @@ describe('HabitChecklist checked rows', () => {
 })
 
 describe('HabitChecklist editable rows', () => {
-  it('separates the add field focus perimeter from the primary button', () => {
+  it('separates the shared field focus perimeter from the add pill by eight', () => {
     const tree = renderChecklist()
     const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')
     if (!input) throw new Error('Expected checklist add input')
     expect(input.props.accessibilityLabel).toBe(i18n.t('habits.form.checklistPlaceholder'))
     let row = input.parent
-    while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 48) row = row.parent
+    while (row && (row.type !== 'View' || StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 48)) row = row.parent
     if (!row) throw new Error('Expected checklist add row')
-    expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 12 })
+    expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 8, alignItems: 'center' })
+    const control = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'input-control')[0]!
+    expect(StyleSheet.flatten(control.props.style as ViewStyle)).toMatchObject({ borderRadius: 12 })
+  })
+
+  it.each(['dark', 'light'] as const)('uses a disabled ghost small pill and adds trimmed text by press and keyboard in %s', (mode) => {
+    themeState.mode = mode
+    const tree = renderChecklist()
+    const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')!
+    const add = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('common.add'))[0]!
+    expect(add.props.testID).toBe('button-ghost-sm')
+    expect(add.props.disabled).toBe(true)
+    expect(add.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(pressPaint(add, false)).toMatchObject({ width: 44, height: 44, borderRadius: radius.full, backgroundColor: 'transparent', opacity: 0.4 })
+    TestRenderer.act(() => input.props.onChangeText('   '))
+    TestRenderer.act(() => input.props.onSubmitEditing())
+    expect(itemInputs(tree).filter((node) => node !== input)).toHaveLength(2)
+    expect(add.props.disabled).toBe(true)
+    TestRenderer.act(() => input.props.onChangeText('  Prepare coffee  '))
+    expect(add.props.disabled).toBe(false)
+    expect(pressPaint(add, true).backgroundColor).toBe(createTokensV2('purple', mode).bgHover)
+    TestRenderer.act(() => (add.props.onPress as () => void)())
+    expect(itemInputs(tree).map((node) => node.props.value)).toEqual(['First item', 'Second item', 'Prepare coffee'])
+    expect(input.props.value).toBe('')
+    expect(add.props.disabled).toBe(true)
+    TestRenderer.act(() => input.props.onChangeText('  Wash cup  '))
+    TestRenderer.act(() => input.props.onSubmitEditing())
+    expect(itemInputs(tree).map((node) => node.props.value)).toEqual(['First item', 'Second item', 'Prepare coffee', 'Wash cup'])
+    expect(input.props.value).toBe('')
+    themeState.mode = 'dark'
+  })
+
+  it.each(['en', 'pt-BR'])('names the add input and pill in %s', async (language) => {
+    await i18n.changeLanguage(language)
+    const tree = renderChecklist()
+    const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')!
+    expect(input.props.accessibilityLabel).toBe(i18n.t('habits.form.checklistPlaceholder'))
+    const add = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-ghost-sm')
+    expect(add).toHaveLength(1)
+    expect(add[0]!.props.accessibilityLabel).toBe(i18n.t('common.add'))
+    await i18n.changeLanguage('en')
+  })
+
+  it('disables the field and add pill at capacity and rejects keyboard submission', () => {
+    const onItemsChange = vi.fn()
+    const items = Array.from({ length: MAX_CHECKLIST_ITEMS }, (_, index) => ({ text: `Step ${index + 1}`, isChecked: false }))
+    let tree!: RenderedTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitChecklist items={items} editable onItemsChange={onItemsChange} />) })
+    const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')!
+    const add = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('common.add'))[0]!
+    expect(input.props.editable).toBe(false)
+    expect(add.props.disabled).toBe(true)
+    TestRenderer.act(() => input.props.onChangeText('Extra step'))
+    TestRenderer.act(() => input.props.onSubmitEditing())
+    expect(onItemsChange).not.toHaveBeenCalled()
   })
 
   it('keeps a draft with its row through an optimistic reorder and rollback', () => {

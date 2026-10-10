@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -56,7 +56,7 @@ function setViewport(width: number) {
 function ConversationPreview({ locale, counted }: Readonly<{ locale: typeof locales[number]; counted: string | undefined }>) {
   const messages = locale === 'en' ? en : pt
   return <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-    <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} onCreate={vi.fn()} createLabel={messages.nav.createHabit} conversationLabel={messages.chat.title} conversation={<div style={{ padding: 16 }}>
+    <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} onCreate={vi.fn()} createLabel={messages.nav.createHabit} conversationLabel={messages.chat.title} conversation={<div style={{ padding: 16 }}>
       <MessageBubble message={counted ? { ...message, pendingOperations: [{ ...makeCreateHabitsPreview(), actionKey: counted }] } : message} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
     </div>} />
   </NextIntlClientProvider>
@@ -81,6 +81,60 @@ describe('Pending preview geometry in Chromium', () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done', 'acting', 'failed'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
+    const messages = locale === 'en' ? en : pt
+    const name = locale === 'en'
+      ? 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
+      : 'Ler os livros que escolhi para aprender sobre todos os lugares e pessoas ao redor do mundo antes do café da manhã'
+    const preview = makeCreateHabitsPreview(2)
+    preview.items = preview.items!.map((item, index) => index === 0 ? { ...item, entityName: name, fields: item.fields.map(field => ({ ...field, entityName: name, newValue: name })) } : item)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 600), padding: 16 }}>
+      <PendingOperationCard pendingOperation={preview} onRevise={vi.fn()} onOpenTarget={vi.fn()} onConfirmExecute={state === 'acting' ? vi.fn(() => new Promise(() => {})) : vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const actionName = state === 'failed' ? null : state === 'done' ? new IntlMessageFormat(messages.chat.action.openEntity, locale).format({ name }) as string : `${messages.chat.operation.remove} ${name}`
+    if (state !== 'pending') {
+      fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
+      await waitFor(() => expect(screen.getAllByText(messages.blockFrame.status[state as 'done' | 'acting' | 'failed']).length).toBeGreaterThan(0))
+    }
+    expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(({ name, actionName }) => {
+        const label = [...document.querySelectorAll<HTMLElement>('[data-personal-text]')].find(element => element.textContent === name)!
+        const action = actionName ? [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === actionName)! : label.closest('[data-status="failed"]')!.lastElementChild!.querySelector('svg')!
+        let row = label.parentElement!
+        while (!row.contains(action)) row = row.parentElement!
+        const labelBounds = label.getBoundingClientRect()
+        const disclosureBounds = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
+        const actionBounds = action.getBoundingClientRect()
+        const rowBounds = row.getBoundingClientRect()
+        const trailing = row.lastElementChild as HTMLElement
+        const trailingBounds = trailing.getBoundingClientRect()
+        const status = trailing.querySelector(':scope > span') as HTMLElement | null
+        const statusRight = status ? Math.max(...[status, ...status.querySelectorAll('*')].map(element => element.getBoundingClientRect().right)) : trailingBounds.right
+        return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
+      }, { name, actionName })
+      expect(geometry.direction).toBe('row')
+      expect(geometry.branches).toBe(2)
+      expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
+      expect(geometry.actionCenter).toBeLessThanOrEqual(geometry.firstLineBottom + 0.5)
+      expect(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 0.5)
+      expect(geometry.labelWidth).toBeGreaterThan(0)
+      expect(geometry.labelHeight).toBeGreaterThan(0)
+      expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
+      expect(geometry.disclosureLeft).toBeGreaterThanOrEqual(geometry.rowLeft)
+      expect(geometry.disclosureRight).toBeLessThanOrEqual(geometry.actionLeft)
+      expect(geometry.actionRight).toBeLessThanOrEqual(geometry.rowRight)
+      expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.rowBottom)
+      expect(geometry.trailingRight).toBeLessThanOrEqual(geometry.rowRight)
+      expect(geometry.trailingBottom).toBeLessThanOrEqual(geometry.rowBottom)
+      expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
+      expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
+    } finally { await page.close() }
+  })
+
   it.each(viewports.flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     setViewport(width)
     const messages = locale === 'en' ? en : pt
@@ -93,7 +147,7 @@ describe('Pending preview geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.evaluate((moreLabel) => {
-        const row = document.querySelector<HTMLElement>('[data-preview-actions]')!
+        const row = [...document.querySelectorAll<HTMLElement>('[data-action-row]')].find(row => row.querySelectorAll('.orbit-pill-action').length === 3)!
         const rowBounds = row.getBoundingClientRect()
         const buttons = Array.from(row.querySelectorAll('button')).map((button) => {
           const bounds = button.getBoundingClientRect()
@@ -106,14 +160,14 @@ describe('Pending preview geometry in Chromium', () => {
         const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
         return { buttons, rowLeft: rowBounds.left, rowRight: rowBounds.right, moreWidth, moreRowWidth, visiblePrimary }
       }, messages.chat.habitList.more)
-      expect(geometry.buttons.map((button) => button.label)).toEqual([counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve, messages.chat.operation.edit, messages.chat.operation.reject])
+      expect(geometry.buttons.map((button) => button.label)).toEqual([messages.chat.operation.reject, messages.chat.operation.edit, counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve])
       if (!counted && width >= 360) expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1)
       for (const button of geometry.buttons) {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
         expect(button.labelHeight).toBeLessThanOrEqual(button.lineHeight + 0.5)
       }
-      expect(geometry.buttons[0]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
+      expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)
       expect(geometry.moreWidth).toBeLessThan(geometry.moreRowWidth)
     } finally { await page.close() }

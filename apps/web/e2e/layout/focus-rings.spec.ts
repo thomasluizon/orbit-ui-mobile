@@ -1,5 +1,6 @@
 import { completeInstallOnboarding } from './install-onboarding'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
@@ -34,10 +35,11 @@ async function inspectTabStops(page: Page, surface: string) {
 }
 
 async function focusConversationComposer(page: Page, width: number) {
-  const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+  const conversation = page.locator('[data-shell-conversation="overlay"]')
   const conversationWasOpen = await conversation.isVisible()
   if (!conversationWasOpen) {
-    await page.locator('[data-shell-pinned-slot] [data-composer-input]').focus()
+    if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
+    else await page.locator('[data-shell-pinned-slot] [data-composer-input]').focus()
   }
   await expect(conversation).toBeVisible()
   await expect(page.locator('[data-shell-pinned-slot]')).toBeHidden()

@@ -53,11 +53,11 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   })
 
   return (
-    <View style={{ width: '100%', marginTop: 8 }}>
+    <View style={{ width: '100%' }}>
       <BlockFrame state="resting" title={t(habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.items.length })} items={rows} body={habitList.items.length === 0 ? (
         <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t(habitList.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty')}</Text>
       ) : undefined} actions={visibleItems.length < habitList.items.length ? (
-        <View style={{ flexDirection: 'row' }}><Button variant="ghost" size="sm" onClick={() => setShownCount((count) => count + PAGE_SIZE)}>{t('chat.habitList.more')}</Button></View>
+        <Button variant="ghost" size="sm" onClick={() => setShownCount((count) => count + PAGE_SIZE)}>{t('chat.habitList.more')}</Button>
       ) : undefined} />
     </View>
   )

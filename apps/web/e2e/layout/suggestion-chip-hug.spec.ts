@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -21,16 +22,15 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
         layoutProfile: { lastCompletionDate: '2026-09-01' } })
 
       test('hugs every visible conversation chip and keeps the strip at the gutter', async ({ page, context }) => {
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-          (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: habits.totalCount } }))
         await page.goto('/')
         await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Reading"]')).toBeVisible()
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         await expect(conversation).toBeVisible()
         const strip = conversation.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
         await expect(strip).toBeVisible()

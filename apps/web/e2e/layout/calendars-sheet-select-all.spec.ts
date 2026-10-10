@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
@@ -8,7 +9,7 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const calendars = userCalendarsSchema.parse([
@@ -45,15 +46,15 @@ async function expectHeadingAlignment(row: Locator) {
 }
 
 async function doubleSheetText(sheet: Locator) {
-  await sheet.evaluate(async (surface) => {
+  await sheet.evaluate((surface) => {
     const measurements = [surface, ...surface.querySelectorAll<HTMLElement>('*')]
       .map((element) => ({ element, size: Number.parseFloat(getComputedStyle(element).fontSize), line: Number.parseFloat(getComputedStyle(element).lineHeight) }))
     for (const { element, size, line } of measurements) {
       element.style.fontSize = `${size * 2}px`
       if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px`
     }
-    await Promise.allSettled(surface.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
   })
+  await sheet.evaluate(settleAnimations)
 }
 
 for (const width of [320, 412, 1352]) {
@@ -65,12 +66,12 @@ for (const width of [320, 412, 1352]) {
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile, calendars)
         const responses: ReadonlyArray<readonly [string, unknown]> = [
-          [API.profile.get, profile],
           [API.calendar.events, events],
           [API.calendar.calendars, calendars],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
         ]
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         for (const [path, response] of responses) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
         }

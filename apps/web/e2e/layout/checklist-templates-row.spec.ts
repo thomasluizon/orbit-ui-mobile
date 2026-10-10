@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
 
 for (const width of [412, 1280] as const) {
@@ -13,9 +14,11 @@ for (const width of [412, 1280] as const) {
 
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
-      const inputBlock = input.locator('xpath=..')
+      const inputBlock = disclosure.getByRole('button', { name: messages.common.add, exact: true }).locator('xpath=..')
       const button = disclosure.getByRole('button', { name: messages.habits.form.useTemplate })
       const row = button.locator('xpath=..')
+      const fill = row.locator('[data-slot="list-row-body"]')
+      const first = row.locator('[data-slot="list-row-icon"]')
       await expect(input).toBeVisible()
       await expect(button).not.toContainText(/\d/)
       await button.hover()
@@ -34,7 +37,13 @@ for (const width of [412, 1280] as const) {
       await expect(button).toHaveCSS('border-radius', '12px')
       const buttonBox = await button.boundingBox()
       expect(buttonBox).toEqual(rowBox)
-      await expect.poll(() => button.evaluate((element) => getComputedStyle(element).backgroundColor))
+      const fillBox = (await fill.boundingBox())!
+      const contentBox = (await first.boundingBox())!
+      expect(contentBox.x).toBeCloseTo(inputBlockBox.x, 1)
+      expect(fillBox.x).toBeCloseTo(inputBlockBox.x - 16, 1)
+      expect(fillBox.x + fillBox.width).toBeCloseTo(inputBlockBox.x + inputBlockBox.width + 16, 1)
+      await expect(fill).toHaveCSS('padding-block', '12px')
+      await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).backgroundColor))
         .not.toBe('rgba(0, 0, 0, 0)')
 
       const glyph = row.locator('[data-icon="template"] svg')

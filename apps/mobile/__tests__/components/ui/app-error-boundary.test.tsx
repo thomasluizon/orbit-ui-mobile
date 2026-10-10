@@ -9,7 +9,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 
 interface TestNode {
-  props: { children?: unknown; accessibilityRole?: string; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
+  props: { children?: unknown; accessibilityRole?: string; textBreakStrategy?: string; android_hyphenationFrequency?: string; numberOfLines?: number; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
 }
 interface TestTree {
   root: { findAllByType: (type: string) => TestNode[]; findByType: (type: string) => TestNode }
@@ -31,6 +31,8 @@ describe('AppErrorScreen', () => {
     await mount({ status: 500 })
     const title = tree.root.findAllByType('Text').find((node) => node.props.accessibilityRole === 'header')!
     expect(StyleSheet.flatten(title.props.style).fontSize).toBe(width >= 1024 ? 28 : 22)
+    expect(title.props).toMatchObject({ textBreakStrategy: 'simple', android_hyphenationFrequency: 'none' })
+    expect(title.props.numberOfLines).toBeUndefined()
   })
   it.each(['dark', 'light'] as const)('keeps the rendered reference above the text contrast floor in %s', async (themeMode) => {
     const previousTheme = getRuntimeTheme()

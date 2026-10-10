@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -26,8 +27,8 @@ for (const width of [320, 412, 1352]) {
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
         await page.goto('/')
-        await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : pt.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Como posso revisar a minha rotina?')
         await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
         const group = conversation.getByRole('group', { name: pt.chat.followUps.label, exact: true })
@@ -35,7 +36,7 @@ for (const width of [320, 412, 1352]) {
         await expect(group.getByRole('button')).toHaveCount(2)
         await page.evaluate(() => document.fonts.ready)
         await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
-        await page.evaluate(() => Promise.allSettled(document.getAnimations().map(animation => animation.finished)))
+        await page.evaluate(settleAnimations, undefined)
 
         const message = await conversation.locator('[data-bubble-role="ai"]').boundingBox()
         const copy = await conversation.getByRole('button', { name: pt.chat.copy, exact: true }).elementHandle()

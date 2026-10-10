@@ -141,21 +141,21 @@ describe('Profile API key row geometry', () => {
       const measured = await page.evaluate((textScale) => {
         const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
         const control = document.querySelector<HTMLElement>('[role="switch"]')!
-        title.style.fontSize = `${17 * textScale}px`
+        document.documentElement.style.fontSize = `${16 * textScale}px`
         const titleBox = title.getBoundingClientRect()
-        const switchBox = control.getBoundingClientRect()
+        const switchBox = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
         const range = document.createRange()
         range.selectNodeContents(title)
         const style = getComputedStyle(title)
         const rowBox = title.closest('.orbit-list-row-shell')!.getBoundingClientRect()
-        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top - switchBox.top) <= 16, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top + parseFloat(style.lineHeight) / 2 - switchBox.top - switchBox.height / 2) <= 1, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
       }, textScale)
       expect(measured.textOverflow).not.toBe('ellipsis')
       expect(measured.unclipped).toBe(true)
       expect(measured.firstLineAligned).toBe(true)
       if (textScale === 1) expect(measured.lines).toBe(1)
       else expect(measured.rowHeight).toBeGreaterThan(52)
-      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 48, switches: 1 })
+      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 28, switches: 1 })
       expect(measured.text).not.toContain('5 of 5')
       expect(measured.text).not.toContain('5 de 5')
     } finally { await page.close() }
@@ -172,14 +172,14 @@ describe('Profile API key row geometry', () => {
       const measured = await page.evaluate(() => [...document.querySelectorAll('.orbit-list-row-shell')].map((element) => {
         const row = element.getBoundingClientRect()
         const control = element.querySelector('[role="switch"]')!
-        const bounds = control.getBoundingClientRect()
+        const bounds = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
         const title = element.querySelector('[data-slot="list-row-title"]')!
         return { height: row.height, top: row.top, bottom: row.bottom, right: bounds.right, inset: row.right - bounds.right, controlHeight: bounds.height, titleClipped: title.scrollWidth > title.clientWidth, checked: control.getAttribute('aria-checked') }
       }))
       expect(measured).toHaveLength(2)
       expect(measured[0]!.checked).toBe(String(consent))
       for (const row of measured) {
-        expect(row, JSON.stringify(measured)).toMatchObject({ height: 52, inset: 24, controlHeight: 48, titleClipped: false })
+        expect(row, JSON.stringify(measured)).toMatchObject({ height: 52, inset: 16, controlHeight: 28, titleClipped: false })
       }
       expect(measured[0]!.right).toBe(measured[1]!.right)
       expect(measured[1]!.top - measured[0]!.bottom).toBe(24)

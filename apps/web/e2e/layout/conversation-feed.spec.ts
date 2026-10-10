@@ -22,8 +22,8 @@ for (const width of [412, 1352]) {
         contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
       }))
       await page.goto('/')
-      await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
-      const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+      await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : pt.todayAstra.openConversation, exact: true }).click()
+      const conversation = page.locator('[data-shell-conversation="overlay"]')
       const feed = conversation.getByRole('feed', { name: pt.chat.title, exact: true })
       await expect(feed).toBeVisible()
       for (const attribute of ['aria-live', 'aria-relevant', 'aria-atomic']) {

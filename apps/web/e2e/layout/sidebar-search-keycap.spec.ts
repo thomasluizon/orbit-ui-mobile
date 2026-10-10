@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -28,7 +29,24 @@ for (const width of [1100, 1352, 1440]) {
             const control = page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search })
             const sidebarKeycap = control.locator('kbd')
             await expect(sidebarKeycap).toHaveText(platform.hint)
+            await expect(page.locator('html')).toHaveCSS('color-scheme', theme)
             await page.evaluate(() => document.fonts.ready)
+            await expect.poll(() => sidebarKeycap.evaluate((keycap) => {
+              const probe = document.createElement('span')
+              probe.style.color = 'var(--fg-3)'
+              probe.style.fontFamily = 'var(--font-mono)'
+              probe.style.boxShadow = 'inset 0 0 0 1px var(--hairline)'
+              keycap.parentElement!.append(probe)
+              const actual = getComputedStyle(keycap)
+              const expected = getComputedStyle(probe)
+              const matches = {
+                shadow: actual.boxShadow === expected.boxShadow,
+                color: actual.color === expected.color,
+                font: actual.fontFamily === expected.fontFamily,
+              }
+              probe.remove()
+              return matches
+            })).toEqual({ shadow: true, color: true, font: true })
             const measured = await control.evaluate((button) => {
               const field = button.getBoundingClientRect()
               const icon = button.querySelector('svg')!.getBoundingClientRect()

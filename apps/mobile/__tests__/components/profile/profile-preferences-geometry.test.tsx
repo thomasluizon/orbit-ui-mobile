@@ -41,15 +41,16 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       if (scale === 1 && text.label !== description) expect(text.lines, text.label).toBe(1)
     }
     const switchLabel = labels.find((text: { props: { children: string } }) => text.props.children === i18n.t('settings.homeScreen.showGeneral'))!
-    const row = switchLabel.parent!
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ gap: 12, alignItems: 'flex-start' })
+    let row = switchLabel.parent!
+    while (row.type !== 'View') row = row.parent!
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ gap: 4, minWidth: 0 })
     let container = row.parent!
-    while (StyleSheet.flatten(container.props.style)?.paddingHorizontal !== 16) container = container.parent!
-    expect(StyleSheet.flatten(container.props.style)).toMatchObject({ paddingHorizontal: 16, paddingVertical: 12, gap: 4 })
+    while (StyleSheet.flatten(typeof container.props.style === 'function' ? container.props.style({ pressed: false }) : container.props.style)?.paddingHorizontal !== 16) container = container.parent!
+    expect(StyleSheet.flatten(typeof container.props.style === 'function' ? container.props.style({ pressed: false }) : container.props.style)).toMatchObject({ paddingHorizontal: 16, paddingVertical: 12 })
     const control = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')[0]!
     expect(control.props.accessibilityLabel).toBe(switchLabel.props.children)
     const controlStyle = typeof control.props.style === 'function' ? control.props.style({ pressed: false }) : control.props.style
-    expect(StyleSheet.flatten(controlStyle).minHeight).toBe(48)
+    expect(StyleSheet.flatten(controlStyle).minHeight).toBe(68)
   } finally { TestRenderer.act(() => tree.unmount()) }
 })
 

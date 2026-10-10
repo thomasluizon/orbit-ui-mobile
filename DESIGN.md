@@ -593,8 +593,8 @@ a new text consumer cannot silently reuse the fill role and a glyph cannot inher
 **Contrast rule: `--fg-4` is an empty graphic only on the canvas, dark and light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
 the 3.0 non-text floor. `--fg-4` stays unchanged; use the dedicated `--track-empty`
 neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. Consumers also reach a hover child
-inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
-selection tint once, at the range slot, while the cell keeps its primary selected ring.
+inside a card and selection tint over both the canvas and a card. DayCell owns the selection
+tint and a single circular position ring; the full-column calendar slot paints nothing.
 
 Dark `#8B8B8E` measures 5.856 on canvas, 5.462 on card, 5.008 on well or overlay, 4.331 on a
 replacement hover, 3.821 on a hover child inside a card, 3.001 on a card-child hover inside a sheet,
@@ -831,9 +831,9 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
 | SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states. In the compact shell it is the last line of its screen header group (never above the header), spans the content column, centred, with equal segments; each label is one word on one line at 320; it never wraps and never truncates | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | minimum height `--row-h-compact` (52) for one line or `--row-h` (68) for two lines; rows grow at larger text sizes; icon 24/1.5 in a 28px slot, title Geist Sans 17/400 on one line, desc 14 fg-3 on one line or absent, value fg-3 + trailing chevron 24 fg-3; when title and value do not fit one line at 320, the value moves to the supporting line; in one group every row has an icon or none does; **draws no rule of its own**, danger icon = status-bad and danger title = status-bad-text | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | minimum height `--row-h-compact` (52) for one line or `--row-h` (68) for two lines; rows grow at larger text sizes; icon 24/1.5 in a 28px slot, title Geist Sans 17/400 on one line, desc 14 fg-3 on one line or absent, value fg-3 + trailing chevron 24 fg-3; when title and value do not fit one line at 320, the value moves to the supporting line; in one group every row has an icon or none does; **draws no rule of its own**; 16 inline inset and one trailing edge for every body part, 12 block padding; in a padded column the content shares the column edge and an outset fill and hit area reach 16 beyond it, danger icon = status-bad and danger title = status-bad-text | `ui/list-row.tsx` | `ui/list-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
-| Switch | 48x28 pill, 22px thumb, on = primary / off = `--track-empty` | `ui/switch.tsx` | `ui/switch.tsx` |
+| Switch | a labelled switch renders as a ListRow whose whole body toggles it; 48x28 pill, 22px thumb, on = primary / off = `--track-empty` | `ui/switch.tsx` | `ui/switch.tsx` |
 | Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px `--track-empty` ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | **radius 8 chip, never a pill**, Geist Mono 12/500 +0.06em sentence case, `text-box` trimmed; variants solid / outline. The solid badge uses `--bg-well` fill with `--fg-1` text meeting 4.5:1 contrast in both themes. | `ui/badge.tsx` | same |
 | PillButton | pill CTA, radius 999, 5 variants x 2 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
@@ -861,6 +861,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | DayCell | full-column month-grid target, minimum height 44px, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
 | EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
+| TimeGrid | Google Calendar week pattern: names at 12 with up to two lines and word-boundary ellipsis, status rings and time beneath when space permits; per-day any-time chips at 28 inside distinct 48 targets, first chip plus +N from three items, full names in disclosure; natural short weekdays and a single 24 today date disc; header and lane pinned only while together they occupy at most half the hour viewport, otherwise scrolling with the hours, aligned gutter, horizontal column scrolling, one hour scroller opening with now in its upper third or at the earlier of 07:00 and the first timed block for another week | `calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` |
 | HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 12 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
@@ -900,6 +901,7 @@ Android wide sheets stay bottom-attached to the centred shell column with TrueSh
 
 ### Scroll ownership
 
+- A destination view with a time grid keeps one vertical scroller: the grid fills the height the page leaves, and the page does not scroll in that view. On web, `data-page-viewport` bounds the shell content and route wrappers only for that view; other views keep their page scroll and shell bottom clearance.
 - **Exactly one page-level scroll container per overlay, owned by the primitive.**
 - **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native `scrollable` stays off while the primitive owns the body scroller.
 - **An overlay never opens scrolled away from its own first line.**

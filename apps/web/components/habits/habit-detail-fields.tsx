@@ -1,5 +1,7 @@
 'use client'
 
+import { Badge } from '@/components/ui/badge'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useState } from 'react'
@@ -7,8 +9,7 @@ import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
-import type { Time24 } from '@orbit/shared/contracts/forms'
-import {
+import { toTime24,
   buildHabitDaysList,
   type HabitDayOption,
   buildHabitDetailSchedulePatch,
@@ -23,7 +24,6 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
-import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -108,13 +108,13 @@ export function HabitDetailSchedule({ habit, summary, open, onToggle, onCancel, 
   const editable = canInlineEditHabitSchedule(habit)
   if (!editable && !summary) return null
   const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <section className="flex flex-col gap-2"><div className="flex flex-wrap gap-1">{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = habit.days.length === 0 || habit.days.includes(day); return <button key={day} type="button" aria-label={accessibleLabel} aria-pressed={selected} className={`${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)]'} size-[var(--touch-min)] shrink-0 rounded-full text-sm font-medium transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]`} style={{ boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' }} onClick={() => { const patch = buildHabitDetailSchedulePatch('Day', 1, toggleHabitDaySelection(habit.days, day, HABIT_DETAIL_WEEKDAYS, habit.days.length === 0)); if (patch) onSave(patch) }}>{label.charAt(0)}</button> })}</div></section> : null
-  return <><ListRow inset={false} title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} daysList={daysList} onCancel={onCancel} onSave={onSave} /> : null}</div></>
+  return <><ListRow placement="column" title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} daysList={daysList} onCancel={onCancel} onSave={onSave} /> : null}</div></>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
   const t = useTranslations()
   if (!habit.isBadHabit) return null
-  return <ListRow inset={false} title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) }} /> : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
+  return <ListRow placement="column" title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} trailing={!hasProAccess ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} toggle={hasProAccess ? { checked: habit.slipAlertEnabled, onChange: (slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) } } : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
 }
 
 
@@ -137,7 +137,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
   }
   return (
     <div className="flex flex-col gap-6">
-      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={toTime24(habit.dueTime)} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <section className="flex flex-col gap-2">
         {!habit.dueTime ? <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel> : null}
         {habit.dueTime ? <ReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError} t={t}>
@@ -150,12 +150,12 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
         <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
       </section>
       {!habit.isGeneral ? <section>
-        <Switch label={t('habits.form.habitTypeAvoid')} checked={habit.isBadHabit} onChange={(isBadHabit) => { void onPatch({ isBadHabit }) }} />
-        <p className="text-sm text-[var(--fg-3)]">{t('habits.form.habitTypeAvoidHint')}</p>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fBad controls this label under D42. */}
+        <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: habit.isBadHabit, onChange: (isBadHabit) => { void onPatch({ isBadHabit }) } }} />
       </section> : null}
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
       {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
-      {relationshipControlsAvailable ? <><ListRow inset={false} title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
+      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
       <section className="flex flex-col gap-2">
         <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
         <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />

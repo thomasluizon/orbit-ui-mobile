@@ -1,13 +1,14 @@
+import { ListRow } from '@/components/ui/list-row'
+import { toTime24 } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useState } from 'react'
-import { X, Plus, Bell } from '@/components/ui/icons'
+import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { Switch } from '@/components/ui/switch'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
@@ -93,22 +94,7 @@ export function ScheduledReminderSection({
   return (
     <div className={nested ? 'flex flex-col gap-2' : inline ? 'flex flex-col gap-3' : 'flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]'}>
       {nested ? <p className="m-0 text-xs text-[var(--fg-3)]">{t('habits.form.scheduledReminderFixedTimes')}</p> : null}
-      {!nested && <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
-          <span
-            className="text-[var(--fg-1)]"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
-          >
-            {t('habits.form.scheduledReminder')}
-          </span>
-        </div>
-        <Switch
-          checked={reminderEnabled}
-          onChange={permission.toggleReminder}
-          label={t('habits.form.scheduledReminder')}
-        />
-      </div>}
+      {!nested && <ListRow placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
       {!nested && <ReminderPermissionNotice visible={permission.showNotice} t={t} />}
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
@@ -121,7 +107,7 @@ export function ScheduledReminderSection({
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
                 >
                   {scheduledReminderLabel(sr)}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] -mr-2 -ml-1 hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
                     <X size={16} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>
@@ -155,7 +141,7 @@ export function ScheduledReminderSection({
                 <div className="flex flex-col gap-2">
                   <TimeField
                     label={t('habits.form.scheduledReminderTimePlaceholder')}
-                    value={time}
+                    value={toTime24(time)}
                     onChange={setTime}
                     onClear={() => setTime('')}
                   />

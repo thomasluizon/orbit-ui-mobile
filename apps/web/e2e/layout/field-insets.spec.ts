@@ -1,4 +1,6 @@
-import { expect, test, type Page, type Locator } from '@playwright/test'
+import { expect, type Page, type Locator } from '@playwright/test'
+import { test } from './layout-test'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -21,7 +23,7 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
     { selector: '[data-input-root] input, [data-input-root] textarea, .form-input, [cmdk-input], [data-hour-cycle], [data-habit-phrase-field] textarea', padding: 16 },
     { selector: '[data-composer-input]', padding: 8 },
     { selector: `[data-habit-detail-content] input[aria-label=${JSON.stringify(messages.habits.detail.rename)}]`, padding: 0 },
-    { selector: `input[placeholder=${JSON.stringify(messages.habits.form.checklistPlaceholder)}], input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
+    { selector: `input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
     { selector: `input[aria-label^=${JSON.stringify(messages.habits.form.checklistItemLabel.split('{n}')[0])}]`, padding: 8 },
   ]
   const fields = (scope ?? page).locator('input:visible:not([type="file"]):not([autocomplete="one-time-code"]), textarea:visible')
@@ -69,6 +71,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto(`/habits/${habit.id}`)
         const title = page.locator('[data-habit-detail-content] h1 > button')
         await expect(title).toHaveText(habit.title)
+        const hit = await title.evaluate(readExpandedControlGeometry)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(60, 1)

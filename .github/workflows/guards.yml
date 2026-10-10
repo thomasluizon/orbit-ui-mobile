@@ -103,6 +103,15 @@ jobs:
           else
             echo "Workspace overrides skipped: no owned path changed."
           fi
+      - name: Docker base images name an explicit registry
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^\.github/workflows/[^/]+\.ya?ml$|^tools/check-docker-registries\.mjs$' "$RUNNER_TEMP/changed-paths.txt" || \
+             grep -Eiq '(^|/)(Dockerfile(\.[^/]+)?|[^/]+\.Dockerfile)$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node tools/check-docker-registries.mjs
+          else
+            echo "Docker registries skipped: no owned path changed."
+          fi
       - name: The brand lockup's viewBox is exactly its ink
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \

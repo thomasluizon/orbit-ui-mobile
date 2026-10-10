@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, type StyleProp, type ViewStyle } from 'react-native'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,6 +43,7 @@ vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () =
 type PressableNode = Readonly<{
   props: {
     children?: unknown
+    value?: string
     accessibilityLabel?: string
     accessibilityRole?: string
     accessibilityState?: { checked?: boolean; selected?: boolean; expanded?: boolean }
@@ -131,6 +132,32 @@ describe('HabitDetailSchedule schedule chips', () => {
 
 
 describe('HabitDetailFields disclosure labels', () => {
+  it.each(['field', 'picker'])('normalizes the stored exact time in the %s', async (surface) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 7, 28, 9, 15))
+    try {
+      let tree!: TestTree
+      await renderer.act(async () => {
+        tree = renderer.create(<HabitDetailFields habit={{ ...makeHabitDetailScopedChild('2026-08-28'), dueTime: '21:00:00' }} hasProAccess relationshipControlsAvailable={false} tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} />)
+        await Promise.resolve()
+      })
+      if (surface === 'field') {
+        const input = tree.root.findAllByType(TextInput).find((node) => node.props.accessibilityLabel === 'habits.form.exactTime')
+        expect(input?.props.value).toBe('21:00')
+      } else {
+        await renderer.act(async () => {
+          control(tree, 'habits.form.exactTime: common.selectTime').props.onPress()
+          await Promise.resolve()
+        })
+        expect(control(tree, '21').props.accessibilityState).toMatchObject({ checked: true })
+        const selected = tree.root.findAllByType(Pressable).filter((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)
+        expect(selected.map((node) => node.props.accessibilityLabel)).toEqual(['21', '00'])
+      }
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('uses the same secondary field label role as create and edit', () => {
     let tree!: TestTree
     renderer.act(() => {

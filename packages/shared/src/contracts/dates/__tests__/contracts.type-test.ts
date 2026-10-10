@@ -54,6 +54,11 @@ type ExpectedDayCellBase = {
   scheduled?: number
   size?: number
   today?: boolean
+  selected?: boolean
+  raised?: boolean
+  future?: boolean
+  pressed?: boolean
+  focused?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean
@@ -138,7 +143,6 @@ type LoggableWithoutHandler = Accepts<{ day: 12; loggable: true; words: CellWord
 type ReadOnlyWithHandler = Accepts<{ day: 12; loggable: false; words: CellWords; onPress: () => void }, DayCellProps>
 // @ts-expect-error callers pass raw counts, never a precomputed outcome
 type CellWithOutcome = Accepts<{ day: 12; outcome: 'full'; words: CellWords }, DayCellProps>
-// @ts-expect-error selected presentation belongs to the month-grid wrapper
 type SelectedCell = Accepts<{ day: 12; selected: true; words: CellWords }, DayCellProps>
 // @ts-expect-error words are required
 type CellWithoutWords = Accepts<{ day: 12 }, DayCellProps>
@@ -223,6 +227,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MonthGridProps['children'], React.ReactNode>>,
   Assert<IsExactWidth<MonthGridProps['gap'], string | number | undefined>>,
   Assert<IsExactWidth<MonthGridProps['label'], string | undefined>>,
+  Assert<IsExactWidth<MonthGridProps['loadingLabel'], string | undefined>>,
   Assert<IsExactWidth<MonthGridProps['minimumDayGridHeight'], number | undefined>>,
   Assert<IsExactWidth<EventRowProps['title'], string>>,
   Assert<IsExactWidth<EventRowProps['source'], string | undefined>>,

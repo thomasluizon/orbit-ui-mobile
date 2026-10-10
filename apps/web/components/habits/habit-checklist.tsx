@@ -31,6 +31,8 @@ import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
@@ -58,7 +60,6 @@ export function HabitChecklist({
   onClear,
 }: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
-  const newItemInputId = useId()
   const dndContextId = useId()
   const [newItemText, setNewItemText] = useAccountScopedState('')
   const sortableIds = useChecklistItemKeys(items)
@@ -157,7 +158,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]"
               style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onReset}
             >
@@ -168,7 +169,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.clearChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[color,background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)]"
               style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onClear}
             >
@@ -239,7 +240,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-sm px-2 text-[var(--status-bad-text)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
@@ -255,7 +256,6 @@ export function HabitChecklist({
       {editable && (
         <div className="flex flex-col gap-2">
           <ChecklistAddRow
-            inputId={newItemInputId}
             value={newItemText}
             onChangeText={setNewItemText}
             onAdd={addItem}
@@ -318,7 +318,7 @@ function SortableChecklistItem({
         {...attributes}
         {...listeners}
         aria-label={t('dragAndDrop.handle', { name: item.text })}
-        className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
+        className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] touch-none"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       >
         <GripHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -346,7 +346,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
@@ -357,7 +357,7 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)]"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         onClick={() => onRemove(index)}
       >
@@ -406,13 +406,11 @@ function InteractiveChecklistItem({
 }
 
 function ChecklistAddRow({
-  inputId,
   value,
   onChangeText,
   onAdd,
   disabled,
 }: Readonly<{
-  inputId: string
   value: string
   onChangeText: (text: string) => void
   onAdd: () => void
@@ -420,35 +418,30 @@ function ChecklistAddRow({
 }>) {
   const t = useTranslations()
   return (
-    <div className="flex" style={{ minHeight: TOUCH_TARGET_MIN }}>
-      <label htmlFor={inputId} className="sr-only">
-        {t('habits.form.checklistPlaceholder')}
-      </label>
-      <input
-        id={inputId}
-        value={value}
-        type="text"
-        disabled={disabled}
-        placeholder={t('habits.form.checklistPlaceholder')}
-        data-focus-perimeter=""
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
-        onChange={(e) => onChangeText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            onAdd()
-          }
-        }}
-      />
-      <button
-        type="button"
-        aria-label={t('common.add')}
-        className="shrink-0 inline-flex items-center justify-center px-4 rounded-r-[14px] bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
+    <div className="flex items-center gap-2" style={{ minHeight: TOUCH_TARGET_MIN }}>
+      <div className="min-w-0 flex-1">
+        <Input
+          label={t('habits.form.checklistPlaceholder')}
+          hideLabel
+          name="checklistItem"
+          autoComplete="off"
+          value={value}
+          disabled={disabled}
+          placeholder={t('habits.form.checklistPlaceholder')}
+          onChange={onChangeText}
+          onSubmit={onAdd}
+        />
+      </div>
+      <PillButton
+        variant="ghost"
+        size="sm"
+        iconOnly
+        label={t('common.add')}
         disabled={disabled || !value.trim()}
         onClick={onAdd}
       >
-        <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
-      </button>
+        <Plus size={20} strokeWidth={2} aria-hidden="true" focusable="false" />
+      </PillButton>
     </div>
   )
 }

@@ -1,7 +1,9 @@
+import userEvent from '@testing-library/user-event'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { BlockFrameItem, BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { Button } from '@/components/ui/pill-button'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => ({
@@ -166,10 +168,30 @@ describe('BlockFrame on web', () => {
     )
     expect(container.querySelector('header')).toHaveTextContent('Changes2')
     const body = container.querySelector('[aria-live="polite"]')
-    const actionRow = container.querySelector('[data-action-row]')
+    const actionRow = container.querySelector('[data-slot="action-row"]')
     expect(actionRow).toContainElement(screen.getByRole('button', { name: 'Apply' }))
     expect(body!.compareDocumentPosition(actionRow!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'Apply' })).toHaveLength(1)
+  })
+
+  it('sizes actions together and disables them while keeping confirmation above the row', async () => {
+    const onClick = vi.fn()
+    const { container } = render(<BlockFrame {...resting({
+      state: 'acting', items: [{ id: 'unsafe', label: 'Unsafe', irreversible: true }],
+      irreversibleLabel: 'Permanent', confirmNote: 'Confirm this consequence',
+      actions: <><Button variant="ghost" onClick={onClick}>Cancel</Button><Button size="md" onClick={onClick}>Apply</Button></>,
+    })} />)
+    const row = container.querySelector('[data-slot="action-row"]')
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Apply' }))
+    expect(row).not.toContainElement(screen.getByText('Confirm this consequence'))
+    expect(screen.getByText('Confirm this consequence').compareDocumentPosition(row!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const name of ['Cancel', 'Apply']) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toHaveAttribute('data-size', 'sm')
+      expect(button).toBeDisabled()
+      await userEvent.click(button)
+    }
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('throws every missing runtime label in development', () => {
