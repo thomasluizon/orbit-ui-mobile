@@ -11,7 +11,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
 import { AstraConversation } from '@/components/chat/conversation'
-import { settleAstraTurn } from '@/e2e/layout/astra-block-motion'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -41,7 +41,7 @@ describe('Astra block layout in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it('settles a newly completed block-only outcome turn before reading its geometry', async () => {
+  it.each(['finish', 'cancel', 'replace'] as const)('settles a newly completed block-only outcome turn after %s before reading its geometry', async mode => {
     const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
     const chat = {
       chatContainerRef: createRef<HTMLDivElement>(), messages: [],
@@ -68,8 +68,27 @@ describe('Astra block layout in Chromium', () => {
       })
       expect(starting.count).toBe(1)
       expect(starting.offset).toBeCloseTo(8, 1)
-      await turn.evaluate(article => { for (const animation of article.getAnimations({ subtree: true })) animation.play() })
-      await settleAstraTurn(turn)
+      await turn.evaluate((article, mode) => {
+        const readAnimations = article.getAnimations.bind(article)
+        const animations = readAnimations({ subtree: true })
+        if (mode === 'finish') {
+          for (const animation of animations) animation.play()
+          return
+        }
+        article.getAnimations = options => {
+          article.getAnimations = readAnimations
+          const running = readAnimations(options)
+          queueMicrotask(() => {
+            for (const animation of animations) animation.cancel()
+            if (mode === 'replace') article.querySelector('section[data-state]')!.animate(
+              [{ transform: 'translateY(8px)' }, { transform: 'translateY(0)' }], { duration: 100, fill: 'forwards' },
+            )
+          })
+          return running
+        }
+      }, mode)
+      await page.evaluate(() => document.fonts.ready)
+      await turn.evaluate(settleAnimations)
       expect(await turn.evaluate(article =>
         article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top,
       )).toBeCloseTo(0, 1)
@@ -96,6 +115,7 @@ describe('Astra block layout in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await loadAppFonts(page)
+      await page.getByRole('article').last().evaluate(settleAnimations)
       const geometry = await page.evaluate(copyLabel => {
         const bounds = (element: Element) => {
           const rect = element.getBoundingClientRect()
