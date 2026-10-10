@@ -114,14 +114,14 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
   return (
     <div className="relative mx-auto w-full max-w-[740px]">
       <TodayDayTransition date={view.nav.dateStr}>
-        <TodayAstra
-          today={view.nav.today}
-          isTodaySelected={view.nav.dateStr === view.nav.today}
-          suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
-        />
-
         <PreloadedProfileContext.Provider value={preloadedProfile}>
-          <TodayHeaderRegion view={view} />
+          <TodayHeaderRegion view={view}>
+            <TodayAstra
+              today={view.nav.today}
+              isTodaySelected={view.nav.dateStr === view.nav.today}
+              suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
+            />
+          </TodayHeaderRegion>
         </PreloadedProfileContext.Provider>
 
         <TodayHabitsPanel view={view} />

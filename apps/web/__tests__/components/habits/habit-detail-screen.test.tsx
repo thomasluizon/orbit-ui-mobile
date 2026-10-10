@@ -829,13 +829,15 @@ describe('HabitDetailScreen', () => {
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 
-  it('replaces the hosted loading heading with the habit heading after a fresh load', () => {
-    mocks.detailLoading = true
+  it.each(['habit', 'profile'])('replaces the hosted %s loading heading with the habit heading after a fresh load', (loading) => {
+    mocks.profileReady = loading !== 'profile'
+    mocks.detailLoading = loading === 'habit'
     const view = render(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     screen.getByRole('heading', { level: 1, name: 'habits.detail.screenTitle' }).focus()
 
     mocks.detailLoading = false
+    mocks.profileReady = true
     view.rerender(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
