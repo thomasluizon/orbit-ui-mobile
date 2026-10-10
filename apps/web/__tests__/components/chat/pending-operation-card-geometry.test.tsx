@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -9,14 +10,18 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { breakdownSubHabits, goalListCardFixture, makeActionResult, makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
+import { GoalListCard } from '@/components/chat/goal-list-card'
+import { ActionChips } from '@/components/chat/action-chips'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }) }))
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }), useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
@@ -62,6 +67,26 @@ function ConversationPreview({ locale, counted }: Readonly<{ locale: typeof loca
   </NextIntlClientProvider>
 }
 
+async function expectInteractionGeometry(page: Page, name: string, metaLeft: number) {
+  const disclosure = page.getByRole('button', { name, exact: true })
+  for (const interaction of ['hover', 'press', 'focus'] as const) {
+    if (interaction === 'hover') await disclosure.hover()
+    if (interaction === 'press') await page.mouse.down()
+    if (interaction === 'focus') { await page.mouse.move(0, 0); await page.mouse.up(); await page.keyboard.press('Tab'); await disclosure.focus() }
+    const fill = await disclosure.evaluate(async (control) => {
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      await Promise.all(control.getAnimations().map(animation => animation.finished))
+      const style = getComputedStyle(control)
+      const label = control.parentElement!.querySelector('[data-personal-text]')!
+      return { background: style.backgroundColor, outline: parseFloat(style.outlineWidth), nameLeft: label.getBoundingClientRect().left, padding: label.getBoundingClientRect().left - control.getBoundingClientRect().left }
+    })
+    expect(fill.background, interaction).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
+    expect(fill.nameLeft).toBeCloseTo(metaLeft, 1)
+    expect(fill.padding).toBeCloseTo(8, 1)
+    if (interaction === 'focus') expect(fill.outline).toBeGreaterThanOrEqual(2)
+  }
+}
+
 describe('Pending preview geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -76,7 +101,8 @@ describe('Pending preview geometry in Chromium', () => {
       return `@font-face { font-family: TestGeist; font-weight: ${weight}; src: url(data:font/ttf;base64,${font}); }`
     }).join('\n')
     const displayFont = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')).toString('base64')
-    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { --font-sans: TestGeist; --font-display: TestSpaceGrotesk; }`
+    const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { ${variables}; --font-sans: TestGeist; --font-display: TestSpaceGrotesk; }`
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -110,12 +136,14 @@ describe('Pending preview geometry in Chromium', () => {
         const disclosureBounds = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
         const actionBounds = action.getBoundingClientRect()
         const rowBounds = row.getBoundingClientRect()
+        const metaBounds = row.firstElementChild!.children[1]!.getBoundingClientRect()
         const trailing = row.lastElementChild as HTMLElement
         const trailingBounds = trailing.getBoundingClientRect()
         const status = trailing.querySelector(':scope > span') as HTMLElement | null
         const statusRight = status ? Math.max(...[status, ...status.querySelectorAll('*')].map(element => element.getBoundingClientRect().right)) : trailingBounds.right
-        return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
+        return { nameLeft: labelBounds.left, metaLeft: metaBounds.left, direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
       }, { name, actionName })
+      expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
       expect(geometry.direction).toBe('row')
       expect(geometry.branches).toBe(2)
       expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
@@ -132,6 +160,42 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.trailingBottom).toBeLessThanOrEqual(geometry.rowBottom)
       expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
       expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
+      await expectInteractionGeometry(page, name, geometry.metaLeft)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1352].flatMap(width => locales.flatMap(locale => ['goal', 'goal-disclosure', 'breakdown', 'actions'].flatMap(surface => (surface === 'actions' ? [false] : [false, true]).map(expanded => ({ width, locale, surface, expanded }))))))('keeps the $surface outset unclipped at $width in $locale while expanded $expanded', async ({ width, locale, surface, expanded }) => {
+    const messages = locale === 'en' ? en : pt
+    const content = surface === 'actions' ? <ActionChips actions={[makeActionResult()]} onChipClick={vi.fn()} /> : surface === 'breakdown' ? <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} /> : <GoalListCard goalList={goalListCardFixture} onOpenGoal={surface === 'goal' ? vi.fn() : undefined} />
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>{content}</div></NextIntlClientProvider>)
+    const name = surface === 'actions' ? container.querySelector('[data-personal-text]')!.textContent! : surface === 'breakdown' ? breakdownSubHabits[0]!.title : goalListCardFixture.items[0]!.title
+    if (expanded && surface !== 'goal') fireEvent.click(screen.getByRole('button', { name }))
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.getByRole('button', { name, exact: true }).evaluate(control => {
+        const label = control.querySelector('[data-personal-text]') ?? control.parentElement!.querySelector('[data-personal-text]')!
+        let row = control.parentElement!
+        while (getComputedStyle(row).display !== 'flex' || parseFloat(getComputedStyle(row).paddingLeft) !== 12) row = row.parentElement!
+        const nameLeft = label.getBoundingClientRect().left
+        const bounds = control.getBoundingClientRect()
+        const meta = row.firstElementChild!.children[1]
+        let clipLeft = row.getBoundingClientRect().left
+        let clipRight = row.getBoundingClientRect().right
+        for (let ancestor = control.parentElement; ancestor && row.contains(ancestor); ancestor = ancestor.parentElement) {
+          if (getComputedStyle(ancestor).overflowX !== 'visible') { clipLeft = Math.max(clipLeft, ancestor.getBoundingClientRect().left); clipRight = Math.min(clipRight, ancestor.getBoundingClientRect().right) }
+        }
+        const neighbor = row.lastElementChild!.querySelector('button') ?? row.lastElementChild!
+        const hitExtension = neighbor.matches('.orbit-pill-action') ? parseFloat(getComputedStyle(neighbor, '::after').left) : 0
+        return { nameLeft, metaLeft: meta?.getBoundingClientRect().left ?? row.getBoundingClientRect().left + 12, controlLeft: bounds.left, controlRight: bounds.right, controlHeight: bounds.height, clipLeft, clipRight, neighborLeft: neighbor.getBoundingClientRect().left + hitExtension }
+      })
+      expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
+      expect(geometry.nameLeft - geometry.controlLeft).toBeCloseTo(8, 1)
+      expect(geometry.controlHeight).toBeGreaterThanOrEqual(48)
+      expect(geometry.controlLeft).toBeGreaterThanOrEqual(geometry.clipLeft)
+      expect(geometry.controlRight).toBeLessThanOrEqual(geometry.clipRight)
+      expect(geometry.controlRight).toBeLessThanOrEqual(geometry.neighborLeft)
     } finally { await page.close() }
   })
 
