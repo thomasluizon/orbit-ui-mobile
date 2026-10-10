@@ -4,7 +4,9 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
+import { formatBillingDate } from '../../components/upgrade/styles'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { readOutlineVisibility } from './focus-indicators'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
@@ -119,11 +121,18 @@ for (const themePreference of ['light', 'dark'] as const) {
       await expectTouchPressFill(link)
     })
 
-    test('touch press fills the separate ListRow action at its own radius', async ({ page }) => {
-      await page.goto('/profile')
-      const action = page.getByRole('button', { name: new RegExp(`^${ptBR.contextMenu.viewDetails},`) })
-      const body = action.locator('..').getByRole('link')
-      await expectTouchPressFill(action, body)
+    test.describe('invoice download action', () => {
+      test.use({ subscriptionState: 'stripe' })
+
+      test('touch press fills the separate ListRow action at its own radius', async ({ page }) => {
+        await page.goto('/upgrade')
+        const invoice = billingDetailsFixture.recentInvoices![0]!
+        const label = ptBR.upgrade.billing.invoices.downloadDated.replace('{date}', formatBillingDate(invoice.date, 'pt-BR'))
+        const action = page.getByRole('button', { name: label, exact: true })
+        const body = action.locator('..').locator('[data-slot="list-row-body"]')
+        await expect(body).toBeVisible()
+        await expectTouchPressFill(action, body)
+      })
     })
   })
 }
