@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -29,7 +30,7 @@ type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
 function buildChat(): ChatController {
   return {
-    chatContainerRef: createRef<HTMLDivElement>(),
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
     messages: [],
     activeSteps: [],
     canShowFollowUps: false,

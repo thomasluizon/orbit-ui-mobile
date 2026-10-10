@@ -1,5 +1,7 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
 import {
@@ -170,7 +172,7 @@ function DatePickerBody({
             const isCurrentMonth = isSameMonth(day, viewDate)
 
             return (
-              <Pressable
+              <InsetFocusPressable
                 key={day.toISOString()}
                 style={({ pressed }) => [
                   styles.dayTarget,
@@ -184,12 +186,12 @@ function DatePickerBody({
                   day: 'numeric',
                   year: 'numeric',
                 })}
-              >{({ pressed }) =>
+              >{({ pressed, focused }) =>
                 <View
                   style={[
                     styles.dayCell,
                     isSelected && styles.dayCellSelected,
-                    isToday && !isSelected && styles.dayCellToday,
+                    selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
                   ]}
                 >
                   <Text
@@ -202,7 +204,7 @@ function DatePickerBody({
                     {format(day, 'd')}
                   </Text>
                 </View>
-              }</Pressable>
+              }</InsetFocusPressable>
             )
           })}
         </View>
@@ -469,10 +471,6 @@ function createStyles(tokens: AppTokens) {
     },
     dayCellSelected: {
       backgroundColor: tokens.primary,
-    },
-    dayCellToday: {
-      borderWidth: 1,
-      borderColor: tokens.primary,
     },
     dayText: {
       color: tokens.fg1,

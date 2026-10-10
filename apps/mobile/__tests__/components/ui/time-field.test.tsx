@@ -110,13 +110,8 @@ describe('TimeField', () => {
       }
       const label = selected.findAll((node: any) => node.type === 'Text')[0]
       expect(StyleSheet.flatten(label.props.style).color).toBe(tokens.fg1)
-      const ring = selected.findAll((node: any) => node.type === 'View' && StyleSheet.flatten(node.props.style)?.borderWidth === 2)[0]
-      expect(ring).toBeDefined()
-      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({
-        position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-        borderWidth: 2, borderColor: tokens.primary, borderRadius: 12,
-      })
-      expect(ring.props.pointerEvents).toBe('none')
+      const host = selected.findByType(Pressable)
+      expect(StyleSheet.flatten(host.props.style({ pressed: false }))).toMatchObject({ borderWidth: 2, borderColor: tokens.primary, borderRadius: 12 })
       expect(selected.props.focusColor).toBe(tokens.fg1)
     }
   })

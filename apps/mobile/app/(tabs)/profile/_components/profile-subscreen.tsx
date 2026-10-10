@@ -1,3 +1,4 @@
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -25,6 +26,7 @@ const CONTENT = {
 }
 
 export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId }>) {
+  const contentFrameStyle = useContentFrameStyle()
   const { t } = useTranslation()
   const router = useRouter()
   const pageEnd = useShellPageEnd()
@@ -35,7 +37,7 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   const Content = CONTENT[screen]
   return <SafeAreaView edges={pageEnd.safeAreaEdges} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.dismissTo('/profile')} />
-    <ScrollView testID={`profile-settings-group-${screen}`} style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: pageEnd.paddingBottom }]}>
+    <ScrollView testID={`profile-settings-group-${screen}`} style={styles.container} contentContainerStyle={[contentFrameStyle, styles.content, { paddingBottom: pageEnd.paddingBottom }]}>
       {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </ScrollView>
   </SafeAreaView>
@@ -44,5 +46,5 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
 const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
-  content: { width: '100%', maxWidth: 560, alignSelf: 'flex-start', paddingHorizontal: 16, paddingTop: 16, gap: 12 },
+  content: { paddingTop: 16, gap: 12 },
 })

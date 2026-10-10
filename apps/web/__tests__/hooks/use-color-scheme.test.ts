@@ -54,8 +54,10 @@ Object.defineProperty(document, 'cookie', {
   configurable: true,
 })
 
-const mockSetProperty = vi.fn()
 let bootstrapTheme = ''
+const mockSetProperty = vi.fn((property: string, value: string) => {
+  if (property === 'color-scheme') bootstrapTheme = value
+})
 const mockClassList = {
   add: vi.fn(),
   remove: vi.fn(),
@@ -155,6 +157,19 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('light')
+  })
+
+  it.each(['applyTheme', 'syncThemeFromProfile'] as const)('shares %s changes with another mounted hook', (update) => {
+    const chooser = renderHook(() => useColorScheme())
+    const preferences = renderHook(() => useColorScheme())
+
+    act(() => chooser.result.current[update]('light'))
+
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(preferences.result.current.currentTheme).toBe('light')
+    act(() => preferences.result.current.toggleTheme())
+    expect(chooser.result.current.currentTheme).toBe('dark')
+    expect(preferences.result.current.currentTheme).toBe('dark')
   })
 
   it('does not restore the old theme after another account replaces the tab', async () => {

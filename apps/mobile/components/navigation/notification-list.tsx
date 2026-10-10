@@ -1,3 +1,4 @@
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -15,11 +16,12 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
   onOpen: (item: NotificationItem) => void
   onDelete: (item: NotificationItem) => void
 }>) {
+  const contentFrameStyle = useContentFrameStyle()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={styles.list}>
+    <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={[contentFrameStyle, styles.list]}>
       {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
         : isLoading ? Array.from({ length: 5 }, (_, index) => (
           <View key={index} accessible={false} style={styles.skeletonRow}>
@@ -49,7 +51,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
 }
 
 const styles = StyleSheet.create({
-  list: { width: '100%', maxWidth: 560, alignSelf: 'flex-start', padding: 16, gap: 8 },
+  list: { paddingVertical: 16, gap: 8 },
   skeletonRow: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 12 },
   dotColumn: { width: 8 },
   skeletonContent: { flex: 1, gap: 8 },

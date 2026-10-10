@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -22,7 +23,7 @@ type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
 function emptyChat(): ChatController {
   return {
-    chatContainerRef: createRef<HTMLDivElement>(),
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
     messages: [], activeSteps: [], showSuggestions: true,
     isTyping: false, streamingMessageId: null, canShowFollowUps: false,
     sendMessage: vi.fn(), isOnline: true, sendError: null,
