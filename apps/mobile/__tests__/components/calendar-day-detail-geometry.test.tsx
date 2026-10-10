@@ -82,10 +82,21 @@ describe('Android day card geometry', () => {
           const style = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style
           expect(StyleSheet.flatten(style).minHeight).toBe(68)
           expect(heights.at(-1)![index]).toBeGreaterThanOrEqual(68)
+          if (loggable) expect(StyleSheet.flatten(style).paddingVertical).toBe(0)
         })
         entries.forEach((entry) => {
           const row = measured.controls.find((control) => control.accessibilityLabel?.startsWith(entry.title))!
           expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
+          if (loggable) {
+            const body = measured.parts.find((part) => part.slot === 'list-row-body' && part.top === row.top)!
+            const control = measured.controls.find((control) => control.accessibilityLabel === entry.title && control !== row)!
+            expect(row.height).toBeCloseTo(body.height)
+            expect(control.width + 24).toBe(48)
+            expect(control.height + 24).toBe(48)
+            expect(control.left - 12).toBeGreaterThanOrEqual(row.right)
+            expect(control.top - 12).toBeGreaterThanOrEqual(body.top)
+            expect(control.bottom + 12).toBeLessThanOrEqual(body.bottom)
+          }
           const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
           expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
           expect(metadata.height).toBeCloseTo(16.8 * scale)
@@ -124,7 +135,10 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(host.children[1].props.style).gap ?? 0).toBe(0)
       if (loggable) {
         const target = host.children[1].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingHorizontal: 16 })
+        const titleStyle = StyleSheet.flatten(target.children[0].props.style)
+        expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
+        expect(titleStyle.marginVertical ?? 0).toBe(0)
       }
       for (const scale of [1, 2]) {
         replayTextLayout(tree, width - 32, scale)

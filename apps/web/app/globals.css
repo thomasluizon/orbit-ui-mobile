@@ -2197,7 +2197,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .orbit-check-row-label[data-variant="calendar-day"] {
   min-height: 68px;
-  margin-block: -12px;
   padding-block: 12px;
 }
 

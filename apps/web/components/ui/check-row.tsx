@@ -60,7 +60,7 @@ export function CheckRow({
 function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   const calendarDay = variant === 'calendar-day'
   return (
-    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}>
+    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: calendarDay ? 0 : 12, gap: 12 }}>
       <button type="button" data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} text-[var(--fg-1)]`}>{label}</PersonalText>
         {error || description ? <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}

@@ -77,7 +77,8 @@ const styles = StyleSheet.create({
   controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 24, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayCopy: { minHeight: 68, marginVertical: -12, paddingVertical: 12 },
+  calendarDayRow: { minHeight: 68, paddingVertical: 0 },
+  calendarDayCopy: { minHeight: 68, paddingVertical: 12 },
   calendarDayLabelFill: { top: 0, bottom: 0 },
   personalControl: { height: 24, width: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden' },
@@ -90,10 +91,14 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
 })
 
+function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean) {
+  return calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }
+}
+
 function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
   return (
-    <View data-slot="list-row-body" style={[styles.personalRow, { minHeight: calendarDay || error || description || value !== undefined ? 68 : 52 }]}>
+    <View data-slot="list-row-body" style={[styles.personalRow, getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined))]}>
       <PersonalControl tokens={tokens} fillStyle={calendarDay ? { ...styles.labelFill, ...styles.calendarDayLabelFill } : styles.labelFill} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
         <PersonalText style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}

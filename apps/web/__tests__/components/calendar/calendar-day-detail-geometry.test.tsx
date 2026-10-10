@@ -68,14 +68,25 @@ describe('day card compact geometry', () => {
           const metadata = title.nextElementSibling as HTMLElement | null
           const titleBox = title.getBoundingClientRect()
           const rowBox = row.getBoundingClientRect()
+          const labelBox = button.getBoundingClientRect()
+          const rowStyle = getComputedStyle(row)
+          const labelStyle = getComputedStyle(button)
+          const controlFill = row.querySelector('[role="checkbox"] [data-press-fill]')?.getBoundingClientRect()
           const metadataBox = metadata?.getBoundingClientRect()
-          return { height: rowBox.height, labelHeight: button.getBoundingClientRect().height, minimum: Number.parseFloat(getComputedStyle(row).minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
+          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
         }))
         expect(rows).toHaveLength(entries.length)
         rows.forEach((row) => {
           expect(row.minimum, JSON.stringify(row)).toBe(68)
           expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           expect(row.labelHeight, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
+          if (loggable) {
+            expect(row.rowPadding).toEqual(['0px', '0px'])
+            expect(row.labelPadding).toEqual(['12px', '12px'])
+            expect(row.labelMargins).toEqual(['0px', '0px'])
+            expect(row.fillsRow).toBe(true)
+            expect(row.controlFill).toEqual({ width: 48, height: 48, separated: true, contained: true })
+          }
         })
         rows.forEach((row, index) => {
           expect(row.metadata).toBe(entries[index]!.dueTime ?? messages.calendar.timeGrid.noSetTime)
@@ -168,7 +179,7 @@ describe('day card compact geometry', () => {
         expect(geometry.dayGap).toBeCloseTo(0)
         if (loggable) {
           expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
-          expect(geometry.labelPadding).toEqual(['12px', '16px'])
+          expect(geometry.labelPadding).toEqual(['0px', '16px'])
         }
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.width)
         expect(geometry.eventHeight).toBeLessThanOrEqual(geometry.eventLineHeight * 2 + 1)
