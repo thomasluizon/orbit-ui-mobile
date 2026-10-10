@@ -146,6 +146,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -179,6 +180,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -212,6 +214,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -245,6 +248,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -278,6 +282,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -311,6 +316,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -344,6 +350,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -377,6 +384,7 @@
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/web/hooks/use-calendar-events.ts",
+        "apps/web/hooks/use-calendar-navigation.ts",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
