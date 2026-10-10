@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -74,7 +75,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       await expect(destructive).not.toHaveCSS('background-color', restingFill)
       await expect(destructive).toHaveCSS('transform', 'none')
       await page.mouse.down()
-      await destructive.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+      await destructive.evaluate(settleAnimations)
       await expect(destructive).toHaveCSS('background-color', hoverFill)
       await expect(icon).toHaveCSS('color', iconColour)
       await expect(label).toHaveCSS('color', labelColour)

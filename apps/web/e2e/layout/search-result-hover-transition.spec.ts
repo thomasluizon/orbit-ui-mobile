@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator, type Page, type BrowserContext } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -48,9 +49,9 @@ async function expectHoverTransition(row: Locator) {
       property: getComputedStyle(element).transitionProperty,
       transitions: transitions.map((animation) => ({ property: animation.transitionProperty, duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })),
     }
-    await Promise.all(transitions.map((animation) => animation.finished))
     return measured
   })
+  await row.evaluate(settleAnimations)
   expect(measured.property).toBe('background-color')
   expect(measured.transitions).toEqual([{ property: 'background-color', duration: 380, easing: 'cubic-bezier(0.2, 0, 0, 1)' }])
 }
