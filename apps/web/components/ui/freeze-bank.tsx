@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/ui/skeleton'
 import type { FreezeBankProps } from '@orbit/shared/contracts/display'
 import { Snowflake } from '@/components/ui/icons'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -5,17 +6,18 @@ import { StreakLegend } from '@/components/ui/streak-legend'
 import { StatTile } from '@/components/ui/stat-tile'
 
 export function FreezeBank(props: Readonly<FreezeBankProps>) {
+  const loading = props.loadingLabel !== undefined
   const atCeiling = props.banked >= props.ceiling
   const protectedEmpty = props.protectedDays.length === 0
 
   return (
-    <div data-component="freeze-bank" data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="flex flex-col gap-4">
-      <StreakLegend words={props.words} />
-      <div className="flex flex-wrap gap-4">
+    <div data-component="freeze-bank" role="group" aria-busy={loading} aria-label={props.loadingLabel} data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="relative flex flex-col gap-4">
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}><StreakLegend words={props.words} /></div>
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-wrap gap-4${loading ? ' invisible' : ''}`}>
         <StatTile value={props.longestValue} label={props.longestLabel} />
         <StatTile value={props.tierValue} label={props.tierLabel} />
       </div>
-      <div className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]${loading ? ' invisible' : ''}`}>
         <div className="flex gap-3 max-[22.5rem]:flex-col">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="font-display text-[22px] font-medium tabular-nums text-[var(--fg-1)]">{props.banked} <span className="text-[14px] text-[var(--fg-3)]">/ {props.ceiling}</span></p>
@@ -36,7 +38,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
           </div>
         ) : null}
       </div>
-      <div className="flex flex-col gap-1">
+      <div inert={loading || undefined} aria-hidden={loading || undefined} className={`flex flex-col gap-1${loading ? ' invisible' : ''}`}>
         <p className="text-[14px] font-medium text-[var(--fg-2)]">{props.words.protectedLabel}</p>
         {protectedEmpty ? <p className="text-[14px] text-[var(--fg-3)]">{props.words.protectedEmpty}</p> : props.protectedDays.map((day) => (
           <div key={day.id} className="flex min-h-7 items-center gap-2">
@@ -46,6 +48,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
           </div>
         ))}
       </div>
+      {loading ? <div className="pointer-events-none absolute inset-0"><Skeleton variant="fill" grouped /></div> : null}
     </div>
   )
 }

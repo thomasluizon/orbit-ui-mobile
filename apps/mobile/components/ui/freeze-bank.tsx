@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { FreezeBankProps } from '@orbit/shared/contracts/display'
 import { Snowflake } from '@/components/ui/icons'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -11,16 +12,17 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width, fontScale } = useWindowDimensions()
+  const loading = props.loadingLabel !== undefined
   const atCeiling = props.banked >= props.ceiling
 
   return (
-    <View testID="freeze-bank" style={styles.root}>
-      <StreakLegend words={props.words} />
-      <View style={[styles.figureRow, width / fontScale < 360 && styles.stacked]}>
+    <View testID="freeze-bank" accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={props.loadingLabel} style={styles.root}>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} pointerEvents={loading ? 'none' : 'auto'} style={loading && styles.hidden}><StreakLegend words={props.words} /></View>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[styles.figureRow, width / fontScale < 360 && styles.stacked, loading && styles.hidden]}>
         <View style={styles.figureBlock}><StatTile value={props.longestValue} label={props.longestLabel} /></View>
         <View style={styles.figureBlock}><StatTile value={props.tierValue} label={props.tierLabel} /></View>
       </View>
-      <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }, loading && styles.hidden]}>
         <View style={[styles.bookkeepingRow, width / fontScale < 360 && styles.stacked]}>
           <View style={styles.figureBlock}>
             <Text style={[styles.figure, { color: tokens.fg1 }]}>{props.banked} <Text style={[styles.denominator, { fontFamily: 'SpaceGrotesk_500Medium', color: tokens.fg3 }]}>/ {props.ceiling}</Text></Text>
@@ -41,7 +43,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
           </View>
         ) : null}
       </View>
-      <View style={styles.copy}>
+      <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={[styles.copy, loading && styles.hidden]}>
         <Text style={[styles.protectedTitle, { color: tokens.fg2 }]}>{props.words.protectedLabel}</Text>
         {props.protectedDays.length === 0 ? <Text style={[styles.denominator, { color: tokens.fg3 }]}>{props.words.protectedEmpty}</Text> : props.protectedDays.map((day) => (
           <View key={day.id} style={styles.protectedRow}>
@@ -51,12 +53,14 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
           </View>
         ))}
       </View>
+      {loading ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton variant="fill" grouped /></View> : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: { gap: 16 },
+  hidden: { opacity: 0 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 },
   stacked: { flexDirection: 'column' },

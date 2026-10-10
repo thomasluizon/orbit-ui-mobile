@@ -288,13 +288,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
     )
   }
 
-  if (canView && !freeze.streakInfo) {
-    return (
-      <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
-        <Skeleton variant="habit-row" label={t('progressScreen.loading')} />
-      </section>
-    )
-  }
+  const loading = canView && !freeze.streakInfo
 
   return (
     <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
@@ -311,11 +305,15 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
           locale={locale}
         />
       ) : null}
-      <div className="min-w-0 w-full py-1">
-        <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
+      <div role="group" aria-busy={loading} aria-label={loading ? t('progressScreen.loading') : undefined} className="relative min-w-0 w-full py-1">
+        <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}>
+          <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
+        </div>
+        {loading ? <div className="pointer-events-none absolute inset-0"><Skeleton variant="fill" grouped /></div> : null}
       </div>
-      {canView && freeze.streakInfo ? (
+      {canView ? (
         <FreezeBank
+          loadingLabel={!freeze.streakInfo ? t('progressScreen.loading') : undefined}
           banked={freeze.streakFreezesAccumulated}
           ceiling={freeze.maxStreakFreezesAccumulated}
           usedThisMonth={freeze.freezesUsedThisMonth}
@@ -324,7 +322,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
           earnRateDays={7}
           tierValue={tier}
           tierLabel={t('streakDisplay.detail.tierTileLabel')}
-          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday, timeZone ?? undefined)}
+          protectedDays={buildProtectedDayLabels(freeze.streakInfo?.recentFreezeDates ?? [], locale, freeze.isFrozenToday, timeZone ?? undefined)}
           words={{
             ...dayWords,
             legendLabel: t('progressScreen.streak.legend'),

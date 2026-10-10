@@ -153,9 +153,10 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       accessibilityLabel={props.label}
       accessibilityRole={props.grouped ? undefined : 'progressbar'}
       accessibilityState={props.grouped ? undefined : { busy: true }}
-      style={styles.unit}
+      style={[styles.unit, props.variant === 'fill' && styles.fill]}
       testID={`skeleton-unit-${props.variant}`}
     >
+      {props.variant === 'fill' ? <Block style={styles.fill} tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'habit-row' ? <HabitRowSkeleton tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton tokens={tokens} opacity={opacity} /> : null}
@@ -167,6 +168,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
 
 const styles = StyleSheet.create({
   unit: { width: '100%' },
+  fill: { width: '100%', height: '100%' },
   block: { borderRadius: radius.md },
   copy: { flex: 1, gap: 8 },
   habitRow: {
