@@ -16,6 +16,8 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
     'Promise.allSettled(document.getAnimations().map(animation => animation.finished))',
     'Promise.all(requests.map(request => request.response))',
     'scope.evaluate(settleAnimations)',
+    'Promise[method]([animation.finished])',
+    'Promise.all(animations.map(animation => animation[completion]))',
   ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts' })).concat([
     { code: unsafeWait, filename: 'apps/web/__tests__/support/settle-animations.test.ts' },
   ]),

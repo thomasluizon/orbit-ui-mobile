@@ -11,7 +11,9 @@ module.exports = {
   create(context) {
     if (!context.filename.split(/[\\/]/).includes("e2e")) return {}
     const source = context.sourceCode
-    const propertyName = (node) => node.computed ? node.property.value : node.property.name
+    const propertyName = (node) => node.computed
+      ? (node.property.type === "Literal" ? node.property.value : undefined)
+      : node.property.name
 
     function containsFinished(node, visited = new Set()) {
       if (!node || visited.has(node)) return false
