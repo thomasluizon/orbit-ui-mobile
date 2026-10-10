@@ -8,6 +8,7 @@ import { Checkbox } from './checkbox'
 export function CheckRow({
   label,
   textMode,
+  variant,
   onOpenLabel,
   labelExpanded,
   labelControls,
@@ -19,7 +20,7 @@ export function CheckRow({
   disabled = false,
   loading = false,
 }: Readonly<CheckRowProps>) {
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} labelControls={labelControls} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} labelControls={labelControls} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
 
   return (
     <button
@@ -56,13 +57,14 @@ export function CheckRow({
   )
 }
 
-function PersonalCheckRow({ label, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
+function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
+  const calendarDay = variant === 'calendar-day'
   return (
-    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}>
+    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}>
       <button type="button" onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
-        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText className="text-base font-medium text-[var(--fg-1)]">{label}</PersonalText>
+        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} text-[var(--fg-1)]`}>{label}</PersonalText>
         {error || description ? <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}
-        {value !== undefined ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
+        {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
       </button>
       <button type="button" role="checkbox" aria-label={label} aria-checked={checked} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className="orbit-check-row-control relative grid size-[24px] shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60">
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-3">

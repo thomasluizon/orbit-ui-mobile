@@ -6,6 +6,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
+import { CheckRow } from '@/components/ui/check-row'
 
 vi.unmock('react-i18next')
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -60,6 +62,47 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
+  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
+    await i18n.changeLanguage(locale)
+    const entries = makeCalendarDayCardEntries()
+    expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarDayDetail selectedDate={calendarDayCardDate} title="Hoje"
+      filteredEntries={entries} completedCount={2} calendarEvents={[]} calendarEventsState="ready" loggable={loggable} pendingEntryStates={new Map()}
+      onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
+      displayTime={(time) => time} t={i18n.t} tokens={createTokensV2('orange', 'dark')} />) })
+    try {
+      const heights: number[][] = []
+      for (const scale of [1, 2]) {
+        replayTextLayout(tree, Math.min(width, 740) - 32, scale)
+        const hostRows = tree.toJSON().children[1].children
+        const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+        heights.push(hostRows.map((host: Parameters<typeof measureProfileRow>[0]) => measureProfileRow(host, Math.min(width, 740) - 80, scale).height))
+        hostRows.forEach((host: { props: { style: object | ((state: { pressed: boolean }) => object) } }, index: number) => {
+          const style = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style
+          expect(StyleSheet.flatten(style).minHeight).toBe(68)
+          expect(heights.at(-1)![index]).toBeGreaterThanOrEqual(68)
+        })
+        entries.forEach((entry) => {
+          const row = measured.controls.find((control) => control.accessibilityLabel?.startsWith(entry.title))!
+          const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
+          expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
+          expect(metadata.height).toBeCloseTo(16.8 * scale)
+          expect(metadata.clipped).toBe(false)
+          expect(metadata.left).toBeGreaterThanOrEqual(row.left)
+          expect(metadata.right).toBeLessThanOrEqual(row.right)
+        })
+      }
+      for (const index of [0, 1, 3, 4]) {
+        expect(heights[0]![index]).toBeCloseTo(68)
+        expect(heights[1]![index]).toBeGreaterThan(heights[0]![index]!)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+    let calendarTree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { calendarTree = TestRenderer.create(<CheckRow label="Family calendar" textMode="personal" onOpenLabel={vi.fn()} checked={false} onChange={vi.fn()} />) })
+    try { expect(StyleSheet.flatten(calendarTree.toJSON().props.style).minHeight).toBe(52) }
+    finally { TestRenderer.act(() => calendarTree.unmount()) }
+  })
   it.each([320, 360].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('fits titles at $width with loggable=$loggable in $locale using Android styles and fonts', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     let tree!: ReturnType<typeof TestRenderer.create>

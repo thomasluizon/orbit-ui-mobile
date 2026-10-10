@@ -10,6 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 export function CheckRow({
   label,
   textMode,
+  variant,
   onOpenLabel,
   labelExpanded,
   checked,
@@ -24,7 +25,7 @@ export function CheckRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [pressed, setPressed] = useState(false)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
     <Pressable
@@ -80,18 +81,21 @@ const styles = StyleSheet.create({
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
+  calendarDayLabel: { fontFamily: 'Geist_400Regular', lineHeight: 22.4 },
+  calendarDayValue: { fontSize: 12, lineHeight: 16.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },
 })
 
-function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+  const calendarDay = variant === 'calendar-day'
   return (
-    <View data-slot="list-row-body" style={[styles.personalRow, { minHeight: error || description || value !== undefined ? 68 : 52 }]}>
+    <View data-slot="list-row-body" style={[styles.personalRow, { minHeight: calendarDay || error || description || value !== undefined ? 68 : 52 }]}>
       <PersonalControl tokens={tokens} fillStyle={styles.labelFill} hitSlop={{ top: 12, bottom: 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalCopy}>
-        <PersonalText style={[styles.label, { color: tokens.fg1 }]}>{label}</PersonalText>
+        <PersonalText style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
-        {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
+        {value !== undefined ? <Text style={[styles.value, calendarDay ? styles.calendarDayValue : null, { color: tokens.fg2 }]}>{value}</Text> : null}
       </PersonalControl>
       <PersonalControl tokens={tokens} fillStyle={styles.controlFill} containContent hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
