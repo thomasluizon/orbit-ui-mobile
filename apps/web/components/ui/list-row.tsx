@@ -76,7 +76,8 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
 function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
   if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
-  return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{textMode === 'label' ? <span className="min-w-0 max-w-full">{value}</span> : value}</span>
+  const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
+  return textMode === 'label' ? <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center">{text}</span> : text
 }
 
 function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedControl: boolean, firstLine: boolean) {

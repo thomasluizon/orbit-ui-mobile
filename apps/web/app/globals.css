@@ -117,7 +117,7 @@
   --orbit-list-row-text-shrink: 1;
 }
 
-.orbit-list-row-shell[data-text-mode="label"] [data-slot="list-row-value"] {
+.orbit-list-row-shell[data-text-mode="label"] .orbit-list-row-value-line {
   display: flex;
   align-items: center;
   min-height: 1.4875rem;
