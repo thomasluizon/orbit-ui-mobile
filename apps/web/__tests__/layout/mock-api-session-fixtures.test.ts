@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { createServer, type Server } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { API } from '@orbit/shared/api'
+import { accountEventTicketSchema } from '@orbit/shared/types/account-event'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
@@ -32,6 +34,41 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+})
+
+describe('mock API account events', () => {
+  it('serves a schema-valid ticket for the account event connection', async () => {
+    const response = await fetch(`${origin}${API.events.ticket}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${tokenFor('events')}` },
+    })
+    expect(response.status).toBe(200)
+    const ticket = accountEventTicketSchema.parse(await response.json())
+    expect(ticket.ticket).not.toBe('')
+    expect(Date.parse(ticket.expiresAtUtc)).toBeGreaterThan(Date.now())
+  })
+
+  it('keeps the cross-origin account event stream idle until the client aborts', async () => {
+    const ticketResponse = await fetch(`${origin}${API.events.ticket}`, { method: 'POST' })
+    const { ticket } = accountEventTicketSchema.parse(await ticketResponse.json())
+    const streamUrl = new URL(API.events.stream, origin)
+    streamUrl.searchParams.set('ticket', ticket)
+    const controller = new AbortController()
+    try {
+      const response = await fetch(streamUrl, {
+        signal: controller.signal, headers: { Origin: 'http://127.0.0.1:3000' },
+      })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toBe('text/event-stream')
+      expect(response.headers.get('access-control-allow-origin')).toBe('*')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      if (!response.body) throw new Error('Expected an account event stream')
+      const pendingRead = expect(response.body.getReader().read()).rejects.toMatchObject({ name: 'AbortError' })
+      controller.abort()
+      await pendingRead
+    } finally {
+      controller.abort()
+    }
+  })
 })
 
 describe('mock API session fixtures', () => {

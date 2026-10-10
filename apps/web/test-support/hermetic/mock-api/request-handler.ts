@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { z, type ZodType } from 'zod'
+import { accountEventTicketSchema } from '@orbit/shared/types/account-event'
 import { profileSchema, subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { appConfigSchema } from '@orbit/shared/types/config'
@@ -18,6 +19,7 @@ import { checklistTemplateSchema } from '@orbit/shared/types/checklist-template'
 import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { profileFixture } from './fixtures/profile'
+import { accountEventTicketFixture } from './fixtures/account-events'
 import { configFixture } from './fixtures/config'
 import { subscriptionPlansFixture } from './fixtures/subscription-plans'
 import { billingDetailsFixture, subscriptionStatusFixture } from './fixtures/subscriptions'
@@ -45,6 +47,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'POST', path: '/api/events/ticket', schema: accountEventTicketSchema, body: accountEventTicketFixture },
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
   { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
   { method: 'GET', path: '/api/config', schema: appConfigSchema, body: configFixture },
@@ -135,6 +138,15 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body)
   res.writeHead(status, { 'Content-Type': 'application/json' })
   res.end(payload)
+}
+
+function sendAccountEventStream(res: ServerResponse): void {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': '*',
+  })
+  res.flushHeaders()
 }
 
 function sendInvalidSession(res: ServerResponse, pathname: string): void {
@@ -299,6 +311,11 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 
   if (pathname === '/health') {
     sendJson(res, 200, { status: 'ok' })
+    return
+  }
+
+  if (method === 'GET' && pathname === '/api/events') {
+    sendAccountEventStream(res)
     return
   }
 
