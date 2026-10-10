@@ -48,6 +48,7 @@ const cases = [
   {
     Screen: PrivacyScreen,
     key: 'privacy',
+    titles: { en: ['Privacy', 'Privacy policy', 'Close privacy policy'], 'pt-BR': ['Privacidade', 'Política de privacidade', 'Fechar política de privacidade'] },
     sectionKeys: [
       'intro',
       'controller',
@@ -68,6 +69,7 @@ const cases = [
   {
     Screen: TermsScreen,
     key: 'terms',
+    titles: { en: ['Terms', 'Terms of use', 'Close terms of use'], 'pt-BR': ['Termos', 'Termos de uso', 'Fechar termos de uso'] },
     sectionKeys: [
       'intro',
       'provider',
@@ -108,8 +110,8 @@ function directText(node: TestNode) {
 describe.each([
   { locale: 'en', messages: en },
   { locale: 'pt-BR', messages: ptBR },
-])('legal document layout in $locale', ({ messages }) => {
-  it.each(cases)('renders $key through the shared measured layout', ({ Screen, key, sectionKeys }) => {
+])('legal document layout in $locale', ({ locale, messages }) => {
+  it.each(cases)('renders $key through the shared measured layout', ({ Screen, key, sectionKeys, titles }) => {
     translations.messages = messages
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({
       width: 412,
@@ -137,8 +139,18 @@ describe.each([
       width: '100%',
     })
     expect(safeArea.props.edges).toEqual(['top', 'bottom'])
+    const [headerTitle, documentTitle, backLabel] = titles[locale as keyof typeof titles]
+    const header = tree!.root.findAll((node) => node.type === 'Text'
+      && node.props.accessibilityRole === 'header' && node.props.numberOfLines === 1)
+    expect(header.map((node) => node.props.children)).toEqual([headerTitle])
+    const backButton = tree!.root.findAll((node) => node.type === 'Pressable'
+      && node.props.accessibilityRole === 'button')
+    expect(backButton.map((node) => node.props.accessibilityLabel)).toEqual([backLabel])
+    expect(directText(layout).filter((text) => text === documentTitle)).toHaveLength(1)
+    expect(directText(tree!.root).filter((text) => text === documentTitle)).toHaveLength(1)
+    expect(document.title).toBe(messages.about[key])
     expect(directText(layout)).toEqual(expect.arrayContaining([
-      document.title,
+      documentTitle,
       document.lastUpdated,
     ]))
     expect(directText(closingNote)).toEqual([
