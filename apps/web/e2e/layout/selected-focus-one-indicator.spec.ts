@@ -1,4 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import { addDays, format } from 'date-fns'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -231,13 +233,13 @@ for (const width of [412, 1352]) {
           await goal.getByRole('button', { name: words.goals.form.addDeadline, exact: true }).click()
           await goal.locator('button[aria-haspopup="dialog"]').click()
           const datePicker = page.getByRole('dialog', { name: words.common.selectDate, exact: true })
-          const today = datePicker.locator('button[data-day="2026-09-04"]')
+          const today = datePicker.locator(`button[data-day="${LAYOUT_FIXED_TIME.slice(0, 10)}"]`)
           await expect(today).toBeFocused()
           await expectRings(today, 0)
           await keyboardFocus(page, today)
           await expectRings(today, 1)
           await page.keyboard.press('ArrowRight')
-          const tomorrow = datePicker.locator('button[data-day="2026-09-05"]')
+          const tomorrow = datePicker.locator(`button[data-day="${format(addDays(new Date(LAYOUT_FIXED_TIME), 1), 'yyyy-MM-dd')}"]`)
           await expect(tomorrow).toBeFocused()
           await expectRings(tomorrow, 1)
           await expectRings(today, 0)

@@ -3,16 +3,24 @@ import { resolve } from 'node:path'
 import { render, cleanup } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Chip } from '@/components/ui/chip'
+import { CheckRow } from '@/components/ui/check-row'
+import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
+import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { RadioRow } from '@/components/ui/select-check'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectControlAccentRings } from '@/e2e/layout/focus-indicators'
+import { inspectControlAccentRings, inspectFocusedControlRings } from '@/e2e/layout/focus-indicators'
 import { loadAppFonts } from './app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 1 } }) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 
 const options = [{ value: 'Mês', label: 'Mês' }, { value: 'Semana', label: 'Semana' }, { value: 'Período', label: 'Período' }, { value: 'Agenda', label: 'Agenda' }] as const
 
@@ -28,6 +36,34 @@ describe('selection yields to keyboard focus', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   for (const theme of ['dark', 'light'] as const) {
+    it.each([false, true])(`personal CheckRow keeps exactly one fill outline, ${theme}, checked %s`, async (checked) => {
+      const { container } = render(<CheckRow label="Habit" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${container.innerHTML}`)
+        for (const role of ['button', 'checkbox'] as const) {
+          const control = page.getByRole(role, { name: 'Habit', exact: true })
+          expect(await inspectControlAccentRings(control)).toHaveLength(0)
+          await page.keyboard.press('Tab')
+          expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+          expect((await inspectFocusedControlRings(page))?.indicators).toEqual(['span:outline'])
+          const perimeters = await control.evaluate((element) => [element, ...element.querySelectorAll('*')].flatMap((owner) => {
+            const style = getComputedStyle(owner)
+            return style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 ? [{ tag: owner.tagName, color: style.outlineColor, offset: style.outlineOffset }] : []
+          }))
+          expect(perimeters).toHaveLength(1)
+          expect(perimeters[0]).toMatchObject({ tag: 'SPAN', offset: '-2px' })
+          expect(await inspectControlAccentRings(control)).toHaveLength(0)
+        }
+      } finally { cleanup(); await page.close() }
+    })
+    it.each([false, true])(`habit detail day pills keep one indicator, ${theme}, editor %s`, async (open) => {
+      const habit = { ...makeHabitDetailScopedChild('2026-09-04'), days: ['Monday'], frequencyUnit: 'Day' as const, frequencyQuantity: 1 }
+      await verifyRenderedChoices(<HabitDetailSchedule habit={habit} summary="Daily" open={open} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} />, '[aria-pressed]', theme)
+    })
+    it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
+      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
+    })
     it(`a selected inner DateField circle yields to its focused button, ${theme}`, async () => {
       const { container } = render(<button type="button"><span className="orbit-selection-ring orbit-selection-ring-hairline" data-selected>Today</span></button>)
       const page = await browser.newPage()
@@ -92,6 +128,31 @@ describe('selection yields to keyboard focus', () => {
         })
       }
     }
+  }
+
+  async function verifyRenderedChoices(element: React.ReactNode, selector: string, theme: 'dark' | 'light') {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button data-reset>Reset</button>${render(element).container.innerHTML}`)
+      const choices = page.locator(selector)
+      expect(await choices.count()).toBeGreaterThan(1)
+      for (const control of await choices.all()) {
+        await page.locator('[data-reset]').click()
+        const selected = await control.getAttribute('aria-pressed') === 'true' || await control.getAttribute('aria-checked') === 'true'
+        expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
+        await control.hover()
+        expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
+        if (await control.evaluate((element) => (element as HTMLElement).tabIndex < 0)) continue
+        for (let stop = 0; stop < 20; stop += 1) {
+          await page.keyboard.press('Tab')
+          if (await control.evaluate((element) => element === document.activeElement)) break
+        }
+        expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+        expect(await inspectControlAccentRings(control)).toHaveLength(1)
+        await page.keyboard.press('Tab')
+        expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
+      }
+    } finally { cleanup(); await page.close() }
   }
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {

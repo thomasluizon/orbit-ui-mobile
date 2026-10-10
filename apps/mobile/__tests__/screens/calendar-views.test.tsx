@@ -45,6 +45,8 @@ vi.mock('react-native', async (importOriginal) => {
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
+const VIEW_TRACK_INSET = 4;
+
 const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 function getMockAccountDateKey(): string {
@@ -414,8 +416,9 @@ describe("CalendarScreen views (mobile)", () => {
         const band = findBand(hosts)!;
         const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
         const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
-        const top = Math.min(...segments.map((segment) => segment.top));
-        const bottom = Math.max(...segments.map((segment) => segment.bottom));
+        expect(segments).toHaveLength(4);
+        const top = Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET;
+        const bottom = Math.max(...segments.map((segment) => segment.bottom)) + VIEW_TRACK_INSET;
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
@@ -508,7 +511,7 @@ describe("CalendarScreen views (mobile)", () => {
       expect.soft(title.clipped).toBe(false);
       if (scale === 1) {
         expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
-        expect.soft(Math.min(...segments.map((segment) => segment.top))).toBe(76);
+        expect.soft(Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
       const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', ir para hoje'))[0]!;

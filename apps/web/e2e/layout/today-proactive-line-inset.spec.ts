@@ -7,9 +7,10 @@ import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { inspectFocusedControlRings as inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
-const selectedDate = '2026-09-04'
+const selectedDate = LAYOUT_FIXED_TIME.slice(0, 10)
 
 for (const locale of ['en', 'pt-BR'] as const) {
 for (const mode of ['dark', 'light'] as const) {
