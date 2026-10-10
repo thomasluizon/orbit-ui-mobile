@@ -7,6 +7,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
+import { streakFixture } from '../../test-support/hermetic/mock-api/fixtures/streak'
 import { handleRequest } from '../../test-support/hermetic/mock-api/request-handler'
 
 let server: Server
@@ -78,6 +79,26 @@ describe('mock API account events', () => {
 })
 
 describe('mock API session fixtures', () => {
+  it('delays the seeded streak response without delaying another session', async () => {
+    const headers = { Authorization: `Bearer ${tokenFor('delayed-streak')}`, 'Content-Type': 'application/json' }
+    const seeded = await fetch(`${origin}/_test/session-fixtures`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ fixtures: [{ path: API.gamification.streak, body: streakFixture, delayMs: 250 }] }),
+    })
+    expect(seeded.status).toBe(204)
+    let received = false
+    const pending = fetch(`${origin}${API.gamification.streak}`, { headers }).then(async (response) => {
+      received = true
+      return response.json()
+    })
+    const immediate = await fetch(`${origin}${API.gamification.streak}`, {
+      headers: { Authorization: `Bearer ${tokenFor('immediate-streak')}` },
+    })
+    expect(await immediate.json()).toEqual(streakFixture)
+    expect(received).toBe(false)
+    expect(await pending).toEqual(streakFixture)
+  })
+
   it('serves isolated seeded pages to server and browser reads and keeps unseeded defaults', async () => {
     const first = pageFor('first-session-habit')
     const second = pageFor('second-session-habit')

@@ -1564,6 +1564,17 @@ describe('ProgressContent', () => {
 
     const { rerender } = render(<ProgressContent />)
     expect(screen.getByLabelText('progressScreen.loading')).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
+    expect(section.querySelector('[data-scope="account"]')?.querySelectorAll('[data-state]')).toHaveLength(14)
+    expect(within(section).getByText('4')).toBeInTheDocument()
+    const bank = section.querySelector('[data-component="freeze-bank"]')!
+    expect(bank).toHaveAttribute('aria-busy', 'true')
+    const blockCount = section.children.length
+    mocks.freeze.streakInfo = streakInfo
+    rerender(<ProgressContent />)
+    expect(section.children).toHaveLength(blockCount)
+    expect(bank).toHaveAttribute('aria-busy', 'false')
+    mocks.freeze.streakInfo = null as unknown as typeof streakInfo
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
 
     mocks.freeze.streakQuery.isError = true
@@ -1679,7 +1690,7 @@ describe('ProgressContent', () => {
     rerender(<ProgressPage />)
 
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
-    expect(container.querySelector('[data-scope="account"]')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'today')
     expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
 
     mocks.freeze.isFrozenToday = false

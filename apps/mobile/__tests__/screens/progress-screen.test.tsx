@@ -1516,7 +1516,24 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
 
     let tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.props.label === 'progressScreen.loading').length).toBeGreaterThan(0)
+    const heading = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.sections.streak')[0]!
+    let section = heading.parent!
+    while (section.type !== 'View') section = section.parent!
+    const blocks = () => section.children.flatMap(function hosts(node): TestNode[] {
+      if (typeof node !== 'object') return []
+      return typeof node.type === 'string' ? [node] : node.children.flatMap(hosts)
+    })
+    expect(section).toBeDefined()
+    expect(section.findAll((node) => node.type === 'Text' && node.props.children === '4')).toHaveLength(1)
+    expect(section.findAll((node) => node.props.scope === 'account')[0]?.props.days).toHaveLength(14)
+    const bank = section.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
+    expect(bank.props.accessibilityState).toEqual({ busy: true })
+    const blockCount = blocks().length
+    mocks.freeze.streakInfo = streakInfo
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+    expect(blocks()).toHaveLength(blockCount)
+    expect(bank.props.accessibilityState).toEqual({ busy: false })
+    mocks.freeze.streakInfo = null as unknown as typeof streakInfo
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.lockedBody')).toHaveLength(0)
 
     mocks.freeze.streakQuery.isError = true
@@ -1820,7 +1837,8 @@ describe('mobile ProgressContent', () => {
     const changing = await renderProgress()
 
     expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(0)
-    expect(changing.root.findAll((node) => node.props.testID === 'day-strip-account')).toHaveLength(0)
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-account')).toHaveLength(1)
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-cell-today')).toHaveLength(1)
     expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
 
     mocks.freeze.isFrozenToday = false
