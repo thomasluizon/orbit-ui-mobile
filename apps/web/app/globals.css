@@ -175,6 +175,7 @@
   inset-block: 0;
   inset-inline: -16px;
   border-radius: 12px;
+  transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
 .orbit-list-row-column [data-slot="list-row-content"] {
@@ -197,10 +198,12 @@
   outline: none;
 }
 
+.orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled):not(:has(> .orbit-list-row-outset))::before,
 .orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) > .orbit-list-row-outset {
   background: var(--bg-hover);
 }
 
+.orbit-list-row-column .orbit-list-row-body:focus-visible:not(:has(> .orbit-list-row-outset))::before,
 .orbit-list-row-column .orbit-list-row-body:focus-visible > .orbit-list-row-outset {
   outline: 2px solid var(--fg-1);
   outline-offset: -2px;
@@ -210,6 +213,7 @@
   .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled):not(:has(button:hover, a:hover, [role="button"]:hover)) {
     background: transparent;
   }
+  .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled):not(:has(> .orbit-list-row-outset))::before,
   .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled) > .orbit-list-row-outset {
     background: var(--bg-hover);
   }

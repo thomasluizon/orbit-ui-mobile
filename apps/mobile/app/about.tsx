@@ -1,9 +1,8 @@
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
-import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -31,15 +30,7 @@ interface AboutFactProps {
 }
 
 function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutFactProps>) {
-  const [expanded, setExpanded] = useState(false)
-  const [pressed, setPressed] = useState(false)
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const content = <>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: pressed ? tokens.fg2 : labelColor }]}>{label}</Text><ChevronDown size={20} strokeWidth={1.5} color={pressed ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
-    <PersonalText expanded={expanded} testID={`about-fact-${id}-value`} style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText>
-  </>
-  if (id === 'account') return <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} testID={`about-fact-${id}`} style={({ pressed }) => [styles.factRow, { minHeight: 48, padding: 8, marginHorizontal: -8, borderRadius: 12, overflow: 'hidden', flexDirection: 'column', alignItems: 'stretch', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable>
+  if (id === 'account') return <AboutAccountFact label={label} value={value} labelColor={labelColor} valueColor={valueColor} />
   return (
     <View testID={`about-fact-${id}`} style={styles.factRow}>
       <Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: labelColor }]}>
@@ -50,6 +41,31 @@ function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutF
       </Text>
     </View>
   )
+}
+
+function AboutAccountFact({ label, value, labelColor, valueColor }: Readonly<Omit<AboutFactProps, 'id'>>) {
+  const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const highlighted = pressed || focused || hovered
+  return <Pressable
+    onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
+    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }}
+    onPress={() => setExpanded(!expanded)} hitSlop={{ left: 16, right: 16 }}
+    testID="about-fact-account" style={[styles.factRow, styles.accountRow]}>
+    <View testID="about-account-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+      style={[styles.accountFill, { backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' }]} />
+    <Text testID="about-fact-account-label" style={[styles.factLabel, { flexShrink: 0, maxWidth: '100%', color: highlighted ? tokens.fg2 : labelColor }]}>{label}</Text>
+    <View style={styles.accountValue}>
+      <View style={styles.accountText}><PersonalText expanded={expanded} testID="about-fact-account-value" style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText></View>
+      <View testID="about-account-chevron" style={{ width: 20, flexShrink: 0 }}><ChevronDown size={20} strokeWidth={1.5} color={highlighted ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
+    </View>
+  </Pressable>
 }
 
 function ProfileAccountFact({
@@ -185,6 +201,10 @@ const styles = StyleSheet.create({
     columnGap: 12,
     rowGap: 4,
   },
+  accountRow: { minHeight: 48, paddingVertical: 8, position: 'relative', alignItems: 'center' },
+  accountFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  accountText: { minWidth: 0, flexShrink: 1 },
+  accountValue: { minWidth: 0, maxWidth: '100%', flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   factLabel: {
     minWidth: 0,
     flexGrow: 1,

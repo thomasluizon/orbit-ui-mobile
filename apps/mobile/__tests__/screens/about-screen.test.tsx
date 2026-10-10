@@ -85,6 +85,8 @@ describe('AboutScreen', () => {
   beforeEach(() => {
     mocks.push.mockClear()
     mocks.useProfile.mockClear()
+    mocks.email = 'profile-account-with-a-long-address@example.com'
+    mocks.useProfile.mockImplementation(() => ({ profile: { email: mocks.email } }))
     mocks.isAuthenticated = true
     mocks.nativeVersion = '1.0.0'
     mocks.configVersion = '1.0.0'
@@ -104,6 +106,81 @@ describe('AboutScreen', () => {
       for (const id of ['version', 'account']) {
         expect(measured.boxes.find((box) => box.testID === `about-fact-${id}-label`)!.left).toBe(16)
       }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([600, 1352])('extends the account fill and hit area 16px beyond aligned facts at %i', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const version = measured.boxes.find((box) => box.testID === 'about-fact-version')!
+      const account = measured.boxes.find((box) => box.testID === 'about-fact-account')!
+      const fill = measured.boxes.find((box) => box.testID === 'about-account-fill')
+      expect(account.left).toBe(version.left)
+      expect(account.right).toBe(version.right)
+      expect(fill).toMatchObject({ left: version.left - 16, right: version.right + 16 })
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      expect(control.props.hitSlop).toEqual({ left: 16, right: 16 })
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([600, 1352])('keeps a fitting email beside the account label at %i', (width) => {
+    mocks.email = 'a@example.com'
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const label = measured.boxes.find((box) => box.testID === 'about-fact-account-label')!
+      const value = measured.boxes.find((box) => box.testID === 'about-fact-account-value')!
+      expect(value.top).toBeGreaterThanOrEqual(label.top)
+      expect(value.top).toBeLessThan(label.bottom)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 600, 1352])('keeps long account text and its disclosure inside the fact edges at %i', (width) => {
+    mocks.email = `${'account'.repeat(30)}@example.com`
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      for (const expanded of [false, true]) {
+        if (expanded) TestRenderer.act(() => { (control.props.onPress as () => void)() })
+        const measured = measureProfileRow(tree.toJSON(), width, 1)
+        const row = measured.boxes.find((box) => box.testID === 'about-fact-account')!
+        const label = measured.boxes.find((box) => box.testID === 'about-fact-account-label')!
+        const value = measured.boxes.find((box) => box.testID === 'about-fact-account-value')!
+        expect(value.left).toBe(label.left)
+        expect(value.top).toBeGreaterThanOrEqual(label.bottom)
+        expect(value.right).toBeLessThanOrEqual(row.right)
+        const chevron = measured.boxes.find((box) => box.testID === 'about-account-chevron')!
+        expect(chevron.right).toBeCloseTo(row.right)
+        expect(value.right).toBeCloseTo(chevron.left - 12)
+        expect(control.props.accessibilityState).toMatchObject({ expanded })
+        expect(control.props.accessibilityLabel).toContain(mocks.email)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('paints the same outset for hover, press and focus without clipping its parent', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      const fill = () => tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'about-account-fill')[0]!
+      expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      for (const [enter, leave] of [['onHoverIn', 'onHoverOut'], ['onPressIn', 'onPressOut'], ['onFocus', 'onBlur']]) {
+        TestRenderer.act(() => { (control.props[enter!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).not.toBe('transparent')
+        expect(flattenedStyle(fill()).outlineWidth).toBe(enter === 'onFocus' ? 2 : 0)
+        TestRenderer.act(() => { (control.props[leave!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      }
+      expect(flattenedStyle(control).overflow).not.toBe('hidden')
+      expect(fill().props.pointerEvents).toBe('none')
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
@@ -213,13 +290,13 @@ describe('AboutScreen', () => {
 
     for (const fact of ['version', 'account']) {
       expect(flattenedStyle(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === `about-fact-${fact}`)[0]!)).toMatchObject({
-        flexDirection: fact === 'account' ? 'column' : 'row',
+        flexDirection: 'row',
         flexWrap: 'wrap',
         minWidth: 0,
       })
       expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-label`)[0]!)).toMatchObject({
         flexGrow: 1,
-        flexShrink: 1,
+        flexShrink: fact === 'account' ? 0 : 1,
         minWidth: 0,
       })
       expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-value`)[0]!)).toMatchObject({
