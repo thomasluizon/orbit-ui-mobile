@@ -129,7 +129,7 @@ function TimedBlock({
       data-hour={block.hour}
       onClick={onSelect}
       aria-label={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
-      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
       style={{
         top: `${block.top / 16}rem`,
         minHeight: 48,
@@ -306,7 +306,7 @@ export function CalendarTimeGrid({
                   data-testid="time-grid-col-header"
                   data-focus-inset="panel"
                   onClick={() => onSelectDay(column.dateStr)}
-                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] active:scale-[0.96]"
+                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]"
                   style={{
                     appearance: 'none',
                     border: 0,
