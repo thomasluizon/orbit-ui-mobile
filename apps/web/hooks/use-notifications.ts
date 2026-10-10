@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   useQuery,
@@ -38,6 +38,7 @@ import { fetchJson } from '@/lib/api-fetch'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { PreloadedNotificationsContext } from '@/lib/notifications-preload'
 
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 
@@ -73,11 +74,13 @@ async function cancelNotificationListForSession(
 
 export function useNotifications() {
   const queryClient = useQueryClient()
+  const initialNotifications = useContext(PreloadedNotificationsContext)
   useEffect(() => attachNotificationPolling(queryClient), [queryClient])
 
   const query = useQuery({
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
+    initialData: initialNotifications,
     staleTime: QUERY_STALE_TIMES.notifications,
   })
 
