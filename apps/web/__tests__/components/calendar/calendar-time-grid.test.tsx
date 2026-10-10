@@ -267,7 +267,7 @@ describe('CalendarTimeGrid', () => {
     expect(scroller.scrollLeft).toBe(88)
   })
 
-  it.each(['none', 'scroll', 'wheel', 'touch', 'key'])('holds the opening position through pane pinning until input=%s', (input) => {
+  it.each(['none', 'scroll', 'scroll-start', 'wheel', 'touch', 'key'])('holds the opening position through pane pinning until input=%s', (input) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
     const callbacks: (() => void)[] = []
@@ -293,7 +293,7 @@ describe('CalendarTimeGrid', () => {
         if (input === 'wheel') fireEvent.wheel(body, { deltaY: 120 })
         if (input === 'touch') fireEvent.touchMove(body)
         if (input === 'key') fireEvent.keyDown(body, { key: 'PageDown' })
-        body.scrollTop = 600
+        body.scrollTop = input === 'scroll-start' ? 0 : 600
         fireEvent.scroll(body)
       }
       paneHeight = 100
@@ -303,8 +303,48 @@ describe('CalendarTimeGrid', () => {
         const belowPane = nowTop - body.scrollTop
         expect(belowPane).toBeGreaterThanOrEqual(0)
         expect(belowPane).toBeLessThanOrEqual((400 - paneHeight) / 3)
-      } else expect(body.scrollTop).toBe(600)
+      } else expect(body.scrollTop).toBe(input === 'scroll-start' ? 0 : 600)
     } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
+  })
+
+  it('holds now in the upper third through viewport and hour scale changes', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    let viewportHeight = 400
+    let scale = 1
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? viewportHeight : this.dataset.testid === 'time-grid-day-pane' ? 100 : 0
+    })
+    const offsets = vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-label' ? Number(this.textContent!.split(':')[0]) * 48 * scale : 0
+    })
+    try {
+      renderGrid([{ ...column(2026, 9, 8), isToday: true }], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      expect(1032 - body.scrollTop).toBe(75)
+      fireEvent.scroll(body)
+      viewportHeight = 300
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(1032 - body.scrollTop).toBe(50)
+      fireEvent.scroll(body)
+      scale = 2
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(2064 - body.scrollTop).toBe(50)
+      fireEvent.keyDown(screen.getByTestId('time-grid-col-header'), { key: 'Home' })
+      body.scrollTop = 0
+      fireEvent.scroll(body)
+      scale = 1
+      viewportHeight = 400
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(body.scrollTop).toBe(0)
+    } finally { offsets.mockRestore(); heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
   })
 
   it('unpins oversized day lanes and repins at half the viewport after a resize', () => {

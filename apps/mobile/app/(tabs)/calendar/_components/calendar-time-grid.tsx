@@ -355,7 +355,8 @@ export function CalendarTimeGrid({
     );
 
   const hasMovedGrid = useRef(false);
-  const openingOffsets = useRef({ vertical: new Set([0]), horizontal: new Set([0]) });
+  const openingOffsets = useRef({ vertical: new Set<number>(), horizontal: new Set<number>() });
+  const openingScroll = useRef({ top: 0, left: 0 });
   const chipCount = Math.max(1, ...perColumn.map(({ allDay }) => Math.min(2, allDay.length)));
   const chipHeight = Math.max(48, 44.8 * fontScale);
   const allDayBandHeight = Math.max(chipCount * chipHeight + (chipCount - 1) * 4, anyTimeLabelHeight) + 16 + 1;
@@ -368,13 +369,17 @@ export function CalendarTimeGrid({
       ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * fontScale - visibleHourHeight / 4
       : firstTop * fontScale) + (isPanePinned ? 0 : paneHeight);
     openingOffsets.current.vertical.add(offset);
+    openingScroll.current.top = offset;
     scrollViewToY(bodyScrollRef.current, offset);
     scrollViewToY(gutterScrollRef.current, offset);
   }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, paneHeight, paneLayout.isLoading, perColumn, timeZone]);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = event.nativeEvent.contentOffset.y;
-    if (![...openingOffsets.current.vertical].some((opening) => Math.abs(opening - offset) <= 1)) hasMovedGrid.current = true;
+    const pending = [...openingOffsets.current.vertical].find((opening) => Math.abs(opening - offset) <= 1);
+    if (pending !== undefined) openingOffsets.current.vertical.delete(pending);
+    else if (Math.abs(openingScroll.current.top - offset) > 1) hasMovedGrid.current = true;
+    openingScroll.current.top = offset;
     scrollViewToY(gutterScrollRef.current, offset);
   };
 
@@ -382,8 +387,9 @@ export function CalendarTimeGrid({
     if (hasMovedGrid.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
     const todayIndex = columns.findIndex(({ isToday }) => isToday);
     if (todayIndex >= 0) {
-      const offset = Math.max(0, todayIndex * colWidth - (viewportWidth - colWidth) / 2);
+      const offset = Math.max(0, Math.min(contentWidth - viewportWidth, todayIndex * colWidth - (viewportWidth - colWidth) / 2));
       openingOffsets.current.horizontal.add(offset);
+      openingScroll.current.left = offset;
       columnsScrollRef.current?.scrollTo({ x: offset, animated: false });
     }
   }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
@@ -434,7 +440,10 @@ export function CalendarTimeGrid({
             onTouchMove={() => { hasMovedGrid.current = true; }}
             onScroll={(event) => {
               const offset = event.nativeEvent.contentOffset.x;
-              if (![...openingOffsets.current.horizontal].some((opening) => Math.abs(opening - offset) <= 1)) hasMovedGrid.current = true;
+              const pending = [...openingOffsets.current.horizontal].find((opening) => Math.abs(opening - offset) <= 1);
+              if (pending !== undefined) openingOffsets.current.horizontal.delete(pending);
+              else if (Math.abs(openingScroll.current.left - offset) > 1) hasMovedGrid.current = true;
+              openingScroll.current.left = offset;
             }}
             scrollEventThrottle={16}
           >
