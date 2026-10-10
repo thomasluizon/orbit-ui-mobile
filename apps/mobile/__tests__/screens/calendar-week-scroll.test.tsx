@@ -2,7 +2,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
-import { __setWindowDimensions } from '../../test-mocks/react-native'
+import { __setWindowDimensions, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../test-mocks/react-native'
 
 interface TestNode {
   type: unknown
@@ -17,6 +17,18 @@ interface TestTree {
 const { create } = require('react-test-renderer') as { create: (element: React.ReactNode) => TestTree }
 
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+const scrollToOffset = vi.hoisted(() => vi.fn())
+vi.mock('react-native', async () => {
+  const React = await import('react')
+  const native = await import('../../test-mocks/react-native')
+  return { ...native, FlatList: React.forwardRef((props: React.ComponentProps<typeof native.FlatList>, ref) => {
+    React.useImperativeHandle(ref, () => ({ scrollToOffset }))
+    return <native.FlatList {...props}>
+      <native.View style={props.ListHeaderComponentStyle}>{React.isValidElement(props.ListHeaderComponent) ? props.ListHeaderComponent : null}</native.View>
+      {React.isValidElement(props.ListFooterComponent) ? props.ListFooterComponent : null}
+    </native.FlatList>
+  }) }
+})
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   usePathname: () => '/calendar',
@@ -92,7 +104,7 @@ function ancestors(node: TestNode) {
 }
 
 function scrollOwners(node: TestNode) {
-  return ancestors(node).filter((parent) => parent.type === 'ScrollView'
+  return ancestors(node).filter((parent) => (parent.type === 'ScrollView' || parent.type === 'FlatList')
     && !parent.props.horizontal && parent.props.scrollEnabled !== false)
 }
 
@@ -101,30 +113,54 @@ let tree: TestTree | undefined
 afterEach(async () => {
   await act(() => tree?.update(<></>))
   __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+  __setTouchMode(true)
 })
 
 describe('Calendar week scroll ownership', () => {
+  it('keeps the same header and view switch nodes focused when entering and leaving week', async () => {
+    __setTouchMode(false)
+    await act(() => { tree = create(<CalendarScreen />) })
+    const header = tree!.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!
+    const selector = header.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!
+    const radios = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')
+    const previous = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.previousMonth')[0]!
+    const next = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextMonth')[0]!
+    const title = header.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')[1]!
+    for (const [step, index] of [0, 1, 2, 1, 0, 3, 0].entries()) {
+      const nativeTag = radios[index]!.props.__nativeTag
+      if (typeof nativeTag !== 'number') throw new Error('Radio native handle missing')
+      scrollToOffset.mockClear()
+      await act(() => __focusHost(nativeTag))
+      const currentHeader = tree!.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!
+      expect(currentHeader === header).toBe(true)
+      expect(currentHeader.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0] === selector).toBe(true)
+      currentHeader.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio').forEach((radio, radioIndex) => expect(radio === radios[radioIndex]).toBe(true))
+      expect(radios[index]!.props.accessibilityState).toMatchObject({ checked: true })
+      expect(__getFocusedNativeTag()).toBe(nativeTag)
+      if (step > 0) {
+        expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false })
+      }
+      expect(currentHeader.findAll((node) => node === previous || node === next || node === title)).toHaveLength(3)
+    }
+  })
+
   it.each([[1352, 726, 1], [1100, 726, 1], [412, 640, 1], [1352, 726, 2], [1100, 726, 2], [412, 640, 2]])(
     'keeps one hour scroller with the weekday pane as its sticky first child at %sx%s with font scale %s',
     async (width, height, fontScale) => {
       __setWindowDimensions({ width, height, scale: 1, fontScale })
       await act(() => { tree = create(<CalendarScreen />) })
-      const list = tree!.root.findAll((node) => node.type === 'FlatList')[0]!
-      let header!: TestTree
-      const monthHeader = list.props.ListHeaderComponent
-      if (!React.isValidElement(monthHeader)) throw new Error('Month header missing')
-      await act(() => { header = create(monthHeader) })
-      const week = header.root.findAll((node) => node.type === 'Pressable'
+      const week = tree!.root.findAll((node) => node.type === 'Pressable'
         && String(node.props.testID).startsWith('segment-week-'))[0]!
       const onPress = week.props.onPress
       if (typeof onPress !== 'function') throw new Error('Week selection missing')
       await act(() => onPress())
-      await act(() => header.update(<></>))
 
       const column = tree!.root.findAll((node) => node.type === 'View'
         && node.props.testID === 'time-grid-day-column')[0]!
       const owners = scrollOwners(column)
       expect(owners).toHaveLength(1)
+      const header = tree!.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!
+      expect(scrollOwners(header)).toHaveLength(0)
       const weekday = tree!.root.findAll((node) => node.type === 'Pressable'
         && node.props.testID === 'time-grid-col-header')[0]!
       expect(ancestors(weekday)).toContain(owners[0])
