@@ -14,6 +14,7 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { useAuthStore } from '@/stores/auth-store'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
+import { NotificationsPreload } from '@/lib/notifications-preload'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -63,6 +64,34 @@ describe('useNotifications', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     feedback.showError.mockReset()
+  })
+
+  it('paints server notifications before a delayed browser response and retains real count updates', async () => {
+    const initialNotifications = {
+      notifications: { items: [createMockNotification({ isRead: false })], unreadCount: 15 },
+      updatedAt: Date.now(),
+    }
+    let finishRequest!: (response: Response) => void
+    mockFetch.mockReturnValue(new Promise<Response>((resolve) => { finishRequest = resolve }))
+    const queryClient = createQueryClient()
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(
+      NotificationsPreload,
+      { initialNotifications },
+      React.createElement(QueryClientProvider, { client: queryClient }, children),
+    )
+    const { result } = renderHook(() => useNotifications(), { wrapper })
+
+    expect(result.current.unreadCount).toBe(15)
+    expect(result.current.isLoading).toBe(false)
+    expect(mockFetch).not.toHaveBeenCalled()
+    let request!: Promise<unknown>
+    act(() => { request = result.current.refetch() })
+    expect(result.current.unreadCount).toBe(15)
+    await act(async () => {
+      finishRequest(new Response(JSON.stringify({ items: [], unreadCount: 0 })))
+      await request
+    })
+    await waitFor(() => expect(result.current.unreadCount).toBe(0))
   })
 
   it('fetches and returns notifications', async () => {

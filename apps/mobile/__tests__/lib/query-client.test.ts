@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { configKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
+import { configKeys, gamificationKeys, habitKeys, notificationKeys } from '@orbit/shared/query'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared/utils'
 
 import {
@@ -48,6 +49,19 @@ describe('mobile query client', () => {
     expect(defaults.queries?.refetchOnReconnect).toBe(true)
     expect(retry(2, new Error('network'))).toBe(true)
     expect(retry(3, new Error('network'))).toBe(false)
+  })
+
+  it('persists and restores the unread count before notification consumers mount', async () => {
+    await setQueryCacheScope('user-1')
+    const notifications = { items: [createMockNotification({ isRead: false })], unreadCount: 15 }
+    queryClient.setQueryData(notificationKeys.lists(), notifications, { updatedAt: 123 })
+    await persistQueryCache()
+    const persisted = setItemMock.mock.calls[0]![1] as string
+    queryClient.clear()
+    getItemMock.mockResolvedValue(persisted)
+    await restoreQueryCache()
+    expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(notifications)
+    expect(queryClient.getQueryState(notificationKeys.lists())?.dataUpdatedAt).toBe(123)
   })
 
   it.each([

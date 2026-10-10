@@ -18,6 +18,8 @@ import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
 import { SessionCookieProvider } from '@/lib/session-cookie-provider'
 import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
+import { NotificationsPreload } from '@/lib/notifications-preload'
+import { loadInitialNotifications } from '@/lib/server-notifications'
 import './globals.css'
 
 const schemeNames = Array.from(VALID_COLOR_SCHEMES)
@@ -103,7 +105,10 @@ export default async function RootLayout({
   const applePlatform = /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
   const cookieStore = await cookies()
   const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
-  const initialTheme = await loadInitialTheme(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value)
+  const [initialTheme, initialNotifications] = await Promise.all([
+    loadInitialTheme(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value),
+    loadInitialNotifications(hasSessionCookie),
+  ])
   const initialThemeStyle = {
     ...resolveWebThemeVariables('orange', initialTheme),
     colorScheme: initialTheme,
@@ -165,7 +170,9 @@ export default async function RootLayout({
               </Suspense>
               <SessionCookieProvider hasSessionCookie={hasSessionCookie}>
                 <KeyboardPlatformProvider applePlatform={applePlatform}>
-                  {children}
+                  <NotificationsPreload initialNotifications={initialNotifications}>
+                    {children}
+                  </NotificationsPreload>
                 </KeyboardPlatformProvider>
               </SessionCookieProvider>
               <ThrottleScreen />

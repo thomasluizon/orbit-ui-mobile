@@ -10,6 +10,8 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { handleRequest } from '../../test-support/hermetic/mock-api/request-handler'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { LAYOUT_FIXED_TIME } from '../../e2e/layout/clock.mjs'
 
 let server: Server
@@ -81,6 +83,24 @@ describe('mock API account events', () => {
 })
 
 describe('mock API session fixtures', () => {
+  it('serves delayed notifications to authenticated server reads in their seeded session', async () => {
+    const notifications = notificationsResponseSchema.parse({ items: [createMockNotification()], unreadCount: 15 })
+    const response = await fetch(`${origin}/_test/session-fixtures`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${tokenFor('notification-delay')}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fixtures: [{ path: API.notifications.list, body: notifications, delayMs: 100 }] }),
+    })
+    expect(response.status).toBe(204)
+    const pendingNotifications = fetch(`${origin}${API.notifications.list}`, {
+      headers: { Authorization: `Bearer ${tokenFor('notification-delay')}` },
+    })
+    expect(await Promise.race([
+      pendingNotifications.then(() => 'arrived'),
+      new Promise<string>((resolve) => setTimeout(() => resolve('pending'), 20)),
+    ])).toBe('pending')
+    expect(await (await pendingNotifications).json()).toEqual(notifications)
+    expect(await (await fetch(`${origin}${API.notifications.list}`)).json()).toEqual({ items: [], unreadCount: 0 })
+  })
+
   it('serves the held habit preview to server-side clarification resolutions', async () => {
     const preview = agentExecuteOperationResponseSchema.parse({
       operation: makeAgentOperationResult('PendingConfirmation', 1),

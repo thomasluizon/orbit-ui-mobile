@@ -298,7 +298,8 @@ function sendFixtureRoute(req: IncomingMessage, res: ServerResponse, route: Mock
     sendInvalidSession(res, url.pathname)
     return
   }
-  sendJson(res, 200, body)
+  if (seeded?.delayMs) setTimeout(() => sendJson(res, 200, body), seeded.delayMs)
+  else sendJson(res, 200, body)
 }
 
 export function handleRequest(req: IncomingMessage, res: ServerResponse): void {

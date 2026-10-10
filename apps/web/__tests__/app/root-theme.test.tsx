@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { notificationsFixture } from '../../test-support/hermetic/mock-api/fixtures/secondary'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import RootLayout from '@/app/layout'
@@ -64,8 +65,10 @@ describe('root theme before hydration', () => {
     requestCookies.set('refresh_token', token)
     if (cookieTheme) requestCookies.set('orbit_theme_mode', cookieTheme)
     const upstream = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      expect(input instanceof Request ? input.url : input.toString()).toContain(API.profile.get)
+      const path = input instanceof Request ? input.url : input.toString()
       expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${token}`)
+      if (path.endsWith(API.notifications.list)) return Response.json(notificationsFixture)
+      expect(path).toContain(API.profile.get)
       return Response.json(profile)
     })
     vi.stubGlobal('fetch', upstream)
@@ -84,7 +87,7 @@ describe('root theme before hydration', () => {
     expect(bootstrapped.window.document.documentElement.classList.contains('light')).toBe(true)
     expect(bootstrapped.window.document.documentElement.style.colorScheme).toBe('light')
     bootstrapped.window.close()
-    expect(upstream).toHaveBeenCalledTimes(1)
+    expect(upstream).toHaveBeenCalledTimes(2)
   })
 
   it.each(['dark', 'light'])('uses the %s cookie without a session', async (theme) => {
@@ -129,7 +132,7 @@ describe('root theme before hydration', () => {
       expect(cookieMutationAccess).not.toHaveBeenCalled()
       expect(renderCookies.get('refresh_token')?.value).toBe(freshToken)
       expect((await cookies()).get('refresh_token')?.value).toBe(freshToken)
-      expect(upstream).toHaveBeenCalledTimes(sessionKind === 'refresh-only' || sessionKind === 'expired' ? 0 : 1)
+      expect(upstream).toHaveBeenCalledTimes(sessionKind === 'refresh-only' || sessionKind === 'expired' ? 0 : 2)
       if (sessionKind === 'refresh-only' || sessionKind === 'expired') expect(captureException).not.toHaveBeenCalled()
     },
   )
