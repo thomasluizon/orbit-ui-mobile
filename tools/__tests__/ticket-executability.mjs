@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, readFileSync, writeFileSync } from "node:fs"
 
-import { stage, T } from "./_harness.mjs"
+import { processIsRunning, stage, T } from "./_harness.mjs"
 
 const TOOL = "lib/ticket-executability.mjs"
 const fixtures = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8"))
@@ -187,14 +187,34 @@ export const cases = async () => {
   T(`${TOOL}: off label preserves a cached classifier failure`, labeledFailure.source === "classifier" && labeledFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
   const labeledOnFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:conversation"] })
   T(`${TOOL}: on label preserves a cached classifier failure`, labeledOnFailure.source === "classifier" && labeledOnFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
-  const nativeProbe = stage("ticket-executability/native-probe.mjs", `
-const { classifyConversationFirst } = await import(process.env.ORBIT_NATIVE_PROBE_MODULE || ${JSON.stringify(new URL("../lib/ticket-executability.mjs", import.meta.url).href)})
-const started = performance.now()
-const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE_PROBE_LARGE ? 4_000_000 : 0)
-const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
-process.stdout.write(JSON.stringify({ conversationFirst: result.conversationFirst, kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
-`)
   const claudeEnvelope = readFileSync(new URL("../__fixtures__/ticket-classifier-envelope.json", import.meta.url), "utf8")
+  // Delay the first real config Git read so cold setup contention is deterministic in the probe.
+  const nativeProbe = stage("ticket-executability/native-probe.mjs", `
+import childProcess from "node:child_process"
+import { syncBuiltinESMExports } from "node:module"
+const setupDelayMs = Number(process.env.ORBIT_NATIVE_PROBE_SETUP_DELAY) || 0
+if (setupDelayMs) {
+  const spawnSync = childProcess.spawnSync
+  childProcess.spawnSync = (...args) => {
+    if (args[0] === "git") {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, setupDelayMs)
+      childProcess.spawnSync = spawnSync
+      syncBuiltinESMExports()
+    }
+    return spawnSync(...args)
+  }
+  syncBuiltinESMExports()
+}
+const { classifyConversationFirst } = await import(process.env.ORBIT_NATIVE_PROBE_MODULE || ${JSON.stringify(new URL("../lib/ticket-executability.mjs", import.meta.url).href)})
+const setupStarted = performance.now()
+const setup = await classifyConversationFirst("## Scope\\n\\n- Prepare the classifier probe", { run: async () => ({ code: 0, stdout: ${JSON.stringify(claudeEnvelope)} }) })
+if (setup.conversationFirst) throw new Error("classifier probe setup failed")
+const setupElapsedMs = performance.now() - setupStarted
+const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE_PROBE_LARGE ? 4_000_000 : 0)
+const started = performance.now()
+const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
+process.stdout.write(JSON.stringify({ conversationFirst: result.conversationFirst, kind: result.signals[0]?.kind, setupElapsedMs, elapsedMs: performance.now() - started }))
+`)
   const claudeBinary = stage("ticket-executability/claude-envelope.mjs", `#!/usr/bin/env node
 process.stdout.write(${JSON.stringify(claudeEnvelope)})
 `)
@@ -212,17 +232,37 @@ process.stdout.write(${JSON.stringify(claudeEnvelope)})
   let attachmentVerdict
   try { attachmentVerdict = JSON.parse(attachmentObserved.stdout) } catch { attachmentVerdict = null }
   T(`${TOOL}: ticket body @file mentions stay plain text (attachment expansion disabled)`, attachmentObserved.status === 0 && attachmentVerdict?.conversationFirst === false && !attachmentVerdict.kind, attachmentObserved.stderr || attachmentObserved.stdout)
+  // Cold config and prompt loading precede the process deadline. The setup call warms only those
+  // shared inputs; its distinct body cannot supply the timed classification from the result cache.
+  const descendantPids = stage("ticket-executability/descendants.jsonl", "")
+  const descendantTimeoutMs = 1000
+  // Allow the launcher to create the inherited pipes, then keep the original 700 ms cleanup margin
+  // above two attempts. Natural descendant exit must remain beyond the outer 5000 ms watchdog.
+  const descendantDeadlineMs = 2 * descendantTimeoutMs + 700
   for (const [name, source, timeoutMs, large] of [
     ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n", 500, true],
-    ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n", 100, false],
+    ["stdio-descendant", `#!/usr/bin/env node
+import { spawn } from 'node:child_process'
+import { appendFileSync } from 'node:fs'
+const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'inherit' })
+appendFileSync(${JSON.stringify(descendantPids)}, JSON.stringify({ parent: process.pid, descendant: child.pid }) + '\\n')
+`, descendantTimeoutMs, false],
     ["output-overflow", "#!/usr/bin/env node\nprocess.stdout.write('x'.repeat(2_000_000))\n", 1000, false],
   ]) {
     const binary = stage(`ticket-executability/${name}.mjs`, source)
     chmodSync(binary, 0o755)
-    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "" } })
+    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "", ORBIT_NATIVE_PROBE_SETUP_DELAY: name === "stdio-descendant" ? "1000" : "" } })
     let verdict
     try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
-    T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < 900, observed.stderr || observed.stdout || String(observed.error))
+    const deadlineMs = name === "stdio-descendant" ? descendantDeadlineMs : 900
+    T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.conversationFirst === true && verdict.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < deadlineMs, observed.stderr || observed.stdout || String(observed.error))
+    if (name === "stdio-descendant") {
+      const descendants = readFileSync(descendantPids, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse)
+      process.stdout.write(`Native stdio probe: ${JSON.stringify({ ...verdict, deadlineMs, descendants })}\n`)
+      T(`${TOOL}: native stdio probe exercises slow cold setup`, verdict?.setupElapsedMs >= 1000, JSON.stringify(verdict))
+      T(`${TOOL}: both native attempts create the stdio descendant`, descendants.length === 2, JSON.stringify({ descendants, verdict }))
+      T(`${TOOL}: native timeout terminates the parents and stdio descendants`, descendants.length === 2 && descendants.every(({ parent, descendant }) => !processIsRunning(parent) && !processIsRunning(descendant)), JSON.stringify({ descendants, verdict }))
+    }
   }
   const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: "/orbit-test/missing-claude" } })
   let missingVerdict
