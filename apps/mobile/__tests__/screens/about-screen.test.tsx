@@ -140,6 +140,50 @@ describe('AboutScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([320, 600, 1352])('keeps long account text and its disclosure inside the fact edges at %i', (width) => {
+    mocks.email = `${'account'.repeat(30)}@example.com`
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      for (const expanded of [false, true]) {
+        if (expanded) TestRenderer.act(() => { (control.props.onPress as () => void)() })
+        const measured = measureProfileRow(tree.toJSON(), width, 1)
+        const row = measured.boxes.find((box) => box.testID === 'about-fact-account')!
+        const label = measured.boxes.find((box) => box.testID === 'about-fact-account-label')!
+        const value = measured.boxes.find((box) => box.testID === 'about-fact-account-value')!
+        expect(value.left).toBe(label.left)
+        expect(value.top).toBeGreaterThanOrEqual(label.bottom)
+        expect(value.right).toBeLessThanOrEqual(row.right)
+        const chevron = measured.boxes.find((box) => box.testID === 'about-account-chevron')!
+        expect(chevron.right).toBeCloseTo(row.right)
+        expect(value.right).toBeCloseTo(chevron.left - 12)
+        expect(control.props.accessibilityState).toMatchObject({ expanded })
+        expect(control.props.accessibilityLabel).toContain(mocks.email)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('paints the same outset for hover, press and focus without clipping its parent', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
+      const fill = () => tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'about-account-fill')[0]!
+      expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      for (const [enter, leave] of [['onHoverIn', 'onHoverOut'], ['onPressIn', 'onPressOut'], ['onFocus', 'onBlur']]) {
+        TestRenderer.act(() => { (control.props[enter!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).not.toBe('transparent')
+        expect(flattenedStyle(fill()).outlineWidth).toBe(enter === 'onFocus' ? 2 : 0)
+        TestRenderer.act(() => { (control.props[leave!] as () => void)() })
+        expect(flattenedStyle(fill()).backgroundColor).toBe('transparent')
+      }
+      expect(flattenedStyle(control).overflow).not.toBe('hidden')
+      expect(fill().props.pointerEvents).toBe('none')
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('shows the installed APK version the API header sends, not the bundled config version', () => {
     mocks.nativeVersion = '1.3.39'
     mocks.configVersion = '1.1.4'
@@ -252,7 +296,7 @@ describe('AboutScreen', () => {
       })
       expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-label`)[0]!)).toMatchObject({
         flexGrow: 1,
-        flexShrink: 1,
+        flexShrink: fact === 'account' ? 0 : 1,
         minWidth: 0,
       })
       expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}-value`)[0]!)).toMatchObject({

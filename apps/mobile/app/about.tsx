@@ -60,10 +60,10 @@ function AboutAccountFact({ label, value, labelColor, valueColor }: Readonly<Omi
     testID="about-fact-account" style={[styles.factRow, styles.accountRow]}>
     <View testID="about-account-fill" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
       style={[styles.accountFill, { backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' }]} />
-    <Text testID="about-fact-account-label" style={[styles.factLabel, { color: highlighted ? tokens.fg2 : labelColor }]}>{label}</Text>
+    <Text testID="about-fact-account-label" style={[styles.factLabel, { flexShrink: 0, maxWidth: '100%', color: highlighted ? tokens.fg2 : labelColor }]}>{label}</Text>
     <View style={styles.accountValue}>
-      <PersonalText expanded={expanded} testID="about-fact-account-value" style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText>
-      <ChevronDown size={20} strokeWidth={1.5} color={highlighted ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
+      <View style={styles.accountText}><PersonalText expanded={expanded} testID="about-fact-account-value" style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText></View>
+      <View testID="about-account-chevron" style={{ width: 20, flexShrink: 0 }}><ChevronDown size={20} strokeWidth={1.5} color={highlighted ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
     </View>
   </Pressable>
 }
@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
   },
   accountRow: { minHeight: 48, paddingVertical: 8, position: 'relative', alignItems: 'center' },
   accountFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  accountText: { minWidth: 0, flexShrink: 1 },
   accountValue: { minWidth: 0, maxWidth: '100%', flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   factLabel: {
     minWidth: 0,
