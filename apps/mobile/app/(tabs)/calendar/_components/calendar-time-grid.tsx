@@ -378,7 +378,11 @@ export function CalendarTimeGrid({
     const offset = event.nativeEvent.contentOffset.y;
     const pending = [...openingOffsets.current.vertical].find((opening) => Math.abs(opening - offset) <= 1);
     if (pending !== undefined) openingOffsets.current.vertical.delete(pending);
-    else if (Math.abs(openingScroll.current.top - offset) > 1) hasMovedGrid.current = true;
+    else if (Math.abs(openingScroll.current.top - offset) > 1) {
+      const maximumTravel = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height;
+      const isNativeClamp = offset < openingScroll.current.top && Math.abs(maximumTravel - offset) <= 1;
+      if (!isNativeClamp) hasMovedGrid.current = true;
+    }
     openingScroll.current.top = offset;
     scrollViewToY(gutterScrollRef.current, offset);
   };
@@ -442,7 +446,11 @@ export function CalendarTimeGrid({
               const offset = event.nativeEvent.contentOffset.x;
               const pending = [...openingOffsets.current.horizontal].find((opening) => Math.abs(opening - offset) <= 1);
               if (pending !== undefined) openingOffsets.current.horizontal.delete(pending);
-              else if (Math.abs(openingScroll.current.left - offset) > 1) hasMovedGrid.current = true;
+              else if (Math.abs(openingScroll.current.left - offset) > 1) {
+                const maximumTravel = event.nativeEvent.contentSize.width - event.nativeEvent.layoutMeasurement.width;
+                const isNativeClamp = offset < openingScroll.current.left && Math.abs(maximumTravel - offset) <= 1;
+                if (!isNativeClamp) hasMovedGrid.current = true;
+              }
               openingScroll.current.left = offset;
             }}
             scrollEventThrottle={16}
