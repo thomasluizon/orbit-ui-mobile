@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS builder
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS builder
 
 WORKDIR /app
 COPY . .
@@ -28,7 +28,7 @@ ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
 
 RUN npx turbo run build --filter=@orbit/web
 
-FROM node:22-bookworm-slim AS runner
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS runner
 WORKDIR /app
 ARG WEB_COMMIT_SHA
 ARG NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN
