@@ -1511,6 +1511,49 @@ describe('mobile ProgressContent', () => {
     }
   })
 
+  it('masks pending streak history until the returned day labels are available', async () => {
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    const streakInfo = { ...mocks.freeze.streakInfo, lastActiveDate: '2026-09-08', recentFreezeDates: ['2026-09-07'] }
+    mocks.freeze.streakInfo = null as unknown as typeof streakInfo
+    const tree = await renderProgress()
+    const strip = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'day-strip-account')[0]!
+    let mask = strip.parent!
+    while (mask.type !== 'View') mask = mask.parent!
+    let wrapper = mask.parent!
+    while (wrapper.type !== 'View') wrapper = wrapper.parent!
+    const dayLabels = () => strip.findAll((node) => node.type === 'View' && /progressScreen\.streak\.(active|frozen|missed|today)$/.test(String(node.props.accessibilityLabel)))
+    const exposedLabels = () => dayLabels().filter((node) => {
+      for (let ancestor: TestNode | null = node; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.props.accessibilityElementsHidden || ancestor.props.importantForAccessibility === 'no-hide-descendants') return false
+      }
+      return true
+    })
+    expect.soft(exposedLabels()).toHaveLength(0)
+    expect.soft(wrapper.props.accessibilityState).toEqual({ busy: true })
+    expect.soft(wrapper.props.accessibilityLabel).toBe('progressScreen.loading')
+    expect.soft(wrapper.props.accessible).toBe(true)
+    expect.soft(mask.props.accessibilityElementsHidden).toBe(true)
+    expect.soft(mask.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect.soft(StyleSheet.flatten([mask.props.style as ViewStyle]).opacity).toBe(0)
+    expect.soft(wrapper.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-fill').length).toBeGreaterThan(0)
+    expect(dayLabels()).toHaveLength(14)
+    mocks.freeze.streakInfo = streakInfo
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+    expect(wrapper.props.accessibilityState).toEqual({ busy: false })
+    expect(wrapper.props.accessibilityLabel).toBeUndefined()
+    expect(wrapper.props.accessible).toBe(false)
+    expect(mask.props.accessibilityElementsHidden).toBe(false)
+    expect(mask.props.importantForAccessibility).toBe('auto')
+    expect(StyleSheet.flatten([mask.props.style as ViewStyle]).opacity).not.toBe(0)
+    expect(wrapper.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(0)
+    expect(exposedLabels()).toHaveLength(14)
+    for (const state of ['active', 'frozen', 'missed', 'today']) {
+      expect(exposedLabels().some((node) => String(node.props.accessibilityLabel).endsWith(`progressScreen.streak.${state}`))).toBe(true)
+    }
+    expect(exposedLabels().some((node) => node.props.accessibilityLabel === 'Sep 7, progressScreen.streak.frozen')).toBe(true)
+    expect(exposedLabels().some((node) => node.props.accessibilityLabel === 'Sep 8, progressScreen.streak.active')).toBe(true)
+  })
+
   it('shows streak loading and failure without a false upgrade boundary', async () => {
     const streakInfo = mocks.freeze.streakInfo
     mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo

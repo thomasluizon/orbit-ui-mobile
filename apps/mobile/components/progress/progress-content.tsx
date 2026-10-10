@@ -254,12 +254,18 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens, h
   if (canView && freeze.streakQuery.isError) {
     return <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
   }
+  const loading = canView && !freeze.streakInfo
   return (
     <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
       <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} origin={freeze.streakInfo.lastFreezeCoveredOrigin} locale={i18n.language} tokens={tokens} /> : null}
-      <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
+      <View accessible={loading} accessibilityState={{ busy: loading }} accessibilityLabel={loading ? t('progressScreen.loading') : undefined}>
+        <View accessibilityElementsHidden={loading} importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'} style={loading && styles.hidden}>
+          <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
+        </View>
+        {loading ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton variant="fill" grouped /></View> : null}
+      </View>
       {canView ? <FreezeBank loadingLabel={!freeze.streakInfo ? t('progressScreen.loading') : undefined} banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo?.recentFreezeDates ?? [], i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><WindowFigureGrid><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></WindowFigureGrid><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
       {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} hasGoals={hasGoals} /> : null}
     </View>
@@ -623,6 +629,7 @@ const styles = StyleSheet.create({
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
   streakSection: { width: '100%', maxWidth: 560, gap: 16 },
+  hidden: { opacity: 0 },
   streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   frozenBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: 12 },

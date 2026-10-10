@@ -1558,12 +1558,52 @@ describe('ProgressContent', () => {
     }
   })
 
+  it('masks pending streak history until the returned day labels are available', async () => {
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    const streakInfo = { ...mocks.freeze.streakInfo, lastActiveDate: '2026-09-08', recentFreezeDates: ['2026-09-07'] }
+    mocks.freeze.streakInfo = null as unknown as typeof streakInfo
+    const { rerender } = render(<ProgressPage />)
+    const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
+    const strip = section.querySelector<HTMLElement>('[data-scope="account"]')!
+    const mask = strip.parentElement!
+    const wrapper = mask.parentElement!
+    const dayLabel = /progressScreen\.streak\.(active|frozen|missed|today)$/
+    expect.soft(within(section).queryAllByRole('img', { name: dayLabel })).toHaveLength(0)
+    expect.soft(wrapper).toHaveAttribute('aria-busy', 'true')
+    expect.soft(wrapper).toHaveAttribute('aria-label', 'progressScreen.loading')
+    expect.soft(mask).toHaveAttribute('inert')
+    expect.soft(mask).toHaveAttribute('aria-hidden', 'true')
+    const page = await browser.newPage({ viewport: { width: 412, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${section.outerHTML}`)
+      expect.soft(await page.locator('[data-scope="account"]').evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
+    } finally {
+      await page.close()
+    }
+    expect.soft(wrapper.querySelector('[data-variant="fill"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
+    mocks.freeze.streakInfo = streakInfo
+    rerender(<ProgressPage />)
+    expect(wrapper).toHaveAttribute('aria-busy', 'false')
+    expect(wrapper).not.toHaveAttribute('aria-label')
+    expect(mask).not.toHaveAttribute('inert')
+    expect(mask).not.toHaveAttribute('aria-hidden')
+    expect(strip).toBeVisible()
+    expect(wrapper.querySelector('[data-variant="fill"]')).toBeNull()
+    expect(within(strip).getAllByRole('img', { name: dayLabel })).toHaveLength(14)
+    for (const state of ['active', 'frozen', 'missed', 'today']) {
+      expect(within(strip).getAllByRole('img', { name: new RegExp(`progressScreen\\.streak\\.${state}$`) }).length).toBeGreaterThan(0)
+    }
+    expect(within(strip).getByRole('img', { name: 'Sep 7, progressScreen.streak.frozen' })).toBeVisible()
+    expect(within(strip).getByRole('img', { name: 'Sep 8, progressScreen.streak.active' })).toBeVisible()
+  })
+
   it('shows streak loading and failure without a false upgrade boundary', () => {
     const streakInfo = mocks.freeze.streakInfo
     mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
 
     const { rerender } = render(<ProgressContent />)
-    expect(screen.getByLabelText('progressScreen.loading')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('progressScreen.loading').length).toBeGreaterThan(0)
     const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
     expect(section.querySelector('[data-scope="account"]')?.querySelectorAll('[data-state]')).toHaveLength(14)
     expect(within(section).getByText('4')).toBeInTheDocument()
