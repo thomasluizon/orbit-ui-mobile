@@ -33,7 +33,7 @@ export function PersonalText({ children, lines: lineLimit = 2, expanded = false,
   const singleToken = !/\s/u.test(children.trim())
   const lines = measurement?.text === children ? measurement.lines : [children]
   const minimumLineHeight = (expandedStyle.fontSize ?? 14) * 1.4
-  const visibleStyle = expanded || unclamped ? [style, { lineHeight: unclamped || lines.length >= 3 ? Math.max(expandedStyle.lineHeight ?? 0, minimumLineHeight) : expandedStyle.lineHeight ?? minimumLineHeight }] : style
+  const visibleStyle = expanded || unclamped || lines.length >= 2 ? [style, { lineHeight: unclamped || lines.length >= 2 ? Math.max(expandedStyle.lineHeight ?? 0, minimumLineHeight) : expandedStyle.lineHeight ?? minimumLineHeight }] : style
   const visibleLines = expanded || unclamped ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
   if ((singleToken || lineLimit === 1) && !expanded) return <Text accessibilityLabel={children} {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
   return <View ref={accessibilityRef} testID={props.testID} style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>

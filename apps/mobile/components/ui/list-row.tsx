@@ -60,7 +60,7 @@ function PlainRowText({ style, onTextLayout, ...props }: Readonly<TextProps>) {
   const [long, setLong] = useState(false)
   const flattened = StyleSheet.flatten(style ?? {})
   return <Text {...props} style={[style, long ? { lineHeight: Math.max(flattened.lineHeight ?? 0, (flattened.fontSize ?? 14) * 1.4) } : null]} onTextLayout={(event) => {
-    setLong(event.nativeEvent.lines.length >= 3)
+    setLong(event.nativeEvent.lines.length >= 2)
     onTextLayout?.(event)
   }} />
 }
@@ -70,8 +70,8 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, toggle ? { minHeight: 28 } : null]}>
-    <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, !description ? wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)) : null, { color: titleColor }]}>{title}</Title>
-    {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
+    <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, textMode === 'label' || !description ? wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)) : null, { color: titleColor }]}>{title}</Title>
+    {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'label' ? styles.wrappedDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
   return useArrangedRowText({ textMode, wrapValue, trailing }, text, rowValue, keepsControlInline)
@@ -223,6 +223,7 @@ const styles = StyleSheet.create({
   wrappedTitle: { lineHeight: 23.8 },
   chevron: { width: 24, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 17.5 },
+  wrappedDescription: { lineHeight: 19.6 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   wrappedValue: { flexShrink: 0, maxWidth: '100%' },
   trailing: { flexShrink: 0 },

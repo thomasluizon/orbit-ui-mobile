@@ -5,6 +5,7 @@ import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(tabs)/profile/_components/account-navigation-row'
 import { ProfileAccountContent } from '@/app/(tabs)/profile/_components/profile-account-content'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 import { ListRow } from '@/components/ui/list-row'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
@@ -53,6 +54,24 @@ describe('personal account row geometry', () => {
 })
 
 describe('label switch row geometry', () => {
+  it.each([320, 360, 384, 412].flatMap((width) => [en, ptBR].map((words) => ({ width, words }))))('reserves readable line boxes for paused labels at $width and font scale 2', async ({ width, words }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 2 })
+    const paused = words.trial.expired
+    for (const title of [paused.astraCeiling, paused.calendarSync, paused.retrospective, paused.proactiveAstra]) {
+      let tree!: Tree
+      await act(() => { tree = create(<ListRow readOnly textMode="label" title={title} description={paused.paused} />) as Tree })
+      try {
+        const geometry = measureProfileRow(tree.toJSON(), width - 48, 2)
+        expect(geometry.texts).toHaveLength(2)
+        for (const text of geometry.texts) {
+          expect(text.clipped, text.label).toBe(false)
+          expect(text.lineHeightRatio, text.label).toBeGreaterThanOrEqual(1.4)
+          expect(text.bottom).toBeLessThanOrEqual(geometry.height - 12 + 0.001)
+        }
+      } finally { await act(() => tree.update(<></>)) }
+    }
+  })
+
   for (const title of [ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title]) {
     it.each([1, 2])(`aligns ${title} at font scale %s`, async (fontScale) => {
       __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })

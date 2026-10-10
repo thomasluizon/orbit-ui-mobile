@@ -14,10 +14,10 @@ describe('personal account row', () => {
     await act(() => tree.update(<></>))
   })
 
-  it('keeps compact expanded stacks short and gives three-line titles and descriptions readable leading', async () => {
+  it.each([false, true])('keeps compact personal stacks short and gives wrapped text readable leading with expanded=%s', async (expanded) => {
     const text = 'Pessoa com nome completo e descrição longa'
     let tree!: ReactTestRenderer
-    await act(() => { tree = create(<ListRow title={text} description={text} textMode="personal" personalExpanded onClick={vi.fn()} />) })
+    await act(() => { tree = create(<ListRow title={text} description={text} textMode="personal" personalExpanded={expanded} onClick={vi.fn()} />) })
     const probes = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.importantForAccessibility === 'no-hide-descendants')
     expect(probes).toHaveLength(2)
     const measure = async (lines: string[]) => {
@@ -31,14 +31,17 @@ describe('personal account row', () => {
       return tree.root.findAll((node) => String(node.type) === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => StyleSheet.flatten(node.props.style) as { lineHeight: number; fontSize: number })
     }
     for (const style of await measure(['Pessoa com nome completo e descrição longa'])) expect(style.lineHeight / style.fontSize).toBe(1.25)
+    const twoLineStyles = await measure(['Pessoa com nome ', 'completo e descrição longa'])
+    expect(twoLineStyles).toHaveLength(4)
+    for (const style of twoLineStyles) expect(style.lineHeight / style.fontSize).toBeGreaterThanOrEqual(1.4)
     const longStyles = await measure(['Pessoa com nome ', 'completo e descrição ', 'longa'])
-    expect(longStyles).toHaveLength(6)
+    expect(longStyles).toHaveLength(expanded ? 6 : 4)
     for (const style of longStyles) expect(style.lineHeight / style.fontSize).toBeGreaterThanOrEqual(1.4)
     for (const style of await measure(['Pessoa com nome completo e descrição longa'])) expect(style.lineHeight / style.fontSize).toBe(1.25)
     await act(() => tree.update(<></>))
   })
 
-  it('gives plain wrapped row text the same minimum leading for three lines', async () => {
+  it.each([2, 3])('gives plain wrapped row text readable leading for %s lines', async (lineCount) => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<ListRow title="Pessoa com nome completo" description="Descrição que continua" wrapTitle onClick={vi.fn()} />) })
     const texts = tree.root.findAll((node) => String(node.type) === 'Text' && typeof node.props['data-slot'] === 'string' && node.props['data-slot'].startsWith('list-row-'))
@@ -47,7 +50,7 @@ describe('personal account row', () => {
       for (const text of texts) {
         const onTextLayout = text.props.onTextLayout
         if (typeof onTextLayout !== 'function') throw new Error('Text measurement callback missing')
-        onTextLayout({ nativeEvent: { target: 1, lines: ['first', 'second', 'third'].map((text) => ({ text, x: 0, y: 0, width: 100, height: 24, descender: 0, capHeight: 16, ascender: 18, xHeight: 12 })) } })
+        onTextLayout({ nativeEvent: { target: 1, lines: ['first', 'second', 'third'].slice(0, lineCount).map((text) => ({ text, x: 0, y: 0, width: 100, height: 24, descender: 0, capHeight: 16, ascender: 18, xHeight: 12 })) } })
       }
     })
     for (const text of texts) {

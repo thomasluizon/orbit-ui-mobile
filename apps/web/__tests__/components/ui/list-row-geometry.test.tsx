@@ -7,6 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
@@ -34,6 +35,21 @@ describe('personal ListRow text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((textScale) => [en, ptBR].map((words) => ({ width, textScale, words })))))('keeps paused feature titles and descriptions unclipped at $width, scale $textScale', async ({ width, textScale, words }) => {
+    const paused = words.trial.expired
+    const markup = renderToStaticMarkup(<div style={{ padding: 24 }}>
+      {[paused.astraCeiling, paused.calendarSync, paused.retrospective, paused.proactiveAstra].map((title) => <ListRow key={title} readOnly textMode="label" title={title} description={paused.paused} />)}
+    </div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * textScale}px; }</style>${markup}`)
+      await loadAppFonts(page)
+      const texts = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-description"]')).map((element) => ({ text: element.textContent, height: element.clientHeight, scrollHeight: element.scrollHeight })))
+      expect(texts).toHaveLength(8)
+      for (const text of texts) expect(text.scrollHeight, text.text!).toBeLessThanOrEqual(text.height)
+    } finally { await page.close() }
+  })
 
   it.each([600, 840, 1100, 1352].flatMap((width) => [1, 2].flatMap((textScale) => ['Ana', 'Ana Silva'].map((name) => ({ width, textScale, name })))))('matches the composed Conta and Perfil rows at $width, scale $textScale for $name', async ({ width, textScale, name }) => {
     const profile = createMockProfile({ name, email: 'ana@example.com' })

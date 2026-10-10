@@ -17,7 +17,7 @@ export function useReadableLineHeight(ref: RefObject<HTMLSpanElement | null>, te
     const measure = () => {
       const computed = getComputedStyle(element)
       const height = element.getBoundingClientRect().height - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom)
-      setLong(height > parseFloat(computed.lineHeight) * 2 + 0.5)
+      setLong(height > parseFloat(computed.lineHeight) + 0.5)
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -49,14 +49,14 @@ export function PersonalText({ children, lines: lineLimit = 2, expanded = false,
   const singleLine = singleToken || lineLimit === 1 && !expanded
   const textStyle = { ...style, whiteSpace: singleLine ? 'nowrap' : 'normal', overflowWrap: 'normal', wordBreak: 'normal', hyphens: 'none' } as const
   const textRef = useRef<HTMLSpanElement>(null)
-  const expandedLineHeight = useReadableLineHeight(textRef, children, style, expanded && !singleToken) ?? 1.4
-  if (expanded && singleToken) return <span className={`block min-w-0 max-w-full px-1 ${className}`} style={{ ...textStyle, lineHeight: expandedLineHeight }}>
+  const readableLineHeight = useReadableLineHeight(textRef, children, style, !singleToken)
+  if (expanded && singleToken) return <span className={`block min-w-0 max-w-full px-1 ${className}`} style={{ ...textStyle, lineHeight: readableLineHeight ?? 1.4 }}>
     <ScrollableToken {...props} data-personal-text="" data-personal-text-expanded="" accessibleName={children} className="block min-w-0 max-w-full">{children}</ScrollableToken>
   </span>
-  return <span ref={textRef} aria-label={children} {...props} data-personal-text="" data-personal-text-unclamped={unclamped ? '' : undefined} data-personal-text-expanded={expanded ? '' : undefined} className={`${expanded ? 'block px-1' : singleLine ? 'block truncate' : unclamped ? 'block' : 'line-clamp-2'} min-w-0 max-w-full ${className}`} style={{ ...textStyle, ...(expanded ? { lineHeight: expandedLineHeight } : {}) }}>
+  return <span ref={textRef} aria-label={children} {...props} data-personal-text="" data-personal-text-unclamped={unclamped ? '' : undefined} data-personal-text-expanded={expanded ? '' : undefined} className={`${expanded ? 'block px-1' : singleLine ? 'block truncate' : unclamped ? 'block' : 'line-clamp-2'} min-w-0 max-w-full ${className}`} style={{ ...textStyle, lineHeight: readableLineHeight ?? (expanded ? 1.4 : undefined) }}>
     {singleLine ? children : parts.map((part, index) => /^\s+$/u.test(part)
       ? <Fragment key={index}>{part}</Fragment>
-      : expanded ? <ScrollableToken key={index} accessibleName={children} className="inline-block max-w-full align-bottom whitespace-nowrap" style={{ lineHeight: expandedLineHeight }}>{part}</ScrollableToken>
+      : expanded ? <ScrollableToken key={index} accessibleName={children} className="inline-block max-w-full align-bottom whitespace-nowrap" style={{ lineHeight: readableLineHeight ?? 1.4 }}>{part}</ScrollableToken>
       : <span key={index} className="inline-block max-w-full align-bottom whitespace-nowrap overflow-hidden text-ellipsis">{part}</span>)}
   </span>
 }
