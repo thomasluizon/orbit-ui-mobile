@@ -27,7 +27,7 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
       ...(failed ? { status: 'failed' as const, statusLabel: t(`chat.calendarCard.syncState.${calendarCard.sync.status}`) } : {}),
     })
   }
-  return <div className="mt-2 w-full md:max-w-[65ch]">
+  return <div className="w-full">
     <BlockFrame state="resting" title={t('chat.calendarCard.title')} count={calendarCard.events.length} items={items}
       body={calendarCard.events.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.calendarCard.empty')}</p> : undefined}
       actions={<Button variant="ghost" size="sm" onClick={() => router.push('/calendar')}>{t('chat.calendarCard.open')}</Button>} />

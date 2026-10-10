@@ -40,7 +40,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     }
   })
   return (
-    <View style={{ width: '100%', marginTop: 8 }}>
+    <View style={{ width: '100%' }}>
       <BlockFrame state="resting" title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('chat.goalList.empty')}</Text> : undefined} actions={(
         <>
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}

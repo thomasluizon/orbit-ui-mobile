@@ -51,7 +51,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     : <p className="text-pretty text-sm text-[var(--fg-2)] [overflow-wrap:anywhere]">{page.text}</p>
 
   return (
-    <div className="mt-2 w-full md:max-w-[65ch]">
+    <div className="w-full">
       <BlockFrame
         state="resting"
         title={t('chat.insight.title')}
