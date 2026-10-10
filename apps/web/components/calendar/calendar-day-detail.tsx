@@ -181,6 +181,7 @@ function CalendarDayRows({
     }
 
     return (
+      // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
       <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
         <span className="flex min-w-0 items-start" style={{ gap: 8, paddingInline: 16, paddingBlock: 12 }}>
           <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>

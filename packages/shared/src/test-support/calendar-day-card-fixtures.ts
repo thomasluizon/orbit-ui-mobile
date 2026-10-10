@@ -1,23 +1,24 @@
-import { calendarMonthResponseSchema } from '../types/habit'
+import { calendarMonthResponseSchema, type CalendarMonthResponse } from '../types/habit'
+import type { CalendarDayEntry } from '../types/calendar'
 import { buildCalendarDayMap } from '../utils/habits'
 import { makeHabitScheduleItem } from './habit-detail-fixtures'
 
 export const calendarDayCardDate = '2026-09-04'
 
-export function makeCalendarDayCardMonth() {
+export function makeCalendarDayCardMonth(date = calendarDayCardDate): CalendarMonthResponse {
   const child = makeHabitScheduleItem().children[0]!
   return calendarMonthResponseSchema.parse({
     habits: [
       ...['Caminhar', 'Ler', 'Caminhar pelo bairro depois do trabalho e conversar com os amigos sobre os planos para a semana'].map((title, index) => makeHabitScheduleItem({
-        id: `parent-${index}`, title, dueDate: calendarDayCardDate,
+        id: `parent-${index}`, title, dueDate: date,
         dueTime: index === 0 ? '08:00' : null,
-        scheduledDates: [calendarDayCardDate], children: [], hasSubHabits: false,
+        scheduledDates: [date], children: [], hasSubHabits: false,
       })),
       makeHabitScheduleItem({
         id: 'family', scheduledDates: [],
         children: ['Alongar', 'Respirar'].map((title, index) => ({
           ...child, id: `child-${index}`, title, dueTime: index === 0 ? '08:00' : null,
-          instances: [{ date: calendarDayCardDate, status: 'Completed', logId: `child-log-${index}` }],
+          instances: [{ date, status: 'Completed', logId: `child-log-${index}` }],
         })),
       }),
     ],
@@ -25,6 +26,6 @@ export function makeCalendarDayCardMonth() {
   })
 }
 
-export function makeCalendarDayCardEntries() {
-  return buildCalendarDayMap(makeCalendarDayCardMonth(), { from: calendarDayCardDate, to: calendarDayCardDate }).get(calendarDayCardDate)!
+export function makeCalendarDayCardEntries(date = calendarDayCardDate): CalendarDayEntry[] {
+  return buildCalendarDayMap(makeCalendarDayCardMonth(date), { from: date, to: date }).get(date)!
 }
