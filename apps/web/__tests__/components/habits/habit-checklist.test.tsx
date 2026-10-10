@@ -292,6 +292,37 @@ describe('HabitChecklist', () => {
       expect(screen.getByPlaceholderText('habits.form.checklistPlaceholder')).toBeDefined()
     })
 
+    it.each(['en', 'pt-BR'])('uses a named shared field and ghost small add pill in %s', (language) => {
+      locale.portuguese = language === 'pt-BR'
+      locale.english = language === 'en'
+      const messages = language === 'pt-BR' ? ptBR : en
+      render(<HabitChecklist items={[]} editable />)
+      const input = screen.getByRole('textbox', { name: messages.habits.form.checklistPlaceholder })
+      expect(input.closest('[data-input-root]')).not.toBeNull()
+      const add = screen.getByRole('button', { name: messages.common.add })
+      expect(add).toHaveAttribute('data-variant', 'ghost')
+      expect(add).toHaveAttribute('data-size', 'sm')
+      expect(add.querySelector('svg')).toHaveAttribute('width', '20')
+      expect(add).toBeDisabled()
+    })
+
+    it('adds trimmed text, clears the field and suppresses the outer form submit on Enter', () => {
+      const submit = vi.fn()
+      function ChecklistHarness() {
+        const [items, setItems] = React.useState<ChecklistItem[]>([])
+        return <form onSubmit={submit}><HabitChecklist items={items} editable onItemsChange={setItems} /></form>
+      }
+      render(<ChecklistHarness />)
+      const input = screen.getByPlaceholderText('habits.form.checklistPlaceholder')
+      fireEvent.change(input, { target: { value: '  Prepare coffee  ' } })
+      expect(screen.getByRole('button', { name: 'common.add' })).toBeEnabled()
+      expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(false)
+      expect(screen.getByDisplayValue('Prepare coffee')).toBeDefined()
+      expect(input).toHaveValue('')
+      expect(screen.getByRole('button', { name: 'common.add' })).toBeDisabled()
+      expect(submit).not.toHaveBeenCalled()
+    })
+
     it('calls onItemsChange when typing in an item', () => {
       const onItemsChange = vi.fn()
       const items = [{ text: 'Original', isChecked: false }]

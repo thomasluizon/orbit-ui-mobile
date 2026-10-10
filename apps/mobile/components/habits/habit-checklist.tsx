@@ -1,5 +1,4 @@
 import { PersonalText } from '@/components/ui/personal-text'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
@@ -18,6 +17,8 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
@@ -214,35 +215,30 @@ function ChecklistAddRow({
   tokens,
   disabled,
 }: Readonly<ChecklistAddRowProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   return (
     <View style={styles.addItemRow}>
-      <BottomSheetAppTextInput
-        value={value}
-        placeholder={t('habits.form.checklistPlaceholder')}
-        accessibilityLabel={t('habits.form.checklistPlaceholder')}
-        placeholderTextColor={tokens.fg3}
-        style={styles.addItemInput}
-        editable={!disabled}
-        onChangeText={onChangeText}
-        onSubmitEditing={onAdd}
-        returnKeyType="done"
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('common.add')}
-        focusColor={tokens.fgOnPrimary}
-        style={({ pressed }) => [
-          styles.addItemButton,
-          (disabled || !value.trim()) && styles.addItemButtonDisabled,
-          pressed && !disabled && !!value.trim() ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
-        ]}
+      <View style={styles.addItemField}>
+        <Input
+          label={t('habits.form.checklistPlaceholder')}
+          hideLabel
+          value={value}
+          placeholder={t('habits.form.checklistPlaceholder')}
+          disabled={disabled}
+          onChange={onChangeText}
+          onSubmit={onAdd}
+        />
+      </View>
+      <PillButton
+        variant="ghost"
+        size="sm"
+        iconOnly
+        label={t('common.add')}
         disabled={disabled || !value.trim()}
-        onPress={onAdd}
+        onClick={onAdd}
       >
-        <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-      </Pressable>
+        <Plus size={20} color={tokens.fg1} strokeWidth={2} accessible={false} />
+      </PillButton>
     </View>
   )
 }
@@ -589,31 +585,12 @@ function createStyles(tokens: AppTokens) {
   addItemRow: {
     flexDirection: 'row',
     minHeight: TOUCH_TARGET_MIN,
-    gap: 12,
-  },
-  addItemInput: {
-    flex: 1,
-    backgroundColor: tokens.bgField,
-    color: tokens.fg1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: tokens.borderControl,
-    borderRadius: 12,
-  },
-  addItemButton: {
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: tokens.primary,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
-  addItemButtonDisabled: {
-    opacity: 0.4,
+  addItemField: {
+    flex: 1,
+    minWidth: 0,
   },
   })
 }
