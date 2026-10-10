@@ -46,6 +46,7 @@ vi.mock('@/components/ui/sheet', () => ({
 describe('AboutPage', () => {
   beforeEach(() => {
     mocks.push.mockClear()
+    mocks.email = 'profile-account-with-a-long-address@example.com'
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
     useAuthStore.setState({ isAuthenticated: true })
   })
@@ -150,6 +151,52 @@ describe('About destination geometry in Chromium', () => {
       }
       expect(await page.locator('[data-testid="about-content"]').evaluate((element) => getComputedStyle(element).minWidth)).toBe('0px')
     } finally { await page.close(); vi.unstubAllEnvs() }
+  })
+
+  it.each([600, 1352])('extends the account target and fill 16px beyond the fact edges at %ipx', async (width) => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-testid="about-fact-account"]').evaluate((button) => {
+        const bounds = button.getBoundingClientRect()
+        const version = document.querySelector('[data-testid="about-fact-version"]')!.getBoundingClientRect()
+        const fill = getComputedStyle(button, '::before')
+        return {
+          left: bounds.left, right: bounds.right, versionLeft: version.left, versionRight: version.right,
+          fillLeft: fill.left, fillRight: fill.right,
+          leftHit: document.elementFromPoint(version.left - 15, bounds.top + bounds.height / 2) === button,
+          rightHit: document.elementFromPoint(version.right + 15, bounds.top + bounds.height / 2) === button,
+        }
+      })
+      expect(measured.left).toBe(measured.versionLeft)
+      expect(measured.right).toBe(measured.versionRight)
+      expect(measured.fillLeft).toBe('-16px')
+      expect(measured.fillRight).toBe('-16px')
+      expect(measured.leftHit).toBe(true)
+      expect(measured.rightHit).toBe(true)
+    } finally { await page.close(); vi.unstubAllEnvs() }
+  })
+
+  it.each([600, 1352])('keeps a fitting email beside the account label at %ipx', async (width) => {
+    mocks.email = 'a@example.com'
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-testid="about-fact-account-label"]').evaluate((label) => {
+        const labelBox = label.getBoundingClientRect()
+        const value = document.querySelector('[data-testid="about-fact-account-value"]')!.getBoundingClientRect()
+        return { labelTop: labelBox.top, labelBottom: labelBox.bottom, valueTop: value.top }
+      })
+      expect(measured.valueTop).toBeGreaterThanOrEqual(measured.labelTop)
+      expect(measured.valueTop).toBeLessThan(measured.labelBottom)
+    } finally { await page.close() }
   })
 
   it.each([412, 1280])('renders four 52px destinations with reachable targets at %ipx', async (width) => {
