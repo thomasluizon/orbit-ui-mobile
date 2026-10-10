@@ -192,8 +192,13 @@ for (const width of [320, 360, 384, 412]) {
         await page.goto('/calendar')
         await checkCalendarLabels(page, words)
         await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
-        await page.getByRole('menu', { name: words.calendar.options, exact: true })
-          .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        if (width < 1024) {
+          await page.getByRole('dialog', { name: words.calendar.options, exact: true })
+            .getByRole('button', { name: words.calendar.legendTitle, exact: true }).click()
+        } else {
+          await page.getByRole('menu', { name: words.calendar.options, exact: true })
+            .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        }
         const sheet = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
         await markRequiredLabels(sheet.getByRole('heading', { name: words.calendar.legendTitle, exact: true }))
         await expect(sheet.locator('[data-legend-outcome]')).toHaveCount(4)

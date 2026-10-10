@@ -66,7 +66,13 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         await expect(current).toHaveText(originalWeek)
         await expect(selector.getByRole('radio', { name: words.calendar.view.week, exact: true })).toBeChecked()
         await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
-        await page.getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        if (width < 1024) {
+          await page.getByRole('dialog', { name: words.calendar.options, exact: true })
+            .getByRole('button', { name: words.calendar.legendTitle, exact: true }).click()
+        } else {
+          await page.getByRole('menu', { name: words.calendar.options, exact: true })
+            .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        }
         const legend = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
         await expectLegendFits(legend, [words.calendar.legend.full, words.calendar.legend.partial, words.calendar.legend.none, words.calendar.legend.loggable])
       })
