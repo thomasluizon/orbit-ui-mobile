@@ -32,6 +32,10 @@ import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
+import TabLayout from '@/app/(tabs)/_layout'
+import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
+import { TabRouter } from 'expo-router/build/react-navigation/routers/TabRouter'
+
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -101,6 +105,8 @@ const state = vi.hoisted(() => ({
   calendarRangeCalls: vi.fn(),
   routerPush: vi.fn(),
   routeParams: {},
+  tabRouteNames: [] as string[],
+  tabBackBehavior: '',
   setShowCreateModal: vi.fn(),
   setCalendarHasError: vi.fn(),
 }));
@@ -126,6 +132,14 @@ const calendarStatsProps = vi.hoisted(() => ({
 const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
 
 vi.mock("expo-router", () => ({
+  Tabs: Object.assign(({ children, backBehavior }: { children: React.ReactNode; backBehavior: string }) => {
+    state.tabBackBehavior = backBehavior
+    state.tabRouteNames = React.Children.toArray(children).map((child) => {
+      if (!React.isValidElement<{ name: string }>(child)) throw new Error('Invalid tab screen')
+      return child.props.name
+    })
+    return null
+  }, { Screen: () => null }),
   useRouter: () => ({ push: state.routerPush, replace: vi.fn() }),
   useLocalSearchParams: () => state.routeParams,
 }));
@@ -246,7 +260,8 @@ vi.mock("@/hooks/use-habits", async () => {
 });
 
 vi.mock("@/lib/use-app-theme", () => ({
-  useAppTheme: () => ({ currentScheme: "purple", currentTheme: "dark" }),
+  useAppTheme: () => ({
+    surfaces: { screen: { backgroundColor: tokensProxy.bg } }, currentScheme: "purple", currentTheme: "dark" }),
 }));
 
 vi.mock("@/lib/theme", () => ({
@@ -892,11 +907,10 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEventsPending = false;
     state.calendarEventsError = null;
     state.calendarEventsRefetch = vi.fn();
-    state.routerPush.mockClear();
+    state.routerPush.mockReset();
     state.calendarRangeCalls.mockClear();
     state.rangeLoading = false;
     calendarStatsProps.current = null;
-    state.routerPush.mockClear();
     state.setShowCreateModal.mockClear();
     state.setCalendarHasError.mockClear();
     const todayStr = getMockAccountDateKey();
@@ -917,6 +931,79 @@ describe("CalendarScreen views (mobile)", () => {
     ]);
   });
 
+
+  it.each(['month', 'week', 'range', 'agenda'] as const)('keeps the %s view and date across retained-tab round trips', (selectedView) => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<TabLayout />); })
+    expect(state.tabBackBehavior).toBe('history')
+    const tabRouter = TabRouter({ initialRouteName: 'calendar', backBehavior: 'history' })
+    const tabs = tabRouter.getInitialState({ routeNames: state.tabRouteNames, routeParamList: {}, routeGetIdList: {} })
+    const stackRouter = StackRouter({ initialRouteName: '(tabs)' })
+    const stackOptions = { routeNames: ['(tabs)', 'upgrade', 'habits/[id]', 'notifications', 'search'], routeParamList: {}, routeGetIdList: {} }
+    let stack = stackRouter.getInitialState(stackOptions)
+    const calendarRouteKey = tabs.routes[tabs.index]!.key
+    const renderRoutes = () => <View>{stack.routes.map((route) => route.name === '(tabs)' ?
+      <View key={route.key}>{tabs.routes.map((tab) => tab.name === 'calendar' ? <CalendarScreen key={tab.key} /> : <View key={tab.key} />)}</View> :
+      <View key={route.key} testID="round-trip-destination"><Text>{route.name}</Text></View>)}</View>
+    TestRenderer.act(() => tree.update(renderRoutes()))
+    state.routerPush.mockImplementation((href: string) => {
+      const name = href.startsWith('/habits/') ? 'habits/[id]' : href.slice(1)
+      const next = stackRouter.getStateForAction(stack, { type: 'PUSH', payload: { name } }, stackOptions)
+      if (!next) throw new Error(`Rejected destination ${href}`)
+      stack = stackRouter.getRehydratedState(next, stackOptions)
+      tree.update(renderRoutes())
+    })
+    const header = openSelectedDay(tree, '2026-09-10')
+    TestRenderer.act(() => header.update(<></>))
+    pressView(tree, selectedView)
+    if (selectedView !== 'month') {
+      const previousLabel = selectedView === 'range' ? 'calendar.range.previous' : 'common.previousWeek'
+      const previous = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === previousLabel)[0]!
+      TestRenderer.act(() => previous.props.onPress())
+    }
+    const period = state.calendarRangeCalls.mock.lastCall?.slice(0, 2).map(formatAPIDate)
+    for (const destination of ['/upgrade', '/habits/habit-1', '/notifications', '/search']) {
+      TestRenderer.act(() => state.routerPush(destination))
+      expect(stack.routes[stack.index]!.name).toBe(destination.startsWith('/habits/') ? 'habits/[id]' : destination.slice(1))
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'round-trip-destination')).toHaveLength(1)
+      const returned = stackRouter.getStateForAction(stack, { type: 'GO_BACK' }, stackOptions)
+      if (!returned) throw new Error('Return to calendar was rejected')
+      stack = stackRouter.getRehydratedState(returned, stackOptions)
+      expect(stack.routes[stack.index]!.name).toBe('(tabs)')
+      expect(tabs.routes[tabs.index]!.key).toBe(calendarRouteKey)
+      TestRenderer.act(() => tree.update(renderRoutes()))
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${selectedView}-selected-enabled`)).toHaveLength(1)
+      if (selectedView !== 'month') expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(period)
+    }
+    pressView(tree, 'month')
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-10')
+    TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it.each(['options', 'day card'] as const)('keeps selection after the free-plan upgrade from %s', (entry) => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); })
+    const header = openSelectedDay(tree, '2026-09-10')
+    const list = tree.root.findAll((node) => node.type === 'FlatList')[0]!
+    TestRenderer.act(() => header.update(list.props.ListHeaderComponent))
+    if (entry === 'day card') {
+      TestRenderer.act(() => calendarDayDetailProps.current!.onViewPro())
+    } else {
+      pressView(tree, 'range')
+      const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!
+      TestRenderer.act(() => options.props.onPress())
+      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem' && React.Children.toArray(node.props.children).some((child) => React.isValidElement<{ children?: React.ReactNode }>(child) && child.props.children === 'calendar.googleCalendar'))[0]!
+      TestRenderer.act(() => google.props.onPress())
+    }
+    expect(state.routerPush).toHaveBeenCalledWith('/upgrade')
+    TestRenderer.act(() => tree.update(<CalendarScreen />))
+    if (entry === 'options') {
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'segment-range-selected-enabled')).toHaveLength(1)
+      pressView(tree, 'month')
+    }
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-10')
+    TestRenderer.act(() => { header.update(<></>); tree.update(<></>); })
+  })
 
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
