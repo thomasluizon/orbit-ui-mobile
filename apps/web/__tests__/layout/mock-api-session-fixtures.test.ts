@@ -11,6 +11,7 @@ import { handleRequest } from '../../test-support/hermetic/mock-api/request-hand
 
 let server: Server
 let origin: string
+const STREAM_IDLE_WINDOW_MS = 250
 const pageFor = (id: string) => createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
   items: [makeHabitScheduleItem({ id, title: id })],
@@ -62,9 +63,14 @@ describe('mock API account events', () => {
       expect(response.headers.get('access-control-allow-origin')).toBe('*')
       expect(response.headers.get('cache-control')).toBe('no-store')
       if (!response.body) throw new Error('Expected an account event stream')
-      const pendingRead = expect(response.body.getReader().read()).rejects.toMatchObject({ name: 'AbortError' })
+      const pendingRead = response.body.getReader().read()
+      const readStateAfterIdleWindow = await Promise.race([
+        pendingRead.then(() => 'settled', () => 'settled'),
+        new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), STREAM_IDLE_WINDOW_MS)),
+      ])
+      expect(readStateAfterIdleWindow).toBe('pending')
       controller.abort()
-      await pendingRead
+      await expect(pendingRead).rejects.toMatchObject({ name: 'AbortError' })
     } finally {
       controller.abort()
     }
