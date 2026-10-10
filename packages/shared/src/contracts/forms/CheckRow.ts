@@ -1,5 +1,6 @@
 export type CheckRowProps = {
   label: string
+  placement?: 'inset' | 'column'
   textMode?: 'personal'
   onOpenLabel?: () => void
   labelExpanded?: boolean
