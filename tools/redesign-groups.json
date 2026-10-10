@@ -186,9 +186,7 @@
       "route-profile-account",
       "route-profile-astra",
       "route-profile-notifications",
-      "route-profile-preferences",
-      "m-overlay-components-account-navigation-row",
-      "overlay-components-account-navigation-row"
+      "route-profile-preferences"
     ],
     "Orbit Pro": [
       "m-overlay-ui-trial-expired-modal",
