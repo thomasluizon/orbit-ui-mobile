@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { format } from 'date-fns'
 import { ptBR as dateLocale } from 'date-fns/locale'
@@ -22,6 +23,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 
@@ -50,12 +52,82 @@ describe('Calendar header geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let monthScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    monthScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build(JSON.parse(process.argv[1]));
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify({
+      stdin: { contents: `import React, { useState } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl';
+        import { CalendarGrid } from './components/calendar/calendar-grid';
+        const configuration = JSON.parse(document.getElementById('configuration').textContent);
+        const completed = { habitId: 'walk', title: 'Walking', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false };
+        const missed = { ...completed, habitId: 'read', title: 'Reading', status: 'missed' };
+        const dayMap = new Map([['2026-09-10', [completed, missed]], ['2026-09-11', [completed, { ...completed, habitId: 'read' }]]]);
+        function Month() {
+          const [selected, select] = useState('2026-09-11');
+          return <NextIntlClientProvider locale={configuration.locale} messages={configuration.messages} timeZone="UTC">
+            <CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={dayMap} onSelectDay={select} todayKey="2026-09-11" selectedDateStr={selected} weekStartsOn={1} />
+          </NextIntlClientProvider>;
+        }
+        createRoot(document.getElementById('root')).render(<Month />);`, resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"' },
+    })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('retains the full today ring after selecting another day at $width in $locale', async ({ width, locale, messages }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
+      await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('orange', 'dark'))
+      await page.addScriptTag({ content: monthScript })
+      const today = page.getByTestId('calendar-day-select-2026-09-11')
+      const partial = page.getByTestId('calendar-day-select-2026-09-10')
+      await today.waitFor()
+      await page.keyboard.press('Tab')
+      await today.focus()
+      expect(await today.getAttribute('aria-pressed')).toBe('true')
+      for (const selected of [true, false]) {
+        if (!selected) await partial.click()
+        expect(await today.getAttribute('aria-pressed')).toBe(String(selected))
+        const geometry = await today.evaluate((button) => {
+          const circle = button.querySelector('[data-day-circle]')!
+          const ring = circle.querySelector('[data-day-position-ring]')!
+          const bounds = ring.getBoundingClientRect()
+          const disc = button.querySelector('[data-day-disc]')!.getBoundingClientRect()
+          const probe = document.createElement('span')
+          probe.style.color = 'var(--primary)'
+          button.append(probe)
+          const primary = getComputedStyle(probe).color
+          probe.remove()
+          return { ring: getComputedStyle(ring).boxShadow, primary, width: bounds.width, height: bounds.height, discWidth: disc.width }
+        })
+        expect(geometry.ring).toBe(`${geometry.primary} 0px 0px 0px 2px inset`)
+        expect(geometry.width).toBeLessThanOrEqual(44)
+        expect(geometry.width).toBeCloseTo(geometry.height, 1)
+        expect(geometry.discWidth).toBeCloseTo(34, 1)
+      }
+      await expectDayCircleHover(partial)
+      for (const date of ['2026-09-09', '2026-09-10', '2026-09-11']) {
+        const button = page.getByTestId(`calendar-day-select-${date}`)
+        await page.keyboard.press('Tab')
+        await button.focus()
+        expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+        await expectDayCircle(button.locator('..'), true, true, true)
+      }
+      await page.emulateMedia({ forcedColors: 'active' })
+      const forcedRing = await today.locator('[data-day-position-ring]').evaluate((ring) => ({ shadow: getComputedStyle(ring).boxShadow, outline: getComputedStyle(ring).outlineWidth }))
+      expect(forcedRing).toEqual({ shadow: 'none', outline: '2px' })
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('paints circles inside full-column targets at $width in $locale', async ({ width, locale, messages }) => {
     const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')

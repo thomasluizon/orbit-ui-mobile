@@ -115,11 +115,12 @@ export function DayCell(props: Readonly<DayCellProps>) {
   const circle = <span
     data-day-circle=""
     className="orbit-day-circle relative inline-flex items-center justify-center"
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent', '--day-ring': props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none' } as CSSProperties}
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent' }}
   >
     <PressFill />
     {contents}
-    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0" style={{ borderRadius: 'inherit' }} />
+    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
+      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
   </span>
 
   if (interactive) {

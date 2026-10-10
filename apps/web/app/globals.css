@@ -2241,23 +2241,19 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   inset: 0;
 }
 
-.orbit-day-circle > [data-day-position-ring] {
-  box-shadow: var(--day-ring, none);
-}
-
 .orbit-day-target:focus-visible {
   outline: none;
-}
-
-.orbit-day-target:focus-visible .orbit-day-circle > [data-day-position-ring] {
-  box-shadow: inset 0 0 0 2px var(--primary);
+  --day-focus-ring: inset 0 0 0 2px var(--primary);
 }
 
 @media (forced-colors: active) {
+  .orbit-day-target:focus-visible {
+    --day-focus-ring: none;
+  }
+
   .orbit-day-target:focus-visible .orbit-day-circle > [data-day-position-ring] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
-    box-shadow: none;
   }
 }
 

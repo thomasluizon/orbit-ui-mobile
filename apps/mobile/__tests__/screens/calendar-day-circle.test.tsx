@@ -78,13 +78,28 @@ function expectDays(tree: CalendarTree, width: number, view: 'month' | 'range') 
   }
 }
 
+function expectFullToday(tree: CalendarTree, width: number, selected?: boolean) {
+  const boxes = measureDaySurface(tree.toJSON(), width)
+  const ring = boxes.find((box) => box.testID === 'day-today-ring')!
+  const disc = boxes.find((box) => box.testID === 'day-disc' && Math.abs(box.centerX - ring.centerX) < 0.5 && Math.abs(box.centerY - ring.centerY) < 0.5)!
+  expect(disc.style.backgroundColor).not.toBe('transparent')
+  expect(disc.width).toBe(34)
+  expect(ring.width).toBe(Math.min(44, ring.column.width))
+  expect(ring.style.borderWidth).toBe(2)
+  expectCircle(ring)
+  if (selected !== undefined) {
+    const target = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-11')[0]!
+    expect(target.props.accessibilityState).toEqual({ selected })
+  }
+}
+
 describe('Calendar day circle', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T12:00:00Z'))
     const completed: CalendarDayEntry = { habitId: 'walk', title: 'Walking', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false }
     const missed: CalendarDayEntry = { ...completed, habitId: 'read', title: 'Reading', status: 'missed' }
-    source.dayMap = new Map([['2026-09-09', [completed]], ['2026-09-10', [completed, missed]], ['2026-09-11', [missed]]])
+    source.dayMap = new Map([['2026-09-09', [completed]], ['2026-09-10', [completed, missed]], ['2026-09-11', [completed, { ...completed, habitId: 'read' }]]])
   })
   afterEach(() => vi.useRealTimers())
 
@@ -116,6 +131,7 @@ describe('Calendar day circle', () => {
     try {
       header = monthHeader(screen)
       expectDays(header, width, 'month')
+      expectFullToday(header, width, true)
       const select = header.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-10')[0]!
       for (const event of ['onPressIn', 'onPressOut', 'onFocus', 'onBlur']) {
         const handler = select.props[event]
@@ -131,9 +147,11 @@ describe('Calendar day circle', () => {
       TestRenderer.act(() => { header!.unmount() })
       header = monthHeader(screen)
       expectDays(header, width, 'month')
+      expectFullToday(header, width, false)
       const range = header.root.findAll((node) => node.type === 'Pressable' && String(node.props.testID).startsWith('segment-range-'))[0]!
       TestRenderer.act(() => { (range.props.onPress as () => void)() })
       expectDays(screen, width, 'range')
+      expectFullToday(screen, width)
     } finally {
       TestRenderer.act(() => { header?.unmount(); screen.unmount() })
     }

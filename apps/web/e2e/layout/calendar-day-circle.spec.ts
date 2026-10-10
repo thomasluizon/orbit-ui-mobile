@@ -1,4 +1,5 @@
 import { expect, type Locator } from '@playwright/test'
+import { expectDayCircle, expectDayCircleHover } from './calendar-day-circle-helpers'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -17,60 +18,6 @@ const calendarMonth = calendarMonthResponseSchema.parse({
   },
 })
 
-async function expectCircle(slot: Locator, status = true, todayRing = false, target = false) {
-  const geometry = await slot.evaluate((slot) => {
-    const bounds = slot.getBoundingClientRect()
-    const probe = document.createElement('span')
-    probe.style.color = 'var(--primary)'
-    document.body.append(probe)
-    const primary = getComputedStyle(probe).color
-    probe.remove()
-    const boxes = [slot, ...slot.querySelectorAll<HTMLElement>('*')].flatMap((element) => {
-      const bounds = element.getBoundingClientRect()
-      return [null, '::before', '::after'].flatMap((pseudo) => {
-        const style = getComputedStyle(element, pseudo)
-        if (pseudo && (style.content === 'none' || style.content === 'normal')) return []
-        const background = style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent'
-        const border = ['Top', 'Right', 'Bottom', 'Left'].some((edge) => Number.parseFloat(style.getPropertyValue(`border-${edge.toLowerCase()}-width`)) > 0)
-        if (!background && style.boxShadow === 'none' && !border && style.outlineStyle === 'none') return []
-        const width = pseudo ? Number.parseFloat(style.width) : bounds.width
-        const height = pseudo ? Number.parseFloat(style.height) : bounds.height
-        const left = pseudo ? bounds.left + Number.parseFloat(style.left) : bounds.left
-        const top = pseudo ? bounds.top + Number.parseFloat(style.top) : bounds.top
-        return [{ width, height, radius: Number.parseFloat(style.borderRadius), centerX: left + width / 2, centerY: top + height / 2,
-          primaryRing: (style.boxShadow.includes(primary) && style.boxShadow.includes('2px')) || (style.outlineColor === primary && style.outlineWidth === '2px'),
-          ring: style.boxShadow, background: style.backgroundColor }]
-      })
-    })
-    const disc = slot.querySelector('[data-day-disc]')?.getBoundingClientRect()
-    const button = slot.querySelector('button')
-    return { boxes, centerX: bounds.left + bounds.width / 2, centerY: bounds.top + bounds.height / 2,
-      slotWidth: bounds.width, disc: disc && { width: disc.width, height: disc.height, centerX: disc.left + disc.width / 2, centerY: disc.top + disc.height / 2 },
-      target: button && { width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height },
-      hits: button && [bounds.left + 2, bounds.right - 2].map((x) => button.contains(document.elementFromPoint(x, bounds.top + bounds.height / 2))) }
-  })
-  expect(geometry.boxes.length).toBeGreaterThan(0)
-  for (const box of geometry.boxes) {
-    expect(Math.abs(box.width - box.height), JSON.stringify(box)).toBeLessThanOrEqual(0.5)
-    expect(box.width).toBeLessThanOrEqual(44.5)
-    expect(box.radius).toBeGreaterThanOrEqual(box.width / 2)
-    expect(Math.abs(box.centerX - geometry.centerX)).toBeLessThanOrEqual(0.5)
-    expect(Math.abs(box.centerY - geometry.centerY)).toBeLessThanOrEqual(0.5)
-  }
-  if (status) {
-    expect(geometry.disc).toBeDefined()
-    expect(geometry.disc!.width).toBeCloseTo(34, 1)
-    expect(geometry.disc!.height).toBeCloseTo(34, 1)
-    expect(Math.abs(geometry.disc!.centerX - geometry.centerX)).toBeLessThanOrEqual(0.5)
-    expect(Math.abs(geometry.disc!.centerY - geometry.centerY)).toBeLessThanOrEqual(0.5)
-  }
-  if (todayRing) expect(geometry.boxes.filter((box) => box.primaryRing)).toHaveLength(1)
-  if (target) {
-    expect(geometry.target!.width).toBeCloseTo(geometry.slotWidth, 1)
-    expect(geometry.target!.height).toBeGreaterThanOrEqual(44)
-    expect(geometry.hits).toEqual([true, true])
-  }
-}
 
 async function expectHeaderGap(grid: Locator) {
   const gap = await grid.evaluate((grid) => {
@@ -92,22 +39,21 @@ for (const width of [320, 412, 600, 1352]) {
         const current = grid.locator(`[data-calendar-date="${today}"]`)
         await expect(current.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
         await expectHeaderGap(grid)
-        for (const date of ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', today]) await expectCircle(grid.locator(`[data-calendar-date="${date}"]`), true, date === today, true)
+        for (const date of ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', today]) await expectDayCircle(grid.locator(`[data-calendar-date="${date}"]`), true, date === today, true)
         const partial = grid.locator('[data-calendar-date="2026-09-10"]')
         await partial.getByRole('button').click()
         await expect(partial.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
-        await expectCircle(partial, true, true, true)
-        await expectCircle(current, true, true, true)
-        await partial.getByRole('button').hover()
-        await expect.poll(() => partial.locator('[data-day-circle] > [data-press-fill]').evaluate((fill) => getComputedStyle(fill).opacity)).toBe('1')
-        await expectCircle(partial, true, true, true)
+        await expectDayCircle(partial, true, true, true)
+        await expectDayCircle(current, true, true, true)
+        await expectDayCircleHover(partial.getByRole('button'))
+        await expectDayCircle(partial, true, true, true)
         await page.keyboard.press('Tab')
         await partial.getByRole('button').focus()
-        await expectCircle(partial, true, true, true)
+        await expectDayCircle(partial, true, true, true)
         await page.getByTestId('calendar-header-group').getByRole('radio', { name: words.calendar.view.range, exact: true }).click()
         const periodToday = grid.locator('[data-outcome][aria-current="date"]')
         await expect(periodToday).toBeVisible()
-        await expectCircle(periodToday, true, true)
+        await expectDayCircle(periodToday, true, true)
         await expectHeaderGap(grid)
 
         const habitId = 'walk'
@@ -122,7 +68,7 @@ for (const width of [320, 412, 600, 1352]) {
         const history = page.getByTestId('month-grid-days')
         const historyToday = history.locator('[data-outcome][aria-current="date"]')
         await expect(historyToday).toBeVisible()
-        await expectCircle(historyToday, true, true)
+        await expectDayCircle(historyToday, true, true)
         await expectHeaderGap(history)
       })
 
@@ -139,7 +85,7 @@ for (const width of [320, 412, 600, 1352]) {
             const placeholders = grid.locator('[data-variant="grid"]')
             await expect(placeholders.first()).toBeVisible()
             await expectHeaderGap(grid)
-            for (const placeholder of await placeholders.all()) await expectCircle(placeholder, false)
+            for (const placeholder of await placeholders.all()) await expectDayCircle(placeholder, false)
             const before = await grid.evaluate((grid) => [...grid.children].map((slot) => {
               const box = slot.querySelector('[data-variant="grid"] span')!.getBoundingClientRect()
               return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
