@@ -2,12 +2,13 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet, type ViewStyle } from 'react-native'
 import { selectMessageOperationBlocks } from '@orbit/shared/chat'
-import { breakdownSubHabits, goalListCardFixture, makeAgentOperationResult, makeBulkCreateResponse, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { breakdownSubHabits, goalListCardFixture, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
 import { GoalListCard } from '@/components/chat/goal-list-card'
+import { ActionChips } from '@/components/chat/action-chips'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import { i18n } from '@/lib/i18n'
@@ -21,7 +22,12 @@ vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 afterEach(__resetTestHostConfig)
 
-type Host = Parameters<typeof measureProfileRow>[0]
+type Host = Parameters<typeof measureProfileRow>[0] & { props: { hitSlop?: number } }
+
+function itemHitPadding(host: Host): number {
+  const children = (host.children ?? []).filter(child => typeof child !== 'string')
+  return Math.max(host.props.hitSlop ?? 0, ...children.map(itemHitPadding))
+}
 
 function itemRows(host: Host | Host[]): Host[] {
   if (Array.isArray(host)) return host.flatMap(itemRows)
@@ -30,6 +36,17 @@ function itemRows(host: Host | Host[]): Host[] {
 }
 
 type Tree = ReactTestRenderer & { toJSON: () => Host | Host[] }
+
+function stateContent(state: string) {
+  if (state === 'actions') return <ActionChips actions={[makeActionResult()]} onChipClick={vi.fn()} />
+  if (state.startsWith('goal')) return <GoalListCard goalList={goalListCardFixture} onOpenGoal={state === 'goal' ? vi.fn() : undefined} />
+  if (state.startsWith('breakdown')) return <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} />
+  if (state === 'outcome') {
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('Failed', 1)] })).outcomes
+    return <OperationOutcomes outcomes={outcomes} />
+  }
+  return <PendingOperationCard pendingOperation={makeCreateHabitsPreview(2)} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onRevise={vi.fn()} onOpenTarget={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+}
 
 function expectEdges(tree: Tree, width: number) {
   const rows = itemRows(tree.toJSON())
@@ -48,19 +65,18 @@ function expectEdges(tree: Tree, width: number) {
     expect(control.height).toBeGreaterThanOrEqual(48)
     expect(control.left).toBeGreaterThanOrEqual(0)
     const neighbor = geometry.controls.find(candidate => candidate !== control)
-    expect(control.right).toBeLessThanOrEqual(neighbor?.left ?? Math.min(width - 32, 740) - 50)
+    const hitPadding = itemHitPadding(row)
+    expect(control.right).toBeLessThanOrEqual(neighbor ? neighbor.left - hitPadding : Math.min(width - 32, 740) - 50)
   }
 }
 
 describe('Astra name and metadata start edges on Android', () => {
-  it.each([412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => ['preview', 'done', 'failed', 'outcome', 'breakdown', 'breakdown-failed', 'goal', 'goal-disclosure'].map(state => ({ width, locale, state })))))('aligns $state at $width in $locale', async ({ width, locale, state }) => {
+  it.each([412, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => ['preview', 'done', 'failed', 'outcome', 'breakdown', 'breakdown-failed', 'goal', 'goal-disclosure', 'actions'].map(state => ({ width, locale, state })))))('aligns $state at $width in $locale', async ({ width, locale, state }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
-    const preview = makeCreateHabitsPreview(2)
-    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('Failed', 1)] })).outcomes
     bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Failed']))
     let tree!: Tree
-    await act(() => { tree = create(state.startsWith('goal') ? <GoalListCard goalList={goalListCardFixture} onOpenGoal={state === 'goal' ? vi.fn() : undefined} /> : state.startsWith('breakdown') ? <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} /> : state === 'outcome' ? <OperationOutcomes outcomes={outcomes} /> : <PendingOperationCard pendingOperation={preview} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onRevise={vi.fn()} onOpenTarget={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />) as Tree })
+    await act(() => { tree = create(stateContent(state)) as Tree })
     try {
       if (state === 'done' || state === 'failed' || state === 'breakdown-failed') {
         await act(async () => { (tree.root.findAll(node => node.type === Button).find(button => button.props.variant !== 'ghost')!.props.onClick as () => void)(); await Promise.resolve() })

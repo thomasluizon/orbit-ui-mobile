@@ -10,11 +10,12 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { breakdownSubHabits, goalListCardFixture, makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { breakdownSubHabits, goalListCardFixture, makeActionResult, makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { GoalListCard } from '@/components/chat/goal-list-card'
+import { ActionChips } from '@/components/chat/action-chips'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -83,7 +84,7 @@ async function expectInteractionGeometry(page: Page, name: string, metaLeft: num
     expect(fill.nameLeft).toBeCloseTo(metaLeft, 1)
     expect(fill.padding).toBeCloseTo(8, 1)
     if (interaction === 'focus') expect(fill.outline).toBeGreaterThanOrEqual(2)
-}
+  }
 }
 
 describe('Pending preview geometry in Chromium', () => {
@@ -163,10 +164,11 @@ describe('Pending preview geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1352].flatMap(width => locales.flatMap(locale => ['goal', 'goal-disclosure', 'breakdown'].flatMap(surface => [false, true].map(expanded => ({ width, locale, surface, expanded }))))))('keeps the $surface outset unclipped at $width in $locale while expanded $expanded', async ({ width, locale, surface, expanded }) => {
+  it.each([412, 1352].flatMap(width => locales.flatMap(locale => ['goal', 'goal-disclosure', 'breakdown', 'actions'].flatMap(surface => (surface === 'actions' ? [false] : [false, true]).map(expanded => ({ width, locale, surface, expanded }))))))('keeps the $surface outset unclipped at $width in $locale while expanded $expanded', async ({ width, locale, surface, expanded }) => {
     const messages = locale === 'en' ? en : pt
-    const name = surface === 'breakdown' ? breakdownSubHabits[0]!.title : goalListCardFixture.items[0]!.title
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>{surface === 'breakdown' ? <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} /> : <GoalListCard goalList={goalListCardFixture} onOpenGoal={surface === 'goal' ? vi.fn() : undefined} />}</div></NextIntlClientProvider>)
+    const content = surface === 'actions' ? <ActionChips actions={[makeActionResult()]} onChipClick={vi.fn()} /> : surface === 'breakdown' ? <BreakdownSuggestion parentName="House routine" subHabits={breakdownSubHabits} onConfirmed={vi.fn()} onCancelled={vi.fn()} /> : <GoalListCard goalList={goalListCardFixture} onOpenGoal={surface === 'goal' ? vi.fn() : undefined} />
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>{content}</div></NextIntlClientProvider>)
+    const name = surface === 'actions' ? container.querySelector('[data-personal-text]')!.textContent! : surface === 'breakdown' ? breakdownSubHabits[0]!.title : goalListCardFixture.items[0]!.title
     if (expanded && surface !== 'goal') fireEvent.click(screen.getByRole('button', { name }))
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -184,7 +186,9 @@ describe('Pending preview geometry in Chromium', () => {
         for (let ancestor = control.parentElement; ancestor && row.contains(ancestor); ancestor = ancestor.parentElement) {
           if (getComputedStyle(ancestor).overflowX !== 'visible') { clipLeft = Math.max(clipLeft, ancestor.getBoundingClientRect().left); clipRight = Math.min(clipRight, ancestor.getBoundingClientRect().right) }
         }
-        return { nameLeft, metaLeft: meta?.getBoundingClientRect().left ?? row.getBoundingClientRect().left + 12, controlLeft: bounds.left, controlRight: bounds.right, controlHeight: bounds.height, clipLeft, clipRight, neighborLeft: row.lastElementChild!.getBoundingClientRect().left }
+        const neighbor = row.lastElementChild!.querySelector('button') ?? row.lastElementChild!
+        const hitExtension = neighbor.matches('.orbit-pill-action') ? parseFloat(getComputedStyle(neighbor, '::after').left) : 0
+        return { nameLeft, metaLeft: meta?.getBoundingClientRect().left ?? row.getBoundingClientRect().left + 12, controlLeft: bounds.left, controlRight: bounds.right, controlHeight: bounds.height, clipLeft, clipRight, neighborLeft: neighbor.getBoundingClientRect().left + hitExtension }
       })
       expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
       expect(geometry.nameLeft - geometry.controlLeft).toBeCloseTo(8, 1)
