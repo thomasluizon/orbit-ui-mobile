@@ -212,9 +212,27 @@ export function Screen() { return <section className="bg-[var(--bg-elev)]"><Noti
     const good = stageProducerRepository(`actual-${producer.label}`, producer.paths)
     check("check-surface-scope.mjs", `accepts the shipped composition: ${producer.label}`, ["--root", good], { status: 0 })
     const bad = stageProducerRepository(`broken-${producer.label}`, producer.paths, producer)
-    check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
+    const result = check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
       status: 1, stderr: /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
     })
+    if (producer.label === "partial-day") {
+      T("check-surface-scope.mjs: retains the partial-day resting well measurement", /--fg-4 on well, .*GRAPHIC floor 3\.00/.test(result.stderr), result.stderr)
+      for (const [label, disabledStates, painted] of [
+        ["hover-only", ["active"], true],
+        ["press-only", ["hover"], true],
+        ["hidden-fill", ["hover", "active"], false],
+      ]) {
+        const repository = stageProducerRepository(`partial-day-${label}`, producer.paths, producer)
+        const cssPath = join(repository, "apps/web/app/globals.css")
+        const overrides = disabledStates.map((state) => `.orbit-day-target:${state} [data-press-fill] { opacity: 0 !important; }`).join("\n")
+        writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n" + overrides)
+        const result = check("check-surface-scope.mjs", `rejects the real partial-day ${label} foreground`, ["--root", repository], {
+          status: 1, stderr: /--fg-4 on well, .*GRAPHIC floor 3\.00/,
+        })
+        T(`check-surface-scope.mjs: measures only visible CSS partial-day fills: ${label}`,
+          /--fg-4 on well \+ hover, .*GRAPHIC floor 3\.00/.test(result.stderr) === painted, result.stderr)
+      }
+    }
   }
   const producerText = stageProducerRepository("actual-text-promotion", ["apps/web/components/navigation/bottom-tab-bar.tsx"])
   const producerCss = join(producerText, "apps/web/app/globals.css")
