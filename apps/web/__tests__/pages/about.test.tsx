@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { ListRow } from '@/components/ui/list-row'
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
@@ -46,6 +47,7 @@ vi.mock('@/components/ui/sheet', () => ({
 describe('AboutPage', () => {
   beforeEach(() => {
     mocks.push.mockClear()
+    mocks.email = 'profile-account-with-a-long-address@example.com'
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
     useAuthStore.setState({ isAuthenticated: true })
   })
@@ -150,6 +152,121 @@ describe('About destination geometry in Chromium', () => {
       }
       expect(await page.locator('[data-testid="about-content"]').evaluate((element) => getComputedStyle(element).minWidth)).toBe('0px')
     } finally { await page.close(); vi.unstubAllEnvs() }
+  })
+
+  it.each([600, 1352])('extends the account target and fill 16px beyond the fact edges at %ipx', async (width) => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-testid="about-fact-account"]').evaluate((button) => {
+        const bounds = button.getBoundingClientRect()
+        const version = document.querySelector('[data-testid="about-fact-version"]')!.getBoundingClientRect()
+        const fill = getComputedStyle(button, '::before')
+        return {
+          left: bounds.left, right: bounds.right, versionLeft: version.left, versionRight: version.right,
+          fillLeft: fill.left, fillRight: fill.right,
+          leftHit: document.elementFromPoint(version.left - 15, bounds.top + bounds.height / 2) === button,
+          rightHit: document.elementFromPoint(version.right + 15, bounds.top + bounds.height / 2) === button,
+        }
+      })
+      expect(measured.left).toBe(measured.versionLeft)
+      expect(measured.right).toBe(measured.versionRight)
+      expect(measured.fillLeft).toBe('-16px')
+      expect(measured.fillRight).toBe('-16px')
+      expect(measured.leftHit).toBe(true)
+      expect(measured.rightHit).toBe(true)
+    } finally { await page.close(); vi.unstubAllEnvs() }
+  })
+
+  it.each([600, 1352])('keeps a fitting email beside the account label at %ipx', async (width) => {
+    mocks.email = 'a@example.com'
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-testid="about-fact-account-label"]').evaluate((label) => {
+        const labelBox = label.getBoundingClientRect()
+        const value = document.querySelector('[data-testid="about-fact-account-value"]')!.getBoundingClientRect()
+        return { labelTop: labelBox.top, labelBottom: labelBox.bottom, valueTop: value.top }
+      })
+      expect(measured.valueTop).toBeGreaterThanOrEqual(measured.labelTop)
+      expect(measured.valueTop).toBeLessThan(measured.labelBottom)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 600, 1352])('uses the full supporting line for a long email and preserves disclosure at %ipx', async (width) => {
+    mocks.email = `${'account'.repeat(30)}@example.com`
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      for (const expanded of [false, true]) {
+        if (expanded) fireEvent.click(screen.getByTestId('about-fact-account'))
+        expect(screen.getByTestId('about-fact-account')).toHaveAttribute('aria-expanded', String(expanded))
+        expect(screen.getByTestId('about-fact-account')).toHaveAccessibleName(`Conta ${mocks.email}`)
+        await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+        await loadAppFonts(page)
+        const measured = await page.locator('[data-testid="about-fact-account-value"]').evaluate((value) => {
+          const label = document.querySelector('[data-testid="about-fact-account-label"]')!.getBoundingClientRect()
+          const bounds = value.getBoundingClientRect()
+          const content = document.querySelector('[data-personal-text-content]')!.getBoundingClientRect()
+          const chevron = document.querySelector('[data-personal-text-content] svg')!.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right, top: bounds.top, labelLeft: label.left, labelBottom: label.bottom, contentRight: content.right, chevronRight: chevron.right }
+        })
+        expect(measured.left).toBe(measured.labelLeft)
+        expect(measured.top).toBeGreaterThanOrEqual(measured.labelBottom)
+        expect(measured.right).toBeLessThanOrEqual(measured.contentRight)
+        expect(measured.chevronRight).toBe(measured.contentRight)
+        expect(await page.locator('body').evaluate((body) => body.scrollWidth)).toBe(width)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(['light', 'dark'] as const)('paints the account outset on hover, press and keyboard focus in %s', async (mode) => {
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width: 600, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button>${screen.getByTestId('about-content').outerHTML}</body></html>`)
+      const control = page.locator('[data-testid="about-fact-account"]')
+      await control.hover()
+      for (const state of ['hover', 'press', 'focus']) {
+        if (state === 'press') await page.mouse.down()
+        if (state === 'focus') {
+          await page.mouse.up()
+          await page.mouse.move(0, 0)
+          await page.locator('#focus-start').focus()
+          await page.keyboard.press('Tab')
+          await control.focus()
+          expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
+        }
+        const readPaint = () => control.evaluate((button) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover)'
+          probe.style.color = 'var(--fg-2)'
+          document.body.append(probe)
+          const expected = getComputedStyle(probe)
+          const fill = getComputedStyle(button, '::before')
+          const label = document.querySelector('[data-testid="about-fact-account-label"]')!
+          const result = { fill: fill.backgroundColor, expectedFill: expected.backgroundColor, label: getComputedStyle(label).color, expectedLabel: expected.color, outline: fill.outlineWidth, offset: fill.outlineOffset, bodyOutline: getComputedStyle(button).outlineStyle }
+          probe.remove()
+          return result
+        })
+        await expect.poll(async () => {
+          const paint = await readPaint()
+          return paint.fill === paint.expectedFill && paint.label === paint.expectedLabel
+        }).toBe(true)
+        const paint = await readPaint()
+        if (state === 'focus') expect(paint).toMatchObject({ outline: '2px', offset: '-2px', bodyOutline: 'none' })
+      }
+    } finally { await page.mouse.up(); await page.close() }
   })
 
   it.each([412, 1280])('renders four 52px destinations with reachable targets at %ipx', async (width) => {
