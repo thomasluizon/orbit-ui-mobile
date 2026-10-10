@@ -223,7 +223,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
     })
     TestRenderer.act(() => {
-      pressButton(tree.root, 'calendar.calendars.title')
+      pressButton(tree.root, 'calendar.proBoundary.action')
     })
 
     expect(mockPush).toHaveBeenCalledOnce()

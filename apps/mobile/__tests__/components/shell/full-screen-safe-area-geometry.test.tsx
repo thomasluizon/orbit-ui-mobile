@@ -84,7 +84,7 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 const recap = createMockRecap()
 const tokens = createTokensV2()
 const noop = () => {}
-const legalProps = { title: 'Legal', lastUpdated: 'Version', sections: [], closingNote: { id: 'closing', title: 'Closing', paragraphs: [] }, backLabel: 'Back', onBack: noop }
+const legalProps = { title: 'Legal document', headerTitle: 'Legal', lastUpdated: 'Version', sections: [], closingNote: { id: 'closing', title: 'Closing', paragraphs: [] }, backLabel: 'Back', onBack: noop }
 
 const surfaces: { name: string; content: () => ReactElement; modal?: boolean; aligned?: boolean; standalone?: boolean; headerOffset?: number }[] = [
   { name: 'FlowShell for habit detail and step-up', content: () => <FlowShell nav={false} header={<Text accessibilityRole="header">Flow</Text>}><View /></FlowShell>, aligned: true },

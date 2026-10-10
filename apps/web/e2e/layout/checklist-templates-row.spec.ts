@@ -14,7 +14,7 @@ for (const width of [412, 1280] as const) {
 
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
-      const inputBlock = input.locator('xpath=..')
+      const inputBlock = disclosure.getByRole('button', { name: messages.common.add, exact: true }).locator('xpath=..')
       const button = disclosure.getByRole('button', { name: messages.habits.form.useTemplate })
       const row = button.locator('xpath=..')
       const fill = row.locator('[data-slot="list-row-body"]')

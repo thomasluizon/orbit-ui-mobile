@@ -1,6 +1,7 @@
 
 type InputBase = {
   label: string
+  hideLabel?: boolean
   value: string
   onChange: (value: string) => void
   placeholder?: string

@@ -28,8 +28,8 @@ const approvedLabels = [
   ['/support', 'Back to Support', 'Voltar para Suporte'],
   ['/wrapped', 'Back to Orbit Wrapped', 'Voltar para Orbit Wrapped'],
   ['/notifications', 'Back to Alerts', 'Voltar para Avisos'],
-  ['/privacy', 'Back to Privacy Policy', 'Voltar para Política de Privacidade'],
-  ['/terms', 'Back to Terms of Service', 'Voltar para Termos de Serviço'],
+  ['/privacy', 'Back to Privacy policy', 'Voltar para Política de privacidade'],
+  ['/terms', 'Back to Terms of use', 'Voltar para Termos de uso'],
   ['/upgrade', 'Back to Orbit Pro', 'Voltar para Orbit Pro'],
   ['/unrecognized', 'Go back', 'Voltar'],
 ] as const

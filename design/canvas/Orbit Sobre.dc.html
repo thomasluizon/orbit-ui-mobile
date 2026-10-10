@@ -517,7 +517,7 @@ class Component extends DCLogic {
           : this.setState({ page: n.id, sendState: null }) })),
       sheet: s.guideOpen ? this.guideSheet(t, D) : null,
       facts: t.facts,
-      proseTitle: page === 'privacy' ? t.nav[2].label : t.nav[1].label,
+      proseTitle: page === 'privacy' ? t.nav[3].label : t.nav[2].label,
       proseUpdated: t.updated(page === 'privacy' ? t.privacyDate : t.termsDate),
       sections: page === 'privacy' ? t.privacy : t.terms,
       supportBody: this.supportNode(t, D, filled),

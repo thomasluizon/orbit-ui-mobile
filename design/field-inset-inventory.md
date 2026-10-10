@@ -11,13 +11,26 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | Standard Input, form-input, AppTextInput, BottomSheetAppTextInput, goal FieldWell | 16 | Granted design-system Input; minimum height 54. Busca, move-parent, emoji, tag, goal and time-zone searches inherit this family. Tag and goal search keep their keyboard-aware native wrapper with exact Input padding and minimum height. |
 | Composer | 8 | `design/canvas/native-mobile.js`, textarea padding `4px 8px`. Pill padding 4 yields text start 12 in conversation and 60 with the 48 glyph control on Hoje and habit detail. The trailing controls retain 48 targets. Native positioned placeholder and measurement text use logical start/end 8. |
 | Sentence / multiline Input | 16 | Granted Habit Create sentence field and design-system multiline Input. Habit phrase overlays match the textarea/TextInput padding. |
-| Inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. |
-| Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use 12. |
+| Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
+| Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use the standard Input inset of 16. |
 | Numbered subhabit row | 8 after index | Granted Habit Create compound row. Input padding is 0; the row provides leading padding and an 8 gap after its 16-wide index. |
 | Habit heading rename | 0 | Unboxed title aligned with the reading heading, rather than a field well. |
 | Calendar month | 16 inline, 8 block | `design/canvas/Orbit Calendario.dc.html`, month disclosure. The shipped month selector uses picker buttons on both platforms, not a text input; no month text control exists to measure. |
 | OTP | Centred digit | Design-system OTP cells. The input captures keystrokes invisibly; the visible digit is centred, so no inline inset applies. |
 | Attachment pickers | No drawn glyph | Hidden file inputs are listed for completeness and excluded from text geometry. |
+
+## Checklist add surfaces
+
+The checklist add row uses the shared Input and a separate ghost small icon-only PillButton with an 8 gap in each owning composition:
+
+| Surface | Owner |
+| --- | --- |
+| Web habit create, More details | `apps/web/components/habits/habit-form-fields.tsx` |
+| Web habit detail, More details | `apps/web/components/habits/habit-detail-fields.tsx` |
+| Android habit create, More details | `apps/mobile/components/habits/habit-form-fields.tsx` |
+| Android habit detail, More details | `apps/mobile/components/habits/habit-detail-fields.tsx` |
+
+Both checklist implementations retain empty, populated, typed, disabled and at-capacity states, localized names and keyboard additions. Geometry coverage includes narrow and wide widths, both themes and both locales on web; native Vitest inspects the actual shared control styles and behavior.
 
 ## Code inventory
 
@@ -49,7 +62,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 58 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
 | `apps/mobile/components/habits/goal-linking-field.tsx` | 70 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 119 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
-| `apps/mobile/components/habits/habit-checklist.tsx` | 225 | `BottomSheetAppTextInput` | inline add | 12 |
+| `apps/mobile/components/habits/habit-checklist.tsx` | 222 | `Input` | standard inline add | 16 |
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 78 | `TextInput` | inline add | 12 |
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 144 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-detail-screen.tsx` | 187 | `TextInput` | heading | 0; title alignment |
@@ -96,7 +109,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 42 | `input` | subhabit | 0; 8 after index |
 | `apps/web/components/habits/goal-linking-field.tsx` | 64 | `input` | standard | 16 |
 | `apps/web/components/habits/habit-checklist.tsx` | 331 | `input` | checklist edit | 8 with grip |
-| `apps/web/components/habits/habit-checklist.tsx` | 431 | `input` | inline add | 12 |
+| `apps/web/components/habits/habit-checklist.tsx` | 423 | `Input` | standard inline add | 16 |
 | `apps/web/components/habits/habit-detail-fields.tsx` | 71 | `input` | inline add | 12 |
 | `apps/web/components/habits/habit-detail-fields.tsx` | 140 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-detail-screen.tsx` | 187 | `input` | heading | 0; title alignment |

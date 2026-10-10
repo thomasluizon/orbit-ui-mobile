@@ -41,7 +41,8 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       if (scale === 1 && text.label !== description) expect(text.lines, text.label).toBe(1)
     }
     const switchLabel = labels.find((text: { props: { children: string } }) => text.props.children === i18n.t('settings.homeScreen.showGeneral'))!
-    const row = switchLabel.parent!
+    let row = switchLabel.parent!
+    while (row.type !== 'View') row = row.parent!
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ gap: 4, minWidth: 0 })
     let container = row.parent!
     while (StyleSheet.flatten(typeof container.props.style === 'function' ? container.props.style({ pressed: false }) : container.props.style)?.paddingHorizontal !== 16) container = container.parent!

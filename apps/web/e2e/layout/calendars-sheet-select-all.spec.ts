@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
@@ -45,15 +46,15 @@ async function expectHeadingAlignment(row: Locator) {
 }
 
 async function doubleSheetText(sheet: Locator) {
-  await sheet.evaluate(async (surface) => {
+  await sheet.evaluate((surface) => {
     const measurements = [surface, ...surface.querySelectorAll<HTMLElement>('*')]
       .map((element) => ({ element, size: Number.parseFloat(getComputedStyle(element).fontSize), line: Number.parseFloat(getComputedStyle(element).lineHeight) }))
     for (const { element, size, line } of measurements) {
       element.style.fontSize = `${size * 2}px`
       if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px`
     }
-    await Promise.allSettled(surface.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
   })
+  await sheet.evaluate(settleAnimations)
 }
 
 for (const width of [320, 412, 1352]) {

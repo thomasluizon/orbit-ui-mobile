@@ -14,6 +14,7 @@ export type LegalDocumentSection = Readonly<{
 
 type LegalDocumentLayoutProps = Readonly<{
   title: string
+  headerTitle: string
   lastUpdated: string
   sections: readonly LegalDocumentSection[]
   closingNote: LegalDocumentSection
@@ -21,7 +22,7 @@ type LegalDocumentLayoutProps = Readonly<{
   onBack: () => void
 }>
 
-export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote, backLabel, onBack }: LegalDocumentLayoutProps) {
+export function LegalDocumentLayout({ title, headerTitle, lastUpdated, sections, closingNote, backLabel, onBack }: LegalDocumentLayoutProps) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -29,7 +30,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={pageEnd.safeAreaEdges}>
-      <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
+      <PageHeader backLabel={backLabel} onBack={onBack} title={headerTitle} />
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]} showsVerticalScrollIndicator={false}>
         <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>

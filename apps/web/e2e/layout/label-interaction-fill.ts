@@ -1,12 +1,11 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 
 async function settleFillTransitions(control: Locator) {
-  await control.evaluate(async (element) => {
+  await control.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    await Promise.all(element.getAnimations({ subtree: true })
-      .filter((animation) => animation instanceof CSSTransition)
-      .map((animation) => animation.finished))
   })
+  await control.evaluate(settleAnimations)
 }
 
 async function readFill(control: Locator) {
@@ -79,10 +78,13 @@ async function readFill(control: Locator) {
 }
 
 export async function expectFillShape(control: Locator, state: string) {
+  await expect.soft(async () => {
+    const fill = await readFill(control)
+    expect(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
+    expect(fill.effectiveOpacity, `${state}: the fill has visible effective opacity`).toBeGreaterThan(0)
+  }).toPass({ timeout: 3000 })
   const fill = await readFill(control)
   expect.soft(fill.matchesHitArea, `${state}: fill covers the control's entire hit area`).toBe(true)
-  expect.soft(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
-  expect.soft(fill.effectiveOpacity, `${state}: the fill has visible effective opacity`).toBeGreaterThan(0)
   for (const [index, radius] of fill.radii.entries()) {
     expect.soft(radius, `${state}: fill uses the control's corner radius`).toBeCloseTo(fill.controlRadii[index]!, 1)
   }
@@ -108,7 +110,7 @@ export async function expectInteractionFill(control: Locator) {
   await expect.poll(async () => {
     const hovered = await readFill(control)
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
-  }, { message: 'hover paints the control fill' }).toBe(true)
+  }, { message: 'hover paints the control fill', timeout: 3000 }).toBe(true)
   await expectFillShape(control, 'hover')
   try {
     await page.mouse.down()
