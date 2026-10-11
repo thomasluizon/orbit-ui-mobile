@@ -9,14 +9,13 @@ import {
   useRef,
   type ReactNode,
   type RefCallback,
-  type RefObject,
 } from 'react'
 import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
-import { ShellPinnedContent } from './shell-pinned-content'
+import { CompactComposerMenuContext, useCompactComposerMenu } from './shell-pinned-content'
 import { Search } from '@/components/ui/icons'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -194,20 +193,29 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
   )
 }
 
-function ShellBottomChrome({ props, conversationOpen, visible, retainedComposerRef }: Readonly<{
+function getPinnedSlot(props: ResponsiveShellProps, wide = false) {
+  if (props.nav === false) return props.action
+  return props.composer ?? (wide ? undefined : props.compactComposer)
+}
+
+function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
   visible: boolean
-  retainedComposerRef: RefObject<HTMLDivElement | null>
+  wide: boolean
 }>) {
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer ?? props.compactComposer : props.action
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const compactMenu = useCompactComposerMenu(wide, bottomRef)
+  const pinnedSlot = getPinnedSlot(props, wide)
   const compactOnly = navigationEnabled && props.composer === undefined && props.compactComposer !== undefined
+  const menuContext = compactOnly ? compactMenu : null
   if (!visible) return null
   const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height + 8 : undefined
 
   return (
     <div
+      ref={bottomRef}
       data-shell-bottom=""
       className="z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + var(--safe-bottom))` }}
@@ -220,7 +228,9 @@ function ShellBottomChrome({ props, conversationOpen, visible, retainedComposerR
         ) : null}
         {pinnedSlot !== undefined ? (
           <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
-            <ShellPinnedContent compactOnly={compactOnly} retainedComposerRef={retainedComposerRef}>{pinnedSlot}</ShellPinnedContent>
+            <CompactComposerMenuContext.Provider value={menuContext}>
+              <div className="pointer-events-auto">{pinnedSlot}</div>
+            </CompactComposerMenuContext.Provider>
           </div>
         ) : null}
         {navigationEnabled && props.tabBar !== undefined ? (
@@ -249,17 +259,15 @@ function ShellWideBackground({
   wide,
   conversationId,
   registerScroller,
-  retainedComposerRef,
 }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
   wide: boolean
   conversationId: string
   registerScroller?: RefCallback<HTMLElement>
-  retainedComposerRef: RefObject<HTMLDivElement | null>
 }>) {
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer ?? props.compactComposer : props.action
+  const pinnedSlot = getPinnedSlot(props)
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
@@ -297,7 +305,7 @@ function ShellWideBackground({
               </div>
             ) : null}
           </div>
-          <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} retainedComposerRef={retainedComposerRef} />
+          <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} wide={wide} />
           </div>
           {conversationOpen ? <div
             id={conversationId}
@@ -322,7 +330,6 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const shellRef = useRef<HTMLDivElement>(null)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
-  const retainedComposerRef = useRef<HTMLDivElement>(null)
   useModalFocusTrap(conversationOpen, shellRef, returnFocusTriggerRef, getShellConversationFocusTarget)
   useEffect(() => {
     if (!conversationOpen) return
@@ -354,14 +361,12 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
         }
       }}
     >
-      <div ref={retainedComposerRef} hidden inert data-shell-retained-composer="" />
       <ShellWideBackground
         props={props}
         conversationOpen={conversationOpen}
         wide={wide}
         conversationId={conversationId}
         registerScroller={registerScroller}
-        retainedComposerRef={retainedComposerRef}
       />
     </div>
   )

@@ -168,7 +168,9 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
-  if (open && compactMenu?.hidden) setOpen(false)
+  useEffect(() => {
+    compactMenu?.onOpenChange(open)
+  }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
   const voiceActive = props.state === 'recording' || props.state === 'transcribing'

@@ -93,7 +93,7 @@ describe('app shell hydration', () => {
       expect(tabBar).not.toHaveClass('hidden')
     }
     expect(container.querySelectorAll('h1')).toHaveLength(1)
-    expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(serverHtml).not.toContain('Voice')
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
@@ -102,18 +102,15 @@ describe('app shell hydration', () => {
     if (width >= 1024) expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
     expect(container.querySelectorAll('[data-root-notification-header]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')).toBe(firstSidebarBell)
-    expect(container.querySelector('[data-shell-pinned-slot]')).toBe(firstComposer)
-    expect(container.querySelector('textarea')).toBe(firstInput)
     if (width < 1024) {
+      expect(container.querySelector('[data-shell-pinned-slot]')).toBe(firstComposer)
+      expect(container.querySelector('textarea')).toBe(firstInput)
       expect(firstInput).toHaveFocus()
       expect(firstInput).toHaveValue('Draft')
     }
     if (width >= 1024) {
-      const retainedComposer = container.querySelector('[data-shell-retained-composer]')
-      expect(retainedComposer).toHaveAttribute('hidden')
-      expect(retainedComposer).toHaveAttribute('inert')
-      expect(retainedComposer).toHaveTextContent('Composer')
-      expect(container.querySelector('[data-shell-bottom]')).not.toContainElement(retainedComposer as HTMLElement)
+      expect(container.querySelector('textarea')).toBeNull()
+      expect(container.querySelector('[data-shell-pinned-slot]')).toBeNull()
     }
     expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })
