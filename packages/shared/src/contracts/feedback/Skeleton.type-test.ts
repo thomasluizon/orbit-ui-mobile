@@ -15,7 +15,7 @@ type RowVariant = Extract<SkeletonProps, { rows?: never; label: string; grouped?
 type SettingsVariant = Extract<SkeletonProps, { variant: 'settings'; label: string; grouped?: never }>
 type GridVariant = Extract<SkeletonProps, { variant: 'grid'; label: string; grouped?: never }>
 type ExpectedRowVariant = {
-  variant: 'habit-row' | 'stat-tile' | 'bar-chart'
+  variant: 'habit-row' | 'stat-tile' | 'bar-chart' | 'fill'
   label: string
   grouped?: never
   rows?: never
@@ -65,7 +65,7 @@ export type SkeletonTypeContract = [
   Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats'; grouped: true }, SkeletonProps>>,
   // @ts-expect-error every skeleton is either named or grouped
   Assert<IsExact<{ variant: 'settings' }, SkeletonProps>>,
-  // @ts-expect-error variant is a closed five-value set
+  // @ts-expect-error variant is a closed six-value set
   Assert<IsExact<{ variant: 'card'; label: 'Loading' }, SkeletonProps>>,
   // @ts-expect-error skeletons cannot opt into a spinner
   Assert<IsExact<{ variant: 'settings'; label: 'Loading'; spinner: true }, SkeletonProps>>,

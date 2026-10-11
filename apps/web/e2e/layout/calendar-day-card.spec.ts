@@ -60,7 +60,11 @@ for (const width of [320, 412, 1280]) {
         const label = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === habitTitle && button.getAttribute('role') !== 'checkbox')!
         const rows = [...groups[1]!.children] as HTMLElement[]
         const eventRows = [...groups.at(-1)!.querySelectorAll<HTMLElement>('button[data-all-day], button[aria-label^="09:00,"]')]
-        const labelStyle = getComputedStyle(label.closest('[data-slot="list-row-body"]')!)
+        const rowBody = label.closest('[data-slot="list-row-body"]')!
+        const rowBodyBox = rowBody.getBoundingClientRect()
+        const labelBox = label.getBoundingClientRect()
+        const labelStyle = getComputedStyle(rowBody)
+        const titleTargetStyle = getComputedStyle(label)
         const headline = label.querySelector<HTMLElement>('[data-personal-text]')!
         const headlineStyle = getComputedStyle(headline)
         const muted = document.createElement('span')
@@ -81,6 +85,9 @@ for (const width of [320, 412, 1280]) {
           eventGaps: eventRows.slice(1).map((row, index) => row.getBoundingClientRect().top - eventRows[index]!.getBoundingClientRect().bottom),
           labelHeight: label.getBoundingClientRect().height, labelMinimum: Number.parseFloat(labelStyle.minHeight),
           labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom, labelStyle.paddingLeft, labelStyle.paddingRight],
+          titleTargetPadding: [titleTargetStyle.paddingTop, titleTargetStyle.paddingBottom],
+          titleTargetEdges: [labelBox.top - rowBodyBox.top, rowBodyBox.bottom - labelBox.bottom],
+          headlineTopInset: headline.getBoundingClientRect().top - rowBodyBox.top,
           headlineLines: headline.getBoundingClientRect().height / Number.parseFloat(headlineStyle.lineHeight),
         }
       }, habitTitle)
@@ -96,7 +103,10 @@ for (const width of [320, 412, 1280]) {
       expect(geometry.eventGaps).toEqual([4, 4])
       expect(geometry.labelHeight).toBeGreaterThanOrEqual(68)
       expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
-      expect(geometry.labelPadding).toEqual(['12px', '12px', '16px', '16px'])
+      expect(geometry.labelPadding).toEqual(['0px', '0px', '16px', '16px'])
+      expect(geometry.titleTargetPadding).toEqual(['12px', '12px'])
+      for (const edge of geometry.titleTargetEdges) expect(edge).toBeCloseTo(0)
+      expect(geometry.headlineTopInset).toBeCloseTo(12)
       expect(geometry.headlineLines).toBeCloseTo(2)
     })
   })

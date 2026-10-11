@@ -2,6 +2,7 @@ export type CheckRowProps = {
   label: string
   placement?: 'inset' | 'column'
   textMode?: 'personal'
+  variant?: 'calendar-day'
   onOpenLabel?: () => void
   labelExpanded?: boolean
   labelControls?: string

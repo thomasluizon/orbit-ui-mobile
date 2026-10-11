@@ -2,8 +2,7 @@
 
 import type { PageHeaderProps } from '@orbit/shared/contracts/navigation'
 import { ArrowLeft } from '@/components/ui/icons'
-import { useShellHeaderSlot } from '@/components/shell/destination-shell'
-import { useIsClient } from '@/hooks/use-is-client'
+import { ShellHeader } from '@/components/shell/shell-header'
 
 function PageHeaderContent({ title, titleTranslate, backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
   return <header className="shadow-[inset_0_-1px_0_var(--hairline)]">
@@ -20,7 +19,5 @@ function PageHeaderContent({ title, titleTranslate, backLabel, onBack, action, f
 }
 
 export function PageHeader(props: Readonly<PageHeaderProps>) {
-  const client = useIsClient()
-  const hosted = useShellHeaderSlot(() => <PageHeaderContent {...props} />, props.refreshKey ?? props.title)
-  return hosted && client ? null : <PageHeaderContent {...props} />
+  return <ShellHeader><PageHeaderContent {...props} /></ShellHeader>
 }

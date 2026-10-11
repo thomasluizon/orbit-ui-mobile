@@ -19,7 +19,6 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }))
 vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => '2026-08-29' }))
-vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false }))
 vi.mock('@/components/ui/stat-tile', async (original) => ({
   ...(await original<typeof import('@/components/ui/stat-tile')>()),
   StatTile: vi.fn((props: React.ComponentProps<typeof StatTile>) => <output>{props.label}{'value' in props ? props.value : ''}</output>),

@@ -111,6 +111,11 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-personal-text-details:focus-visible {
+  background-color: var(--bg-hover);
+  --fg-3: var(--fg-2);
+}
+
 .orbit-habit-rename::before {
   content: '';
   position: absolute;
@@ -2215,6 +2220,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   position: absolute;
   inset: -12px;
   border-radius: 12px;
+}
+
+.orbit-check-row-label[data-variant="calendar-day"] {
+  min-height: 68px;
+  padding-block: 12px;
+}
+
+.orbit-check-row-label[data-variant="calendar-day"]::before,
+.orbit-check-row-label[data-variant="calendar-day"] > .orbit-check-row-fill {
+  inset-block: 0;
 }
 
 .orbit-check-row-label > :not(.orbit-check-row-fill),

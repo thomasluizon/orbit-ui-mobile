@@ -94,8 +94,9 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       aria-hidden={props.grouped ? true : undefined}
       role={props.grouped ? undefined : 'progressbar'}
       data-variant={props.variant}
-      className="w-full"
+      className={props.variant === 'fill' ? 'h-full w-full' : 'w-full'}
     >
+      {props.variant === 'fill' ? <div className={`${blockClass} h-full w-full`} /> : null}
       {props.variant === 'habit-row' ? <HabitRowSkeleton /> : null}
       {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton /> : null}

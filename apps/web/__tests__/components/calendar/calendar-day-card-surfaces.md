@@ -26,3 +26,28 @@ The owning components are `calendar-day-detail`, `calendar-day-events` and
 `check-row` and `event-row` components supply row geometry. The day-card unit and
 geometry suites cover the owning composition; the calendar-picker suites cover
 the shared consumer's interactions. The web layout spec covers the full route.
+
+## Habit row floor scope
+
+The habit row floor change covers these eight surfaces:
+
+1. Web compact logging rows.
+2. Web desktop logging rows.
+3. Web compact read-only rows.
+4. Web desktop read-only rows.
+5. Android compact logging rows.
+6. Android wide logging rows.
+7. Android compact read-only rows.
+8. Android wide read-only rows.
+
+Each surface includes timed and untimed parents and children, short and wrapped
+personal titles, and normal and doubled text. Logging rows keep separate title
+disclosure and checkbox controls; read-only rows keep title disclosure and their
+status rings. Both modes show time or the existing no-set-time value beneath the
+title. The owning day card components select the calendar-day CheckRow variant;
+calendar-picker callers retain their default geometry.
+
+The shared fixture passes through the calendar month schema and day-map producer.
+Both owning geometry suites measure these surfaces. The hermetic
+`calendar-day-habit-rows.spec.ts` covers the web route at compact and desktop
+widths in both locales. Its execution belongs to the layout workflow.

@@ -22,6 +22,7 @@ import { Keycap } from '@/components/ui/keycap'
 import { Button } from '@/components/ui/pill-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
+import { getShellHeading } from './shell-header'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
   return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
@@ -39,7 +40,7 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
   return target.closest('[data-composer-root]')?.querySelector<HTMLElement>('[data-open-conversation]') ?? target
 }
 
-type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = ShellWideProps & { registerHeaderHost?: RefCallback<HTMLDivElement>; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -234,7 +235,7 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
 }
 
 function ShellWideBackground({
-  props,
+  props: { registerHeaderHost, ...props },
   conversationOpen,
   wide,
   conversationId,
@@ -276,7 +277,7 @@ function ShellWideBackground({
         <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
           <div className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.scrollToTop !== undefined && !conversationOpen ? (
@@ -317,7 +318,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     const trigger = returnFocusTriggerRef.current
     return () => {
       if (trigger?.isConnected || !shell?.isConnected) return
-      const target = shell.querySelector<HTMLElement>('[data-shell-header] h1, [data-shell-scroller] h1')
+      const target = getShellHeading(shell)
         ?? shell.querySelector<HTMLElement>('[data-shell-scroller]')
       if (target && !target.hasAttribute('tabindex')) target.tabIndex = -1
       target?.focus({ preventScroll: true })
