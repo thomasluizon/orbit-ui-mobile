@@ -64,6 +64,14 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await page.waitForLoadState('load')
             if (destination === 'today' || destination === 'calendar') {
               await expect(page.locator(`[data-shell-header] ${header}`)).toBeVisible()
+            } else {
+              const palette = page.getByRole('dialog', { name: words.command.title, exact: true })
+              await expect(async () => {
+                if (!await palette.isVisible()) await page.keyboard.press('Control+k')
+                await expect(palette).toBeVisible({ timeout: 1000 })
+              }).toPass({ timeout: 10_000 })
+              await page.keyboard.press('Escape')
+              await expect(palette).toBeHidden()
             }
             await page.evaluate(() => document.fonts.ready)
             await assertChrome()

@@ -410,10 +410,18 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
-it.each([412, 840])('has no sidebar Astra row at %ipx', (width) => {
+it.each([412, 840])('retains the sidebar Astra row across the wide boundary from %ipx', (width) => {
   media.width = width
-  const view = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }} />)
-  expect(view.container.querySelector('[data-shell-astra-row]')).toBeNull()
+  const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+  const view = render(<ShellWide {...props} />)
+  const row = screen.getByRole('button', { name: 'Astra' })
+  expect(row.parentElement?.firstElementChild).toBe(row)
+  media.width = 1352
+  view.rerender(<ShellWide {...props} />)
+  expect(screen.getByRole('button', { name: 'Astra' })).toBe(row)
+  media.width = width
+  view.rerender(<ShellWide {...props} />)
+  expect(screen.getByRole('button', { name: 'Astra' })).toBe(row)
 })
 
 it('retains the conversation node, draft and destination scroll across the wide boundary', () => {
