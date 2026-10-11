@@ -54,12 +54,13 @@ async function assertPersonalCheckRow(body: Locator) {
     const label = element.querySelector('.orbit-check-row-label')!
     const labelBounds = label.getBoundingClientRect()
     const labelStyle = getComputedStyle(label)
-    const box = element.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
+    const calendarDay = label.getAttribute('data-variant') === 'calendar-day'
+    const control = element.querySelector(calendarDay ? '[data-slot="calendar-day-circle"]' : '[data-slot="checkbox-box"]')!.getBoundingClientRect()
     const style = getComputedStyle(element)
-    return { start: labelBounds.left - bounds.left, end: bounds.right - box.right,
+    return { start: labelBounds.left - bounds.left, end: bounds.right - control.right,
       minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd,
       gap: parseFloat(style.gap), textGap: parseFloat(labelStyle.gap),
-      calendarDay: label.getAttribute('data-variant') === 'calendar-day',
+      calendarDay,
       labelMinHeight: labelStyle.minHeight, labelPaddingStart: labelStyle.paddingBlockStart, labelPaddingEnd: labelStyle.paddingBlockEnd,
       labelTop: labelBounds.top - bounds.top, labelBottom: labelBounds.bottom - bounds.bottom,
       border: parseFloat(style.borderBottomWidth), supporting: label.children.length > 2 }
@@ -68,6 +69,8 @@ async function assertPersonalCheckRow(body: Locator) {
   expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
   expect(geometry).toMatchObject({ minHeight: geometry.calendarDay || geometry.supporting ? '68px' : '52px', gap: 12, textGap: 4, border: 0 })
   if (geometry.calendarDay) {
+    await expect(body.locator('[data-slot="calendar-day-circle"]')).toHaveCount(1)
+    await expect(body.locator('[data-slot="checkbox-box"]')).toHaveCount(0)
     expect(geometry).toMatchObject({ paddingStart: '0px', paddingEnd: '0px', labelPaddingStart: '12px', labelPaddingEnd: '12px', labelMinHeight: '68px' })
     expect(Math.abs(geometry.labelTop)).toBeLessThanOrEqual(0.5)
     expect(Math.abs(geometry.labelBottom)).toBeLessThanOrEqual(0.5)
