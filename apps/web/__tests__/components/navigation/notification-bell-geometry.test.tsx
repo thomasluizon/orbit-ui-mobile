@@ -7,12 +7,16 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
+import { NotificationBell, NotificationBellDisplay } from '@/components/navigation/notification-bell'
+import { renderToString } from 'react-dom/server'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createQueryClient } from '@/lib/query-client'
+import { NotificationsPreload } from '@/lib/notifications-preload'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
-vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/lib/api-fetch', () => ({ fetchJson: () => new Promise(() => {}) }))
 
 const cases = [320, 600, 840].flatMap((width) => [5, 12].flatMap((count) => [1, 2].flatMap((textScale) =>
   (['dark', 'light'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ width, count, textScale, mode, locale }))),
@@ -31,6 +35,29 @@ describe('root bell count geometry in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it('renders the inline count in server markup before a browser request can move the sibling', async () => {
+    const markup = renderToString(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
+      <NotificationsPreload initialNotifications={{ notifications: { items: [], unreadCount: 15 }, updatedAt: Date.now() }}>
+        <QueryClientProvider client={createQueryClient()}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button data-sibling="" style={{ width: 48 }}>Opções</button>
+            <NotificationBell />
+          </div>
+        </QueryClientProvider>
+      </NotificationsPreload>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 600, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      const bell = page.getByRole('button', { name: 'Avisos, 15 sem ler', exact: true })
+      await expect.poll(() => bell.locator('[data-notification-count]').textContent()).toBe('9+')
+      const bounds = await bell.boundingBox()
+      expect(bounds!.width).toBeGreaterThan(48)
+      const sibling = await page.locator('[data-sibling]').boundingBox()
+      expect(sibling!.x + sibling!.width).toBeCloseTo(bounds!.x, 1)
+    } finally { await page.close() }
+  })
 
   it.each(cases)('contains $count unread at $width with $textScale text scale in $mode and $locale', async ({ width, count, textScale, mode, locale }) => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}>

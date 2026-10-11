@@ -118,9 +118,7 @@ for (const width of [320, 600]) {
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 3 } }))
         const proactive = createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z` })
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({
-          json: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }),
-        }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }) }])
         await page.goto('/')
         const disclosure = page.locator('[data-habit-row-control="disclosure"]')
         await expect(disclosure).toBeVisible()

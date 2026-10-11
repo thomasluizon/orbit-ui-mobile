@@ -121,7 +121,7 @@ for (const width of [320, 412, 600]) {
       })
 
       test('a queued-delete toast and notice slot stay above the bottom inset', async ({ page, context }) => {
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
         await page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }).click()
         const toast = page.locator('[data-shell-notice] [data-kind="neutral"]').filter({ hasText: messages.notifications.deleteQueued })
@@ -191,7 +191,7 @@ for (const inset of [0, 44]) {
       await expectSafeBounds(palette)
       for (const control of await palette.locator('input,button').filter({ visible: true }).all()) await expectSafeBounds(control)
       await page.keyboard.press('Escape')
-      await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+      await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
       await page.goto('/notifications')
       await page.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true }).click()
       const toast = page.locator('[data-shell-notice] [data-kind="neutral"]').filter({ hasText: messages.notifications.deleteQueued })

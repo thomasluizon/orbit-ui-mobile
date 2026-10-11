@@ -23,9 +23,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await setLayoutProfileSession(context, profile)
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         const items = populated ? [0, 1, 2].map((index) => createMockNotification({ id: `avisos-edge-${index}`, title: `Alert ${index}`, url: '/progress' })) : []
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({
-          json: notificationsResponseSchema.parse({ items, unreadCount: items.length }),
-        }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items, unreadCount: items.length }) }])
         await page.goto('/notifications')
         const list = page.getByRole('list', { name: words.notifications.title })
         await expect(list).toHaveAttribute('aria-busy', 'false')

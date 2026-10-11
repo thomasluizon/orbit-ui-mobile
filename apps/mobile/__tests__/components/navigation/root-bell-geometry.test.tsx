@@ -9,15 +9,24 @@ import { TodayDateControl } from '@/components/today/today-date-control'
 import { Shell412 } from '@/components/shell/shell-412'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { notificationKeys } from '@orbit/shared/query'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0 }))
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0, restored: false }))
 vi.mock('expo-router', () => ({ useRouter: () => navigation, usePathname: () => '/', useLocalSearchParams: () => ({}) }))
 vi.mock('react-native-safe-area-context', async () => ({
   SafeAreaView: (await import('react-native')).View,
   useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }),
 }))
-vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: navigation.count }) }))
+vi.mock('@/hooks/use-notification-inbox', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-notification-inbox')>()
+  return { useNotificationInbox: () => navigation.restored ? original.useNotificationInbox() : { visibleUnreadCount: navigation.count } }
+})
+vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isLoading: true }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ isLoading: true }) }))
@@ -149,7 +158,38 @@ const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isT
   showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
   onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
 
-afterEach(() => { __resetTestHostConfig(); navigation.count = 0; vi.clearAllMocks() })
+afterEach(() => { __resetTestHostConfig(); navigation.count = 0; navigation.restored = false; queryClient.clear(); vi.restoreAllMocks() })
+
+it('paints every root bell from the restored notification cache before a delayed refetch', async () => {
+  navigation.restored = true
+  __setWindowDimensions({ width: 600, height: 915, scale: 1, fontScale: 1 })
+  await setQueryCacheScope('bell-first-frame')
+  let persistedNotifications = ''
+  vi.spyOn(AsyncStorage, 'setItem').mockImplementation((_key, value) => { persistedNotifications = value; return Promise.resolve() })
+  vi.spyOn(AsyncStorage, 'getItem').mockImplementation(() => Promise.resolve(persistedNotifications))
+  const notifications = { items: [createMockNotification({ isRead: false })], unreadCount: 15 }
+  queryClient.setQueryData(notificationKeys.lists(), notifications, { updatedAt: 1 })
+  await persistQueryCache()
+  queryClient.clear()
+  await restoreQueryCache()
+  expect(await AsyncStorage.getItem('@orbit/query-cache:bell-first-frame')).toContain('unreadCount')
+  const surfaces = [today, <CalendarOptions key="calendar" tokens={createTokensV2('purple', 'dark')} />,
+    <ProgressScreen key="progress" />, <ProfileScreen key="profile" />]
+  for (const surface of surfaces) {
+    let tree!: Tree
+    await renderer.act(() => {
+      tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree
+    })
+    try {
+      const first = measureBell(tree.toJSON(), 600, 1)
+      expect(first.count).toBeDefined()
+      expect(first.bell.width).toBeGreaterThan(48)
+      await renderer.act(async () => { await Promise.resolve() })
+      expect(measureBell(tree.toJSON(), 600, 1)).toEqual(first)
+    } finally { await renderer.act(() => tree.unmount()) }
+  }
+  await setQueryCacheScope(null)
+})
 
 it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
   'aligns all four root bells at $width with text scale $fontScale and opens Avisos', async ({ width, fontScale }) => {
