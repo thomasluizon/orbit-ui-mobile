@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
 import { CheckRow } from '@/components/ui/check-row'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -44,6 +45,40 @@ describe('day card compact geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['light', 'dark'] as const)('keeps the day circle target and one circular focus indicator in %s mode', async (mode) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <CalendarDayDetail dateStr={calendarDayCardDate} today={calendarDayCardDate}
+        entries={makeCalendarDayCardEntries()} calendarEvents={[]} calendarEventsState="ready" loggable showRecurring
+        pendingEntryStates={new Map()} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()}
+        onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 1000 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!DOCTYPE html><html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+      const control = page.getByRole('checkbox').first()
+      await control.focus()
+      const geometry = await control.evaluate((button) => {
+        const fill = button.querySelector<HTMLElement>('[data-press-fill]')!
+        const icon = button.querySelector<SVGElement>('svg')!
+        const box = fill.getBoundingClientRect()
+        const visible = icon.getBoundingClientRect()
+        const fillStyle = getComputedStyle(fill)
+        return { width: box.width, height: box.height, radius: fillStyle.borderRadius,
+          iconWidth: visible.width, iconHeight: visible.height,
+          focus: fillStyle.outlineWidth, offset: fillStyle.outlineOffset,
+          buttonFocus: getComputedStyle(button).outlineStyle, shadow: fillStyle.boxShadow,
+          pseudoRadius: getComputedStyle(button, '::before').borderRadius,
+          hit: document.elementFromPoint(box.left + 1, box.top + box.height / 2) === button,
+          focused: button.matches(':focus-visible') }
+      })
+      expect(geometry).toEqual({ width: 48, height: 48, radius: '50%', iconWidth: 24, iconHeight: 24,
+        focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
+      await page.emulateMedia({ forcedColors: 'active' })
+      expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
+    } finally { await page.close() }
+  })
 
   it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
     const entries = makeCalendarDayCardEntries()

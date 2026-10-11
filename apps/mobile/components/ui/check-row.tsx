@@ -4,7 +4,7 @@ import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
-import { Check } from './icons'
+import { Check, CheckCircle, Circle } from './icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -80,6 +80,7 @@ const styles = StyleSheet.create({
   columnFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
+  calendarDayControlFill: { borderRadius: 24 },
   controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 24, justifyContent: 'center', gap: 4, borderRadius: 12 },
@@ -115,6 +116,15 @@ function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean) {
   return calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }
 }
 
+function getPersonalControlFill(calendarDay: boolean) {
+  return calendarDay ? { ...styles.controlFill, ...styles.calendarDayControlFill } : styles.controlFill
+}
+
+function CalendarDayCircle({ checked, color }: Readonly<{ checked: boolean; color: string }>) {
+  const CircleIcon = checked ? CheckCircle : Circle
+  return <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
+}
+
 function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
   return (
@@ -124,8 +134,8 @@ function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked,
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, calendarDay ? styles.calendarDayValue : null, { color: tokens.fg2 }]}>{value}</Text> : null}
       </PersonalControl>
-      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} containContent focusable={!disabled && !loading} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
-        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent focusable={!disabled && !loading} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+        {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
       </PersonalControl>
     </View>
   )

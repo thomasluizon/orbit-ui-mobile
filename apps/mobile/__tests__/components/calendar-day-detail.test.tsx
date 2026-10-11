@@ -17,10 +17,18 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
+import { CheckRow } from '@/components/ui/check-row'
+import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 
 const TestRenderer = require('react-test-renderer')
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+
+vi.mock('@/hooks/use-calendars', () => ({
+  useCalendars: () => ({ data: [{ id: 'family', name: 'Family calendar', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true }], isLoading: false, isError: false }),
+  useSetSelectedCalendars: () => ({ mutateAsync: vi.fn(), mutate: vi.fn() }),
+}))
 
 const network = { isOnline: true }
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
@@ -48,9 +56,11 @@ vi.mock('@/components/ui/switch', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/check-row', () => ({
-  CheckRow: (props: Record<string, unknown>) => React.createElement('CheckRowMock', props),
-}))
+vi.unmock('@/components/ui/icons')
+vi.mock('react-native-svg', async () => {
+  const svg = await import('@/test-mocks/react-native-svg')
+  return { ...svg, Svg: svg.default }
+})
 
 vi.mock('@/components/ui/status-ring', () => ({
   StatusRing: (props: Record<string, unknown>) => React.createElement('StatusRingMock', props),
@@ -215,7 +225,7 @@ function renderDetail(props: RenderDetailProps = {}): Tree {
   return tree!
 }
 
-function nodes(tree: Tree, type: string): TestNode[] {
+function nodes(tree: Tree, type: unknown): TestNode[] {
   return tree.root.findAll((node) => node.type === type)
 }
 
@@ -413,10 +423,42 @@ describe('CalendarDayDetail (mobile)', () => {
     const entry = makeEntry({ title: 'Read' })
     const onEntryChange = vi.fn(async () => {})
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
-    const row = nodes(tree, 'CheckRowMock')[0]
+    const row = nodes(tree, CheckRow)[0]
     expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00' })
     ;(row?.props.onChange as (checked: boolean) => void)(false)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
+  })
+
+  it.each(['upcoming', 'completed'] as const)('draws a circle with the matching check state for %s day rows', (status) => {
+    const tree = renderDetail({ entries: [makeEntry({ title: 'Read', status })], loggable: true })
+    const control = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    const circles = control.findAll((node) => node.type === 'Svg' && node.props['data-slot'] === 'calendar-day-circle')
+    expect(circles).toHaveLength(1)
+    expect(circles[0]!.props).toMatchObject({ width: 24, height: 24 })
+    expect(circles[0]!.findAll((node) => node.type === 'Path')).toHaveLength(status === 'completed' ? 2 : 1)
+    expect(control.findAll((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(0)
+    expect(control.props.accessibilityState).toMatchObject({ checked: status === 'completed' })
+    expect(control.props.hitSlop).toBe(12)
+    TestRenderer.act(() => { (control.props.onFocus as () => void)() })
+    const fills = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] === '')
+    expect(fills).toHaveLength(1)
+    expect(StyleSheet.flatten(fills[0]!.props.style)).toMatchObject({ borderRadius: 24, outlineWidth: 2, outlineOffset: -2 })
+  })
+
+  it('keeps the calendar picker completion control square', () => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarPickerSection enabled styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={translate} />) })
+    const control = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    expect(control.props.accessibilityLabel).toBe('Family calendar')
+    expect(control.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
+    expect(control.findAll((node) => node.type === 'Svg' && node.props['data-slot'] === 'calendar-day-circle')).toHaveLength(0)
+  })
+
+  it.each([undefined, 'personal'] as const)('keeps the box in a %s CheckRow outside the day card', (textMode) => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CheckRow label="Family calendar" textMode={textMode} onOpenLabel={vi.fn()} checked onChange={vi.fn()} />) })
+    expect(nodes(tree, 'View').filter((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
+    expect(nodes(tree, 'Svg').filter((node) => node.props['data-slot'] === 'calendar-day-circle')).toHaveLength(0)
   })
 
   it('keeps current-day unchecks upcoming before their writes settle', () => {
@@ -435,12 +477,12 @@ describe('CalendarDayDetail (mobile)', () => {
       })
 
       TestRenderer.act(() => {
-        for (const row of nodes(tree, 'CheckRowMock')) {
+        for (const row of nodes(tree, CheckRow)) {
           ;(row.props.onChange as (checked: boolean) => void)(false)
         }
       })
 
-      const values = nodes(tree, 'CheckRowMock').map((row) => row.props.value)
+      const values = nodes(tree, CheckRow).map((row) => row.props.value)
       expect(values).toEqual(['08:00', '08:00'])
     } finally {
       vi.useRealTimers()
@@ -454,7 +496,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
     TestRenderer.act(() => {
@@ -465,7 +507,7 @@ describe('CalendarDayDetail (mobile)', () => {
       }))
     })
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(false)
     })
 
@@ -480,7 +522,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [dayAEntry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
     TestRenderer.act(() => {
@@ -492,7 +534,7 @@ describe('CalendarDayDetail (mobile)', () => {
       }))
     })
 
-    const dayBRow = nodes(tree, 'CheckRowMock')[0]
+    const dayBRow = nodes(tree, CheckRow)[0]
     expect(dayBRow?.props).toMatchObject({ checked: false, loading: false })
     TestRenderer.act(() => {
       ;(dayBRow?.props.onChange as (checked: boolean) => void)(true)
@@ -511,7 +553,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
     TestRenderer.act(() => {
@@ -526,7 +568,7 @@ describe('CalendarDayDetail (mobile)', () => {
       tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
     })
 
-    let returnedRow = nodes(tree, 'CheckRowMock')[0]
+    let returnedRow = nodes(tree, CheckRow)[0]
     expect(returnedRow?.props.loading).toBe(true)
     TestRenderer.act(() => {
       ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
@@ -538,7 +580,7 @@ describe('CalendarDayDetail (mobile)', () => {
       await pendingChange
     })
 
-    returnedRow = nodes(tree, 'CheckRowMock')[0]
+    returnedRow = nodes(tree, CheckRow)[0]
     expect(returnedRow?.props.loading).toBe(true)
     TestRenderer.act(() => {
       ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
@@ -553,7 +595,7 @@ describe('CalendarDayDetail (mobile)', () => {
       }))
     })
 
-    returnedRow = nodes(tree, 'CheckRowMock')[0]
+    returnedRow = nodes(tree, CheckRow)[0]
     expect(returnedRow?.props.loading).toBe(false)
   })
 
@@ -567,7 +609,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
     TestRenderer.act(() => {
@@ -587,7 +629,7 @@ describe('CalendarDayDetail (mobile)', () => {
       await pendingChange.catch(() => {})
     })
 
-    let rejectedRow = nodes(tree, 'CheckRowMock')[0]
+    let rejectedRow = nodes(tree, CheckRow)[0]
     expect(rejectedRow?.props).toMatchObject({ checked: false, loading: false })
 
     TestRenderer.act(() => {
@@ -598,7 +640,7 @@ describe('CalendarDayDetail (mobile)', () => {
       }))
     })
 
-    rejectedRow = nodes(tree, 'CheckRowMock')[0]
+    rejectedRow = nodes(tree, CheckRow)[0]
     expect(rejectedRow?.props.loading).toBe(false)
   })
 
@@ -612,7 +654,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
     TestRenderer.act(() => {
@@ -632,7 +674,7 @@ describe('CalendarDayDetail (mobile)', () => {
       await pendingChange.catch(() => {})
     })
 
-    const rejectedRow = nodes(tree, 'CheckRowMock')[0]
+    const rejectedRow = nodes(tree, CheckRow)[0]
     expect(rejectedRow?.props).toMatchObject({ checked: false, loading: false })
   })
 
@@ -646,16 +688,19 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     TestRenderer.act(() => {
-      const row = nodes(tree, 'CheckRowMock')[0]
+      const row = nodes(tree, CheckRow)[0]
       ;(row?.props.onChange as (checked: boolean) => void)(true)
     })
 
-    let row = nodes(tree, 'CheckRowMock')[0]
+    let row = nodes(tree, CheckRow)[0]
     expect(row?.props).toMatchObject({
       checked: true,
       loading: true,
       value: '08:00',
     })
+    const pendingControl = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
+    expect(pendingControl.props).toMatchObject({ disabled: true, accessibilityState: { checked: true, busy: true } })
+    expect(pendingControl.findAll((node) => node.type === 'Path')).toHaveLength(2)
     TestRenderer.act(() => {
       ;(row?.props.onChange as (checked: boolean) => void)(false)
     })
@@ -666,7 +711,7 @@ describe('CalendarDayDetail (mobile)', () => {
       await pendingChange.catch(() => {})
     })
 
-    row = nodes(tree, 'CheckRowMock')[0]
+    row = nodes(tree, CheckRow)[0]
     expect(row?.props).toMatchObject({
       checked: false,
       loading: false,
@@ -681,7 +726,7 @@ describe('CalendarDayDetail (mobile)', () => {
       }))
     })
 
-    row = nodes(tree, 'CheckRowMock')[0]
+    row = nodes(tree, CheckRow)[0]
     expect(row?.props.loading).toBe(false)
   })
 
