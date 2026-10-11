@@ -28,7 +28,7 @@ export function SlipAlertSection({
   return (
     <View style={inline ? { gap: 12 } : sectionStyles.container}>
       {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the slip-alert boundary label. */}
-      <ListRow placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
+      <ListRow textMode="label" placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
         toggle={hasProAccess ? { checked: slipAlertEnabled, onChange: onToggle } : undefined}
         trailing={!hasProAccess ? <Badge>{t('common.proBadge')}</Badge> : undefined} chevron={!hasProAccess}
         onClick={!hasProAccess ? onUpgrade : undefined} />

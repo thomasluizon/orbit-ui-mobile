@@ -116,7 +116,7 @@ export function HabitDetailSchedule({ habit, summary, open, tokens, onToggle, on
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
   const { t } = useTranslation()
   if (!habit.isBadHabit) return null
-  return <ListRow placement="column" title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} trailing={!hasProAccess ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} toggle={hasProAccess ? { checked: habit.slipAlertEnabled, onChange: (slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) } } : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
+  return <ListRow textMode="label" placement="column" title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} trailing={!hasProAccess ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} toggle={hasProAccess ? { checked: habit.slipAlertEnabled, onChange: (slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) } } : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
 }
 
 

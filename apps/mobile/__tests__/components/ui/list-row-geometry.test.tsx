@@ -9,7 +9,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
 import { ListRow } from '@/components/ui/list-row'
 import { Badge } from '@/components/ui/badge'
-import { measureProfileRow } from '../../support/profile-row-geometry'
+import { measureProfileRow, replayProfileTitleLayout as replayLabelLayout } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 afterEach(() => {
@@ -159,16 +159,6 @@ describe('inline preference control geometry', () => {
 })
 
 
-async function replayLabelLayout(tree: Tree, width: number, fontScale: number) {
-  const measured = measureProfileRow(tree.toJSON(), width, fontScale)
-  for (const title of tree.root.findAll((node) => String(node.type) === 'Text' && node.props['data-slot'] === 'list-row-title')) {
-    const label = measured.texts.find((text) => text.label === title.props.children)!
-    const onTextLayout = title.props.onTextLayout as (event: { nativeEvent: { lines: { text: string; x: number; y: number; width: number; height: number; descender: number; capHeight: number; ascender: number; xHeight: number }[] } }) => void
-    const height = label.height / label.lines
-    await act(() => onTextLayout({ nativeEvent: { lines: Array.from({ length: label.lines }, (_, index) => ({ text: label.label, x: 0, y: index * height, width: label.width, height, descender: 0, capHeight: height, ascender: height, xHeight: height })) } }))
-  }
-}
-
 describe('label control first-line alignment', () => {
   it.each([en, ptBR].flatMap((words) => [1, 2].map((fontScale) => ({ words, fontScale }))))('aligns the first line at font scale $fontScale', async ({ words, fontScale }) => {
     const title = words.profile.analytics.title
@@ -240,6 +230,36 @@ describe('single-line label accessories', () => {
       const accessories = geometry.parts.filter((part) => part.slot === 'list-row-icon' || part.slot === 'list-row-chevron')
       expect(accessories).toHaveLength(2)
       for (const accessory of accessories) expect(Math.abs(label.top + label.height / 2 - accessory.top - accessory.height / 2), accessory.slot).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
+
+function androidDoubleTextPixels(size: number) {
+  const points = [[0, 0], [8, 16], [10, 20], [12, 24], [14, 26], [18, 30], [20, 34], [24, 36], [30, 38], [100, 100]] as const
+  const upper = points.findIndex(([input]) => input >= size)
+  const [start, startPixels] = points[upper - 1]!
+  const [end, endPixels] = points[upper]!
+  return startPixels + (size - start) / (end - start) * (endPixels - startPixels)
+}
+
+describe('native nonlinear first-line geometry', () => {
+  it.each([en, ptBR].flatMap((words) => ['description', 'value', 'switch', 'badge'].map((kind) => ({ words, kind }))))('uses measured native lines beside a $kind', async ({ words, kind }) => {
+    __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
+    const title = kind === 'switch' ? words.profile.analytics.title : words.profile.settingsRows.theme
+    const width = kind === 'switch' ? 200 : 740
+    let tree!: Tree
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" description={kind === 'description' || kind === 'badge' ? words.settings.homeScreen.showGeneral : undefined} trailing={kind === 'badge' ? <Badge>{words.common.proBadge}</Badge> : undefined} value={kind === 'value' ? title : undefined} toggle={kind === 'switch' ? { checked: true, onChange: vi.fn() } : undefined} onClick={vi.fn()} />) as Tree })
+    try {
+      await replayLabelLayout(tree, width, 2, androidDoubleTextPixels)
+      const geometry = measureProfileRow(tree.toJSON(), width, 2, androidDoubleTextPixels)
+      const label = geometry.texts.find((text) => text.label === title)!
+      const lineCentre = label.top + label.height / label.lines / 2
+      const accessories = geometry.parts.filter((part) => ['list-row-icon', 'list-row-chevron', 'switch-track', ...(kind === 'badge' ? ['list-row-trailing'] : [])].includes(part.slot))
+      expect(accessories).toHaveLength(kind === 'badge' ? 3 : 2)
+      for (const accessory of accessories) expect(Math.abs(lineCentre - accessory.top - accessory.height / 2), accessory.slot).toBeLessThanOrEqual(1)
+      if (kind === 'switch') expect(label.lines).toBeGreaterThan(1)
+      const value = geometry.texts.find((text) => text !== label && text.label === title)
+      if (value) expect(Math.abs(lineCentre - value.top - value.height / 2)).toBeLessThanOrEqual(1)
     } finally { await act(() => tree.update(<></>)) }
   })
 })

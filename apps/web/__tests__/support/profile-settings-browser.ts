@@ -8,6 +8,18 @@ export function bundleProfilePreferences() {
   return bundleProfile('preferences')
 }
 
+export function bundleSlipAlertSection() {
+  return bundleGeometry(`import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { createTranslator } from 'next-intl';
+    import en from '../../packages/shared/src/i18n/en.json';
+    import { SlipAlertSection } from './components/habits/habit-form-fields/slip-alert-section';
+    const t = createTranslator({ locale: 'en', messages: en });
+    createRoot(document.getElementById('root')).render(<SlipAlertSection inline hasProAccess={false} slipAlertEnabled={false} onToggle={() => {}} t={t} />);`, {
+      'next/navigation': 'export const useRouter = () => ({ push: () => {} });',
+    })
+}
+
 function bundleProfile(kind: 'settings' | 'preferences') {
   const component = kind === 'settings' ? 'ProfileSettingsContent' : 'ProfilePreferencesContent'
   const contents = `import React from 'react';
@@ -27,9 +39,13 @@ function bundleProfile(kind: 'settings' | 'preferences') {
     '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: () => {} });',
     'next/navigation': 'export const useRouter = () => ({ push: () => {} });',
     '@/components/ui/sheet': 'export const Sheet = () => null;',
-    '@/app/(app)/preferences/_components/use-preference-controls': `import { useLocale } from 'next-intl'; export const usePreferenceControls = () => ({ selectedLanguage: useLocale(), currentTheme: 'dark', activePicker: null, setActivePicker: () => {}, handleThemeModeChange: () => {}, showGeneralOnToday: false, toggleShowGeneral: () => {}, timeZoneMutation: { mutate: () => {} }, weekStartMutation: { mutate: () => {} }, clockFormatMutation: { mutate: () => {} } });`,
+    '@/app/(app)/preferences/_components/use-preference-controls': `import { useLocale } from 'next-intl'; export const usePreferenceControls = () => ({ selectedLanguage: useLocale(), currentTheme: globalThis.geometryProfile.themePreference, activePicker: null, setActivePicker: () => {}, handleThemeModeChange: () => {}, showGeneralOnToday: false, toggleShowGeneral: () => {}, timeZoneMutation: { mutate: () => {} }, weekStartMutation: { mutate: () => {} }, clockFormatMutation: { mutate: () => {} } });`,
     '@/app/(app)/preferences/_components/preference-picker-sheet': 'export const PreferencePickerSheet = () => null;',
   }
+  return bundleGeometry(contents, boundaries)
+}
+
+function bundleGeometry(contents: string, boundaries: Record<string, string>) {
   const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
   return execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';

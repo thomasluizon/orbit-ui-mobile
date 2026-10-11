@@ -11,6 +11,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { ProfilePreferencesContent } from '@/app/(app)/profile/_components/profile-preferences-content'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { bundleProfilePreferences } from '@/__tests__/support/profile-settings-browser'
 
 const preferences = vi.hoisted(() => ({ locale: 'pt-BR' as 'en' | 'pt-BR', checked: false, open: vi.fn(), toggle: vi.fn() }))
@@ -80,6 +81,46 @@ describe('Profile preferences label geometry', () => {
       for (const label of measured) {
         expect.soft(label, JSON.stringify(label)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
         if (scale === 1) expect.soft(label.lines, label.label!).toBe(1)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1352].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) => ['light', 'dark'].map((mode) => ({ width, locale, mode })))))('aligns composed inline controls at $width in $locale, $mode through text scaling', async ({ width, locale, mode }) => {
+    const page = await browser.newPage({ viewport: { width, height: 2000 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode as 'light' | 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><div id="root" style="padding:16px;max-width:740px"></div></html>`)
+      await page.locator('#root').evaluate((root, { locale, profile }) => {
+        root.dataset.locale = locale
+        root.dataset.profile = JSON.stringify(profile)
+      }, { locale, profile: createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true, themePreference: mode as 'light' | 'dark' }) })
+      await page.addScriptTag({ content: componentScript })
+      await page.getByRole('group').waitFor()
+      await loadAppFonts(page)
+      for (const scale of [1, 2, 1]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
+          const label = title.getBoundingClientRect()
+          const accessory = control.getBoundingClientRect()
+          const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
+          return accessory.top >= label.bottom && control.getAttribute('data-slot') === 'list-row-value' ? 0 : Math.abs(label.top + Math.min(label.height, lineHeight) / 2 - accessory.top - accessory.height / 2)
+        })).then((offsets) => Math.max(...offsets))).toBeLessThanOrEqual(1)
+        const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const value = row.querySelector('[data-slot="list-row-value"]')
+          const description = row.querySelector('[data-slot="list-row-description"]')
+          const bounds = title.getBoundingClientRect()
+          return { title: title.textContent, lines: bounds.height / parseFloat(getComputedStyle(title).lineHeight), valueOffset: value ? value.getBoundingClientRect().top - bounds.top : null, descriptionGap: description ? description.getBoundingClientRect().top - bounds.bottom : null }
+        }))
+        for (const row of rows) {
+          if (row.descriptionGap !== null) expect(row.descriptionGap, row.title!).toBeCloseTo(4, 1)
+          if (scale === 1) {
+            expect(row.lines, row.title!).toBeCloseTo(1, 1)
+            if (row.valueOffset !== null) expect(Math.abs(row.valueOffset), row.title!).toBeLessThanOrEqual(1)
+          }
+        }
       }
     } finally { await page.close() }
   })

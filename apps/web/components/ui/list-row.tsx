@@ -44,7 +44,7 @@ function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebLi
 }
 
 function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebListRowProps['wrapValue'], inlineControl: boolean, switchRow: boolean) {
-  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: inlineControl ? 0 : 'var(--orbit-list-row-text-basis, auto)', flexShrink: inlineControl ? 1 : 'var(--orbit-list-row-text-shrink, 0)', maxWidth: '100%', minHeight: switchRow ? 28 : 24, justifyContent: 'center' } : {}) }
+  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'var(--orbit-list-row-text-basis, auto)', flexShrink: inlineControl ? 1 : 'var(--orbit-list-row-text-shrink, 0)', maxWidth: '100%', minHeight: switchRow ? 28 : 24, paddingBlockStart: switchRow ? 'max(0px, (28px - 1.4875rem) / 2)' : undefined, justifyContent: switchRow ? undefined : 'center' } : {}) }
 }
 
 function personalTextProps(textMode: WebListRowProps['textMode'], expanded: boolean | undefined) {
@@ -68,7 +68,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   const titleLine = <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle) }}>
-    {toggle ? <span className="flex items-center" style={{ minHeight: 'max(28px, 1.4875rem)' }}>{titleLine}</span> : titleLine}
+    {titleLine}
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: textMode === 'label' ? 1.4 : 1.25, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
   </span>
 }
@@ -76,7 +76,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
 function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
   if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
-  const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
+  const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
   return textMode === 'label' ? <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center">{text}</span> : text
 }
 
@@ -91,12 +91,17 @@ function iconLineHeight(props: WebListRowProps) {
   return props.textMode === 'label' ? 'max(24px, 1.4875rem)' : undefined
 }
 
+function trailingLineStyle(props: WebListRowProps) {
+  if (props.textMode !== 'label') return undefined
+  return { minHeight: props.toggle ? 'max(28px, 1.4875rem)' : '1.4875rem', height: props.description && !props.toggle ? 'max(24px, 1.4875rem)' : undefined }
+}
+
 function RowBody(props: Readonly<WebListRowProps>) {
   const { textMode, icon, danger } = props
   const trailing = props.toggle ? <SwitchTrack checked={props.toggle.checked} pending={props.toggle.pending} /> : props.trailing
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const rowValue = <RowValue {...props} />
-  const rowTrailing = trailing ? <span data-slot="list-row-trailing" className="flex shrink-0 items-center" style={textMode === 'label' ? { minHeight: props.toggle ? 'max(28px, 1.4875rem)' : '1.4875rem' } : undefined}>{trailing}</span> : null
+  const rowTrailing = trailing ? <span data-slot="list-row-trailing" className="flex shrink-0 items-center" style={trailingLineStyle(props)}>{trailing}</span> : null
   return (
     <>
       {icon ? (

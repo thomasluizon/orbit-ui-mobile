@@ -13,6 +13,7 @@ import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
 import { ProfileAccountContent } from '@/app/(app)/profile/_components/profile-account-content'
 import { ListRow } from '@/components/ui/list-row'
+import { bundleSlipAlertSection } from '@/__tests__/support/profile-settings-browser'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -48,8 +49,10 @@ describe('personal ListRow text in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let slipAlertScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
+    slipAlertScript = bundleSlipAlertSection()
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
@@ -93,6 +96,43 @@ describe('personal ListRow text in Chromium', () => {
       }
       expect(rows[0]).toEqual(rows[2])
       expect(rows[1]).toEqual(rows[2])
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1352].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))('aligns locked slip-alert accessories to the first line at $width, scale $textScale', async ({ width, textScale }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * textScale}px; }</style><main id="root" style="padding:24px"></main>`)
+      await loadAppFonts(page)
+      await page.addScriptTag({ content: slipAlertScript })
+      await page.getByRole('button').waitFor()
+      await loadAppFonts(page)
+      await page.waitForFunction(() => {
+        const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+        const wrapped = title.getBoundingClientRect().height > parseFloat(getComputedStyle(title).lineHeight) + 0.5
+        return wrapped === title.hasAttribute('data-row-multiline')
+      })
+      const geometry = await page.evaluate(() => {
+        const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+        const bounds = title.getBoundingClientRect()
+        const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
+        const firstLineCentre = bounds.top + lineHeight / 2
+        const accessories = ['list-row-icon', 'list-row-chevron'].map((slot) => {
+          const accessory = document.querySelector(`[data-slot="${slot}"]`)!.getBoundingClientRect()
+          return { slot, offset: Math.abs(accessory.top + accessory.height / 2 - firstLineCentre) }
+        })
+        const badge = document.querySelector('[data-slot="list-row-trailing"]')!.getBoundingClientRect()
+        const description = document.querySelector('[data-slot="list-row-description"]')!.getBoundingClientRect()
+        const row = document.querySelector('.orbit-list-row-shell')!.getBoundingClientRect()
+        return { accessories, badge: { top: badge.top, bottom: badge.bottom, left: badge.left, right: badge.right, height: badge.height, offset: Math.abs(badge.top + badge.height / 2 - firstLineCentre) }, descriptionBottom: description.bottom, titleBottom: bounds.bottom, row: { bottom: row.bottom, left: row.left, right: row.right } }
+      })
+      for (const accessory of geometry.accessories) expect(accessory.offset, accessory.slot).toBeLessThanOrEqual(1)
+      expect(geometry.badge.height).toBeGreaterThan(0)
+      expect(geometry.badge.left).toBeGreaterThanOrEqual(geometry.row.left)
+      expect(geometry.badge.right).toBeLessThanOrEqual(geometry.row.right)
+      expect(geometry.badge.bottom).toBeLessThanOrEqual(geometry.row.bottom)
+      if (geometry.badge.top >= geometry.titleBottom) expect(geometry.badge.top - geometry.descriptionBottom).toBeCloseTo(12, 1)
+      else expect(geometry.badge.offset).toBeLessThanOrEqual(1)
     } finally { await page.close() }
   })
 

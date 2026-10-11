@@ -9,6 +9,7 @@ import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-as
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { i18n } from '@/lib/i18n'
+import { replayProfileTitleLayout } from '../../support/profile-row-geometry'
 
 vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
@@ -61,6 +62,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
+  if (typeof style.paddingTop === 'number') node.setPadding(Yoga.EDGE_TOP, style.paddingTop)
   if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
   if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)
   if (typeof style.marginHorizontal === 'number') node.setMargin(Yoga.EDGE_HORIZONTAL, style.marginHorizontal)
@@ -109,6 +111,7 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
   const profile = createMockProfile({ hasProAccess, isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: 15, aiSummaryEnabled: true, proactiveAstraEnabled: true })
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileAstraContent profile={profile} patchProfile={vi.fn()} />) })
+  await replayProfileTitleLayout(tree, width - 32, scale)
   const texts = new Map<string, { node: YogaNode; width: number; wordWidth: number }>()
   const controls: YogaNode[] = []
   const layout = layoutHost(tree.toJSON(), texts, scale, controls)
