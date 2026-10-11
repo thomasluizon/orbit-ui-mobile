@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   lastCompletionDate: undefined as string | null | undefined,
   noHabits: false,
+  hasData: true,
+  isFetching: false,
+  isError: false,
   geometry: false,
   profileReady: true,
   timeZone: 'UTC',
@@ -56,10 +59,10 @@ vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({
-    data: { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) },
-    isLoading: false,
-    isFetching: false,
-    isError: false,
+    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) } : undefined,
+    isLoading: !mocks.hasData && mocks.isFetching,
+    isFetching: mocks.isFetching,
+    isError: mocks.isError,
     refetch: vi.fn(),
   }),
 }))
@@ -150,6 +153,9 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.routerPush.mockReset()
     mocks.lastCompletionDate = undefined
     mocks.noHabits = false
+    mocks.hasData = true
+    mocks.isFetching = false
+    mocks.isError = false
     mocks.geometry = false
     mocks.profileReady = true
     mocks.timeZone = 'UTC'
@@ -198,6 +204,52 @@ describe('mobile Today Astra owned surfaces', () => {
 
     expect(isSuppressed(tree)).toBe(true)
   })
+
+  it('keeps the same proactive line and header geometry throughout a habits refetch', async () => {
+    mocks.geometry = true
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    const findLine = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')[0]
+    const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+      ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line' : undefined)
+    const line = findLine()
+    expect(line).toBeDefined()
+    const resting = measure()
+    try {
+      mocks.isFetching = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+      expect(findLine()).toBe(line)
+      expect(measure()).toEqual(resting)
+
+      mocks.isFetching = false
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+      expect(findLine()).toBe(line)
+      expect(measure()).toEqual(resting)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['first load', 'load error', 'select mode', 'list surface'])(
+    'withholds the proactive line during %s', async (state) => {
+      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      mocks.hasData = state !== 'first load' && state !== 'load error'
+      mocks.isFetching = state === 'first load'
+      mocks.isError = state === 'load error'
+      useUIStore.setState({ isSelectMode: state === 'select mode' })
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      try {
+        if (state === 'list surface') {
+          await TestRenderer.act(() => {
+            (mocks.habitListProps?.onSurfaceOpenChange as (open: boolean) => void)(true)
+          })
+        }
+        expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')).toHaveLength(0)
+      } finally { await TestRenderer.act(() => tree.unmount()) }
+    },
+  )
 
   it.each([
     ['2026-08-26', true],

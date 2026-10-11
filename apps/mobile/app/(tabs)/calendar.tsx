@@ -377,15 +377,12 @@ function CalendarScreenContent({
   const agendaStart = useMemo(() => addDays(parseAPIDate(todayKey), agendaOffset * 7), [agendaOffset, todayKey]);
   const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart]);
 
-  let gridStartDate = rangeBounds.lo;
-  let gridEndDate = rangeBounds.hi;
-  if (view === "week") {
-    gridStartDate = weekStart;
-    gridEndDate = weekEnd;
-  } else if (view === "agenda") {
-    gridStartDate = agendaStart;
-    gridEndDate = agendaEnd;
-  }
+  const queryBounds = {
+    week: { lo: weekStart, hi: weekEnd },
+    agenda: { lo: agendaStart, hi: agendaEnd },
+    month: rangeBounds,
+    range: rangeBounds,
+  }[view];
 
   const {
     dayMap: rangeDayMap,
@@ -393,8 +390,8 @@ function CalendarScreenContent({
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
-    gridStartDate,
-    gridEndDate,
+    queryBounds.lo,
+    queryBounds.hi,
     Boolean(profile) && (view === "week" || view === "range" || view === "agenda"),
   );
 
