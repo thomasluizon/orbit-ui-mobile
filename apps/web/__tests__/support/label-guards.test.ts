@@ -186,7 +186,7 @@ describe('label and interaction fill guards in Chromium', () => {
           :root { ${variables} }
         </style>${tabs}</html>`)
         await loadAppFonts(page)
-        const indicators = page.locator('nav > button [data-tab-indicator]')
+        const indicators = page.locator('nav > a [data-tab-indicator]')
         expect(await indicators.count()).toBe(SHELL_DESTINATION_IDS.length)
         for (const indicator of await indicators.all()) {
           await expectInteractionFill(indicator)

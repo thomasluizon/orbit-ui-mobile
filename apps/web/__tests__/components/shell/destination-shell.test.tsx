@@ -328,6 +328,8 @@ describe('DestinationShell', () => {
       'nav.progress',
       'nav.profile',
     ])
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
+    expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()

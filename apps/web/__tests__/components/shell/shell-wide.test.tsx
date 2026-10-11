@@ -439,7 +439,6 @@ it('retains the conversation node, draft and destination scroll across the wide 
   expect(screen.getByRole('heading', { name: 'Today' })).toHaveFocus()
 })
 
-
 it('keeps the Astra layer open when a destination opens in another browsing context', () => {
   media.width = 1352
   const onSelect = vi.fn()
