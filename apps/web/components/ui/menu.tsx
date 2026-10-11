@@ -84,7 +84,7 @@ function MenuSheet({
   title?: string
   shortTitle?: string
   titleMode?: MenuProps['titleMode']
-  finalFocus: () => boolean
+  finalFocus: () => boolean | HTMLElement
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
@@ -216,12 +216,16 @@ export function Menu({
   anchorRef,
   align = 'end',
   wideFrom = DEFAULT_WIDE_FROM,
-}: Readonly<MenuProps>) {
+  returnFocus,
+}: Readonly<MenuProps & { returnFocus?: () => HTMLElement | null }>) {
   const wide = useWidePresentation(wideFrom)
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
   const restoreFocusOnCleanupRef = useRef(true)
-  const restoreSheetFocus = useCallback(() => restoreFocusOnCleanupRef.current, [])
+  const restoreSheetFocus = useCallback(() => restoreFocusOnCleanupRef.current && (returnFocus?.() ?? true), [returnFocus])
+  const restoreAnchoredFocus = useEffectEvent((target: HTMLElement | null) => {
+    if (restoreFocusOnCleanupRef.current) (returnFocus?.() ?? target)?.focus()
+  })
   const dismissed = useMenuOwnership(open && items.length > 0, onClose, restoreFocusOnCleanupRef)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
@@ -259,7 +263,7 @@ export function Menu({
     return () => {
       document.removeEventListener('pointerdown', dismiss)
       document.removeEventListener('keydown', onKeyDown, true)
-      if (restoreFocusOnCleanupRef.current) focusReturnTarget?.focus()
+      restoreAnchoredFocus(focusReturnTarget)
       focusReturnTargetRef.current = null
     }
   }, [anchorRef, dismissed, open, resolvedPresentation])

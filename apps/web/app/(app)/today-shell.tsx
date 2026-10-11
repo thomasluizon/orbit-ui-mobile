@@ -6,7 +6,6 @@ import { Menu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { ShellHeader } from '@/components/shell/shell-header'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
@@ -48,7 +47,6 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  const wide = useIsWideDesktop()
   return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
     {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
@@ -60,7 +58,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => setMenuOpen((open) => !open)}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      {!wide ? <NotificationBell /> : null}
+      <div className="lg:hidden"><NotificationBell /></div>
     </div>
     <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
       items={[
