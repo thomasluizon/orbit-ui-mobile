@@ -33,7 +33,7 @@ vi.mock('@/hooks/use-notifications', () => ({
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
   nav: useTodayNavigation('2026-09-04'),
-  data: { isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
+  data: { hasFetched: state.surface !== 'loading', isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
   habitListRef: { current: null }, selectedHabitIds: new Set(), selection: {},
 }) }))
 vi.mock('@/components/habits/habit-list', () => ({ HabitList: () => <div data-testid="spacing-list-surface">
