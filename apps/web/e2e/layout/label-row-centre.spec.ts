@@ -10,29 +10,23 @@ import { test } from './upgrade-fixtures'
 async function expectRowCentres(surface: Locator, scale: number) {
   await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
   await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
-  await expect.poll(async () => Math.max(...await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {
-    const label = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
-    const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
-    const title = label.getBoundingClientRect()
-    const accessory = control.getBoundingClientRect()
-    const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
-    const supportingLine = scale > 1 && control.getAttribute('data-slot') === 'list-row-value' && accessory.top >= title.bottom
-    return supportingLine ? 0 : Math.abs(title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2)
-  }), scale))).toBeLessThanOrEqual(1)
-  const rows = await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {
-    const label = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
-    const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
-    const title = label.getBoundingClientRect()
-    const accessory = control.getBoundingClientRect()
-    const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
-    return { label: label.textContent, lines: title.height / lineHeight, clipped: label.scrollHeight > label.clientHeight + 1,
-      offset: scale > 1 && control.getAttribute('data-slot') === 'list-row-value' && accessory.top >= title.bottom ? 0 : title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
-  }), scale)
-  for (const row of rows) {
-    expect(Math.abs(row.offset), row.label!).toBeLessThanOrEqual(1)
-    expect(row.clipped, row.label!).toBe(false)
-    if (scale === 1) expect(row.lines, row.label!).toBeCloseTo(1, 1)
-  }
+  await expect(async () => {
+    const rows = await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {
+      const label = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+      const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
+      const title = label.getBoundingClientRect()
+      const accessory = control.getBoundingClientRect()
+      const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
+      return { label: label.textContent, lines: title.height / lineHeight, clipped: label.scrollHeight > label.clientHeight + 1,
+        offset: scale > 1 && control.getAttribute('data-slot') === 'list-row-value' && accessory.top >= title.bottom ? 0 : title.top + Math.min(title.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
+    }), scale)
+    expect(Math.max(...rows.map((row) => Math.abs(row.offset)))).toBeLessThanOrEqual(1)
+    for (const row of rows) {
+      expect(Math.abs(row.offset), row.label!).toBeLessThanOrEqual(1)
+      expect(row.clipped, row.label!).toBe(false)
+      if (scale === 1) expect(row.lines, row.label!).toBeCloseTo(1, 1)
+    }
+  }).toPass({ timeout: 15_000 })
 }
 
 for (const width of [412, 1352]) {

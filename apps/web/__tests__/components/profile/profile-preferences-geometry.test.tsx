@@ -99,28 +99,30 @@ describe('Profile preferences label geometry', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2, 1]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {
-          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
-          const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
-          const label = title.getBoundingClientRect()
-          const accessory = control.getBoundingClientRect()
-          const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
-          return accessory.top >= label.bottom && control.getAttribute('data-slot') === 'list-row-value' ? 0 : Math.abs(label.top + Math.min(label.height, lineHeight) / 2 - accessory.top - accessory.height / 2)
-        })).then((offsets) => Math.max(...offsets))).toBeLessThanOrEqual(1)
-        const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {
-          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
-          const value = row.querySelector('[data-slot="list-row-value"]')
-          const description = row.querySelector('[data-slot="list-row-description"]')
-          const bounds = title.getBoundingClientRect()
-          return { title: title.textContent, lines: bounds.height / parseFloat(getComputedStyle(title).lineHeight), valueOffset: value ? value.getBoundingClientRect().top - bounds.top : null, descriptionGap: description ? description.getBoundingClientRect().top - bounds.bottom : null }
-        }))
-        for (const row of rows) {
-          if (row.descriptionGap !== null) expect(row.descriptionGap, row.title!).toBeCloseTo(4, 1)
-          if (scale === 1) {
-            expect(row.lines, row.title!).toBeCloseTo(1, 1)
-            if (row.valueOffset !== null) expect(Math.abs(row.valueOffset), row.title!).toBeLessThanOrEqual(1)
+        await vi.waitFor(async () => {
+          const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].map((row) => {
+            const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+            const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
+            const value = row.querySelector('[data-slot="list-row-value"]')
+            const description = row.querySelector('[data-slot="list-row-description"]')
+            const bounds = title.getBoundingClientRect()
+            const accessory = control.getBoundingClientRect()
+            const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
+            return { title: title.textContent, lines: bounds.height / lineHeight, valueOffset: value ? value.getBoundingClientRect().top - bounds.top : null, descriptionGap: description ? description.getBoundingClientRect().top - bounds.bottom : null,
+              clipped: title.scrollHeight > title.clientHeight + 1,
+              offset: accessory.top >= bounds.bottom && control.getAttribute('data-slot') === 'list-row-value' ? 0 : Math.abs(bounds.top + Math.min(bounds.height, lineHeight) / 2 - accessory.top - accessory.height / 2) }
+          }))
+          expect(Math.max(...rows.map((row) => row.offset))).toBeLessThanOrEqual(1)
+          for (const row of rows) {
+            expect(row.offset, row.title!).toBeLessThanOrEqual(1)
+            expect(row.clipped, row.title!).toBe(false)
+            if (row.descriptionGap !== null) expect(row.descriptionGap, row.title!).toBeCloseTo(4, 1)
+            if (scale === 1) {
+              expect(row.lines, row.title!).toBeCloseTo(1, 1)
+              if (row.valueOffset !== null) expect(Math.abs(row.valueOffset), row.title!).toBeLessThanOrEqual(1)
+            }
           }
-        }
+        })
       }
     } finally { await page.close() }
   })
