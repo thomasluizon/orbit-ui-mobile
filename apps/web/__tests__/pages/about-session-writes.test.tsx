@@ -69,7 +69,10 @@ vi.mock('@/hooks/use-is-desktop', async (importOriginal) => ({
 }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-retained-onboarding-guard', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-retained-onboarding-guard')>(),
+  useRetainedOnboardingGuard: () => false,
+}))
 vi.mock('@/hooks/use-habits', () => ({
   useTotalHabitCount: () => 0,
   useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),

@@ -35,7 +35,7 @@ describe('Shell bottom column geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([1100, 1352])('keeps the account block and destinations in place as the profile loads at %ipx', async (width) => {
-    const props = { items: [{ id: 'hoje', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
+    const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
       astraRow: { label: 'Astra', onOpen: vi.fn() } }
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     const shell = (account?: string) => renderToString(<ShellWide {...props} account={account} accountEmail={account ? 'account@example.com' : undefined} />)

@@ -138,7 +138,7 @@ async function inspectDestinations(page: Page) {
         await expectWayfindingFocus(page, page.locator('[data-goal-detail]'))
       }
     }, async () => {
-      await page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click()
+      await page.getByRole('navigation').getByRole('link', { name: label, exact: true }).click()
       await expect(page).toHaveURL((url) => url.pathname === path)
     })
   }

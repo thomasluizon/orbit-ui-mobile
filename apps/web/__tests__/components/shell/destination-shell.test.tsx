@@ -95,7 +95,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     children: ReactNode
     registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
     header?: ReactNode
-    items?: ReadonlyArray<{ id: string; label: string }>
+    items?: ReadonlyArray<{ id: string; href: string; label: string }>
     activeId?: string | null
     onSelect?: (id: string) => void
     onCreate?: () => void
@@ -129,7 +129,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
       <MockComposerSlot composer={composer} compactComposer={compactComposer} />
       {mocks.wide ? items?.map((item) => (
-        <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
+        <a href={item.href} key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={(event) => { event.preventDefault(); onSelect?.(item.id) }}>{item.label}</a>
       )) : tabBar}
       {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
       {mocks.wide ? createRefusal : null}
@@ -185,12 +185,12 @@ describe('DestinationShell', () => {
   it.each(['/', '/calendar', '/progress', '/profile'])('uses filled active icons and the dashboard destination on %s', (pathname) => {
     mocks.pathname = pathname
     render(<DestinationShell onCreate={() => {}}><h1>Root</h1></DestinationShell>)
-    const tabs = within(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).getAllByRole('button')
+    const tabs = within(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).getAllByRole('link')
     const active = tabs.filter((button) => button.hasAttribute('aria-current'))
     expect(active).toHaveLength(1)
     expect(active[0]!.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
     expect(tabs.filter((button) => !button.hasAttribute('aria-current')).every((button) => button.querySelector('svg')?.getAttribute('fill') === 'none')).toBe(true)
-    const progress = screen.getByRole('button', { name: 'nav.progress' }).querySelector('svg')!
+    const progress = screen.getByRole('link', { name: 'nav.progress' }).querySelector('svg')!
     const expected = document.createElement('div')
     const Icon = pathname === '/progress' ? LayoutDashboardFilled : LayoutDashboard
     expected.innerHTML = renderToStaticMarkup(<Icon size={24} strokeWidth={pathname === '/progress' ? 2 : 1.5} />)
@@ -328,14 +328,15 @@ describe('DestinationShell', () => {
     const onCreate = vi.fn()
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
-    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') !== '#orbit-main').map((button) => button.getAttribute('aria-label'))).toEqual([
       'nav.today',
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      'nav.createHabit',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
+    expect(onCreate).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
@@ -496,7 +497,7 @@ describe('DestinationShell', () => {
     setRouteTransitionIntent('tab')
     render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
 
-    fireEvent.click(screen.getByRole('button', { name: 'nav.today' }))
+    fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
     mocks.push('/habits/h1')
 
     expect(mocks.push).toHaveBeenCalledOnce()
@@ -511,13 +512,11 @@ describe('DestinationShell', () => {
     const onCreate = vi.fn()
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'nav.search',
+    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') !== '#orbit-main').map((button) => button.textContent)).toEqual([
       'nav.today',
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      'nav.createHabit',
     ])
     expect(screen.getByRole('button', { name: 'nav.search' })).not.toHaveTextContent('command.title')
     fireEvent.click(screen.getByRole('button', { name: 'nav.search' }))
@@ -576,7 +575,7 @@ describe('DestinationShell', () => {
     mocks.pathname = pathname
     render(<DestinationShell onCreate={() => {}}><h1>Profile flow</h1></DestinationShell>)
 
-    expect(screen.getByRole('button', { name: 'nav.profile' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'nav.profile' })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -587,8 +586,8 @@ describe('DestinationShell', () => {
     mocks.wide = wide
     render(<DestinationShell onCreate={() => {}} composer={<div data-testid="composer" />}><h1>Alerts</h1></DestinationShell>)
     expect(screen.queryByTestId('composer')).toBeNull()
-    expect(screen.getByRole('button', { name: 'nav.today' })).toBeInTheDocument()
-    if (!wide) expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'nav.today' })).toBeInTheDocument()
+    if (!wide) expect(screen.getByRole('link', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
   it.each(['/streak', '/retrospective', '/unknown'])(
@@ -597,7 +596,7 @@ describe('DestinationShell', () => {
       mocks.pathname = pathname
       render(<DestinationShell onCreate={() => {}}><h1>Unknown</h1></DestinationShell>)
 
-      expect(screen.getAllByRole('button').filter((button) => button.hasAttribute('aria-current')))
+      expect(screen.getAllByRole('link').filter((button) => button.hasAttribute('aria-current')))
         .toHaveLength(1)
     },
   )
@@ -860,7 +859,7 @@ describe('DestinationShell', () => {
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
       expect(screen.queryByRole('group', { name: en.shell.composer.suggestionsLabel })).not.toBeInTheDocument()
       expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
-      expect(screen.getByRole('button', { name: 'nav.today' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'nav.today' })).toBeInTheDocument()
     }
     fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
     expect(screen.queryByTestId('conversation')).not.toBeInTheDocument()
@@ -877,11 +876,11 @@ describe('DestinationShell', () => {
     const view = render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
     mocks.pathname = '/search'
     view.rerender(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
-    expect(screen.getByRole('button', { name: 'nav.calendar' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'nav.calendar' })).toHaveAttribute('aria-current', 'page')
     view.unmount()
     mocks.lastDestination = 'hoje'
     render(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
-    expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
   it.each([false, true])('hosts creation header and action without another create control at wide=%s', (wide) => {
@@ -907,8 +906,8 @@ describe('DestinationShell', () => {
     mocks.pathname = '/upgrade'
     mocks.profileLoaded = false
     const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Upgrade</h1></DestinationShell>)
-    expect(view.container.querySelectorAll('button[aria-current], button[aria-label^="nav."]')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'nav.profile' })).toHaveAttribute('aria-current', 'page')
+    expect(view.container.querySelectorAll('a[aria-current]')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'nav.profile' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('button', { name: 'nav.search' })).toBeInTheDocument()
     expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('data-loading', 'true')
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
@@ -928,7 +927,7 @@ it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false
   const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
   const scrollTo = vi.fn()
   scroller.scrollTo = scrollTo
-  fireEvent.click(document.querySelector<HTMLButtonElement>('button[aria-current="page"]')!)
+  fireEvent.click(document.querySelector<HTMLAnchorElement>('a[aria-current="page"]')!)
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
   expect(mocks.push).not.toHaveBeenCalled()
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')

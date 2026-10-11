@@ -79,7 +79,10 @@ vi.mock('@/hooks/use-gamification', () => ({
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-retained-onboarding-guard', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-retained-onboarding-guard')>(),
+  useRetainedOnboardingGuard: () => false,
+}))
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftHydrated: () => true,
   useOnboardingHasPendingAnswers: () => false,

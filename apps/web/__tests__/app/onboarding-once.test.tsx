@@ -1,6 +1,6 @@
 import { QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import React from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
@@ -104,7 +104,7 @@ vi.mock('@/components/navigation/notification-delete-notice', () => ({ Notificat
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))
-vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: ({ finalStepOnly }: { finalStepOnly: boolean }) => <div data-testid="account-onboarding">{finalStepOnly ? 'trial' : 'first habit'}</div> }))
+vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: ({ finalStepOnly, onExit }: { finalStepOnly: boolean; onExit: () => void }) => <div data-testid="account-onboarding">{finalStepOnly ? 'trial' : 'first habit'}<button type="button" onClick={() => { setOnboardingProPending('account-a', false); onExit() }}>Finish onboarding</button></div> }))
 vi.mock('@/components/gamification/streak-celebration', () => ({ StreakCelebration: () => null }))
 vi.mock('@/components/gamification/all-done-celebration', () => ({ AllDoneCelebration: () => null }))
 vi.mock('@/components/gamification/goal-completed-celebration', () => ({ GoalCompletedCelebration: () => null }))
@@ -195,7 +195,7 @@ describe('onboarding through owning layouts', () => {
     await waitFor(() => expect(screen.getByTestId('account-onboarding')).toHaveTextContent('trial'))
     expect(apply).toHaveBeenCalledWith({ habits: [{ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 }] }, 'account-a')
     expect(getQueryClient().getQueryData(profileKeys.detail())).toMatchObject({ hasCompletedOnboarding: true })
-    act(() => setOnboardingProPending('account-a', false))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish onboarding' }))
     await waitFor(() => expect(screen.queryByTestId('account-onboarding')).not.toBeInTheDocument())
     expect(screen.getByText('Hoje')).toBeInTheDocument()
     expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)

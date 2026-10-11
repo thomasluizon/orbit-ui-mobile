@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getOnboardingLoginUrl } from '@/lib/onboarding-login-route'
 import { useAuthStore } from '@/stores/auth-store'
@@ -14,16 +14,20 @@ export default function OnboardingLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const hydrated = useOnboardingDraftHydrated()
+  useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
+  return hydrated ? <HydratedOnboardingLayout>{children}</HydratedOnboardingLayout> : null
+}
+
+function HydratedOnboardingLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const loginUrl = getOnboardingLoginUrl(useSearchParams().toString())
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const hydrated = useOnboardingDraftHydrated()
-  const locallyDone = useOnboardingDraftStore((state) => state.onboardingLocallyDone)
-  useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
+  const [locallyDone] = useState(() => useOnboardingDraftStore.getState().onboardingLocallyDone)
   useEffect(() => {
-    if (hydrated && (isAuthenticated || locallyDone)) router.replace(isAuthenticated ? '/' : loginUrl)
-  }, [hydrated, isAuthenticated, locallyDone, loginUrl, router])
-  if (!hydrated || isAuthenticated || locallyDone) return null
+    if (isAuthenticated || locallyDone) router.replace(isAuthenticated ? '/' : loginUrl)
+  }, [isAuthenticated, locallyDone, loginUrl, router])
+  if (isAuthenticated || locallyDone) return null
   return (
     <Providers>
       <FlowShell>{children}</FlowShell>

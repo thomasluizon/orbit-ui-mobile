@@ -172,7 +172,7 @@ describe('label and interaction fill guards in Chromium', () => {
       const tabs = renderToStaticMarkup(createElement(BottomTabBar, {
         label: en.nav.mainNavigation, activeId: 'hoje', onSelect: () => {},
         items: SHELL_DESTINATION_IDS.map((id) => ({
-          id, label: en.nav[DESTINATION_ICONS[id].commandId],
+          id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: en.nav[DESTINATION_ICONS[id].commandId],
           icon: ({ active }: { active: boolean }) => createElement(DestinationIcon, {
             destination: id, active, color: active ? 'var(--primary)' : 'var(--fg-3)',
           }),
@@ -186,7 +186,7 @@ describe('label and interaction fill guards in Chromium', () => {
           :root { ${variables} }
         </style>${tabs}</html>`)
         await loadAppFonts(page)
-        const indicators = page.locator('nav > button [data-tab-indicator]')
+        const indicators = page.locator('nav > a [data-tab-indicator]')
         expect(await indicators.count()).toBe(SHELL_DESTINATION_IDS.length)
         for (const indicator of await indicators.all()) {
           await expectInteractionFill(indicator)

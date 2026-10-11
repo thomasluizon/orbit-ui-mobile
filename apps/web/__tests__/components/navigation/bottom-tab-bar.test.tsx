@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 
+const routes: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+
 const labels: Record<string, string> = {
   hoje: 'Hoje',
   calendario: 'Calendário',
@@ -11,7 +13,7 @@ const labels: Record<string, string> = {
 
 describe('BottomTabBar', () => {
   it('centres navigation in the same capped column as the mobile tab bar', () => {
-    render(<BottomTabBar activeId="hoje" items={Object.entries(labels).map(([id, label]) => ({ id, label }))} label="Navegação principal" onSelect={() => {}} />)
+    render(<BottomTabBar activeId="hoje" items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))} label="Navegação principal" onSelect={() => {}} />)
     expect(screen.getByRole('navigation')).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
   })
 
@@ -19,13 +21,13 @@ describe('BottomTabBar', () => {
     render(
       <BottomTabBar
         activeId="hoje"
-        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))}
         label="Navegação principal"
         onSelect={() => {}}
       />,
     )
 
-    const buttons = screen.getAllByRole('button')
+    const buttons = screen.getAllByRole('link')
     expect(buttons.map((button) => button.textContent)).toEqual([
       'Hoje',
       'Calendário',
@@ -33,6 +35,7 @@ describe('BottomTabBar', () => {
       'Perfil',
     ])
     expect(buttons.every((button) => button.children.length === 1)).toBe(true)
+    expect(buttons.map((button) => button.getAttribute('href'))).toEqual(Object.values(routes))
     expect(screen.queryByText('Astra')).not.toBeInTheDocument()
   })
 
@@ -41,15 +44,15 @@ describe('BottomTabBar', () => {
     render(
       <BottomTabBar
         activeId="perfil"
-        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))}
         label="Navegação principal"
         onSelect={onTab}
       />,
     )
 
-    expect(screen.getByRole('button', { name: 'Perfil' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: 'Hoje' })).not.toHaveAttribute('aria-current')
-    fireEvent.click(screen.getByRole('button', { name: 'Calendário' }))
+    expect(screen.getByRole('link', { name: 'Perfil' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Hoje' })).not.toHaveAttribute('aria-current')
+    fireEvent.click(screen.getByRole('link', { name: 'Calendário' }))
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
 
@@ -58,7 +61,7 @@ describe('BottomTabBar', () => {
     render(
       <BottomTabBar
         activeId="calendario"
-        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))}
         label="Navegação principal"
         onSelect={() => {}}
       />,
@@ -77,7 +80,7 @@ describe('BottomTabBar', () => {
     render(
       <BottomTabBar
         activeId="hoje"
-        items={[{ id: 'hoje', label: 'Hoje', icon: () => <svg data-testid="today-icon" /> }]}
+        items={[{ id: 'hoje', href: '/', label: 'Hoje', icon: () => <svg data-testid="today-icon" /> }]}
         label="Navegação principal"
         onSelect={() => {}}
       />,
@@ -92,13 +95,13 @@ describe('BottomTabBar', () => {
     render(
       <BottomTabBar
         activeId="unknown"
-        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        items={Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))}
         label="Navegação principal"
         onSelect={() => {}}
       />,
     )
 
-    expect(screen.getAllByRole('button').every(
+    expect(screen.getAllByRole('link').every(
       (button) => !button.hasAttribute('aria-current'),
     )).toBe(true)
     expect(screen.getAllByText(/Hoje|Calendário|Progresso|Perfil/).every(
@@ -109,9 +112,9 @@ describe('BottomTabBar', () => {
 
 it('keeps one current position when another or the current item is pressed', () => {
   const onSelect = vi.fn()
-  const items = Object.entries(labels).map(([id, label]) => ({ id, label }))
+  const items = Object.entries(labels).map(([id, label]) => ({ id, label, href: routes[id]! }))
   render(<BottomTabBar items={items} activeId="calendario" onSelect={onSelect} label="Navigation" />)
-  const buttons = screen.getAllByRole('button')
+  const buttons = screen.getAllByRole('link')
   expect(buttons.filter((button) => button.hasAttribute('aria-current'))).toEqual([buttons[1]])
   fireEvent.click(buttons[2]!)
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('progresso')

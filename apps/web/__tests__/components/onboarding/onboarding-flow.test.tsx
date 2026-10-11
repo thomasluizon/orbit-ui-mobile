@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { completeOnboardingOrQueue, useOnboardingCompletionQueue } from '@/hooks/use-onboarding-completion-queue'
+import { useRetainedOnboardingGuard, useRetainedOnboardingSession } from '@/hooks/use-retained-onboarding-guard'
 import { setOnboardingProPending, useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
@@ -11,7 +14,8 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
@@ -19,6 +23,7 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { setAccountId } from '@/lib/account-scope'
 import AuthLayout from '@/app/(auth)/layout'
 import OnboardingLayout from '@/app/(onboarding)/layout'
@@ -33,10 +38,12 @@ const mocks = vi.hoisted(() => {
   return {
     finalFinish: undefined as (() => Promise<void>) | undefined,
     useRealPush: false,
+    isOnline: true,
     useRealShell: false,
     dialogOpenChanges: vi.fn(),
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
+    recordCompletion: vi.fn(),
     finishOnboarding: vi.fn(),
     suggest: vi.fn(),
     subscribe: vi.fn(),
@@ -76,7 +83,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
@@ -101,7 +108,10 @@ vi.mock('@/components/shell/shell-wide', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/shell/shell-wide')>()
   return { ShellWide: (props: React.ComponentProps<typeof original.ShellWide> & { tabBar?: React.ReactNode }) => mocks.useRealShell ? <original.ShellWide {...props} /> : <div>{props.children}<div data-shell-notice="">{props.notice}</div>{props.tabBar}</div> }
 })
-vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, onSelect }: { items: { id: string; label: string }[]; onSelect: (id: string) => void }) => <nav>{items.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav> }))
+vi.mock('@/components/navigation/bottom-tab-bar', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/navigation/bottom-tab-bar')>()
+  return { BottomTabBar: (props: React.ComponentProps<typeof original.BottomTabBar>) => mocks.useRealShell ? <original.BottomTabBar {...props} /> : <nav>{props.items.map((item) => <button key={item.id} type="button" onClick={() => props.onSelect(item.id)}>{item.label}</button>)}</nav> }
+})
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', descriptionId }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; descriptionId?: string }) => <button type="button" disabled={disabled || loading} onClick={onClick} data-variant={variant} data-size={size} aria-describedby={descriptionId}>{children}</button>,
 }))
@@ -130,8 +140,21 @@ function actions(): OnboardingActions {
     createGoal: vi.fn(),
     setWeekStartDay: vi.fn(),
     deferPushRegistration: vi.fn(),
+    recordCompletion: mocks.recordCompletion,
     finishOnboarding: mocks.finishOnboarding,
   }
+}
+
+function RetainedRecoverySource({ profile }: Readonly<{ profile: Profile }>) {
+  const pendingPro = useOnboardingProPending()
+  const completionQueued = useOnboardingCompletionQueue()
+  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
+  const required = useRetainedOnboardingGuard(profile, completionQueued, pushRegistrationFailed)
+  const session = useRetainedOnboardingSession(required || pendingPro)
+  const authenticated = useAuthStore((state) => state.isAuthenticated)
+  return authenticated && session.open
+    ? <RetainedOnboardingOverlay finalStepOnly={pendingPro} onExit={session.dismiss} />
+    : <span>destination ready</span>
 }
 
 function mount(isLive: boolean) {
@@ -167,6 +190,7 @@ async function reachDone(isLive: boolean) {
 describe('OnboardingFlow state model', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
     Reflect.deleteProperty(navigator, 'serviceWorker')
     if (originalTimeZone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimeZone
@@ -174,11 +198,13 @@ describe('OnboardingFlow state model', () => {
 
   beforeEach(() => {
     mocks.useRealPush = false
+    mocks.isOnline = true
     mocks.useRealShell = false
     vi.clearAllMocks()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mocks.finishOnboarding.mockReset()
+    mocks.recordCompletion.mockReset()
     mocks.suggest.mockReset()
     vi.useRealTimers()
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
@@ -228,13 +254,15 @@ describe('OnboardingFlow state model', () => {
             const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
             const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
             return { shellTop: shell.top, shellBottom: shell.bottom, contentTop: header?.top ?? scroller.top,
-              bottom: bottom.bottom, controls: [...document.querySelectorAll('[data-shell-bottom] button')]
+              bottom: bottom.bottom, controls: [...document.querySelectorAll('[data-shell-bottom] :is(a[href], button)')]
                 .map((control) => control.getBoundingClientRect().bottom) }
           })
           expect(geometry.contentTop).toBe(top)
           expect(geometry.shellTop).toBe(0)
           expect(geometry.shellBottom).toBe(915)
           expect(geometry.bottom).toBe(915)
+          expect(geometry.controls.length).toBeGreaterThan(0)
+          if (step === 'done') expect(geometry.controls).toHaveLength(4)
           for (const bottom of geometry.controls) expect(bottom).toBeLessThanOrEqual(915 - 34)
         } finally { await page.close() }
       },
@@ -317,6 +345,7 @@ describe('OnboardingFlow state model', () => {
 
     expect(screen.getByLabelText('sentence')).toHaveValue('')
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {
@@ -542,6 +571,131 @@ describe('OnboardingFlow state model', () => {
     expect(screen.getByRole('button', { name: 'remind.deny' })).toHaveAttribute('data-variant', 'ghost')
   })
 
+  it('records a Pro account completion before Done without a router callback', async () => {
+    mocks.useRealShell = true
+    holdAccount('native-link-pro-account')
+    Object.assign(mocks.profile, createMockProfile({ hasCompletedOnboarding: false, hasProAccess: true, plan: 'pro' }))
+    let completeAccount!: () => void
+    mocks.recordCompletion.mockImplementationOnce(() => new Promise<void>((resolve) => { completeAccount = resolve }))
+    await reachReminder(true)
+    fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
+    await waitFor(() => expect(mocks.recordCompletion).toHaveBeenCalledOnce())
+    expect(screen.queryByTestId('done')).not.toBeInTheDocument()
+    await act(async () => { completeAccount() })
+    await screen.findByTestId('done')
+    for (const link of screen.getAllByRole('link', { name: 'nav.calendar' })) {
+      expect(link).toHaveAttribute('href', '/calendar')
+      expect(fireEvent.click(link, { metaKey: true })).toBe(true)
+    }
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    expect(screen.getByTestId('done')).toBeInTheDocument()
+  })
+
+  it('blocks repeated Skip and other actions while recording completion', async () => {
+    let completeAccount!: () => void
+    mocks.recordCompletion.mockImplementationOnce(() => new Promise<void>((resolve) => { completeAccount = resolve }))
+    mount(true)
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await waitFor(() => expect(mocks.recordCompletion).toHaveBeenCalledOnce())
+    expect(screen.getByRole('button', { name: 'skip' })).toBeDisabled()
+    expect(screen.getByLabelText('sentence').closest('[inert]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(mocks.recordCompletion).toHaveBeenCalledOnce()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    await act(async () => { completeAccount() })
+    await screen.findByTestId('done')
+  })
+
+  it.each(['offline queue', 'profile refresh'] as const)('retains the paid Pro source through %s until a plain exit', async (completion) => {
+    mocks.useRealShell = true
+    holdAccount('paid-pro-source')
+    const profile = createMockProfile({ hasCompletedOnboarding: false, hasProAccess: true, plan: 'pro' })
+    Object.assign(mocks.profile, profile)
+    mocks.isOnline = false
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mocks.recordCompletion.mockImplementation(() => completeOnboardingOrQueue('paid-pro-source'))
+    function OwningComposition({ completed = false }: { completed?: boolean }) {
+      const queued = useOnboardingCompletionQueue()
+      const required = useRetainedOnboardingGuard({ ...profile, hasCompletedOnboarding: completed }, completion === 'offline queue' && queued)
+      const session = useRetainedOnboardingSession(required)
+      return session.open ? <RetainedOnboardingOverlay onExit={session.dismiss} /> : <span>destination ready</span>
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const source = render(<QueryClientProvider client={queryClient}><OwningComposition /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await screen.findByTestId('done')
+    source.rerender(<QueryClientProvider client={queryClient}><OwningComposition completed /></QueryClientProvider>)
+    expect(screen.getByTestId('done')).toBeInTheDocument()
+    for (const link of screen.getAllByRole('link', { name: 'nav.calendar' })) expect(fireEvent.click(link, { metaKey: true })).toBe(true)
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+    await screen.findByText('destination ready')
+    source.unmount()
+    render(<QueryClientProvider client={queryClient}><OwningComposition completed /></QueryClientProvider>)
+    expect(screen.queryByTestId('done')).not.toBeInTheDocument()
+    expect(screen.getByText('destination ready')).toBeInTheDocument()
+  })
+
+  it('keeps the current step and offers recovery when recording completion fails', async () => {
+    mocks.recordCompletion.mockRejectedValueOnce(new Error('unavailable'))
+    mount(true)
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await screen.findByText('completionFailed')
+    expect(screen.queryByTestId('done')).not.toBeInTheDocument()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'errorScreen.reload' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await screen.findByTestId('done')
+  })
+
+  it.each(['signed-out Done', 'signed-in unfinished Done', 'signed-in Pro pending'] as const)('preserves native destination activation from %s in both shells', async (mode) => {
+    mocks.useRealShell = true
+    const isLive = mode !== 'signed-out Done'
+    if (isLive) {
+      holdAccount('native-link-account')
+      Object.assign(mocks.profile, createMockProfile({ hasCompletedOnboarding: false, hasProAccess: false, isTrialActive: false }))
+    }
+    await reachDone(isLive)
+    if (mode === 'signed-in Pro pending') {
+      fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+      await screen.findByTestId('pro-step')
+    }
+    const expectedStep = mode === 'signed-in Pro pending' ? 'pro-step' : 'done'
+    const links = screen.getAllByRole('link', { name: /^nav\.(calendar|today|progress|profile)$/ })
+    expect(links).toHaveLength(8)
+    for (const link of links) {
+      for (const activation of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { button: 1 }]) {
+        expect(activation.button === 1 ? fireEvent(link, new MouseEvent('auxclick', { bubbles: true, cancelable: true, ...activation })) : fireEvent.click(link, activation)).toBe(true)
+        expect(screen.getByTestId(expectedStep)).toBeInTheDocument()
+      }
+    }
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    if (isLive) {
+      expect(screen.getAllByRole('link', { name: 'nav.calendar' })[0]).toHaveAttribute('href', '/calendar')
+      function PendingInNewContext() { return useOnboardingProPending() ? <RetainedOnboardingOverlay finalStepOnly /> : <span>first step would be owed</span> }
+      expect(mocks.profile).toHaveProperty('hasCompletedOnboarding', false)
+      cleanup()
+      render(<PendingInNewContext />)
+      expect(screen.queryByText('first step would be owed')).not.toBeInTheDocument()
+      expect(screen.getAllByTestId('pro-step')).toHaveLength(1)
+    } else {
+      expect(links[0]).toHaveAttribute('href', '/login?from=onboarding')
+      const persistedDraft = localStorage.getItem('orbit-onboarding-draft')!
+      const persisted = JSON.parse(persistedDraft)
+      expect(persisted.state.onboardingLocallyDone).toBe(true)
+      cleanup()
+      useOnboardingDraftStore.setState({ onboardingLocallyDone: false })
+      localStorage.setItem('orbit-onboarding-draft', persistedDraft)
+      render(<NavigationContext.Provider value={{ url: '/login?from=onboarding', navigate: mocks.navigate }}><AuthLayout><span>new context sign-in</span></AuthLayout></NavigationContext.Provider>)
+      await screen.findByText('new context sign-in')
+      expect(mocks.navigate).not.toHaveBeenCalled()
+    }
+  })
+
   it.each([
     ['calendario', 'nav.calendar', '/calendar'],
     ['hoje', 'nav.today', '/'],
@@ -703,6 +857,63 @@ describe('OnboardingFlow state model', () => {
 
     await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+  })
+
+  it.each(['retry', 'remind.continue'])('dismisses the retained paid Pro recovery session after %s succeeds', async (choice) => {
+    let completeRecovery!: () => void
+    mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { completeRecovery = resolve }))
+    mocks.useRealShell = true
+    holdAccount('paid-pro-recovery')
+    const profile = createMockProfile({ hasCompletedOnboarding: true, hasProAccess: true, plan: 'pro', isTrialActive: false })
+    Object.assign(mocks.profile, profile)
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const source = render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('failed')
+    fireEvent.click(screen.getByRole('button', { name: choice }))
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+    await act(async () => { completeRecovery() })
+    await screen.findByText('destination ready')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.subscribe).toHaveBeenCalledTimes(choice === 'retry' ? 1 : 0)
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
+    source.unmount()
+    render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    expect(screen.getByText('destination ready')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each(['registration', 'completion'])('keeps the retained paid Pro recovery open after %s fails', async (failure) => {
+    holdAccount('paid-pro-recovery-failure')
+    const profile = createMockProfile({ hasCompletedOnboarding: true, hasProAccess: true, plan: 'pro', isTrialActive: false })
+    Object.assign(mocks.profile, profile)
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    if (failure === 'registration') mocks.subscribe.mockRejectedValueOnce(new Error('registration failed'))
+    else mocks.finishOnboarding.mockRejectedValueOnce(new Error('completion failed'))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'retry' })).toBeEnabled())
+    expect(mocks.finishOnboarding).toHaveBeenCalledTimes(failure === 'completion' ? 1 : 0)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('failed')
+    expect(screen.queryByText('destination ready')).not.toBeInTheDocument()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
   })
 
   it('locks both reminder choices until Allow completes', async () => {

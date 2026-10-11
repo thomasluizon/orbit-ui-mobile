@@ -42,7 +42,10 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-retained-onboarding-guard', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-retained-onboarding-guard')>(),
+  useRetainedOnboardingGuard: () => false,
+}))
 vi.mock('@/hooks/use-onboarding-pro-pending', () => ({ useOnboardingProPending: () => false }))
 vi.mock('@/hooks/use-onboarding-completion-queue', () => ({ useOnboardingCompletionQueue: () => false }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: true }) }))

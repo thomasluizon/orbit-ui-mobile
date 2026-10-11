@@ -72,7 +72,10 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), u
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-retained-onboarding-guard', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-retained-onboarding-guard')>(),
+  useRetainedOnboardingGuard: () => false,
+}))
 vi.mock('@/hooks/use-habits', () => ({
   useTotalHabitCount: () => 0,
   useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
