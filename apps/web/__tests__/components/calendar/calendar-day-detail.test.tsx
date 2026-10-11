@@ -17,6 +17,11 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const detailLocale = vi.hoisted(() => ({ language: 'en' }))
+vi.mock('@/hooks/use-calendars', () => ({
+  useCalendars: () => ({ data: [{ id: 'family', name: 'Family calendar', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true }], isLoading: false, isError: false }),
+  useSetSelectedCalendars: () => ({ mutateAsync: vi.fn(), mutate: vi.fn() }),
+}))
+
 const network = vi.hoisted(() => ({ isOnline: true }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: network.isOnline }) }))
 
@@ -55,6 +60,8 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { CheckRow } from '@/components/ui/check-row'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 
 const proAutoSyncState: CalendarAutoSyncState = {
   hasGoogleConnection: true,
@@ -353,6 +360,32 @@ describe('CalendarDayDetail', () => {
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
   })
 
+  it.each(['upcoming', 'completed'] as const)('draws a circle with the matching check state for %s day rows', (status) => {
+    renderDetail({ entries: [makeEntry({ title: 'Read', status })], loggable: true })
+    const control = screen.getByRole('checkbox', { name: 'Read' })
+    const circle = control.querySelector('[data-slot="calendar-day-circle"]')
+    expect(circle).not.toBeNull()
+    expect(circle).toHaveAttribute('width', '24')
+    expect(circle).toHaveAttribute('height', '24')
+    expect(circle?.querySelectorAll('path')).toHaveLength(status === 'completed' ? 2 : 1)
+    expect(control.querySelector('[data-slot="checkbox-box"]')).toBeNull()
+    expect(control).toHaveAttribute('aria-checked', String(status === 'completed'))
+  })
+
+  it('keeps the calendar picker completion control square', () => {
+    render(<CalendarPickerSection enabled />)
+    const control = screen.getByRole('checkbox', { name: 'Family calendar' })
+    expect(control.querySelector('[data-slot="checkbox-box"]')).not.toBeNull()
+    expect(control.querySelector('[data-slot="calendar-day-circle"]')).toBeNull()
+  })
+
+  it.each([undefined, 'personal'] as const)('keeps the box in a %s CheckRow outside the day card', (textMode) => {
+    render(<CheckRow label="Family calendar" textMode={textMode} onOpenLabel={vi.fn()} checked onChange={vi.fn()} />)
+    const control = screen.getByRole('checkbox', { name: 'Family calendar' })
+    expect(control.querySelector('[data-slot="checkbox-box"]')).not.toBeNull()
+    expect(control.querySelector('[data-slot="calendar-day-circle"]')).toBeNull()
+  })
+
   it('keeps current-day unchecks upcoming before their writes settle', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-06-15T00:00:00Z'))
@@ -585,6 +618,8 @@ describe('CalendarDayDetail', () => {
     fireEvent.click(row)
 
     expect(row).toHaveAttribute('aria-checked', 'true')
+    expect(row).toHaveAttribute('aria-busy', 'true')
+    expect(row.querySelector('[data-slot="calendar-day-circle"]')?.querySelectorAll('path')).toHaveLength(2)
     expect(row).toBeDisabled()
     expect(screen.getByText('08:00')).toBeInTheDocument()
     fireEvent.click(row)
