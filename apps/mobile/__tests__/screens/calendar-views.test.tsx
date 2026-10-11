@@ -1021,7 +1021,7 @@ describe("CalendarScreen views (mobile)", () => {
       pressView(tree, 'range')
       const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!
       TestRenderer.act(() => options.props.onPress())
-      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem' && React.Children.toArray(node.props.children).some((child) => React.isValidElement<{ children?: React.ReactNode }>(child) && child.props.children === 'calendar.googleCalendar'))[0]!
+      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'calendar.googleCalendar')[0]!
       TestRenderer.act(() => google.props.onPress())
     }
     expect(state.routerPush).toHaveBeenCalledWith('/upgrade')

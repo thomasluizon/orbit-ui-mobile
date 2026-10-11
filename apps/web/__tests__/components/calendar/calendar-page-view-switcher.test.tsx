@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
@@ -678,7 +678,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
     if (destination === '/upgrade') {
       fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'calendar.googleCalendar' }))
+      fireEvent.click(within(screen.getByRole('dialog', { name: 'calendar.options' })).getByRole('button', { name: 'calendar.googleCalendar' }))
     } else if (destination === '/notifications') fireEvent.click(screen.getByRole('button', { name: 'notifications.bell' }))
     else fireEvent.click(screen.getByRole('button', { name: destination === '/search' ? 'open-search-route' : 'open-habit-route' }))
     expect(routerPush).toHaveBeenCalledWith(destination)
