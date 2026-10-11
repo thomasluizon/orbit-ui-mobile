@@ -8,7 +8,7 @@ import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { OnboardingFlow } from './onboarding-flow'
 
 /** Post-auth onboarding overlay for existing users who have not finished onboarding. */
-export function RetainedOnboardingOverlay({ finalStepOnly = false }: Readonly<{ finalStepOnly?: boolean }>) {
+export function RetainedOnboardingOverlay({ finalStepOnly = false, onExit }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void }>) {
   const actions = useLiveOnboardingActions()
   /**
    * The flow is keyed to the account, so an account replacement under a running tab remounts
@@ -19,7 +19,7 @@ export function RetainedOnboardingOverlay({ finalStepOnly = false }: Readonly<{ 
 
   return (
     <OnboardingActionsProvider actions={actions} isLive>
-      <OnboardingFlow finalStepOnly={finalStepOnly} key={accountGeneration} />
+      <OnboardingFlow finalStepOnly={finalStepOnly} onExit={onExit} key={accountGeneration} />
     </OnboardingActionsProvider>
   )
 }

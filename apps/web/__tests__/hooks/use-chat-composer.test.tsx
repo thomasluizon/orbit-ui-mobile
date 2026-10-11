@@ -72,7 +72,10 @@ vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionSh
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: vi.fn() }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-retained-onboarding-guard', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-retained-onboarding-guard')>(),
+  useRetainedOnboardingGuard: () => false,
+}))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
   useTotalHabitCount: () => 0,

@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { holdAccount, replaceAccountWith, resetAuthStore } from '@/__tests__/support/account-change'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 
 const pushMock = vi.fn()
@@ -189,6 +190,15 @@ describe('live onboarding actions', () => {
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
   })
 
+  it('records account completion without leaving the source or replacing its profile', async () => {
+    holdAccount('user-1')
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await result.current.recordCompletion()
+    expect(mocks.completeOnboarding).toHaveBeenCalledWith('user-1')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
   it('keeps onboarding open when online completion fails', async () => {
     mocks.completeOnboarding.mockRejectedValue(new Error('unavailable'))
     const { result } = renderHook(() => useLiveOnboardingActions())
@@ -240,6 +250,19 @@ describe('live onboarding actions', () => {
     expect(mocks.setQueryData).not.toHaveBeenCalled()
     expect(pushMock).not.toHaveBeenCalled()
 
+  })
+
+  it('rechecks the account after the recording continuation settles', async () => {
+    holdAccount('user-1')
+    mocks.completeOnboarding.mockImplementationOnce(() => {
+      queueMicrotask(() => queueMicrotask(() => queueMicrotask(() => holdAccount('user-2'))))
+      return Promise.resolve()
+    })
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await act(async () => { await result.current.finishOnboarding() })
+    expect(getHeldAccountId()).toBe('user-2')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
   })
 
   it('seeds the chat draft and opens Astra on import', () => {

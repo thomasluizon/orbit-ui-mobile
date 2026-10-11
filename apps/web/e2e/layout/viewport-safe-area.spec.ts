@@ -81,7 +81,7 @@ for (const width of [320, 412, 600]) {
         await expect(panel).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
         await revealTodayControls(page)
-        for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] button', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
+        for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
           const controls = page.locator(selector).filter({ visible: true })
           expect(await controls.count(), selector).toBeGreaterThan(0)
           for (const control of await controls.all()) await expectInsideInsets(control, top, bottom)
@@ -157,7 +157,7 @@ for (const inset of [0, 44]) {
       await installLongToday(context)
       await page.goto('/')
       await revealTodayControls(page)
-      for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] button', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
+      for (const selector of ['[data-shell-header] button', '[data-shell-pinned-slot] button', '[data-shell-pinned-slot] textarea', '[data-shell-tab-bar] :is(a[href], button)', '[data-shell-fab] button', '[data-shell-scroll-to-top] button']) {
         const controls = page.locator(selector).filter({ visible: true })
         expect(await controls.count(), selector).toBeGreaterThan(0)
         for (const control of await controls.all()) await expectSafeBounds(control)
