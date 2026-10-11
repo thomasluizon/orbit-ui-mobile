@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
     data: {
       habitsById: new Map([['habit-1', { id: 'habit-1' }]]),
       filters: {},
+      hasFetched: true,
       isFetching: false,
       isRefetching: false,
       showLoadError: false,
@@ -123,6 +124,7 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.showCreateModal = false
     mocks.view.listSurfaceOpen = false
     mocks.view.data.isFetching = false
+    mocks.view.data.hasFetched = true
     mocks.view.data.isRefetching = false
     mocks.view.data.showLoadError = false
     mocks.view.data.habitsCount = 1
@@ -201,6 +203,39 @@ describe('web Today Astra owned surfaces', () => {
 
     expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'true')
   })
+
+  it('keeps the same proactive line mounted throughout a habits refetch', () => {
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    const line = screen.getByRole('button', { name: 'Check in' })
+
+    mocks.view.data.isFetching = true
+    mocks.view.data.isRefetching = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
+
+    mocks.view.data.isFetching = false
+    mocks.view.data.isRefetching = false
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.getByRole('button', { name: 'Check in' })).toBe(line)
+  })
+
+  it.each(['first load', 'load error', 'select mode', 'list surface'])(
+    'withholds the proactive line during %s', (state) => {
+      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
+      mocks.view.data.isFetching = state === 'first load'
+      mocks.view.data.showLoadError = state === 'load error'
+      mocks.view.isSelectMode = state === 'select mode'
+      mocks.view.listSurfaceOpen = state === 'list surface'
+
+      render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+      expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
+    },
+  )
 
   it.each([
     ['2026-08-26', true],

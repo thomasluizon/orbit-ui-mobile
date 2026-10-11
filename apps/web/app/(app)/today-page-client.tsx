@@ -119,7 +119,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
             <TodayAstra
               today={view.nav.today}
               isTodaySelected={view.nav.dateStr === view.nav.today}
-              suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
+              suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || !view.data.hasFetched || view.data.showLoadError}
             />
           </TodayHeaderRegion>
         </PreloadedProfileContext.Provider>
