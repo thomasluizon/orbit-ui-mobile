@@ -123,7 +123,7 @@ function enterSelection() {
 function expectTodayVisible() {
   expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
   expect(screen.getByText('Morning walk')).toBeVisible()
-  expect(screen.getByRole('button', { name: 'nav.calendar' })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'nav.calendar' })).toBeVisible()
 }
 
 describe('Today lazy overlays', () => {

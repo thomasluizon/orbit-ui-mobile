@@ -105,19 +105,18 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
 })
 
 it.each([
-  ['notifications.bell', '/notifications'], ['Person, person@example.com', '/profile'],
-  ['nav.createHabit', '/habits/new'], ['nav.today', '/'], ['nav.calendar', '/calendar'],
-  ['nav.progress', '/progress'], ['nav.profile', '/profile'],
-])('closes Astra before sidebar navigation through %s', (label, pathname) => {
+  ['notifications.bell', '/notifications', 'button'], ['Person, person@example.com', '/profile', 'link'],
+  ['nav.createHabit', '/habits/new', 'button'], ['nav.today', '/', 'link'], ['nav.calendar', '/calendar', 'link'],
+  ['nav.progress', '/progress', 'link'], ['nav.profile', '/profile', 'link'],
+])('closes Astra before sidebar navigation through %s', (label, pathname, role) => {
   const view = render(<App />)
   fireEvent.click(screen.getByRole('button', { name: 'chat.title' }))
-  const control = label === 'Person, person@example.com'
-    ? screen.getByRole('link', { name: label }) : screen.getByRole('button', { name: label })
+  const control = screen.getByRole(role, { name: label })
   fireEvent.click(control)
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
-  if (control.tagName === 'A') {
-    expect(control).toHaveAttribute('href', pathname)
+  if (role === 'link') expect(control).toHaveAttribute('href', pathname)
+  if (label === 'Person, person@example.com') {
     navigation.pathname = pathname
   } else if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
   view.rerender(<App />)
