@@ -12,15 +12,26 @@ import { Badge } from '@/components/ui/badge'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
-afterEach(__resetTestHostConfig)
+afterEach(() => {
+  __resetTestHostConfig()
+  preferenceLocale.value = undefined
+})
 
 vi.mock('@/hooks/use-shell-notice-slot', () => ({ useShellNoticeSlot: vi.fn() }))
-const preferenceLocale = vi.hoisted((): { value: 'en' | 'pt-BR' } => ({ value: 'en' }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], preferenceLocale.value === 'en' ? en : ptBR), i18n: { language: preferenceLocale.value } }) }))
+const preferenceLocale = vi.hoisted((): { value: 'en' | 'pt-BR' | undefined } => ({ value: undefined }))
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => preferenceLocale.value
+      ? key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], preferenceLocale.value === 'en' ? en : ptBR)
+      : params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: preferenceLocale.value ?? 'en' },
+  }),
+}))
 vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: preferenceLocale.value, currentTheme: 'dark', currentScheme: 'orange', showGeneralOnToday: true, handleShowGeneralToggle: vi.fn(), activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
 vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
 
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+const { push } = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/ui/app-toast', () => ({ Toast: () => null }))
 vi.mock('@/lib/posthog', () => ({ getAnalyticsOptOut: () => Promise.resolve(false), setAnalyticsOptOut: vi.fn() }))
@@ -31,6 +42,27 @@ vi.mock('@/app/(tabs)/profile/_components/delete-account-modal', () => ({ Delete
 
 type Tree = ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
 type HostRow = Parameters<typeof measureProfileRow>[0]
+
+describe('account navigation row', () => {
+  it.each([
+    createMockProfile({ name: 'Ana', email: 'a@b.co' }),
+    createMockProfile({ name: 'Pessoa com um nome completo escrito no próprio perfil', email: `${'longaddress'.repeat(12)}@example.com` }),
+    undefined,
+  ])('offers only the Conta navigation control with no details button', async (profile) => {
+    push.mockClear()
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<AccountNavigationRow profile={profile} submenu={PROFILE_SUBMENUS[0]} />) })
+    try {
+      const controls = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button')
+      expect(controls.filter((node) => String(node.props.accessibilityLabel).startsWith('contextMenu.viewDetails'))).toHaveLength(0)
+      expect(controls).toHaveLength(1)
+      expect(controls[0]!.props.accessibilityLabel).toBe(`profile.submenus.accountLabel:${JSON.stringify({ name: profile?.name ?? 'profile.submenus.account', email: profile?.email ?? '' })}`)
+      await act(() => (controls[0]!.props.onPress as () => void)())
+      expect(push).toHaveBeenCalledExactlyOnceWith('/profile/account')
+      expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
 
 function firstRowBody(host: HostRow | HostRow[]): HostRow | undefined {
   if (Array.isArray(host)) return host.map(firstRowBody).find(Boolean)

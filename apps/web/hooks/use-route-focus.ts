@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { getShellHeading } from '@/components/shell/shell-header'
 
 function focusNewView(): boolean {
   const main = document.querySelector<HTMLElement>('main')
   const header = document.querySelector<HTMLElement>('[data-shell-header]')
-  const target = header?.querySelector<HTMLElement>('h1') ?? main?.querySelector<HTMLElement>('h1') ?? main
+  const target = getShellHeading(document) ?? main?.querySelector<HTMLElement>('h1') ?? main
   if (!target) return false
   if (main?.contains(document.activeElement) || header?.contains(document.activeElement)) return true
   target.tabIndex = -1

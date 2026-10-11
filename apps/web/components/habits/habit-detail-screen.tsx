@@ -5,7 +5,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
 import { ActionRow } from '@/components/ui/action-row'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -51,7 +51,7 @@ import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
-import { useShellHeaderSlot } from '@/components/shell/destination-shell'
+import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
@@ -113,6 +113,8 @@ interface HabitDetailScreenProps {
   parentId?: string | null
 }
 
+const HabitHeadingFocusContext = createContext<RefObject<boolean> | null>(null)
+
 function SectionTitle({ children }: Readonly<{ children: string }>) {
   return <h2 className="truncate text-sm font-medium text-[var(--fg-1)]">{children}</h2>
 }
@@ -166,10 +168,14 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
   const [descriptionOpen, setDescriptionOpen] = useAccountScopedState(false)
   const [title, setTitle] = useAccountScopedState(habit.title)
   const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
+  const pendingHeadingFocusRef = useContext(HabitHeadingFocusContext)
+  useLayoutEffect(() => {
     const focusedHeader = document.activeElement?.matches('[data-shell-header] h1')
-    if (focusedHeader) headingRef.current?.focus({ preventScroll: true })
-  }, [habit.id])
+    if (focusedHeader || pendingHeadingFocusRef?.current) {
+      if (pendingHeadingFocusRef) pendingHeadingFocusRef.current = false
+      headingRef.current?.focus({ preventScroll: true })
+    }
+  }, [habit.id, pendingHeadingFocusRef])
   const save = async () => {
     const next = title.trim()
     if (!next || next === habit.title) {
@@ -405,14 +411,24 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
 
 function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
   const t = useTranslations()
-  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={titleIsHeading} onBack={onBack}
+  const pendingHeadingFocusRef = useContext(HabitHeadingFocusContext)
+  const titleRef = useCallback((heading: HTMLHeadingElement | null) => {
+    if (!heading) return
+    if (pendingHeadingFocusRef?.current) {
+      pendingHeadingFocusRef.current = false
+      heading.focus({ preventScroll: true })
+    }
+    return () => {
+      if (pendingHeadingFocusRef && document.activeElement === heading) pendingHeadingFocusRef.current = true
+    }
+  }, [pendingHeadingFocusRef])
+  return <AppBar title={t('habits.detail.screenTitle')} titleRef={titleRef} titleIsHeading={titleIsHeading} onBack={onBack}
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
-function HabitDetailFrame({ header, navigationKey, children }: Readonly<{ header: React.ReactNode; navigationKey: string; children: React.ReactNode }>) {
-  const hosted = useShellHeaderSlot(() => header, navigationKey)
+function HabitDetailFrame({ header, children }: Readonly<{ header: React.ReactNode; children: React.ReactNode }>) {
   return <>
-    {hosted ? null : header}
+    <ShellHeader>{header}</ShellHeader>
     <div data-habit-detail-content="" className="flex min-h-full w-full max-w-[652px] flex-col gap-6 px-4 pt-6">{children}</div>
   </>
 }
@@ -429,13 +445,18 @@ function useDetailWrites(habitId: string, accountGeneration: number): ReturnType
   return scope.queue
 }
 
-export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
+export function HabitDetailScreen(props: Readonly<HabitDetailScreenProps>) {
+  const pendingHeadingFocusRef = useRef(false)
+  return <HabitHeadingFocusContext value={pendingHeadingFocusRef}><HabitDetailProfile {...props} /></HabitHeadingFocusContext>
+}
+
+function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   useDocumentTitle(profile ? null : t('habits.detail.screenTitle'), habitId)
   if (!profile) {
-    return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${date ?? ''}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
+    return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
       if (parentId || fromToday) router.back()
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
@@ -613,8 +634,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   }
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
     .childrenByParent.get(habit.id) ?? [])
@@ -639,7 +660,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow placement="column" icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
 
   return (
-    <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
+    <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <div>
         <HabitHeader habit={habit} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />

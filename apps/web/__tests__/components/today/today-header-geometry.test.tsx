@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -83,6 +85,61 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap((width) => ['today', 'calendar'].map((destination) => ({ width, destination }))))(
+    'keeps the server-rendered $destination header and content in place through hydration at $width', async ({ width, destination }) => {
+      const surface = destination === 'today'
+        ? <div className="flex flex-col gap-6"><TodayDateControl {...props} isTodaySelected beforeDate={<p data-before-date="">Routine summary</p>} /></div>
+        : <CalendarOptions />
+      const shell = <NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+        <DestinationShell onCreate={noop}>{surface}<div data-first-content="" style={{ height: 1600 }} /></DestinationShell>
+      </NextIntlClientProvider>
+      const container = document.createElement('div')
+      container.innerHTML = renderToString(shell)
+      document.body.append(container)
+      const optionsLabel = destination === 'today' ? props.moreLabel : ptBr.calendar.options
+      const optionsSelector = `button[aria-label="${optionsLabel}"]`
+      const contentSelector = destination === 'today' ? '[data-today-date-row]' : '[data-first-content]'
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      let root: ReturnType<typeof hydrateRoot> | undefined
+      const recoverableError = vi.fn()
+      try {
+        const firstOptions = container.querySelector(optionsSelector)
+        const firstBell = container.querySelector(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)
+        expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
+        expect(container.querySelectorAll(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)).toHaveLength(1)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const headerInset = () => page.locator(optionsSelector).evaluate((element) => {
+          const row = element.closest('[data-today-header-actions], [data-testid="calendar-shell-header"]')!
+          const column = row.closest('[data-shell-column]')!
+          return row.getBoundingClientRect().top - column.getBoundingClientRect().top
+        })
+        expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
+        const firstTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
+        const noticeTop = destination === 'today' ? await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top) : null
+        expect((await page.locator(optionsSelector).boundingBox())?.height).toBeGreaterThanOrEqual(48)
+        if (firstOptions instanceof HTMLElement) firstOptions.focus()
+        await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+        expect(document.activeElement).toBe(firstOptions)
+        expect(recoverableError).not.toHaveBeenCalled()
+        expect.soft(container.querySelector(optionsSelector), 'options survive hydration without remounting').toBe(firstOptions)
+        expect.soft(container.querySelector(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`), 'bell survives hydration without remounting').toBe(firstBell)
+        expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
+        expect(container.querySelector(optionsSelector)?.closest('[data-shell-header]')).not.toBeNull()
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
+        const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
+        expect(hydratedTop).toBeCloseTo(firstTop, 1)
+        if (noticeTop !== null) expect(await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(noticeTop, 1)
+      } finally {
+        await act(async () => root?.unmount())
+        container.remove()
+        await page.close()
+      }
+    },
+  )
 
   it.each([320, 412, 600, 840].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
     'keeps all four bells aligned with short and overflowing content at $width px and $textScale text scale', async ({ width, textScale }) => {

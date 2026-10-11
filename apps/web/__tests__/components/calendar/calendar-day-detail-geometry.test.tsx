@@ -6,6 +6,8 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
+import { CheckRow } from '@/components/ui/check-row'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -42,6 +44,67 @@ describe('day card compact geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
+    const entries = makeCalendarDayCardEntries()
+    expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <div style={{ padding: 16, maxWidth: 740 }}><CalendarDayDetail dateStr={calendarDayCardDate} today={calendarDayCardDate}
+        entries={entries} calendarEvents={[]} calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}
+        onOpenHabitTitle={vi.fn()} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
+      </div>
+      <CheckRow label="Family calendar" textMode="personal" onOpenLabel={vi.fn()} checked={false} onChange={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const heights: number[][] = []
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('section [data-personal-text]')].map((title) => {
+          const button = title.closest('button')!
+          const row = button.closest('[data-slot="list-row-body"]') ?? button
+          const metadata = title.nextElementSibling as HTMLElement | null
+          const titleBox = title.getBoundingClientRect()
+          const rowBox = row.getBoundingClientRect()
+          const labelBox = button.getBoundingClientRect()
+          const rowStyle = getComputedStyle(row)
+          const labelStyle = getComputedStyle(button)
+          const controlFill = row.querySelector('[role="checkbox"] [data-press-fill]')?.getBoundingClientRect()
+          const metadataBox = metadata?.getBoundingClientRect()
+          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
+        }))
+        expect(rows).toHaveLength(entries.length)
+        rows.forEach((row) => {
+          expect(row.minimum, JSON.stringify(row)).toBe(68)
+          expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
+          expect(row.labelHeight, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
+          if (loggable) {
+            expect(row.rowPadding).toEqual(['0px', '0px'])
+            expect(row.labelPadding).toEqual(['12px', '12px'])
+            expect(row.labelMargins).toEqual(['0px', '0px'])
+            expect(row.fillsRow).toBe(true)
+            expect(row.controlFill).toEqual({ width: 48, height: 48, separated: true, contained: true })
+          }
+        })
+        rows.forEach((row, index) => {
+          expect(row.metadata).toBe(entries[index]!.dueTime ?? messages.calendar.timeGrid.noSetTime)
+          expect(row.metadataSize).toBe(12 * scale)
+          expect(row.gap).toBeCloseTo(4)
+          expect(row.contained).toBe(true)
+          expect(row.clipped).toBe(false)
+        })
+        heights.push(rows.map((row) => row.height))
+      }
+      for (const index of [0, 1, 3, 4]) {
+        expect(heights[0]![index]).toBeCloseTo(68)
+        expect(heights[1]![index]).toBeGreaterThan(heights[0]![index]!)
+      }
+      const calendarRow = page.getByRole('button', { name: 'Family calendar', exact: true })
+      expect(await calendarRow.evaluate((button) => getComputedStyle(button.closest('[data-slot="list-row-body"]')!).minHeight)).toBe('52px')
+    } finally { await page.close() }
+  })
 
   it.each([320, 360, 384, 412, 1280].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('fits titles and targets at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
     const openTitle = vi.fn()
@@ -116,7 +179,7 @@ describe('day card compact geometry', () => {
         expect(geometry.dayGap).toBeCloseTo(0)
         if (loggable) {
           expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
-          expect(geometry.labelPadding).toEqual(['12px', '16px'])
+          expect(geometry.labelPadding).toEqual(['0px', '16px'])
         }
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.width)
         expect(geometry.eventHeight).toBeLessThanOrEqual(geometry.eventLineHeight * 2 + 1)

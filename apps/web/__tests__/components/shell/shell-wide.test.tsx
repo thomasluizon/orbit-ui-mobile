@@ -350,6 +350,26 @@ describe('ShellWide', () => {
     expect(screen.getByRole('heading', { name: 'Calendar' })).toHaveFocus()
   })
 
+  it.each([true, false])('skips a retained hidden heading when conversation focus returns with side panel=%s', (sidePanel) => {
+    media.width = sidePanel ? 1024 : 1023
+    const props = {
+      items,
+      navLabel: 'Main navigation',
+      conversation: <button type="button">Close conversation</button>,
+      conversationLabel: 'Astra conversation',
+      header: <><div hidden><h1>Previous</h1></div><div><h1>Calendar</h1></div></>,
+      astraRow: { label: 'Astra', onOpen: () => {} },
+      activeId: 'calendario',
+    }
+    const { rerender } = render(<ShellWide {...props} conversationOpen={false}
+      composer={<button type="button">Open conversation</button>}><p>Content</p></ShellWide>)
+    screen.getByRole('button', { name: 'Open conversation' }).focus()
+    rerender(<ShellWide {...props} conversationOpen><p>Content</p></ShellWide>)
+    expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
+    rerender(<ShellWide {...props} conversationOpen={false}><p>Content</p></ShellWide>)
+    expect(screen.getByRole('heading', { name: 'Calendar' })).toHaveFocus()
+  })
+
   it('omits navigation and uses the action slot in flow mode', () => {
     const { container } = render(
       <ShellWide nav={false} action={<button type="button">Continue</button>}>

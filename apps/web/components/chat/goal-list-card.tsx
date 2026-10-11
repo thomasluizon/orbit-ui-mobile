@@ -28,7 +28,8 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
     return {
       id: item.id,
-      label: <div className="flex min-w-0 flex-col items-start gap-2">{onOpenGoal ? <button type="button" className="min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" aria-label={item.title} onClick={() => onOpenGoal(item.id)}><PersonalText>{item.title}</PersonalText></button> : <PersonalTextDetails>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</div>,
+      wrapLabel: true,
+      label: <div className="flex min-w-0 flex-col items-start gap-2">{onOpenGoal ? <button type="button" className="-mx-[8px] min-h-[var(--touch-min)] self-stretch min-w-0 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" aria-label={item.title} onClick={() => onOpenGoal(item.id)}><PersonalText>{item.title}</PersonalText></button> : <PersonalTextDetails outset>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</div>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
       wrapMeta: projected != null,
       control: value === 100

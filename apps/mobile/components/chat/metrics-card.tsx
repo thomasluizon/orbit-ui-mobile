@@ -23,7 +23,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
     id: row.id,
     wrapLabel: true,
     wrapMeta: row.id === 'topHabit',
-    label: row.id === 'topHabit' && typeof row.value === 'string' ? <PersonalTextDetails>{row.value}</PersonalTextDetails> : t(row.labelKey),
+    label: row.id === 'topHabit' && typeof row.value === 'string' ? <PersonalTextDetails outset>{row.value}</PersonalTextDetails> : t(row.labelKey),
     meta: row.id === 'topHabit' && typeof row.value === 'string' ? t(row.labelKey) : undefined,
     control: row.id === 'topHabit' && typeof row.value === 'string' ? undefined : <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'], maxWidth: '45%', textAlign: 'right' }}>{row.value ?? t('chat.metrics.noFigure')}</Text>,
   }))

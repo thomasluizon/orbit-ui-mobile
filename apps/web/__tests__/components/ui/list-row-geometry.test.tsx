@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -24,6 +24,25 @@ vi.mock('@/app/(app)/profile/_components/use-data-export', () => ({ useDataExpor
 vi.mock('@/app/(app)/profile/_components/edit-name-sheet', () => ({ EditNameSheet: () => null }))
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({ FreshStartModal: () => null }))
 vi.mock('@/app/(app)/profile/_components/delete-account-modal', () => ({ DeleteAccountModal: () => null }))
+
+describe('account navigation row', () => {
+  it.each([
+    createMockProfile({ name: 'Ana', email: 'a@b.co' }),
+    createMockProfile({ name: 'Pessoa com um nome completo escrito no próprio perfil', email: `${'longaddress'.repeat(12)}@example.com` }),
+    undefined,
+  ])('offers only the Conta link with the full accessible account text', (profile) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <AccountNavigationRow profile={profile} submenu={PROFILE_SUBMENUS[0]!} />
+    </NextIntlClientProvider>)
+    const row = within(container)
+    expect(row.getAllByRole('link')).toHaveLength(1)
+    expect(row.getByRole('link')).toHaveAttribute('href', '/profile/account')
+    expect(row.getByRole('link')).toHaveAccessibleName(`${profile?.name ?? ptBR.profile.submenus.account}, ${profile?.email ?? ''}, conta`)
+    expect(row.queryByRole('button', { name: /Ver detalhes/ })).not.toBeInTheDocument()
+    expect(row.queryAllByRole('button')).toHaveLength(0)
+    expect(row.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
 
 describe('personal ListRow text in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
