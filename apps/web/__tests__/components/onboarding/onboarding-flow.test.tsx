@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
@@ -22,6 +23,7 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { setAccountId } from '@/lib/account-scope'
 import AuthLayout from '@/app/(auth)/layout'
 import OnboardingLayout from '@/app/(onboarding)/layout'
@@ -141,6 +143,18 @@ function actions(): OnboardingActions {
     recordCompletion: mocks.recordCompletion,
     finishOnboarding: mocks.finishOnboarding,
   }
+}
+
+function RetainedRecoverySource({ profile }: Readonly<{ profile: Profile }>) {
+  const pendingPro = useOnboardingProPending()
+  const completionQueued = useOnboardingCompletionQueue()
+  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
+  const required = useRetainedOnboardingGuard(profile, completionQueued, pushRegistrationFailed)
+  const session = useRetainedOnboardingSession(required || pendingPro)
+  const authenticated = useAuthStore((state) => state.isAuthenticated)
+  return authenticated && session.open
+    ? <RetainedOnboardingOverlay finalStepOnly={pendingPro} onExit={session.dismiss} />
+    : <span>destination ready</span>
 }
 
 function mount(isLive: boolean) {
@@ -843,6 +857,63 @@ describe('OnboardingFlow state model', () => {
 
     await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+  })
+
+  it.each(['retry', 'remind.continue'])('dismisses the retained paid Pro recovery session after %s succeeds', async (choice) => {
+    let completeRecovery!: () => void
+    mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { completeRecovery = resolve }))
+    mocks.useRealShell = true
+    holdAccount('paid-pro-recovery')
+    const profile = createMockProfile({ hasCompletedOnboarding: true, hasProAccess: true, plan: 'pro', isTrialActive: false })
+    Object.assign(mocks.profile, profile)
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const source = render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('failed')
+    fireEvent.click(screen.getByRole('button', { name: choice }))
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+    await act(async () => { completeRecovery() })
+    await screen.findByText('destination ready')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.subscribe).toHaveBeenCalledTimes(choice === 'retry' ? 1 : 0)
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
+    source.unmount()
+    render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    expect(screen.getByText('destination ready')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each(['registration', 'completion'])('keeps the retained paid Pro recovery open after %s fails', async (failure) => {
+    holdAccount('paid-pro-recovery-failure')
+    const profile = createMockProfile({ hasCompletedOnboarding: true, hasProAccess: true, plan: 'pro', isTrialActive: false })
+    Object.assign(mocks.profile, profile)
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    if (failure === 'registration') mocks.subscribe.mockRejectedValueOnce(new Error('registration failed'))
+    else mocks.finishOnboarding.mockRejectedValueOnce(new Error('completion failed'))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><RetainedRecoverySource profile={profile} /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'retry' })).toBeEnabled())
+    expect(mocks.finishOnboarding).toHaveBeenCalledTimes(failure === 'completion' ? 1 : 0)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('failed')
+    expect(screen.queryByText('destination ready')).not.toBeInTheDocument()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
   })
 
   it('locks both reminder choices until Allow completes', async () => {

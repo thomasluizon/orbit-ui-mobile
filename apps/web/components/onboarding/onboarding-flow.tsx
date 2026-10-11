@@ -359,10 +359,8 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
   }
 
   async function finishDeferredPushRecovery() {
-    const generation = getAccountGeneration()
     if (getCurrentPlan(profile) === 'Pro') {
-      await actions.finishOnboarding()
-      if (getAccountGeneration() === generation) useOnboardingDraftStore.getState().reset()
+      await finishAndLeave()
       return
     }
     const accountId = getHeldAccountId()
