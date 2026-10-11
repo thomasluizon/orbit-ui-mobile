@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
@@ -52,6 +52,7 @@ function getMockAccountDateKey(): string {
 
 let calendarLocale = 'en'
 let isWideDesktopValue = false
+const wideShellSubscribers = new Set<() => void>()
 let calendarRouteSearch = ''
 let calendarRoutePath = '/calendar'
 const routeListeners = new Set<() => void>()
@@ -160,7 +161,10 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsWideDesktop: () => isWideDesktopValue,
+  useIsWideDesktop: () => React.useSyncExternalStore((notify) => {
+    wideShellSubscribers.add(notify)
+    return () => { wideShellSubscribers.delete(notify) }
+  }, () => isWideDesktopValue, () => false),
 }))
 
 vi.mock('@/hooks/use-calendar-data', async (importOriginal) => {
@@ -674,7 +678,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
     if (destination === '/upgrade') {
       fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'calendar.googleCalendar' }))
+      fireEvent.click(within(screen.getByRole('dialog', { name: 'calendar.options' })).getByRole('button', { name: 'calendar.googleCalendar' }))
     } else if (destination === '/notifications') fireEvent.click(screen.getByRole('button', { name: 'notifications.bell' }))
     else fireEvent.click(screen.getByRole('button', { name: destination === '/search' ? 'open-search-route' : 'open-habit-route' }))
     expect(routerPush).toHaveBeenCalledWith(destination)
@@ -1111,7 +1115,7 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
 
     expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
@@ -1150,22 +1154,42 @@ describe('CalendarPage view switcher', () => {
     expect(grid.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('retains the bell, options menu and selected view across viewport changes', () => {
+  it.each([false, true])('preserves the Google Calendar owner gate after dismissal with Pro access %s', (hasProAccess) => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess }
+    sheetTestControls.defer(true)
+    try {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+      fireEvent.click(screen.getByRole('button', { name: 'calendar.googleCalendar' }))
+      expect(routerPush).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
+      act(() => sheetTestControls.completeDismissal())
+      if (hasProAccess) {
+        expect(screen.getByTestId('calendar-import-content')).toBeInTheDocument()
+        expect(routerPush).not.toHaveBeenCalled()
+      } else {
+        expect(routerPush).toHaveBeenCalledWith('/upgrade')
+        expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
+      }
+    } finally { sheetTestControls.defer(false) }
+  })
+
+  it('retains the bell, options menu and selected view across viewport changes', async () => {
     const { rerender } = render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getAllByRole('button', { name: 'notifications.bell' })).toHaveLength(1)
     const bell = screen.getByRole('button', { name: 'notifications.bell' })
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
 
-    isWideDesktopValue = true
+    act(() => { isWideDesktopValue = true; wideShellSubscribers.forEach((notify) => notify()) })
     rerender(<CalendarPage />)
     expect(screen.getByRole('button', { name: 'notifications.bell' })).toBe(bell)
     expect(screen.getByRole('button', { name: 'calendar.options' })).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
     expect(useUIStore.getState().calendarShowRecurring).toBe(false)
     expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
 
-    isWideDesktopValue = false
+    act(() => { isWideDesktopValue = false; wideShellSubscribers.forEach((notify) => notify()) })
     rerender(<CalendarPage />)
     expect(screen.getAllByRole('button', { name: 'notifications.bell' })).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'notifications.bell' })).toBe(bell)
@@ -1274,7 +1298,7 @@ describe('CalendarPage view switcher', () => {
     expect(calendarRangeViewProps.current?.isLoading).toBe(false)
   })
 
-  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
+  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
@@ -1290,7 +1314,10 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
     fireEvent.click(screen.getByTestId('calendar-header'))
     fireEvent.click(screen.getByTestId('month-view'))
@@ -1506,7 +1533,7 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.queryByTestId('calendar-legend')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'calendar.legendTitle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.legendTitle' }))
     expect(screen.getByTestId('calendar-legend')).toBeDefined()
     expect(calendarStatsProps.state).toBe('default')
   })
@@ -1541,7 +1568,7 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('month-stats')).toBeDefined()
     expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
 
     expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
     expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
@@ -1564,7 +1591,7 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
 
     expect(screen.queryByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).not.toBeInTheDocument()
     expect(screen.getAllByRole('img', { name: /calendar\.dayCell\.notScheduled/ })).toHaveLength(14)
