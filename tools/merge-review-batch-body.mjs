@@ -34,27 +34,71 @@ if (!bodyFile || !reportFile || !out || ![bodyFile, reportFile, out].every(isAbs
   process.exit(2)
 }
 
-// Worker reports arrive with CRLF line endings and may end on an empty heading with no newline.
-const parse = (source) => {
-  const markdown = source.replace(/\r\n?/g, "\n")
-  const matches = [...markdown.matchAll(/^## ([^\n]+)(?:\n|$)/gm)]
-  const sections = matches.map((match, index) => ({
-    title: match[1],
-    body: markdown.slice(match.index + match[0].length, matches[index + 1]?.index ?? markdown.length).trim(),
-  }))
-  if (new Set(sections.map(({ title }) => title)).size !== sections.length) throw new Error("duplicate level-two section")
-  return { preamble: markdown.slice(0, matches[0]?.index ?? markdown.length).trim(), sections }
+function* markdownLines(source) {
+  let fence = null
+  for (const line of source.split("\n")) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/)
+    const startsFence = !fence && !!marker && (marker[1][0] === "~" || !marker[2].includes("`"))
+    const endsFence = !!fence && !!marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()
+    const fenced = !!fence || startsFence
+    if (startsFence) fence = marker[1]
+    else if (endsFence) fence = null
+    yield { line, fenced, startsFence, endsFence }
+  }
 }
 
-const entries = (body) => body.trim() ? body.trim().split(/\n(?=- )|\n{2,}/).map((entry) => entry.trim()).filter(Boolean) : []
+// Worker reports arrive with CRLF line endings and may end on an empty heading with no newline.
+const parse = (source) => {
+  const preamble = []
+  const sections = []
+  let lines = preamble
+  for (const { line, fenced } of markdownLines(source.replace(/\r\n?/g, "\n"))) {
+    const heading = !fenced && line.match(/^## (.+)$/)
+    if (heading) {
+      lines = []
+      sections.push({ title: heading[1], lines })
+    } else lines.push(line)
+  }
+  if (new Set(sections.map(({ title }) => title)).size !== sections.length) throw new Error("duplicate level-two section")
+  return {
+    preamble: preamble.join("\n").trim(),
+    sections: sections.map(({ title, lines }) => ({ title, body: lines.join("\n").trim() })),
+  }
+}
+
+const entries = (body) => {
+  const result = []
+  let lines = []
+  let fenced = false
+  const flush = () => {
+    if (lines.length) result.push({ text: lines.join("\n"), fenced })
+    lines = []
+    fenced = false
+  }
+  for (const { line, fenced: insideFence, startsFence, endsFence } of markdownLines(body)) {
+    if (startsFence || (!insideFence && (!line.trim() || /^- /.test(line)))) flush()
+    if (insideFence || line.trim()) lines.push(line)
+    if (startsFence) fenced = true
+    if (endsFence) flush()
+  }
+  flush()
+  return result
+}
+
 const merge = (existing, incoming) => {
   const seen = new Set()
-  return [...entries(existing), ...entries(incoming)].filter((entry) => {
-    const key = entry.replace(/\s+/g, " ")
+  const kept = [...entries(existing), ...entries(incoming)].filter((entry) => {
+    if (entry.fenced) return true
+    const key = entry.text.trim().replace(/\s+/g, " ")
     if (seen.has(key)) return false
     seen.add(key)
     return true
-  }).join("\n")
+  })
+  return kept.map((entry, index) => {
+    const previous = kept[index - 1]
+    const separator = previous && !previous.fenced && !entry.fenced && /^- /.test(previous.text) && /^- /.test(entry.text) ? "\n" : "\n\n"
+    return `${index ? separator : ""}${entry.text}`
+  }).join("")
 }
 
 try {
