@@ -1,6 +1,5 @@
 'use client'
 
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import type { ComponentProps } from 'react'
 import { NotificationBell } from './notification-bell'
 
@@ -9,6 +8,5 @@ export function DestinationHeaderRow({ children, gap = 8, className = '', ...att
 }
 
 export function RootNotificationHeader() {
-  const wide = useIsWideDesktop()
-  return wide ? null : <DestinationHeaderRow data-root-notification-header="" className="lg:hidden"><NotificationBell /></DestinationHeaderRow>
+  return <DestinationHeaderRow data-root-notification-header="" className="lg:hidden"><NotificationBell /></DestinationHeaderRow>
 }

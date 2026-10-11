@@ -85,8 +85,13 @@ vi.mock('@/components/ui/fab', () => ({
     <button type="button" aria-label={label} onClick={onClick} />
   ),
 }))
+function MockComposerSlot({ composer, compactComposer }: Readonly<{ composer?: ReactNode; compactComposer?: ReactNode }>) {
+  const pinnedComposer = composer ?? (!mocks.wide && compactComposer)
+  return pinnedComposer ? <div data-shell-pinned-slot="">{pinnedComposer}</div> : null
+}
+
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, compactComposer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
     header?: ReactNode
@@ -98,6 +103,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
+    compactComposer?: ReactNode
     scrollToTop?: ReactNode
     account?: string
     accountEmail?: string
@@ -121,7 +127,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       </>}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
-      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
+      <MockComposerSlot composer={composer} compactComposer={compactComposer} />
       {mocks.wide ? items?.map((item) => (
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       )) : tabBar}

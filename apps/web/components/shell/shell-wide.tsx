@@ -40,7 +40,7 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
   return target.closest('[data-composer-root]')?.querySelector<HTMLElement>('[data-open-conversation]') ?? target
 }
 
-type ResponsiveShellProps = ShellWideProps & { registerHeaderHost?: RefCallback<HTMLDivElement>; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = ShellWideProps & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -143,7 +143,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         ) : null}
 
         <nav aria-label={props.navLabel} className="flex flex-col gap-1">
-          {props.wide ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} /> : null}
+          <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} />
           {props.items.map((item) => (
             <SidebarItem
               key={item.id}
@@ -193,7 +193,8 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   visible: boolean
 }>) {
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const pinnedSlot = navigationEnabled ? props.composer ?? props.compactComposer : props.action
+  const compactOnly = navigationEnabled && props.composer === undefined && props.compactComposer !== undefined
   if (!visible) return null
   const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height + 8 : undefined
 
@@ -210,7 +211,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
           </div>
         ) : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] ${actionMinimum === undefined ? '' : 'py-1'} lg:pb-4`} style={{ minHeight: actionMinimum }}>
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
             <div className="pointer-events-auto">{pinnedSlot}</div>
           </div>
         ) : null}
@@ -248,7 +249,7 @@ function ShellWideBackground({
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const pinnedSlot = navigationEnabled ? props.composer ?? props.compactComposer : props.action
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined

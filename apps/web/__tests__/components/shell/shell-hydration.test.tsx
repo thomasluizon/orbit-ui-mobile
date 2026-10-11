@@ -39,7 +39,7 @@ describe('app shell hydration', () => {
     document.body.replaceChildren()
   })
 
-  it.each([412, 1352])('renders the correct chrome before hydration at %ipx', async (width) => {
+  it.each([412, 1023, 1024, 1100, 1352])('renders the correct chrome before hydration at %ipx', async (width) => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn((query: string) => ({
@@ -60,6 +60,9 @@ describe('app shell hydration', () => {
     container.innerHTML = serverHtml
     document.body.append(container)
     const recoverableError = vi.fn()
+
+    const firstAstraRow = container.querySelector('[data-shell-astra-row]')
+    expect(firstAstraRow, 'sidebar Astra row exists in server HTML').not.toBeNull()
 
     setRecordingSupport(true)
     await act(async () => {
@@ -83,7 +86,8 @@ describe('app shell hydration', () => {
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
     expect(container.querySelectorAll('[data-shell-tab-bar]')).toHaveLength(1)
-    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(width >= 1024 ? 1 : 0)
+    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(1)
+    expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
     expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })
 })
