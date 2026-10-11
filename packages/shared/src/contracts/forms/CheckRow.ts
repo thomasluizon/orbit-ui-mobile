@@ -1,6 +1,7 @@
 export type CheckRowProps = {
   label: string
   textMode?: 'personal'
+  variant?: 'calendar-day'
   onOpenLabel?: () => void
   labelExpanded?: boolean
   labelControls?: string

@@ -118,6 +118,10 @@ function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loadi
   return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{children}</View>;
 }
 
+function calendarDayLoadingLabel(state: CalendarMonthDisplayState, label: string): string | undefined {
+  return state === 'loading' ? label : undefined
+}
+
 function calendarStatState(
   state: CalendarMonthDisplayState,
 ): 'default' | 'loading' | 'empty' {
@@ -711,7 +715,7 @@ function CalendarScreenContent({
 
       <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)}>
           <CalendarDayDetail
-            loadingLabel={monthDisplayState === 'loading' ? t('calendar.loading') : undefined}
+            loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
             selectedDate={selectedDay}
             title={formattedSelectedDate}
             filteredEntries={filteredEntries}
