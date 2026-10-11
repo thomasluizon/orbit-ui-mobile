@@ -1,11 +1,14 @@
 import { useState, useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { Composer } from '@/components/shell/composer'
+import { useChatStore } from '@/stores/chat-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
@@ -16,10 +19,10 @@ vi.mock('@/components/ui/pill-button', () => ({
 import { ShellWide } from '@/components/shell/shell-wide'
 
 const items = [
-  { id: 'hoje', label: 'Hoje', icon: 'hoje' },
-  { id: 'calendario', label: 'Calendário', icon: 'calendario' },
-  { id: 'progresso', label: 'Progresso', icon: 'progresso' },
-  { id: 'perfil', label: 'Perfil', icon: 'perfil' },
+  { id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' },
+  { id: 'calendario', href: '/calendar', label: 'Calendário', icon: 'calendario' },
+  { id: 'progresso', href: '/progress', label: 'Progresso', icon: 'progresso' },
+  { id: 'perfil', href: '/profile', label: 'Perfil', icon: 'perfil' },
 ]
 
 function BlurFocusedElement() {
@@ -40,6 +43,64 @@ describe('ShellWide', () => {
     })))
   })
 
+  it.each([412, 1000])('closes the compact composer menu at the wide breakpoint from %ipx and focuses Astra without losing the draft', async (width) => {
+    media.width = width
+    const listeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() { return media.width >= Number(query.match(/min-width: (\d+)px/)?.[1]) },
+      addEventListener: (_event: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_event: string, listener: () => void) => listeners.delete(listener),
+    }))
+    useChatStore.getState().setDraft('')
+    const onChangeValue = vi.fn((value: string) => useChatStore.getState().setDraft(value))
+    const onSend = vi.fn()
+    const onVoice = vi.fn()
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    function DraftComposer() {
+      const draft = useChatStore(state => state.draft)
+      return <Composer state="idle" value={draft} onChangeValue={onChangeValue} onSend={onSend} suggestions={[]}
+        words={{ placeholder: 'Ask Astra', send: 'Send', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        onAttachFile={onAttachFile} onAttachImage={onAttachImage}
+        attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }}
+        onVoice={onVoice} voiceWords={{ start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />
+    }
+    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
+      compactComposer={<DraftComposer />}
+      tabBar={<nav>Tabs</nav>}><h1>Today</h1></ShellWide>)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Keep this draft' } })
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Keep this draft')
+    onChangeValue.mockClear()
+    const trigger = screen.getByRole('button', { name: 'Attach' })
+    act(() => trigger.focus())
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu', { name: 'Attach' })
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Photo', 'Document', 'Voice'])
+    act(() => { media.width = 1100; listeners.forEach(listener => listener()) })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Astra' })).toHaveFocus())
+    expect(document.querySelectorAll('[data-shell-pinned-slot] [data-composer-root]')).toHaveLength(0)
+    expect(document.querySelector('[data-shell-bottom]')).not.toContainElement(input)
+    expect(document.querySelectorAll('[data-composer-root]')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(0)
+    expect(input).not.toBeInTheDocument()
+    act(() => { media.width = width; listeners.forEach(listener => listener()) })
+    const restoredInput = screen.getByRole('textbox')
+    expect(restoredInput).toHaveValue('Keep this draft')
+    expect(restoredInput).not.toBe(input)
+    const restoredTrigger = screen.getByRole('button', { name: 'Attach' })
+    expect(restoredTrigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    act(() => restoredTrigger.focus())
+    fireEvent.click(restoredTrigger)
+    await screen.findByRole('menu', { name: 'Attach' })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    await waitFor(() => expect(restoredTrigger).toHaveFocus())
+    for (const callback of [onChangeValue, onSend, onVoice, onAttachFile, onAttachImage]) expect(callback).not.toHaveBeenCalled()
+  })
+
   it('hosts the pill below the header outside the scroller and suppresses it during conversation', () => {
     const shell = (conversation?: ReactNode) => <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
       header={<div>Header</div>} tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}
@@ -54,6 +115,22 @@ describe('ShellWide', () => {
     expect(container.querySelector<HTMLElement>('[data-shell-bottom]')).not.toContainElement(slot)
     rerender(shell(<button type="button">Reply</button>))
     expect(container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')).toBeNull()
+  })
+
+  it('unmounts the compact composer at wide widths while keeping the selection tray', () => {
+    media.width = 1352
+    const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+    const compact = <textarea aria-label="Draft" defaultValue="Retained draft" />
+    const view = render(<ShellWide {...props} compactComposer={compact} />)
+    expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+    view.rerender(<ShellWide {...props} composer={<button type="button">Selection</button>} />)
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toContainElement(screen.getByRole('button', { name: 'Selection' }))
+    view.rerender(<ShellWide {...props} compactComposer={compact} />)
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+    expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
+    view.rerender(<ShellWide {...props} activeId="calendario" />)
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
   })
 
   it('centres compact notice, dock, and FAB inside the full-width bottom chrome', () => {
@@ -121,8 +198,9 @@ describe('ShellWide', () => {
       />,
     )
 
-    const calendar = screen.getByRole('button', { name: 'Calendário' })
+    const calendar = screen.getByRole('link', { name: 'Calendário' })
     expect(calendar).toHaveAttribute('aria-current', 'page')
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/', '/calendar', '/progress', '/profile'])
     calendar.click()
     expect(onSelect).toHaveBeenCalledWith('calendario')
   })
@@ -160,8 +238,8 @@ describe('ShellWide', () => {
       />,
     )
 
-    const active = screen.getByRole('button', { name: 'Calendário' })
-    const inactive = screen.getByRole('button', { name: 'Hoje' })
+    const active = screen.getByRole('link', { name: 'Calendário' })
+    const inactive = screen.getByRole('link', { name: 'Hoje' })
     expect(active).toHaveClass('text-[var(--primary-soft)]')
     expect(active).toHaveClass('hover:text-[var(--primary-text)]')
     expect(active.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
@@ -400,20 +478,28 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   fireEvent.click(row)
   expect(row).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveFocus()
-  expect(screen.getByRole('button', { name: 'Hoje' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: 'Hoje' })).toHaveAttribute('aria-current', 'page')
   expect(row.querySelector('svg')).toHaveAttribute('color', 'var(--primary)')
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(row).toHaveFocus()
   expect(container.querySelector('[data-shell-scroller]')).toBeVisible()
   fireEvent.click(row)
-  fireEvent.click(screen.getByRole('button', { name: 'Calendário' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Calendário' }))
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
-it.each([412, 840])('has no sidebar Astra row at %ipx', (width) => {
+it.each([412, 840])('mounts the sidebar Astra row only at wide widths after hydration from %ipx', (width) => {
   media.width = width
-  const view = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }} />)
-  expect(view.container.querySelector('[data-shell-astra-row]')).toBeNull()
+  const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+  const view = render(<ShellWide {...props} />)
+  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
+  media.width = 1352
+  view.rerender(<ShellWide {...props} />)
+  const row = screen.getByRole('button', { name: 'Astra' })
+  expect(row.parentElement?.firstElementChild).toBe(row)
+  media.width = width
+  view.rerender(<ShellWide {...props} />)
+  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
 })
 
 it('retains the conversation node, draft and destination scroll across the wide boundary', () => {
@@ -436,4 +522,28 @@ it('retains the conversation node, draft and destination scroll across the wide 
   expect(view.container.querySelector('[data-shell-scroller]')).toBe(scroller)
   expect(scroller.scrollTop).toBe(240)
   expect(screen.getByRole('heading', { name: 'Today' })).toHaveFocus()
+})
+
+it('keeps the Astra layer open when a destination opens in another browsing context', () => {
+  media.width = 1352
+  const onSelect = vi.fn()
+  const onSidebarNavigate = vi.fn()
+  const onCreate = vi.fn()
+  render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" onSelect={onSelect}
+    onCreate={onCreate} createLabel="Create"
+    astraRow={{ label: 'Astra', onOpen: vi.fn() }} onSidebarNavigate={onSidebarNavigate}
+    conversationOpen conversationLabel="Astra" conversation={<button type="button">Close</button>} />)
+  const calendar = screen.getByRole('link', { name: 'Calendário' })
+  for (const modifiers of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }]) {
+    expect(fireEvent.click(calendar, modifiers)).toBe(true)
+  }
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onSidebarNavigate).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Astra' })).toBeInTheDocument()
+  expect(fireEvent.click(calendar)).toBe(false)
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
+  expect(onSidebarNavigate).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }), { ctrlKey: true })
+  expect(onCreate).toHaveBeenCalledOnce()
+  expect(onSidebarNavigate).toHaveBeenCalledTimes(2)
 })

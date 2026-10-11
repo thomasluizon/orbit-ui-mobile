@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -32,6 +33,25 @@ describe('Shell bottom column geometry', () => {
     stylesheet += `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([1100, 1352])('keeps the account block and destinations in place as the profile loads at %ipx', async (width) => {
+    const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
+      astraRow: { label: 'Astra', onOpen: vi.fn() } }
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const shell = (account?: string) => renderToString(<ShellWide {...props} account={account} accountEmail={account ? 'account@example.com' : undefined} />)
+    const measure = () => page.evaluate(() => ['[data-shell-account]', '[data-shell-sidebar] nav'].map((selector) => {
+      const bounds = document.querySelector(selector)!.getBoundingClientRect()
+      return { top: bounds.top, height: bounds.height }
+    }))
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${shell()}`)
+      const loading = await measure()
+      for (const account of ['Account', 'A longer account name spanning multiple words']) {
+        await page.setContent(`<style>${stylesheet}</style>${shell(account)}`)
+        expect(await measure()).toEqual(loading)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 1280])('preserves notice shadow paint and pointer access at %ipx', async (width) => {
     const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}

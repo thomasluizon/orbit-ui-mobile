@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { completeOnboardingOrQueue } from '@/hooks/use-onboarding-completion-queue'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -34,6 +34,7 @@ export interface OnboardingActions {
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
   deferPushRegistration: () => void
+  recordCompletion: () => Promise<void>
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
@@ -117,6 +118,10 @@ export function useBufferOnboardingActions(): OnboardingActions {
       createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
       setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
       deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
+      recordCompletion: () => {
+        useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+        return Promise.resolve()
+      },
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.push(loginUrl)
@@ -138,6 +143,22 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
+
+  const recordCompletion = useCallback(async () => {
+    const intendedAccountId = getHeldAccountId()
+
+    const accountGeneration = getAccountGeneration()
+    try {
+      await completeOnboardingOrQueue(intendedAccountId)
+    } catch (error) {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+      throw error
+    }
+    if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+      showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+      throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
+    }
+  }, [showPersistentError, t])
 
   return useMemo(
     () => ({
@@ -175,23 +196,12 @@ export function useLiveOnboardingActions(): OnboardingActions {
         }
       },
       deferPushRegistration: () => undefined,
+      recordCompletion,
       finishOnboarding: async () => {
         const intendedAccountId = getHeldAccountId()
-
         const accountGeneration = getAccountGeneration()
-        try {
-          await completeOnboardingOrQueue(intendedAccountId)
-        } catch (error) {
-          if (reportsAccountChanged(error)) {
-            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
-          }
-          throw error
-        }
-        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
-          showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
-          throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
-        }
-        if (getAccountGeneration() !== accountGeneration) return
+        await recordCompletion()
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
@@ -207,6 +217,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
         router.push('/?astra=open')
       },
     }),
-    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, router, showPersistentError, t, updateHabit],
+    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, recordCompletion, router, showPersistentError, t, updateHabit],
   )
 }

@@ -1,10 +1,10 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { measureTitleWords } from './title-word-geometry'
 import { test } from './upgrade-fixtures'
 
@@ -23,7 +23,7 @@ for (const width of [320, 412]) {
       test.use({ viewport: { width, height: 915 }, appLocale: locale })
 
       test('keeps title words whole and preserves the full notification destination', async ({ page, context }) => {
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
         const rows = page.locator('[data-notification-title]')
         await expect(rows).toHaveCount(2)

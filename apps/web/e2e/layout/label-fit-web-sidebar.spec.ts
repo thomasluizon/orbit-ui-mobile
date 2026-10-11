@@ -31,7 +31,7 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
 
         await expect(sidebar).toBeVisible()
         for (const label of [words.nav.today, words.nav.calendar, words.nav.progress, words.nav.profile]) {
-          await markRequiredLabels(sidebar.getByRole('button', { name: label, exact: true }))
+          await markRequiredLabels(sidebar.getByRole('link', { name: label, exact: true }))
         }
         const account = sidebar.locator('[data-shell-account]:not([data-loading])')
         await expect(account).toHaveCount(1)
@@ -52,7 +52,7 @@ for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
         }
         await markUserText(page, [name, email])
         await expectLabelsFit(page, sidebar, [name, email])
-        await sidebar.getByRole('button', { name: words.nav.today, exact: true }).click()
+        await sidebar.getByRole('link', { name: words.nav.today, exact: true }).click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
         await account.click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/profile`)

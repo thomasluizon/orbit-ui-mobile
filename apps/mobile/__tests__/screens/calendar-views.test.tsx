@@ -624,6 +624,32 @@ describe("CalendarScreen views (mobile)", () => {
     }
   });
 
+  it.each([false, true])('preserves the Google Calendar owner gate after dismissal with Pro access %s', (hasProAccess) => {
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess };
+    sheetTestControls.defer(true);
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      const press = (label: string) => TestRenderer.act(() => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!.props.onPress());
+      const imports = () => tree.root.findAll((node) => node.type === 'CalendarImportContentMock');
+      press('calendar.options');
+      press('calendar.googleCalendar');
+      expect(state.routerPush).not.toHaveBeenCalled();
+      expect(imports()).toHaveLength(0);
+      TestRenderer.act(() => sheetTestControls.completeDismissal());
+      if (hasProAccess) {
+        expect(imports()).toHaveLength(1);
+        expect(state.routerPush).not.toHaveBeenCalled();
+      } else {
+        expect(state.routerPush).toHaveBeenCalledWith('/upgrade');
+        expect(imports()).toHaveLength(0);
+      }
+    } finally {
+      sheetTestControls.defer(false);
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
   it.each(['month', 'week', 'range', 'agenda'])('keeps the %s frame mounted and its inset equal when the profile resolves', (view) => {
     state.profile = undefined;
     let tree!: Tree;
@@ -995,7 +1021,7 @@ describe("CalendarScreen views (mobile)", () => {
       pressView(tree, 'range')
       const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!
       TestRenderer.act(() => options.props.onPress())
-      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem' && React.Children.toArray(node.props.children).some((child) => React.isValidElement<{ children?: React.ReactNode }>(child) && child.props.children === 'calendar.googleCalendar'))[0]!
+      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'calendar.googleCalendar')[0]!
       TestRenderer.act(() => google.props.onPress())
     }
     expect(state.routerPush).toHaveBeenCalledWith('/upgrade')

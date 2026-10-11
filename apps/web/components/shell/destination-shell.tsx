@@ -15,7 +15,6 @@ import {
 } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
 import { Plus } from '@/components/ui/icons'
@@ -196,7 +195,7 @@ function DestinationShellContent({
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
-  const chrome = resolveShellChrome(pathname, lastDestination, !wide)
+  const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
     if (destination && !notFoundVisible && pathname !== '/upgrade') setLastDestination(destination)
@@ -213,6 +212,7 @@ function DestinationShellContent({
     return () => cancelAnimationFrame(frame)
   }, [pathname])
   const pinnedComposer = getPinnedComposer(notFoundVisible, registeredComposer, composer, chrome.composer)
+  const compactComposer = pathname === '/' && registeredComposer == null
   const navigationEnabled = hasPrimaryNavigation(pathname) && (wide || !chrome.flow)
   const conversationSlot = conversation !== undefined && conversationLabel
     ? { conversation, conversationOpen, conversationLabel }
@@ -239,8 +239,8 @@ function DestinationShellContent({
     [pathname, router, scroller],
   )
 
-  const wideItems = useMemo<ShellWideItem[]>(
-    () => SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: id })),
+  const wideItems = useMemo(
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: id })),
     [labels],
   )
 
@@ -283,18 +283,19 @@ function DestinationShellContent({
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         accountEmail={profile?.email}
-        notifications={wide ? <NotificationBell countPlacement="corner" /> : undefined}
+        notifications={<NotificationBell countPlacement="corner" />}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
         notice={notice}
         registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
-        composer={pinnedComposer}
+        composer={compactComposer ? undefined : pinnedComposer}
+        compactComposer={compactComposer ? pinnedComposer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
-            items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
+            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
             label={t('nav.mainNavigation')}
             onSelect={(id) => navigate(id as BottomTab)}
           /> : undefined

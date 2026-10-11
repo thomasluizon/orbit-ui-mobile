@@ -315,7 +315,7 @@ describe('Foldable shell geometry', () => {
         attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }}
         onOpenConversation={vi.fn()} conversationLabel={en.todayAstra.openConversation} />}
       tabBar={<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
-        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
       <div style={{ height: 1600 }}>Long habit detail</div>
     </ShellWide>)
     const page = await browser.newPage({ viewport: { width: 740, height } })

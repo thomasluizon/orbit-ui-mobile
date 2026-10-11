@@ -44,7 +44,7 @@ for (const width of [412, 840]) {
         await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${mode}\\b`))
         const navigation = page.getByRole('navigation', { name: ptBR.nav.mainNavigation, exact: true })
         for (const [name, active] of [[ptBR.nav.profile, true], [ptBR.nav.calendar, false]] as const) {
-          const tab = navigation.getByRole('button', { name, exact: true })
+          const tab = navigation.getByRole('link', { name, exact: true })
           await expect(tab).toBeVisible()
           if (active) await expect(tab).toHaveAttribute('aria-current', 'page')
           else await expect(tab).not.toHaveAttribute('aria-current')

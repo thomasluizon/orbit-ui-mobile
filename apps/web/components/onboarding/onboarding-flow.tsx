@@ -4,7 +4,6 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { Dialog } from '@base-ui/react/dialog'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import {
   buildOnboardingHabitInput,
@@ -40,6 +39,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
@@ -75,10 +75,10 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
 
 const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
 
-function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string }>) {
+function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string; loginHref?: string }>) {
   const t = useTranslations()
-  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: id })) satisfies ShellWideItem[], [t])
-  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
+  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
   return <ShellWide astraRow={{ label: t('chat.title'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
@@ -146,24 +146,27 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
 }
 
-function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void }>) {
+function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void; completionPending: boolean }>) {
   const t = useTranslations('onboarding.flow')
   const displayStep = getOnboardingDisplayStep(step)
   return <div className="flex min-h-14 items-center gap-4 px-4 min-[1024px]:px-0">
     <div className="shrink-0"><span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
     <ActionRow>
-      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('back')}</PillButton> : null}
-      {onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('skip')}</PillButton> : null}
+      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" disabled={completionPending} onClick={onBack}>{t('back')}</PillButton> : null}
+      {onSkip ? <PillButton variant="ghost" size="sm" loading={completionPending} onClick={onSkip}>{t('skip')}</PillButton> : null}
     </ActionRow>
   </div>
 }
 
-export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOnly?: boolean }>) {
+export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void }>) {
   const t = useTranslations('onboarding.flow')
+  const translate = useTranslations()
   const router = useRouter()
-  const loginUrl = getOnboardingLoginUrl(useSearchParams().toString())
+  const searchQuery = useSearchParams().toString()
+  const loginUrl = getOnboardingLoginUrl(searchQuery)
   const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
   const actions = useOnboardingActions()
+  const { showPersistentError } = useAppToast()
   const isLive = useOnboardingIsLive()
   const deferredPushFailure = useOnboardingDraftStore((state) => isLive && state.pushRegistrationFailed)
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
@@ -188,6 +191,8 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
+  const completionInFlight = useRef(false)
+  const [completionPending, setCompletionPending] = useState(false)
   const [overlayOpen, setOverlayOpen] = useState(true)
   const [destinationAfterPro, setDestinationAfterPro] = useState<string | undefined>()
   const proStepRef = useRef<OnboardingProExit>(null)
@@ -290,6 +295,26 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     if (await persistReminderDecision(false)) setReminderState(outcome)
   }
 
+  async function showDone() {
+    if (completionInFlight.current) return
+    completionInFlight.current = true
+    setCompletionPending(true)
+    const generation = getAccountGeneration()
+    try {
+      if (!isLive) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+      else if (getCurrentPlan(profile) !== 'Pro') {
+        const accountId = getHeldAccountId()
+        if (accountId !== null) setOnboardingProPending(accountId, true)
+      } else await actions.recordCompletion()
+      if (getAccountGeneration() === generation) setStep(ONBOARDING_DONE_STEP)
+    } catch (error) {
+      if (!reportsAccountChanged(error)) showPersistentError(t('completionFailed'), translate('errorScreen.reload'))
+    } finally {
+      completionInFlight.current = false
+      setCompletionPending(false)
+    }
+  }
+
   async function allowSignedOutReminders() {
     const outcome = await requestWebPushPermission()
     if (outcome !== 'granted') {
@@ -298,7 +323,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     }
     if (!await persistReminderDecision(true)) return
     actions.deferPushRegistration()
-    setStep(ONBOARDING_DONE_STEP)
+    await showDone()
   }
 
   async function finishRegisteredReminders() {
@@ -306,7 +331,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
       await finishDeferredPushRecovery()
       return
     }
-    if (await persistReminderDecision(true)) setStep(ONBOARDING_DONE_STEP)
+    if (await persistReminderDecision(true)) await showDone()
   }
 
   async function allowLiveReminders() {
@@ -334,10 +359,8 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   }
 
   async function finishDeferredPushRecovery() {
-    const generation = getAccountGeneration()
     if (getCurrentPlan(profile) === 'Pro') {
-      await actions.finishOnboarding()
-      if (getAccountGeneration() === generation) useOnboardingDraftStore.getState().reset()
+      await finishAndLeave()
       return
     }
     const accountId = getHeldAccountId()
@@ -356,7 +379,7 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
       }
       if (!await persistReminderDecision(false)) return
       setRemindersOff(true)
-      setStep(ONBOARDING_DONE_STEP)
+      await showDone()
     } catch (error) {
       if (!reportsAccountChanged(error)) throw error
     } finally {
@@ -364,15 +387,17 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     }
   }
 
-  function skip() {
+  async function skip() {
+    if (completionInFlight.current) return
     suggestionRevision.current += 1
     setSuggestionPending(false)
     setSkipped(true)
     setCreatedTitle('')
-    setStep(ONBOARDING_DONE_STEP)
+    await showDone()
   }
 
   function runStepTransition(transition: () => void) {
+    if (completionInFlight.current) return
     if (step === ONBOARDING_REMIND_STEP && reminderDecision !== 'idle') return
     transition()
   }
@@ -397,12 +422,13 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     if (resolvingDeferredPush) useOnboardingDraftStore.getState().reset()
     if (accountId !== null) setOnboardingProPending(accountId, false)
     setOverlayOpen(false)
+    onExit?.()
     if (destination) router.push(destination)
   }
 
   function completeAndLeave(destination?: string) {
     if (step === ONBOARDING_PRO_STEP) { proStepRef.current?.exit(destination); return }
-    if (isLive && step < ONBOARDING_DONE_STEP && getCurrentPlan(profile) !== 'Pro') { skip(); return }
+    if (isLive && step < ONBOARDING_DONE_STEP && getCurrentPlan(profile) !== 'Pro') { void skip(); return }
     if (isLive && step === ONBOARDING_DONE_STEP && getCurrentPlan(profile) !== 'Pro') { setDestinationAfterPro(destination); setStep(ONBOARDING_PRO_STEP); return }
     void finishAndLeave(destination)
   }
@@ -412,9 +438,9 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   }
 
   const overlay = step >= ONBOARDING_DONE_STEP ? (
-    <DoneShell modalId={modalId} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
+    <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={<><UpdateAvailableBanner modalId={modalId} />{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} />{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><DecisionContent {...decisionProps} /></div></FlowShell>
   )
   return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0 overflow-hidden bg-[var(--bg)]">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

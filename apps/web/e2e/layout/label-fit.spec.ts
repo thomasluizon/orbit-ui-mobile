@@ -192,8 +192,13 @@ for (const width of [320, 360, 384, 412]) {
         await page.goto('/calendar')
         await checkCalendarLabels(page, words)
         await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
-        await page.getByRole('menu', { name: words.calendar.options, exact: true })
-          .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        if (width < 1024) {
+          await page.getByRole('dialog', { name: words.calendar.options, exact: true })
+            .getByRole('button', { name: words.calendar.legendTitle, exact: true }).click()
+        } else {
+          await page.getByRole('menu', { name: words.calendar.options, exact: true })
+            .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        }
         const sheet = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
         await markRequiredLabels(sheet.getByRole('heading', { name: words.calendar.legendTitle, exact: true }))
         await expect(sheet.locator('[data-legend-outcome]')).toHaveCount(4)
@@ -226,7 +231,7 @@ for (const width of [320, 360, 384, 412]) {
         for (const label of [words.dates.previousDay, words.dates.nextDay, words.habits.listOptions]) {
           await expectInteractionFill(page.getByRole('button', { name: label, exact: true }))
         }
-        await expectInteractionFill(tabBar.locator('nav > button').last().locator('[data-tab-indicator]'))
+        await expectInteractionFill(tabBar.locator('nav > a').last().locator('[data-tab-indicator]'))
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
         await expectInteractionFill(page.getByRole('menu', { name: words.habits.listOptions })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }))
