@@ -14,6 +14,7 @@ import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { ShellPinnedContent } from './shell-pinned-content'
 import { Search } from '@/components/ui/icons'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -212,7 +213,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
         ) : null}
         {pinnedSlot !== undefined ? (
           <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
-            <div className="pointer-events-auto">{pinnedSlot}</div>
+            <ShellPinnedContent compactOnly={compactOnly}>{pinnedSlot}</ShellPinnedContent>
           </div>
         ) : null}
         {navigationEnabled && props.tabBar !== undefined ? (

@@ -1,11 +1,13 @@
 import { useState, useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { Composer } from '@/components/shell/composer'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
@@ -38,6 +40,50 @@ describe('ShellWide', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })))
+  })
+
+  it.each([412, 1000])('closes the compact composer menu at the wide breakpoint from %ipx and focuses Astra without losing the draft', async (width) => {
+    media.width = width
+    const listeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() { return media.width >= Number(query.match(/min-width: (\d+)px/)?.[1]) },
+      addEventListener: (_event: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_event: string, listener: () => void) => listeners.delete(listener),
+    }))
+    const onChangeValue = vi.fn()
+    const onSend = vi.fn()
+    const onVoice = vi.fn()
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
+      compactComposer={<Composer state="idle" value="Keep this draft" onChangeValue={onChangeValue} onSend={onSend} suggestions={[]}
+        words={{ placeholder: 'Ask Astra', send: 'Send', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        onAttachFile={onAttachFile} onAttachImage={onAttachImage}
+        attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }}
+        onVoice={onVoice} voiceWords={{ start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />}
+      tabBar={<nav>Tabs</nav>}><h1>Today</h1></ShellWide>)
+    const input = screen.getByRole('textbox')
+    const trigger = screen.getByRole('button', { name: 'Attach' })
+    act(() => trigger.focus())
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu', { name: 'Attach' })
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Photo', 'Document', 'Voice'])
+    act(() => { media.width = 1100; listeners.forEach(listener => listener()) })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Astra' })).toHaveFocus())
+    expect(input).toBeInTheDocument()
+    expect(input).toHaveValue('Keep this draft')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    act(() => { media.width = width; listeners.forEach(listener => listener()) })
+    expect(screen.getByRole('textbox')).toBe(input)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    act(() => trigger.focus())
+    fireEvent.click(trigger)
+    await screen.findByRole('menu', { name: 'Attach' })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+    for (const callback of [onChangeValue, onSend, onVoice, onAttachFile, onAttachImage]) expect(callback).not.toHaveBeenCalled()
   })
 
   it('hosts the pill below the header outside the scroller and suppresses it during conversation', () => {

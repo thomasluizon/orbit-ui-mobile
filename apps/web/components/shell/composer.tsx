@@ -2,7 +2,7 @@
 
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { useEffect, useId, useRef, useState, type ClipboardEventHandler } from 'react'
+import { useContext, useEffect, useId, useRef, useState, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -17,6 +17,7 @@ import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { revealFocusedControl } from '@/lib/focus-scroll'
+import { CompactComposerMenuContext } from './shell-pinned-content'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
@@ -165,7 +166,9 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 }
 
 function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
+  const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
+  if (open && compactMenu?.hidden) setOpen(false)
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
   const voiceActive = props.state === 'recording' || props.state === 'transcribing'
@@ -191,7 +194,7 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
     </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={(id) => {
+    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={(id) => {
       if (id === 'image') props.onAttachImage?.()
       if (id === 'file') props.onAttachFile?.()
       if (id === 'voice') props.onVoice?.()

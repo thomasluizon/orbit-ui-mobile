@@ -84,3 +84,49 @@ for (const locale of ['en', 'pt-BR'] as const) {
     }
   }
 }
+
+for (const locale of ['en', 'pt-BR'] as const) {
+  const words = locale === 'en' ? en : ptBR
+  for (const width of [412, 1000]) {
+    test.describe(`compact composer menu across the wide breakpoint from ${width}px in ${locale}`, () => {
+      test.use({ appLocale: locale, viewport: { width, height: 915 } })
+
+      test('dismisses the menu and returns focus to the visible Astra entry while retaining the draft', async ({ page }) => {
+        await page.goto('/?astra=open')
+        const conversation = page.locator('[data-shell-conversation]')
+        await expect(conversation).toBeVisible()
+        await conversation.locator('[data-composer-input]').fill('Retained draft')
+        await conversation.getByRole('button', { name: words.common.closeConversation, exact: true }).click()
+        await expect(conversation).toHaveCount(0)
+        const composer = page.locator('[data-shell-pinned-slot] [data-composer-root]')
+        const input = composer.locator('[data-composer-input]')
+        const trigger = composer.getByRole('button', { name: words.shell.composer.actions, exact: true })
+        await expect(composer).toBeVisible()
+        await expect(input).toHaveValue('Retained draft')
+        await trigger.click()
+        const menu = page.getByRole('menu', { name: words.shell.composer.actions, exact: true })
+        await expect(menu).toBeVisible()
+        for (const label of [words.shell.composer.attach.image, words.shell.composer.attach.file, words.shell.composer.voice.start]) {
+          await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeVisible()
+        }
+        await page.setViewportSize({ width: 1100, height: 915 })
+        await expect(menu).toHaveCount(0)
+        const astra = page.locator('[data-shell-astra-row]')
+        await expect(astra).toBeVisible()
+        await expect(astra).toBeFocused()
+        await expect(composer).toBeHidden()
+        await expect(input).toHaveValue('Retained draft')
+        await page.setViewportSize({ width, height: 915 })
+        await expect(composer).toBeVisible()
+        await expect(input).toHaveValue('Retained draft')
+        await expect(menu).toHaveCount(0)
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+        await trigger.click()
+        await expect(menu).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(menu).toHaveCount(0)
+        await expect(trigger).toBeFocused()
+      })
+    })
+  }
+}
