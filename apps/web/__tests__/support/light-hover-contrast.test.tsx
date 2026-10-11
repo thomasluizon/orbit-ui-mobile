@@ -85,13 +85,13 @@ describe('rendered light hover contrast', () => {
   })
 
   it.each(['light', 'dark'].flatMap((mode) => [600, 1352].flatMap((width) => [false, true].flatMap((icons) => [true, false].map((active) => ({ mode: mode as 'light' | 'dark', width, icons, active }))))))('keeps canvas tab hover and press-only text readable in $mode at $width with icons=$icons, active=$active', async ({ mode, width, icons, active }) => {
-    const items = ['today', 'calendar', 'progress', 'profile'].map((id) => ({ id, label: id, icon: icons ? () => <svg aria-hidden="true" width="24" height="24" /> : undefined }))
+    const items = ['today', 'calendar', 'progress', 'profile'].map((id) => ({ id, href: `/${id}`, label: id, icon: icons ? () => <svg aria-hidden="true" width="24" height="24" /> : undefined }))
     const { container, unmount } = render(<BottomTabBar label="Navigation" activeId={active ? "today" : "calendar"} items={items} onSelect={() => {}} />)
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<!doctype html><html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
-      const tab = page.getByRole('button', { name: 'today', exact: true })
+      const tab = page.getByRole('link', { name: 'today', exact: true })
       const measure = () => tab.evaluate((button) => {
         const label = button.lastElementChild!
         const backgrounds: string[] = []

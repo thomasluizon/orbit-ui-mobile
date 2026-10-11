@@ -16,10 +16,10 @@ vi.mock('@/components/ui/pill-button', () => ({
 import { ShellWide } from '@/components/shell/shell-wide'
 
 const items = [
-  { id: 'hoje', label: 'Hoje', icon: 'hoje' },
-  { id: 'calendario', label: 'Calendário', icon: 'calendario' },
-  { id: 'progresso', label: 'Progresso', icon: 'progresso' },
-  { id: 'perfil', label: 'Perfil', icon: 'perfil' },
+  { id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' },
+  { id: 'calendario', href: '/calendar', label: 'Calendário', icon: 'calendario' },
+  { id: 'progresso', href: '/progress', label: 'Progresso', icon: 'progresso' },
+  { id: 'perfil', href: '/profile', label: 'Perfil', icon: 'perfil' },
 ]
 
 function BlurFocusedElement() {
@@ -121,8 +121,9 @@ describe('ShellWide', () => {
       />,
     )
 
-    const calendar = screen.getByRole('button', { name: 'Calendário' })
+    const calendar = screen.getByRole('link', { name: 'Calendário' })
     expect(calendar).toHaveAttribute('aria-current', 'page')
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/', '/calendar', '/progress', '/profile'])
     calendar.click()
     expect(onSelect).toHaveBeenCalledWith('calendario')
   })
@@ -160,8 +161,8 @@ describe('ShellWide', () => {
       />,
     )
 
-    const active = screen.getByRole('button', { name: 'Calendário' })
-    const inactive = screen.getByRole('button', { name: 'Hoje' })
+    const active = screen.getByRole('link', { name: 'Calendário' })
+    const inactive = screen.getByRole('link', { name: 'Hoje' })
     expect(active).toHaveClass('text-[var(--primary-soft)]')
     expect(active).toHaveClass('hover:text-[var(--primary-text)]')
     expect(active.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
@@ -400,13 +401,13 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   fireEvent.click(row)
   expect(row).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveFocus()
-  expect(screen.getByRole('button', { name: 'Hoje' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: 'Hoje' })).toHaveAttribute('aria-current', 'page')
   expect(row.querySelector('svg')).toHaveAttribute('color', 'var(--primary)')
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(row).toHaveFocus()
   expect(container.querySelector('[data-shell-scroller]')).toBeVisible()
   fireEvent.click(row)
-  fireEvent.click(screen.getByRole('button', { name: 'Calendário' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Calendário' }))
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
@@ -436,4 +437,24 @@ it('retains the conversation node, draft and destination scroll across the wide 
   expect(view.container.querySelector('[data-shell-scroller]')).toBe(scroller)
   expect(scroller.scrollTop).toBe(240)
   expect(screen.getByRole('heading', { name: 'Today' })).toHaveFocus()
+})
+
+
+it('keeps the Astra layer open when a destination opens in another browsing context', () => {
+  media.width = 1352
+  const onSelect = vi.fn()
+  const onSidebarNavigate = vi.fn()
+  render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" onSelect={onSelect}
+    astraRow={{ label: 'Astra', onOpen: vi.fn() }} onSidebarNavigate={onSidebarNavigate}
+    conversationOpen conversationLabel="Astra" conversation={<button type="button">Close</button>} />)
+  const calendar = screen.getByRole('link', { name: 'Calendário' })
+  for (const modifiers of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }]) {
+    expect(fireEvent.click(calendar, modifiers)).toBe(true)
+  }
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(onSidebarNavigate).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Astra' })).toBeInTheDocument()
+  expect(fireEvent.click(calendar)).toBe(false)
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
+  expect(onSidebarNavigate).toHaveBeenCalledOnce()
 })

@@ -40,7 +40,13 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
   return target.closest('[data-composer-root]')?.querySelector<HTMLElement>('[data-open-conversation]') ?? target
 }
 
-type ResponsiveShellProps = ShellWideProps & { registerHeaderHost?: RefCallback<HTMLDivElement>; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type WebShellWideItem = ShellWideItem & { href: string }
+
+type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
+  ? Omit<Props, 'items'> & { items: WebShellWideItem[] }
+  : Props
+
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -48,7 +54,7 @@ function SidebarItem({
   current,
   onSelect,
 }: Readonly<{
-  item: ShellWideItem
+  item: WebShellWideItem
   active: boolean
   current: boolean
   onSelect?: (id: string) => void
@@ -73,22 +79,23 @@ function SidebarItem({
     active
       ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
       : 'text-[var(--fg-3)]',
-    onSelect ? 'orbit-hover-text hover:bg-[var(--bg-hover)]' : '',
+    'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
   ].join(' ')
 
-  if (!onSelect) {
-    return <div className={className}>{content}</div>
-  }
-
   return (
-    <button
-      type="button"
+    <a
+      href={item.href}
+      data-habit-create-navigation={onSelect ? '' : undefined}
       className={className}
       aria-current={current ? 'page' : undefined}
-      onClick={() => onSelect(item.id)}
+      onClick={(event) => {
+        if (!onSelect || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        event.preventDefault()
+        onSelect(item.id)
+      }}
     >
       {content}
-    </button>
+    </a>
   )
 }
 
@@ -115,7 +122,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
     <aside
       data-shell-sidebar=""
       onClickCapture={(event) => {
-        if (!props.layerOpen || !(event.target instanceof Element)) return
+        if (!props.layerOpen || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !(event.target instanceof Element)) return
         const control = event.target.closest('button, a[href]')
         if (control && !control.hasAttribute('data-shell-astra-row')) props.onSidebarNavigate?.()
       }}

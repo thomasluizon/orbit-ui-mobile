@@ -12,7 +12,7 @@ function ShellHydrationProbe() {
 
   return (
     <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
-      items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
+      items={[{ id: 'hoje', href: '/', label: 'Today', icon: 'hoje' }]}
       activeId="hoje"
       navLabel="Main navigation"
       tabBar={<nav aria-label="Bottom navigation">Today</nav>}

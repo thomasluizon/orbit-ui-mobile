@@ -15,7 +15,6 @@ import {
 } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
 import { Plus } from '@/components/ui/icons'
@@ -239,8 +238,8 @@ function DestinationShellContent({
     [pathname, router, scroller],
   )
 
-  const wideItems = useMemo<ShellWideItem[]>(
-    () => SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: id })),
+  const wideItems = useMemo(
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: id })),
     [labels],
   )
 
@@ -294,7 +293,7 @@ function DestinationShellContent({
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
-            items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
+            items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: ROUTES[id], label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
             label={t('nav.mainNavigation')}
             onSelect={(id) => navigate(id as BottomTab)}
           /> : undefined

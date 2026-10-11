@@ -4,7 +4,6 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { Dialog } from '@base-ui/react/dialog'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import {
   buildOnboardingHabitInput,
@@ -77,8 +76,8 @@ const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', hoje: '
 
 function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string }>) {
   const t = useTranslations()
-  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: id })) satisfies ShellWideItem[], [t])
-  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
+  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [t])
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: DONE_TAB_ROUTES[id]!, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
   return <ShellWide astraRow={{ label: t('chat.title'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>

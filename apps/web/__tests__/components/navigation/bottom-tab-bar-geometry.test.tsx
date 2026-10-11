@@ -30,7 +30,7 @@ describe('Bottom tab geometry in Chromium', () => {
     'keeps complete labels and separated targets at $width with $textScale text scale in $messages.nav.calendar and $mode mode',
     async ({ messages, textScale, mode, width }) => {
       const { container } = render(<BottomTabBar label={messages.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
-        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: messages.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} />)
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: messages.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} />)
       const page = await browser.newPage({ viewport: { width, height: 740 } })
       try {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -39,7 +39,7 @@ describe('Bottom tab geometry in Chromium', () => {
         const bar = await page.locator('nav').boundingBox()
         expect(bar).not.toBeNull()
         if (textScale === 1) expect(bar!.height).toBe(80)
-        const buttons = page.getByRole('button')
+        const buttons = page.getByRole('link')
         expect(await buttons.count()).toBe(4)
         for (const button of await buttons.all()) {
           const measured = await button.evaluate((element) => {

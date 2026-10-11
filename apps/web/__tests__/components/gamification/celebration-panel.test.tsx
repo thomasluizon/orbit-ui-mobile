@@ -68,7 +68,7 @@ describe('CelebrationPanel', () => {
     const user = userEvent.setup()
     const { container } = render(
       <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
-        items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
+        items={[{ id: 'hoje', href: '/', label: 'Today', icon: 'hoje' }]}
         activeId="hoje"
         navLabel="Main navigation"
         notice={<CelebrationPanel />}
