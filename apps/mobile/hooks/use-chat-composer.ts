@@ -238,7 +238,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     ],
     [imageName, selectedImage, selectedTextFile],
   );
-  const showSuggestions = messages.length === 0 && !isTyping;
+  const showSuggestions = messages.length === 0 && !isTyping && !atMessageLimit;
 
   useEffect(() => {
     if (draftHydrated) return;

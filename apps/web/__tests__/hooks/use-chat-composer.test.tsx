@@ -1339,6 +1339,23 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.composerProps.limitReason).not.toContain('midnight')
   })
 
+  it.each([4, 5, 6])('shows the empty invitation only below the daily limit with %s messages used', (aiMessagesUsed) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed, aiMessagesLimit: 5 })
+    const { result } = renderHook(() => useChatComposer())
+    render(<AstraConversation chat={result.current} />)
+
+    expect(result.current.messages).toEqual([])
+    if (aiMessagesUsed < 5) {
+      expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+      expect(screen.getByText('aiDisclosure.notMedicalAdvice')).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })).toBeInTheDocument()
+    } else {
+      expect(screen.queryByText('chat.empty.title')).toBeNull()
+      expect(screen.queryByRole('group', { name: 'shell.composer.suggestionsLabel' })).toBeNull()
+      expect(screen.getAllByText('shell.composer.limit.reason:{"allowance":5}')).toHaveLength(1)
+    }
+  })
+
   it('shows the daily allowance instead of sending when the account is already at its limit', async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: false,
