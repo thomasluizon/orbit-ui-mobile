@@ -6,13 +6,30 @@ import { AccountNavigationRow } from '@/app/(tabs)/profile/_components/account-n
 import { ProfileAccountContent } from '@/app/(tabs)/profile/_components/profile-account-content'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
+import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
 import { ListRow } from '@/components/ui/list-row'
-import { measureProfileRow } from '../../support/profile-row-geometry'
+import { Badge } from '@/components/ui/badge'
+import { measureProfileRow, replayProfileTitleLayout as replayLabelLayout } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
-afterEach(__resetTestHostConfig)
+afterEach(() => {
+  __resetTestHostConfig()
+  preferenceLocale.value = undefined
+})
 
 vi.mock('@/hooks/use-shell-notice-slot', () => ({ useShellNoticeSlot: vi.fn() }))
+const preferenceLocale = vi.hoisted((): { value: 'en' | 'pt-BR' | undefined } => ({ value: undefined }))
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => preferenceLocale.value
+      ? key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], preferenceLocale.value === 'en' ? en : ptBR)
+      : params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: preferenceLocale.value ?? 'en' },
+  }),
+}))
+vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: preferenceLocale.value, currentTheme: 'dark', currentScheme: 'orange', showGeneralOnToday: true, handleShowGeneralToggle: vi.fn(), activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
+vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
+
 const { push } = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -117,4 +134,132 @@ describe('label switch row geometry', () => {
       } finally { await act(() => tree.update(<></>)) }
     })
   }
+})
+
+
+describe('inline preference control geometry', () => {
+  it.each([412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ width, fontScale, locale })))))('centres the composed theme row at $width and font scale $fontScale in $locale', async ({ width, fontScale, locale }) => {
+    preferenceLocale.value = locale
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    let tree!: Tree
+    await act(() => { tree = create(<ProfilePreferencesContent profile={createMockProfile()} patchProfile={vi.fn()} />) as Tree })
+    try {
+      await replayLabelLayout(tree, Math.min(width - 32, 740), fontScale)
+      const geometry = measureProfileRow(tree.toJSON(), Math.min(width - 32, 740), fontScale)
+      const rows = geometry.parts.filter((part) => part.slot === 'list-row-trailing')
+      const theme = rows[0]!
+      const label = geometry.texts.find((text) => text.label === (locale === 'en' ? en : ptBR).profile.settingsRows.theme)!
+      expect(label.clipped).toBe(false)
+      expect(Math.abs(label.top + label.height / label.lines / 2 - theme.top - theme.height / 2)).toBeLessThanOrEqual(1)
+      const general = geometry.texts.find((text) => text.label === (locale === 'en' ? en : ptBR).settings.homeScreen.showGeneral)!
+      const track = geometry.parts.find((part) => part.slot === 'switch-track')!
+      expect(Math.abs(general.top + general.height / general.lines / 2 - track.top - track.height / 2)).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
+
+
+describe('label control first-line alignment', () => {
+  it.each([en, ptBR].flatMap((words) => [1, 2].map((fontScale) => ({ words, fontScale }))))('aligns the first line at font scale $fontScale', async ({ words, fontScale }) => {
+    const title = words.profile.analytics.title
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+    let tree!: Tree
+    await act(() => { tree = create(<ListRow title={title} icon="home" toggle={{ checked: true, onChange: vi.fn() }} />) as Tree })
+    try {
+      await replayLabelLayout(tree, 288, fontScale)
+      const geometry = measureProfileRow(tree.toJSON(), 288, fontScale)
+      const label = geometry.texts.find((text) => text.label === title)!
+      const track = geometry.parts.find((part) => part.slot === 'switch-track')!
+      const lineCentre = label.top + label.height / label.lines / 2
+      expect(Math.abs(lineCentre - track.top - track.height / 2)).toBeLessThanOrEqual(1)
+      expect(label.clipped).toBe(false)
+      expect(label.bottom).toBeLessThanOrEqual(geometry.height - 12 + 1)
+      if (fontScale === 1) expect(label.lines).toBe(1)
+      else expect(label.lines).toBeGreaterThan(1)
+      await act(() => tree.update(<ListRow title={words.profile.settingsRows.theme} toggle={{ checked: true, onChange: vi.fn() }} />))
+      await replayLabelLayout(tree, 288, fontScale)
+      const resized = measureProfileRow(tree.toJSON(), 288, fontScale)
+      const short = resized.texts[0]!
+      const switchTrack = resized.parts.find((part) => part.slot === 'switch-track')!
+      expect(short.lines).toBe(1)
+      expect(Math.abs(short.top + short.height / 2 - switchTrack.top - switchTrack.height / 2)).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
+
+
+describe('label mode transitions', () => {
+  it.each([en, ptBR])('clears label alignment when a wrapped toggle becomes a gated row', async (words) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const title = words.habits.detail.slipAlert
+    const description = words.habits.detail.slipAlertDescription
+    const locked = <ListRow title={title} description={description} trailing={<Badge>{words.habits.detail.proGate}</Badge>} onClick={vi.fn()} />
+    let changed!: Tree
+    let fresh!: Tree
+    await act(() => {
+      changed = create(<ListRow title={title} description={description} toggle={{ checked: true, onChange: vi.fn() }} />) as Tree
+      fresh = create(locked) as Tree
+    })
+    try {
+      await replayLabelLayout(changed, 200, 2)
+      expect(measureProfileRow(changed.toJSON(), 200, 2).texts[0]!.lines).toBeGreaterThan(1)
+      await act(() => changed.update(locked))
+      await replayLabelLayout(changed, 200, 2)
+      await replayLabelLayout(fresh, 200, 2)
+      const transitioned = measureProfileRow(changed.toJSON(), 200, 2)
+      const original = measureProfileRow(fresh.toJSON(), 200, 2)
+      const changedControl = transitioned.parts.find((part) => part.slot === 'list-row-trailing')!
+      const freshControl = original.parts.find((part) => part.slot === 'list-row-trailing')!
+      expect(changedControl.top).toBeCloseTo(freshControl.top, 4)
+      expect(transitioned.height).toBeCloseTo(original.height, 4)
+    } finally { await act(() => { changed.update(<></>); fresh.update(<></>) }) }
+  })
+})
+
+describe('single-line label accessories', () => {
+  it.each([en, ptBR].flatMap((words) => ['value', 'description'].map((kind) => ({ words, kind }))))('centres enlarged icons and chevrons beside a $kind', async ({ words, kind }) => {
+    __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
+    const title = words.profile.settingsRows.theme
+    let tree!: Tree
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" value={kind === 'value' ? words.profile.settingsRows.theme : undefined} description={kind === 'description' ? words.settings.homeScreen.showGeneral : undefined} onClick={vi.fn()} />) as Tree })
+    try {
+      await replayLabelLayout(tree, 740, 2)
+      const geometry = measureProfileRow(tree.toJSON(), 740, 2)
+      const label = geometry.texts.find((text) => text.label === title)!
+      expect(label.lines).toBe(1)
+      const accessories = geometry.parts.filter((part) => part.slot === 'list-row-icon' || part.slot === 'list-row-chevron')
+      expect(accessories).toHaveLength(2)
+      for (const accessory of accessories) expect(Math.abs(label.top + label.height / 2 - accessory.top - accessory.height / 2), accessory.slot).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
+
+function androidDoubleTextPixels(size: number) {
+  const points = [[0, 0], [8, 16], [10, 20], [12, 24], [14, 26], [18, 30], [20, 34], [24, 36], [30, 38], [100, 100]] as const
+  const upper = points.findIndex(([input]) => input >= size)
+  const [start, startPixels] = points[upper - 1]!
+  const [end, endPixels] = points[upper]!
+  return startPixels + (size - start) / (end - start) * (endPixels - startPixels)
+}
+
+describe('native nonlinear first-line geometry', () => {
+  it.each([en, ptBR].flatMap((words) => ['description', 'value', 'switch', 'badge'].map((kind) => ({ words, kind }))))('uses measured native lines beside a $kind', async ({ words, kind }) => {
+    __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
+    const title = kind === 'switch' ? words.profile.analytics.title : words.profile.settingsRows.theme
+    const width = kind === 'switch' ? 200 : 740
+    let tree!: Tree
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" description={kind === 'description' || kind === 'badge' ? words.settings.homeScreen.showGeneral : undefined} trailing={kind === 'badge' ? <Badge>{words.common.proBadge}</Badge> : undefined} value={kind === 'value' ? title : undefined} toggle={kind === 'switch' ? { checked: true, onChange: vi.fn() } : undefined} onClick={vi.fn()} />) as Tree })
+    try {
+      await replayLabelLayout(tree, width, 2, androidDoubleTextPixels)
+      const geometry = measureProfileRow(tree.toJSON(), width, 2, androidDoubleTextPixels)
+      const label = geometry.texts.find((text) => text.label === title)!
+      const lineCentre = label.top + label.height / label.lines / 2
+      const accessories = geometry.parts.filter((part) => ['list-row-icon', 'list-row-chevron', 'switch-track', ...(kind === 'badge' ? ['list-row-trailing'] : [])].includes(part.slot))
+      expect(accessories).toHaveLength(kind === 'badge' ? 3 : 2)
+      for (const accessory of accessories) expect(Math.abs(lineCentre - accessory.top - accessory.height / 2), accessory.slot).toBeLessThanOrEqual(1)
+      if (kind === 'switch') expect(label.lines).toBeGreaterThan(1)
+      const value = geometry.texts.find((text) => text !== label && text.label === title)
+      if (value) expect(Math.abs(lineCentre - value.top - value.height / 2)).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
 })

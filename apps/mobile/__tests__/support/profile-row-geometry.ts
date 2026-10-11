@@ -1,6 +1,7 @@
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
+import { act, type ReactTestRenderer } from 'react-test-renderer'
 
 interface HostRow {
   type: string
@@ -111,7 +112,7 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight(), width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-export function measureProfileRow(host: HostRow, width: number, scale: number) {
+export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const boxes: { node: YogaNode; testID: string }[] = []
@@ -134,10 +135,11 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
     if (host.type === 'Text' && label) {
       texts.push({ node, label, style, limit: host.props.numberOfLines })
       node.setMeasureFunc((available, mode) => {
-        const natural = textWidth(label, style, scale)
+        const textScale = scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17)
+        const natural = textWidth(label, style, textScale)
         const measured = mode === Yoga.MEASURE_MODE_UNDEFINED ? natural : Math.min(natural, available)
-        const lines = wrappedLines(label, measured, style, scale)
-        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) * scale }
+        const lines = wrappedLines(label, measured, style, textScale)
+        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * scaledPixels(Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4)) }
       })
     } else if (host.type === 'ScrollView' && host.props.contentContainerStyle) {
       node.insertChild(layoutHost({ type: 'View', props: { style: host.props.contentContainerStyle }, children: host.children }), 0)
@@ -154,8 +156,18 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
       const content = Array.from({ length: node.getChildCount() }, (_, index) => position(node.getChild(index)))
       return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
     }), texts: texts.map(({ node, label, style, limit }) => {
-      const lines = wrappedLines(label, node.getComputedWidth(), style, scale)
+      const lines = wrappedLines(label, node.getComputedWidth(), style, scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }
     }) }
   } finally { layout.freeRecursive(); config.free() }
+}
+
+export async function replayProfileTitleLayout(tree: ReactTestRenderer & { toJSON: () => HostRow }, width: number, scale: number, scaledPixels?: (size: number) => number) {
+  const measured = measureProfileRow(tree.toJSON(), width, scale, scaledPixels)
+  for (const title of tree.root.findAll((node) => String(node.type) === 'Text' && node.props['data-slot'] === 'list-row-title')) {
+    const label = measured.texts.find((text) => text.label === title.props.children)!
+    const onTextLayout = title.props.onTextLayout as (event: { nativeEvent: { lines: { text: string; x: number; y: number; width: number; height: number; baseline: number; descender: number; capHeight: number; ascender: number; xHeight: number }[] } }) => void
+    const height = label.height / label.lines
+    await act(() => onTextLayout({ nativeEvent: { lines: Array.from({ length: label.lines }, (_, index) => ({ text: label.label, x: 0, y: index * height, width: label.width, height, baseline: (index + 1) * height, descender: 0, capHeight: height, ascender: height, xHeight: height })) } }))
+  }
 }

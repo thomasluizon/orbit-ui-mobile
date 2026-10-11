@@ -107,6 +107,22 @@
   transition: background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out);
 }
 
+.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) :is([data-slot="list-row-content"], .orbit-list-row-label-content) {
+  align-items: flex-start;
+}
+
+.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) .orbit-list-row-label-content:has([data-slot="list-row-trailing"]):not(:has([data-slot="list-row-value"])) {
+  flex-wrap: nowrap;
+  --orbit-list-row-text-basis: 0px;
+  --orbit-list-row-text-shrink: 1;
+}
+
+.orbit-list-row-shell[data-text-mode="label"] .orbit-list-row-value-line {
+  display: flex;
+  align-items: center;
+  min-height: 1.4875rem;
+}
+
 .orbit-list-row-body {
   transition: background-color var(--dur-hover) var(--ease-standard);
 }

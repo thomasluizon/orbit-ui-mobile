@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { createTokensV2 } from '@/lib/theme'
 
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { measureProfileRow } from '../../support/profile-row-geometry'
+import { measureProfileRow, replayProfileTitleLayout } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 afterEach(__resetTestHostConfig)
@@ -93,6 +93,7 @@ describe('SettingsRow switch geometry', () => {
     let tree!: ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
     await act(() => { tree = create(<ListRow textMode="label" title={title} icon={<BarChart3 size={24} />} toggle={{ checked: true, onChange: () => {} }} />) as typeof tree })
     try {
+      await replayProfileTitleLayout(tree, 288, fontScale)
       const geometry = measureProfileRow(tree.toJSON(), 288, fontScale)
       const label = geometry.texts.find((text) => text.label === title)!
       const control = geometry.controls.filter((control) => control.accessibilityLabel === title).at(-1)!
