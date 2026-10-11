@@ -40,16 +40,19 @@ export function filterRecurringDayMap(
 }
 
 export function resolveCalendarEventsDisplayState({
+  profileReady = true,
   enabled,
   isPending,
   error,
   resultStatus,
 }: Readonly<{
+  profileReady?: boolean
   enabled: boolean
   isPending: boolean
   error: Error | null
   resultStatus: 'connected' | 'not-connected' | undefined
 }>): CalendarEventsDisplayState {
+  if (!profileReady) return 'loading'
   if (!enabled) return 'pro-boundary'
   if (error !== null) return 'failed'
   if (isPending) return 'loading'

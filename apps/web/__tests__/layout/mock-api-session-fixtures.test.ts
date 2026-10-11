@@ -9,6 +9,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
+import { streakFixture } from '../../test-support/hermetic/mock-api/fixtures/streak'
 import { handleRequest } from '../../test-support/hermetic/mock-api/request-handler'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
@@ -99,6 +100,26 @@ describe('mock API session fixtures', () => {
     ])).toBe('pending')
     expect(await (await pendingNotifications).json()).toEqual(notifications)
     expect(await (await fetch(`${origin}${API.notifications.list}`)).json()).toEqual({ items: [], unreadCount: 0 })
+  })
+
+  it('delays the seeded streak response without delaying another session', async () => {
+    const headers = { Authorization: `Bearer ${tokenFor('delayed-streak')}`, 'Content-Type': 'application/json' }
+    const seeded = await fetch(`${origin}/_test/session-fixtures`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ fixtures: [{ path: API.gamification.streak, body: streakFixture, delayMs: 250 }] }),
+    })
+    expect(seeded.status).toBe(204)
+    let received = false
+    const pending = fetch(`${origin}${API.gamification.streak}`, { headers }).then(async (response) => {
+      received = true
+      return response.json()
+    })
+    const immediate = await fetch(`${origin}${API.gamification.streak}`, {
+      headers: { Authorization: `Bearer ${tokenFor('immediate-streak')}` },
+    })
+    expect(await immediate.json()).toEqual(streakFixture)
+    expect(received).toBe(false)
+    expect(await pending).toEqual(streakFixture)
   })
 
   it('serves the held habit preview to server-side clarification resolutions', async () => {

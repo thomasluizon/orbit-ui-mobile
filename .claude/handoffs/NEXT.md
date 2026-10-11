@@ -6,55 +6,48 @@ Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standin
 
 `/sleep` is the only entry point. It enters `/orchestrate --sleep` itself. This is a context relay successor: `adoptRelayRun` adopts the run state, so do not write a fresh one. Start the first wakeup with `node tools/run-status.mjs --session <this session id>`.
 
-The predecessor scratchpad (helpers, orders, notes, reports, proofs and the decision logs) has its durable copy at `$HOME/.orbit-run-carry/scratchpad`. Restore it with `$HOME/.orbit-run-carry/carry-from-durable.sh <new session id>`: it rewrites the predecessor id, fixes `SP=` in `mc-prep.sh` and `mc-check.sh`, and links the live builds (`mc-base3` at `434488a2` for red proofs, `mc-c5` the failed combined tree, `mc-p1674`, `mc-p1704`, `mc-p1707`, `mc-p1708`, `mc-p1711`, `mc-p1712`, `mc-p1713`). After the carry, check `grep -n "^SP=" mc-prep.sh mc-check.sh` names the new scratchpad. Write any helper whose redirect target is a variable with the Write tool (literal paths), run scratchpad scripts after a `cd` into the scratchpad, and use `bash` loops in a script file. Helpers, all in the scratchpad: `log-decision.sh` (stdin, `## D<n> @NOW ...` headers); `check-reds.sh <pr>...`; `ready.sh <since-ref> <pr>...`; `pairs.sh <pr>...`; `overlap.sh <pattern> <pr>...`; `c-build.sh <label> <sha>...`; `head-build.sh <label> <sha>`; `web-build.sh`; `run-spec.sh <built worktree> <label> <spec>... [playwright flags]`; `prove-new3.sh <label> <head sha> <new spec> [other specs]` and `prove-support3.sh <label> <head sha> <new spec> <support files>...` (red on `mc-base3`, then head build and three green repeats), both wrapped in `gate40.sh` and run one at a time; `mc-prep.sh <label> <sha>...` then `FORCE_CI=1 mc-check.sh <scratchpad>/mc-<label> <label>`; `compose-rb.sh <issue> <worktree> <round>` from `note-<issue>-<round>.md`, then `launch-batch.sh <issue> <worktree> <round> <tier> <relaunch reason>`; `compose-note.sh <issue> <name> [prefix] [base]` for new tickets, then `launch-new2.sh <issue> <worktree>`; `extract-report.sh <worker log> <out>`; `carry-out.sh`; `add-pr.mjs <pr> '#<issue>' <worktree name> <branch>`; `mark-merged.mjs <pr> <merge sha> '#<issue>'`; `reconcile.mjs`. The Bash tool runs zsh, which does not split an unquoted variable into words, and its `ls` prints colour codes (use `/bin/ls` before a `grep`); never put a bare `echo =====` in a command (zsh expands `==`). Threads are answered and resolved with `node tools/resolve-bot-thread.mjs --thread <id> --repo ui --pr <n>` (reply on stdin) before the push, with the thread id copied from `node tools/list-bot-threads.mjs --repo ui --pr <n> --no-request --wait-seconds 0` in the same run. A fresh Pullfrog review after a base merge or a mechanical push is requested with `node tools/list-bot-threads.mjs --repo ui --pr <n> --re-review --wait-seconds 1800` as a background task. Start CI waiters with `--ceiling-minutes 90` (a waiter that ends on `CEILING` with checks still queued is restarted). The macOS shell has no `timeout` command: start waiters and checks with the Bash `timeout` at 7200000, never a `timeout` prefix inside the command.
+The predecessor scratchpad (helpers, orders, notes, reports, proofs and the decision logs) has its durable copy at `$HOME/.orbit-run-carry/scratchpad`. Restore it with `$HOME/.orbit-run-carry/carry-from-durable.sh <new session id>`: it rewrites the predecessor id, fixes `SP=` in `mc-prep.sh` and `mc-check.sh`, and links the live builds (`mc-base3` at `4d2c0103` for red proofs, `mc-p1704`, `mc-p1712`, `mc-p1713`, `mc-p1714`, `mc-p1716`, `mc-c7`). After the carry, check `grep -n "^SP=" mc-prep.sh mc-check.sh` names the new scratchpad. Write any helper whose redirect target is a variable with the Write tool (literal paths), run scratchpad scripts after a `cd` into the scratchpad, and use `bash` loops in a script file. Helpers, all in the scratchpad: `log-decision.sh` (stdin, `## D<n> @NOW ...` headers); `check-reds.sh <pr>...`; `ready.sh <since-ref> <pr>...`; `pairs.sh <pr>...`; `overlap.sh <pattern> <pr>...`; `c-build.sh <label> <sha>...`; `head-build.sh <label> <sha>`; `web-build.sh`; `run-spec.sh <built worktree> <label> <spec>... [playwright flags]`; `prove-new3.sh <label> <head sha> <new spec> [other specs]` and `prove-support3.sh <label> <head sha> <new spec> <support files>...` (red on `mc-base3`, then head build and three green repeats), both wrapped in `gate40.sh` and run one at a time; `mc-prep.sh <label> <sha>...` then `FORCE_CI=1 mc-check.sh <scratchpad>/mc-<label> <label>` (it now also runs `lint-changed.sh` against the base `mc-prep.sh` records); `compose-rb.sh <issue> <worktree> <round>` from `note-<issue>-<round>.md`, then `launch-batch.sh <issue> <worktree> <round> <tier> <relaunch reason>`; `compose-note.sh <issue> <name> [prefix] [base]` for new tickets, then `launch-new2.sh <issue> <worktree>`; `extract-report.sh <worker log> <out>`; `carry-out.sh`; `add-pr.mjs <pr> '#<issue>' <worktree name> <branch>`; `mark-merged.mjs <pr> <merge sha> '#<issue>'`; `reconcile.mjs`. The Bash tool runs zsh, which does not split an unquoted variable into words, and its `ls` prints colour codes (use `/bin/ls` before a `grep`); never put a bare `echo =====` in a command (zsh expands `==`). Threads are answered and resolved with `node tools/resolve-bot-thread.mjs --thread <id> --repo ui --pr <n>` (reply on stdin) before the push, with the thread id copied from `node tools/list-bot-threads.mjs --repo ui --pr <n> --no-request --wait-seconds 0` in the same run. A fresh Pullfrog review after a base merge or a mechanical push is requested with `node tools/list-bot-threads.mjs --repo ui --pr <n> --re-review --wait-seconds 1800` as a background task. Start CI waiters with `--ceiling-minutes 90` (a waiter that ends on `CEILING` with checks still queued is restarted). The macOS shell has no `timeout` command: start waiters and checks with the Bash `timeout` at 7200000, never a `timeout` prefix inside the command.
 
 ## Then: the in-flight work, in this order
 
-The redesign is frozen at 22 tickets; 17 are open. The spec's `## Current state` carries every detail.
+The redesign is frozen at 22 tickets; 9 are open. The spec's `## Current state` carries every detail.
 
-1. Restart CI waiters for the open pull requests (at most three waiters, several `--pr` flags each) and read each one's result, approval head and threads with `run-status.mjs`.
-2. Combined check `c5` ended `OVERALL fail=1`: 6 calendar cases of `ui#1674`'s own `destination-header-first-paint.spec.ts` failed on the combined tree (`check-c5/layout.log`); 1975 passed, every other step exit 0. Rerun a combined check of `ui#1709` (`6d1f185f15f459322251ea3eddcc7b1684a57608`) and `ui#1708` (`4bd0c46b408a24869a890cf804ca4807eb8ae2d5`) on the current base (`mc-prep.sh c6 <heads>`, `FORCE_CI=1 mc-check.sh <scratchpad>/mc-c6 c6`), and `ui#1710` (`85055173`) with them; on `OVERALL fail=0` with the base unchanged, merge with `--match-head-commit` (copy each SHA again from `gh pr view`), close `#1299`, `#1354` and `#1334` through `tools/complete-ticket.mjs`, `mark-merged.mjs`, tear down their worktrees. Attribute the `ui#1674` red with a build of the base plus `ui#1674` alone, then send it a round (base merge plus fix) and prove the spec again.
-3. Then base-merge `ui#1704` onto the new base (conflicts with `ui#1709` in both `check-row.tsx` files and `calendar-day-detail-geometry.test.tsx`; a mechanical worker round if the resolution is not a pure union), rerun `row-geometry`, `calendar-day-card` and `calendar-day-habit-rows` on a build of the merge, push, fresh approval.
-4. `#1338`: read the killed worker's log and its three unpushed commits in `ticket-1338-block-name-edge`; push and open the pull request from its evidence, or relaunch with `--relaunch-reason`. Prove its layout case red and green before merge.
-5. Prove `ui#1716`'s new `label-row-centre.spec.ts` red on `mc-base3` (rebuild it at the current `redesign/main` with `head-build.sh base3 <sha>` first) and green on its head.
-6. Launch `#1340`, `#1346` and `#1348` after `#1300` (`ui#1674`) merges and `#1351` after `#1342` (`ui#1704`), each after an overlap check of every open pull request.
-7. Merge each open pull request the moment it meets the bar (green checks, a Pullfrog approval submitted after its head's push, zero threads), behind-base ones after a combined merge-result check. `ui#1710` (approved at `85055173`) joins the next combined check. `ui#1713` shares `check-row.tsx` with `ui#1704` and `ui#1709` and `calendar-options.tsx` with `ui#1674`: expect a base merge after those land. Prove every new or changed layout case red on `mc-base3` and green on its head first.
-8. After each batch of merges: release staging web from `redesign/main`, an Orbit Staging internal build (next is 1.3.76, 135; none has followed `ui#1653`, `ui#1681`, `ui#1686`, `ui#1706` yet), and, once all 22 are merged, one full rendered sweep when the Mac is idle (`ioreg -c IOHIDSystem` HIDIdleTime above 300 seconds), through one background sweep subagent from a retargeted `sweep-order-<sha>.md` (copy `sweep-order-c1b04051.md`). Under the freeze the sweep files only broken behaviour into Batch R; every polish finding goes to Batch 2b.
-9. Then the rest of `## The order` after THE REDESIGN GATE.
+1. Restart CI waiters (at most three, several `--pr` flags each) for `ui#1704`, `ui#1714` and `ui#1716`, and read each one's result, approval head and threads with `run-status.mjs`.
+2. `ui#1704` first: approved at `170a9a9f` after its push, 0 threads, CI green; it shares `apps/web/app/globals.css` with the base, so run one full combined check (`mc-prep.sh <label> <sha>`, then `FORCE_CI=1 mc-check.sh`) on the current `redesign/main` plus `170a9a9f` (add `ui#1714` at `8a0b0c68` if its CI is green by then), then merge on the bar and close `#1342`. Its merge clears the base's mobile lint error at `apps/mobile/app/(tabs)/calendar.tsx:261`, which blocks every other base merge's commit hook.
+3. `ui#1714`: approved at `8a0b0c68`, proven 4 of 4 red on base and 24 of 24 green; merge on the bar (`ready.sh` plus `c-build.sh` when no file is shared, else in the combined check) and close `#1353`.
+4. Right after `ui#1704` merges, send the three base-merge rounds that waited for it, about 90 seconds apart, each read before its push: `ui#1713` (merge `redesign/main` again over local `1f6b3011`, which also conflicts with merged `ui#1674` on `calendar-options.tsx`; commit the staged test fix, saved as `save-1713-rb3-staged.diff`), `ui#1712` (reuse `save-1712-bm3/`: the base's `delayMs` block, one field at max 30_000, both fixture test cases) and `ui#1716` (`compose-rb.sh 1337 ticket-1337-label-row-centre rb2`, which appends `note-1337-rb2.md`: base merge with `save-1716-bm1/`, thread `PRRT_kwDOR5Siws6rHu5m`, the 13 attributed layout reds). Prove every new or changed layout case red on `mc-base3` and green on the head before each push.
+5. Launch `#1340`, `#1346` and `#1348` now (orders composed, worktrees clean at `f475ae67`): `launch-new2.sh 1340 ticket-1340-shell-destination-links`, then `1346 ticket-1346-astra-line-refetch`, then `1348 ticket-1348-wide-shell-first-frame`. Launch `#1351` after `ui#1704` merges (`compose-note.sh 1351 <worktree>` after an overlap check of every open pull request).
+6. After each batch of merges: release staging web from `redesign/main` (it runs `8513b167`; `ui#1711`, `ui#1717` and `ui#1674` are not on staging yet) and an Orbit Staging internal build (next is 1.3.77, 136). Once all 22 are merged and closed, one full rendered sweep when the Mac is idle (`ioreg -c IOHIDSystem` HIDIdleTime above 300 seconds), through one background sweep subagent from a retargeted `sweep-order-<sha>.md` (copy `sweep-order-c1b04051.md`). Under the freeze the sweep files only broken behaviour into Batch R; every polish finding goes to Batch 2b.
+7. Then the rest of `## The order` after THE REDESIGN GATE.
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1709` `6d1f185f` (`#1299`) | approved, green; `c5` failed on `ui#1674`'s spec only; next combined check (step 2) |
-| `ui#1674` `435f7744` (`#1300`) | approved, green alone; its `destination-header-first-paint.spec.ts` calendar cases fail 6 of 6 on the combined tree; attribute and send a round (step 2) |
-| `ui#1708` `4bd0c46b` (`#1354`) | approved, green; next combined check (step 2) |
-| `ui#1710` `85055173` (`#1334`) | approved at this head, green; next combined check (step 2) |
-| `ui#1704` `af646c05` (`#1342`) | approved, green; base merge after `ui#1709` (step 3) |
-| `ui#1707` `7d2c0ba1` (`#1344`, harness) | base merge pushed and proven; CI and fresh approval owed |
-| `ui#1711` `9f1de023` (`#1347`) | round 2 and base merge pushed; CI and approval owed |
-| `ui#1712` `23fb2b40` (`#1349`) | round 1 and base merge pushed; CI and fresh approval owed |
-| `ui#1713` `f2e71afd` (`#1352`) | React Doctor round pushed; CI and fresh approval owed; base merge expected |
-| `ui#1714` `4ea5618b` (`#1353`) | new; CI and review owed |
-| `ui#1715` `115f174a` (`#1350`) | new; CI and review owed |
-| `ui#1716` `7afba3ab` (`#1337`) | new; layout proof owed (step 5); CI and review owed |
-| `#1338` worker | killed at the 75 minute ceiling; three unpushed commits in `ticket-1338-block-name-edge`, no pull request (step 4) |
-| Merged this session | `ui#1653` (`#1293`), `ui#1681` (`#1324`), `ui#1686` (`#1318`), `ui#1706` (`#1316`), all closed; merged tree equals the checked `c4` tree |
-| Tickets filed this session | none |
-| Staging | API `86e7467c`, web `01f8afd3`, landing `a50de090`, Orbit Staging 1.3.75 (134) on internal |
+| `ui#1704` `170a9a9f` (`#1342`) | approved after push, CI green, 0 threads; combined check then merge (step 2) |
+| `ui#1714` `8a0b0c68` (`#1353`) | approved, proven, CI running at handoff; merge on the bar (step 3) |
+| `ui#1713` `810e186d` (`#1352`) | local merge `1f6b3011` unpushed (6 ahead) plus two staged test files; finish after `ui#1704` (step 4) |
+| `ui#1712` `b8157735` (`#1349`) | approved and green but conflicts with the base; base merge after `ui#1704` (step 4) |
+| `ui#1716` `7afba3ab` (`#1337`) | 13 attributed layout reds, one Pullfrog P2 thread, base conflict; round 2 after `ui#1704` (step 4) |
+| `#1340`, `#1346`, `#1348` | launches stopped at the relay before their gates; orders composed, worktrees clean; launch (step 5) |
+| `#1351` | waits on `ui#1704` (step 5) |
+| Merged this session | `ui#1711` (`#1347`), `ui#1717` (`#1338`), `ui#1674` (`#1300`), all closed and torn down |
+| Tickets filed this session | `#1356` (Batch 2b): the `conversation-thread-scroll.spec.ts:24` flake's root cause, a scroll-follow race in `chat-thread-scroll-core.ts` |
+| Staging | API `86e7467c`, web `8513b167`, landing `a50de090`, Orbit Staging 1.3.76 (135) on internal; a release is owed (step 6) |
 | Production | API `649c9dbe`, web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
-| Open pull requests | `orbit-ui-mobile` the 12 above; `orbit-api` none; `orbit-landing-page` none |
+| Open pull requests | `orbit-ui-mobile` the 5 above; `orbit-api` none; `orbit-landing-page` none |
 | Workers, subagents, workflows | none running at handoff |
-| Local checks | combined check `c5` finished: `OVERALL fail=1` (step 2) |
+| Local checks | none running; `c7` passed (layout 1981 of 1981) |
 | CI waiters | stopped by the relay tool; restart (step 1) |
-| Stashes, uncommitted work | none in the three checkouts; every ticket worktree is clean |
-| Unpushed commits | `ticket-1338-block-name-edge` three commits (step 4); `ticket-1242-week-grid-one-scroller` `40200ee4` on a branch whose `ui#1633` is closed (kept, as before) |
-| Branches with no pull request | `fix/ticket-1338-block-name-edge` (step 4); merged `fix/ticket-*` branches the teardown tool keeps |
+| Stashes | none in the three checkouts or the ticket worktrees |
+| Uncommitted work | `ticket-1352-calendar-options-rows`: two staged test files on merge `1f6b3011` (step 4); the main checkout is clean after this commit |
+| Unpushed commits | `ticket-1352-calendar-options-rows` `1f6b3011` (step 4); `ticket-1242-week-grid-one-scroller` `40200ee4` on a branch whose `ui#1633` is closed (kept, as before) |
+| Branches with no pull request | `fix/ticket-1340-*`, `fix/ticket-1346-*`, `fix/ticket-1348-*` (fresh, no commits); merged `fix/ticket-*` branches the teardown tool keeps |
 | Detached HEADs | scratch build worktrees `mc-*`; none with work |
 | Ignored files | this session's scratchpad, copied to `$HOME/.orbit-run-carry/scratchpad` |
 | Staging account | only Caminhar, Ler 10 minutos and Beber água |
 | Session chain | open; this is an automatic relay |
-| Owner questions | none open (the owner ran `/questions` this session; none survived the filter) |
+| Owner questions | none open |
 
 ## Sleep
 
@@ -70,18 +63,18 @@ Owner instructions: finish the redesign at the frozen 22 tickets ("finish this g
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's goal is the frozen redesign done (the 22 tickets in the Batch R lead, 17 open now), then the owner told. Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation against `## The order`: 145 open, 145 placed, 0 unplaced (`reconcile.mjs`); 0 placed twice by placement. The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's goal is the frozen redesign done (the 22 tickets in the Batch R lead, 9 open now), then the owner told. Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation against `## The order`: 138 open, 138 placed, 0 unplaced (`reconcile.mjs`); 0 placed twice by placement. The run ends only when the spec is done or for an external cause.
 
 ## Previous prompt, disposition
 
-- Opening reading list, Entry point, Sleep, the authorization paragraph and owner instructions: carried (helpers unchanged; added: waiters end on `CEILING` and are restarted, no `timeout` prefix inside a command, no bare `echo =====`, check a body with `check-review-harness.mjs` before posting, React Doctor reds are fixed by restructuring).
+- Opening reading list, Entry point, Sleep, the authorization paragraph and owner instructions: carried.
 - Step 1, restart CI waiters: done this session; carried as step 1.
-- Step 2, combined check `c4` and the four merges: done (`c4` rerun on `1a9fd70f` after the relay's SIGTERM, `OVERALL fail=0`, 1952 of 1952 layout cases; `ui#1653`, `ui#1681`, `ui#1686`, `ui#1706` merged, `#1293`, `#1324`, `#1318`, `#1316` closed, worktrees removed).
-- Step 3, base-merge `ui#1707`: done (`7d2c0ba1`, proven 69 of 69, pushed); its CI and approval carried.
-- Step 4, `ui#1708` round 1: done (`calendar-day-link.spec.ts` 13 of 13 on `4bd0c46b`, pushed, approved, green; in `c5`).
-- Step 5, launch the unblocked tickets: `#1337` (`ui#1716`), `#1350` (`ui#1715`), `#1353` (`ui#1714`) done; `#1338` launched and killed at the ceiling (carried as step 4); `#1340`, `#1346`, `#1348`, `#1351` carried (step 6).
-- Step 6, merge on the bar: four merged; `c5` (three more) failed on `ui#1674`'s spec; the rest carried (step 7). Rounds added this session: `ui#1711` round 2 and `ui#1712` round 1 (Pullfrog threads), `ui#1713` round 1 (React Doctor), base merges of `ui#1711` and `ui#1712`.
-- Step 7, staging release, internal build and sweep: staging web released at `01f8afd3`; the internal build and the sweep carried (step 8).
-- Step 8, the rest of the order: carried (step 9).
+- Step 2, push `ui#1704`'s base merge: done (`170a9a9f` pushed with body evidence, approved after the push, CI green); its merge carried as step 2.
+- Step 3, merge each pull request on the bar: done for `ui#1711` (D115 plus `c-build`), `ui#1717` and `ui#1674` (combined check `c7`); the rest carried as steps 2 to 4.
+- Step 4, `ui#1716`'s round: its reds attributed to the branch and its order composed; launch carried as step 4 (it waits on `ui#1704`).
+- Step 5, `ui#1714`'s red: done (stale spec attributed on `mc-base3`, two rounds, proven, pushed, approved); merge carried as step 3.
+- Step 6, launch `#1340`, `#1346`, `#1348` after `#1300`, `#1351` after `#1342`: `#1300` merged and the three were prepared, but the relay stopped their launches before the gate; carried as step 5.
+- Step 7, staging release, internal build and the final sweep: carried as step 6.
+- Step 8, the rest of the order: carried as step 7.
 
 Every identifier here came from a previous session: treat each as a lead to verify.

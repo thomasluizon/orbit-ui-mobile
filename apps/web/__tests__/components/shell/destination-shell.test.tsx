@@ -86,8 +86,9 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
+    registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     activeId?: string | null
@@ -111,7 +112,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     const registerScroller = useShellScrollerRegistration()
     return (
     <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
-      {header ? <div data-shell-header="">{header}</div> : null}
+      {header || registerHeaderHost ? <div ref={registerHeaderHost} data-shell-header="">{header}</div> : null}
       {scrollToTop}
       <main ref={registerScroller} data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
       {mocks.wide && <>
@@ -136,10 +137,11 @@ vi.mock('@/components/shell/shell-wide', () => ({
 import {
   DestinationShell,
   useShellComposerSlot,
-  useShellHeaderSlot,
 } from '@/components/shell/destination-shell'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
+import { ShellHeader } from '@/components/shell/shell-header'
 import { PageHeader } from '@/components/ui/page-header'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
@@ -618,8 +620,7 @@ describe('DestinationShell', () => {
 
   it('focuses the object heading after navigating to a detail route', async () => {
     function Detail() {
-      useShellHeaderSlot(() => <AppBar title="Habit" titleIsHeading={false} />, 'habit-1')
-      return <h1 tabIndex={-1}>Read</h1>
+      return <><ShellHeader><AppBar title="Habit" titleIsHeading={false} /></ShellHeader><h1 tabIndex={-1}>Read</h1></>
     }
     const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
     mocks.pathname = '/habits/h1'
@@ -640,6 +641,41 @@ describe('DestinationShell', () => {
     expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
     expect(heading.closest('[data-shell-scroller]')).toBeNull()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it.each(['page', 'create', 'detail'] as const)('server-renders and hydrates one %s header before pinning it', async (surface) => {
+    mocks.profileLoaded = false
+    mocks.pathname = surface === 'page' ? '/about' : surface === 'create' ? '/habits/new' : '/habits/habit-1'
+    const child = surface === 'page'
+      ? <PageHeader title="About" backLabel="Back" onBack={() => {}} />
+      : surface === 'detail'
+        ? <HabitDetailScreen habitId="habit-1" />
+        : <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
+            actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
+            open title="New habit" actions={<button type="button">Save habit</button>} onAttemptDismiss={() => {}} onClose={() => {}}>
+            <label>Habit title<input /></label>
+          </HabitCreateFrame>
+    const shell = <DestinationShell onCreate={() => {}}>{child}</DestinationShell>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(shell)
+    document.body.append(container)
+    const title = surface === 'page' ? 'About' : surface === 'create' ? 'New habit' : 'habits.detail.screenTitle'
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      const firstHeading = within(container).getByRole('heading', { name: title })
+      if (surface === 'create') expect(within(container).getByRole('button', { name: 'Save habit' })).toBeVisible()
+      await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(within(container).getByRole('heading', { name: title })).toBe(firstHeading)
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      expect(within(container).getByRole('heading', { name: title }).closest('[data-shell-header]')).not.toBeNull()
+      if (surface === 'create') expect(within(container).getAllByRole('button', { name: 'Save habit' })).toHaveLength(1)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+    }
   })
 
   it.each([false, true])('keeps the incoming header after the outgoing route exits at wide=%s', async (wide) => {
@@ -729,20 +765,22 @@ describe('DestinationShell', () => {
     queryClient.clear()
   })
 
-  it.each([false, true])('does not let a retained route clear the incoming header at wide=%s', (wide) => {
+  it.each([false, true])('does not let a retained route clear the incoming header at wide=%s', async (wide) => {
     mocks.pathname = '/profile'
     mocks.wide = wide
     const onBack = vi.fn()
     const incoming = <PageHeader key="incoming" title="Support" backLabel="Back to Profile" onBack={onBack} />
     function App({ retainingPrevious, showIncoming = true }: { retainingPrevious: boolean; showIncoming?: boolean }) {
       return <DestinationShell onCreate={() => {}}>
-        {retainingPrevious ? <PageHeader key="previous" title="Support" backLabel="Previous back" onBack={() => {}} /> : null}
+        {retainingPrevious ? <PageHeader key="previous" title="Previous" backLabel="Previous back" onBack={() => {}} /> : null}
         {showIncoming ? incoming : <h1>Profile</h1>}
       </DestinationShell>
     }
     const view = render(<App retainingPrevious />)
     expect(screen.getByRole('button', { name: 'Back to Profile' })).toBeInTheDocument()
     mocks.pathname = '/support'
+    view.rerender(<App retainingPrevious />)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toHaveFocus())
     view.rerender(<App retainingPrevious={false} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
@@ -754,10 +792,9 @@ describe('DestinationShell', () => {
     expect(screen.queryByRole('button', { name: 'Back to Profile' })).not.toBeInTheDocument()
   })
 
-  it('replaces a hosted header when its renderer changes under the same key', () => {
+  it('updates a hosted header without replacing its subtree', () => {
     function HeaderSlot({ title }: { title: string }) {
-      useShellHeaderSlot(() => <h1>{title}</h1>, 'same-route')
-      return null
+      return <ShellHeader><h1>{title}</h1></ShellHeader>
     }
     const view = render(<DestinationShell onCreate={() => {}}><HeaderSlot title="Loading" /></DestinationShell>)
     expect(screen.getByRole('heading', { level: 1, name: 'Loading' })).toBeInTheDocument()
@@ -892,15 +929,15 @@ it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false
 })
 
 function HeaderSlotProbe({ children }: { children: ReactNode }) {
-  useShellHeaderSlot(() => children, 'today-focus')
-  return null
+  return <ShellHeader>{children}</ShellHeader>
 }
 
-it.each(['heading', 'main', 'pinned heading'])('offers the Hoje pill and restores keyboard focus to %s', async (target) => {
+it.each(['heading', 'main', 'pinned heading', 'retained heading'])('offers the Hoje pill and restores keyboard focus to %s', async (target) => {
   const user = userEvent.setup()
   mocks.pathname = '/'
   const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}>
-    {target === 'pinned heading' ? <HeaderSlotProbe><h1>Today</h1></HeaderSlotProbe> : null}
+    {target === 'retained heading' ? <HeaderSlotProbe><h1>Previous</h1></HeaderSlotProbe> : null}
+    {target === 'pinned heading' || target === 'retained heading' ? <HeaderSlotProbe><h1>Today</h1></HeaderSlotProbe> : null}
     {target === 'heading' ? <h1>Today</h1> : null}
     <input aria-label="Top draft" defaultValue="Written draft" />
   </DestinationShell></ShellScrollerProvider>)

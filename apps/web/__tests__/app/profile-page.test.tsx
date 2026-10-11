@@ -577,7 +577,7 @@ describe('ProfilePage', () => {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
         const navigates = row.querySelector('a') !== null
-        expect(icons, title.textContent!).toHaveLength(title.textContent === 'Alex' ? 3 : navigates ? 2 : 1)
+        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
         expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
