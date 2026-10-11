@@ -71,6 +71,8 @@ describe('ShellWide', () => {
     act(() => { media.width = 1100; listeners.forEach(listener => listener()) })
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByRole('button', { name: 'Astra' })).toHaveFocus())
+    expect(document.querySelectorAll('[data-shell-pinned-slot] [data-composer-root]')).toHaveLength(0)
+    expect(document.querySelector('[data-shell-bottom]')).not.toContainElement(input)
     expect(input).toBeInTheDocument()
     expect(input).toHaveValue('Keep this draft')
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
@@ -100,6 +102,25 @@ describe('ShellWide', () => {
     expect(container.querySelector<HTMLElement>('[data-shell-bottom]')).not.toContainElement(slot)
     rerender(shell(<button type="button">Reply</button>))
     expect(container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')).toBeNull()
+  })
+
+  it('releases the retained compact composer when a selection tray or another destination replaces it', () => {
+    media.width = 1352
+    const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+    const compact = <textarea aria-label="Draft" defaultValue="Retained draft" />
+    const view = render(<ShellWide {...props} compactComposer={compact} />)
+    const retained = view.container.querySelector('[data-shell-retained-composer]')!
+    expect(retained).toContainElement(screen.getByLabelText('Draft'))
+    view.rerender(<ShellWide {...props} composer={<button type="button">Selection</button>} />)
+    expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toContainElement(screen.getByRole('button', { name: 'Selection' }))
+    expect(retained).toBeEmptyDOMElement()
+    view.rerender(<ShellWide {...props} compactComposer={compact} />)
+    expect(retained).toContainElement(screen.getByLabelText('Draft'))
+    view.rerender(<ShellWide {...props} activeId="calendario" />)
+    expect(retained).toBeEmptyDOMElement()
+    view.unmount()
+    expect(retained).not.toBeInTheDocument()
   })
 
   it('centres compact notice, dock, and FAB inside the full-width bottom chrome', () => {
@@ -456,18 +477,18 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
-it.each([412, 840])('retains the sidebar Astra row across the wide boundary from %ipx', (width) => {
+it.each([412, 840])('mounts the sidebar Astra row only at wide widths after hydration from %ipx', (width) => {
   media.width = width
   const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
   const view = render(<ShellWide {...props} />)
-  const row = screen.getByRole('button', { name: 'Astra' })
-  expect(row.parentElement?.firstElementChild).toBe(row)
+  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
   media.width = 1352
   view.rerender(<ShellWide {...props} />)
-  expect(screen.getByRole('button', { name: 'Astra' })).toBe(row)
+  const row = screen.getByRole('button', { name: 'Astra' })
+  expect(row.parentElement?.firstElementChild).toBe(row)
   media.width = width
   view.rerender(<ShellWide {...props} />)
-  expect(screen.getByRole('button', { name: 'Astra' })).toBe(row)
+  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
 })
 
 it('retains the conversation node, draft and destination scroll across the wide boundary', () => {

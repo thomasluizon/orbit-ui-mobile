@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useRef, type ReactNode } from 'react'
+import { createContext, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 
@@ -9,9 +9,18 @@ export const CompactComposerMenuContext = createContext<{
   returnFocus: () => HTMLElement | null
 } | null>(null)
 
-export function ShellPinnedContent({ children, compactOnly }: Readonly<{ children: ReactNode; compactOnly: boolean }>) {
+export function ShellPinnedContent({ children, compactOnly, retainedComposerRef }: Readonly<{ children: ReactNode; compactOnly: boolean; retainedComposerRef?: RefObject<HTMLDivElement | null> }>) {
   const wide = useIsWideDesktop()
   const hostRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const host = hostRef.current
+    const parent = host?.parentElement
+    const retained = retainedComposerRef?.current
+    if (!compactOnly || !wide || !host || !parent || !retained) return
+    retained.appendChild(host)
+    return () => { parent.appendChild(host) }
+  }, [compactOnly, wide, retainedComposerRef])
 
   return <CompactComposerMenuContext.Provider value={compactOnly ? {
     hidden: wide,

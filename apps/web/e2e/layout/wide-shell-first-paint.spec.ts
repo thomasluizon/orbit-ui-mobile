@@ -27,20 +27,25 @@ for (const locale of ['en', 'pt-BR'] as const) {
             const tops = (selector: string) => Array.from(document.querySelectorAll(selector), (element) => element.getBoundingClientRect().top)
             return {
               destinations: tops('[data-shell-sidebar] nav > :not([data-shell-astra-row])'),
-              astra: tops('[data-shell-astra-row]'),
+              astra: Array.from(document.querySelectorAll('[data-shell-astra-row]'))
+                .filter((element) => element.getClientRects().length > 0)
+                .map((element) => element.getBoundingClientRect().top),
               account: tops('[data-shell-account]'),
               tabs: tops('[data-shell-tab-bar]'),
-              composer: tops('[data-shell-pinned-slot] [data-composer-root]'),
+              composer: Array.from(document.querySelectorAll('[data-shell-pinned-slot] [data-composer-root]'))
+                .filter((element) => element.getClientRects().length > 0)
+                .map((element) => element.getBoundingClientRect().top),
             }
           })
-          const assertChrome = async () => {
-            await expect(sidebar.locator('[data-shell-astra-row]')).toHaveCount(1)
+          const assertChrome = async (hydrated: boolean) => {
+            await expect(sidebar.locator('[data-shell-astra-row]')).toHaveCount(width >= 1024 || !hydrated ? 1 : 0)
             if (width >= 1024) {
               await expect(sidebar).toBeVisible()
               await expect(sidebar.locator('[data-shell-astra-row]')).toBeVisible()
               await expect(sidebarBell).toBeVisible()
               await expect(headerBell).toBeHidden()
               await expect(composer).toBeHidden()
+              if (hydrated) await expect(composer).toHaveCount(0)
               await expect(page.locator('[data-shell-bottom]')).toHaveCSS('height', '0px')
             } else {
               await expect(sidebar).toBeHidden()
@@ -55,10 +60,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await page.goto(destination === 'today' ? '/' : `/${destination}`, { waitUntil: 'commit' })
             await expect(page.locator('[data-shell-column]')).toBeVisible()
             await page.evaluate(() => document.fonts.ready)
-            await assertChrome()
+            await assertChrome(false)
             const first = await measure()
             expect(first.destinations).toHaveLength(4)
-            expect(first.astra).toHaveLength(1)
+            expect(first.astra).toHaveLength(width >= 1024 ? 1 : 0)
             expect(first.account).toHaveLength(1)
             releaseScripts()
             await page.waitForLoadState('load')
@@ -74,7 +79,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
               await expect(palette).toBeHidden()
             }
             await page.evaluate(() => document.fonts.ready)
-            await assertChrome()
+            await assertChrome(true)
             await expect.poll(measure).toEqual(first)
           } finally {
             releaseScripts()
@@ -115,7 +120,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(astra).toBeVisible()
         await expect(astra).toBeFocused()
         await expect(composer).toBeHidden()
-        await expect(input).toHaveValue('Retained draft')
+        await expect(composer).toHaveCount(0)
+        await expect(page.locator('[data-shell-retained-composer] [data-composer-input]')).toHaveValue('Retained draft')
         await page.setViewportSize({ width, height: 915 })
         await expect(composer).toBeVisible()
         await expect(input).toHaveValue('Retained draft')

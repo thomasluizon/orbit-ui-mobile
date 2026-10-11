@@ -19,7 +19,7 @@ function ShellHydrationProbe() {
   const { isSupported: speechSupported } = useSpeechToText()
 
   return (
-    <DestinationShell onCreate={() => {}} composer={<div>Composer</div>}>
+    <DestinationShell onCreate={() => {}} composer={<div>Composer<textarea aria-label="Draft" defaultValue="Draft" /></div>}>
       <RootNotificationHeader />
       <h1>Today</h1>
       {speechSupported ? <button type="button">Voice</button> : null}
@@ -65,6 +65,10 @@ describe('app shell hydration', () => {
     const recoverableError = vi.fn()
 
     const firstComposer = container.querySelector('[data-shell-pinned-slot]')
+    const firstInput = container.querySelector('textarea')!
+    if (width < 1024) {
+      firstInput.focus()
+    }
     const firstSidebarBell = container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')
     const firstAstraRow = container.querySelector('[data-shell-astra-row]')
     expect(firstAstraRow, 'sidebar Astra row exists in server HTML').not.toBeNull()
@@ -94,10 +98,23 @@ describe('app shell hydration', () => {
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
     expect(container.querySelectorAll('[data-shell-tab-bar]')).toHaveLength(1)
-    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(1)
-    expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
+    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(width >= 1024 ? 1 : 0)
+    if (width >= 1024) expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
+    expect(container.querySelectorAll('[data-root-notification-header]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')).toBe(firstSidebarBell)
     expect(container.querySelector('[data-shell-pinned-slot]')).toBe(firstComposer)
+    expect(container.querySelector('textarea')).toBe(firstInput)
+    if (width < 1024) {
+      expect(firstInput).toHaveFocus()
+      expect(firstInput).toHaveValue('Draft')
+    }
+    if (width >= 1024) {
+      const retainedComposer = container.querySelector('[data-shell-retained-composer]')
+      expect(retainedComposer).toHaveAttribute('hidden')
+      expect(retainedComposer).toHaveAttribute('inert')
+      expect(retainedComposer).toHaveTextContent('Composer')
+      expect(container.querySelector('[data-shell-bottom]')).not.toContainElement(retainedComposer as HTMLElement)
+    }
     expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })
 })
