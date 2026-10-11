@@ -1143,7 +1143,7 @@ describe('CalendarPage view switcher', () => {
   it('keeps the selector in the header and the selected day below the grid at wide width', () => {
     isWideDesktopValue = true
     render(<CalendarPage />)
-    expect(screen.queryByRole('button', { name: 'notifications.bell' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('calendar-shell-header')).toContainElement(screen.getByRole('button', { name: 'notifications.bell' }))
     expect(screen.getByTestId('calendar-shell-header')).toContainElement(screen.getByRole('button', { name: 'calendar.options' }))
 
     const header = screen.getByTestId('calendar-header-group')
@@ -1174,15 +1174,16 @@ describe('CalendarPage view switcher', () => {
     } finally { sheetTestControls.defer(false) }
   })
 
-  it('preserves the options menu and selected view when moving the bell out of the header and back', async () => {
+  it('retains the bell, options menu and selected view across viewport changes', async () => {
     const { rerender } = render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getAllByRole('button', { name: 'notifications.bell' })).toHaveLength(1)
+    const bell = screen.getByRole('button', { name: 'notifications.bell' })
     fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
 
     act(() => { isWideDesktopValue = true; wideShellSubscribers.forEach((notify) => notify()) })
     rerender(<CalendarPage />)
-    expect(screen.queryByRole('button', { name: 'notifications.bell' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'notifications.bell' })).toBe(bell)
     expect(screen.getByRole('button', { name: 'calendar.options' })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
     expect(useUIStore.getState().calendarShowRecurring).toBe(false)
@@ -1191,6 +1192,7 @@ describe('CalendarPage view switcher', () => {
     act(() => { isWideDesktopValue = false; wideShellSubscribers.forEach((notify) => notify()) })
     rerender(<CalendarPage />)
     expect(screen.getAllByRole('button', { name: 'notifications.bell' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'notifications.bell' })).toBe(bell)
     expect(screen.getByRole('button', { name: 'calendar.options' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
   })

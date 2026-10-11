@@ -196,7 +196,7 @@ function DestinationShellContent({
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
-  const chrome = resolveShellChrome(pathname, lastDestination, !wide)
+  const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
     if (destination && !notFoundVisible && pathname !== '/upgrade') setLastDestination(destination)
@@ -213,6 +213,7 @@ function DestinationShellContent({
     return () => cancelAnimationFrame(frame)
   }, [pathname])
   const pinnedComposer = getPinnedComposer(notFoundVisible, registeredComposer, composer, chrome.composer)
+  const compactComposer = pathname === '/' && registeredComposer == null
   const navigationEnabled = hasPrimaryNavigation(pathname) && (wide || !chrome.flow)
   const conversationSlot = conversation !== undefined && conversationLabel
     ? { conversation, conversationOpen, conversationLabel }
@@ -283,14 +284,15 @@ function DestinationShellContent({
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         accountEmail={profile?.email}
-        notifications={wide ? <NotificationBell countPlacement="corner" /> : undefined}
+        notifications={<NotificationBell countPlacement="corner" />}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
         notice={notice}
         registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
-        composer={pinnedComposer}
+        composer={compactComposer ? undefined : pinnedComposer}
+        compactComposer={compactComposer ? pinnedComposer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}

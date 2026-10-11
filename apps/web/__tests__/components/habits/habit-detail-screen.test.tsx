@@ -131,6 +131,10 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
 }))
 
+vi.mock('@/hooks/use-notification-inbox', () => ({
+  useNotificationInbox: () => ({ visibleUnreadCount: 0 }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: mocks.profileReady ? {

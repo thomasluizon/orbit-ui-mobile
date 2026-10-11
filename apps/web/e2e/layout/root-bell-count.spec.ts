@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { setLayoutFixtureSession } from './profile-session'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 
 async function waitForRoot(page: Page, root: string, words: typeof en) {
@@ -48,8 +49,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
               items: Array.from({ length: unreadCount }, (_, index) => createMockNotification({ id: `bell-count-${index}`, isRead: false })),
               unreadCount,
             })
-            await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.notifications.list,
-              (route) => route.fulfill({ json: notifications }))
+            await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
             await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
               (route) => route.fulfill({ json: calendarMonthResponseSchema.parse({ habits: [], logs: {} }) }))
             await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
