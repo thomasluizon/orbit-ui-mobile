@@ -105,7 +105,7 @@ function getEntryOutcome(
 function CalendarDayCheckRow({
   disabled,
   entry,
-  displayTime,
+  value,
   isPending,
   pendingChecked,
   onEntryChange,
@@ -113,7 +113,7 @@ function CalendarDayCheckRow({
 }: Readonly<{
   disabled?: boolean
   entry: CalendarDayEntry
-  displayTime: (time: string) => string
+  value: string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
@@ -124,7 +124,6 @@ function CalendarDayCheckRow({
     ? null
     : pendingChecked
   const checked = displayedChecked ?? sourceChecked
-  const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
   async function changeChecked(nextChecked: boolean) {
     const entryChange = onEntryChange(entry, nextChecked)
@@ -137,6 +136,7 @@ function CalendarDayCheckRow({
       disabled={disabled}
       label={entry.title}
       textMode="personal"
+      variant="calendar-day"
       onOpenLabel={() => onOpenTitle(entry.title)}
       checked={checked}
       value={value}
@@ -168,14 +168,14 @@ function CalendarDayRows({
   return entries.map((entry) => {
     const entryKey = getCalendarEntryMutationKey(dateStr, entry.habitId)
     const outcome = getEntryOutcome(entry, t)
-    const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
+    const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')
 
     if (loggable) {
       return (
         <CalendarDayCheckRow
           key={`${dateStr}:${entry.habitId}`}
           entry={entry}
-          displayTime={displayTime}
+          value={value}
           isPending={pendingEntryStates.has(entryKey)}
           pendingChecked={pendingEntryStates.get(entryKey)}
           onEntryChange={onEntryChange}
@@ -185,11 +185,12 @@ function CalendarDayRows({
     }
 
     return (
+      // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
       <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <span className="flex min-w-0 items-start gap-2 px-4 py-3">
-          <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex min-w-0 items-start" style={{ gap: 8, paddingInline: 16, paddingBlock: 12 }}>
+          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
-            {value ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
+            <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{value}</span>
           </span>
           <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
         </span>
@@ -270,7 +271,7 @@ export function CalendarDayDetail({
       ) : null}
       {loadingLabel ? <div data-testid="calendar-day-skeleton" className="relative">
         <div inert aria-hidden="true" style={{ visibility: 'hidden' }}>
-          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} displayTime={displayTime} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
+          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} value={displayTime('00:00')} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
         </div>
         <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
       </div> : filteredEntries.length > 0 ? (

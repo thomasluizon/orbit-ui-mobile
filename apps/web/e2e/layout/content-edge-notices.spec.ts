@@ -1,10 +1,10 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 
@@ -39,7 +39,7 @@ for (const width of [412, 1352] as const) {
       test.use({ appLocale: locale, subscriptionState: 'trial', viewport: { width, height: 915 } })
 
       test('aligns the queued-delete toast with shell content', async ({ page, context }) => {
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
         await page.getByRole('button', {
           name: messages.notifications.deleteNotification.replace('{title}', notification.title), exact: true,

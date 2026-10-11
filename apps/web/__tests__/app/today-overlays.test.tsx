@@ -54,12 +54,13 @@ vi.mock('@/components/shell/shell-412', () => ({
   }) => <main>{header}{children}{composer}{tabBar}</main>,
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, composer, tabBar }: {
+  ShellWide: ({ children, header, composer, compactComposer, tabBar }: {
     children: ReactNode
     header?: ReactNode
     composer?: ReactNode
+    compactComposer?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{header}{children}{composer}{tabBar}</main>,
+  }) => <main>{header}{children}{composer ?? compactComposer}{tabBar}</main>,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <p>Morning walk</p>,

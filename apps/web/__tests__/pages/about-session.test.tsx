@@ -58,8 +58,8 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactN
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, composer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
-    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}{children}<div data-shell-notice="">{notice}</div></main>
+  ShellWide: ({ children, composer, compactComposer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; compactComposer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer ?? (!mocks.wide && compactComposer)}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))

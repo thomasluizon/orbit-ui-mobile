@@ -78,6 +78,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   }
   applyDimensions(node, style)
   applyAlignment(node, style)
+  if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)
   for (const [property, edge] of [
     ['padding', Yoga.EDGE_ALL],
     ['paddingHorizontal', Yoga.EDGE_HORIZONTAL],

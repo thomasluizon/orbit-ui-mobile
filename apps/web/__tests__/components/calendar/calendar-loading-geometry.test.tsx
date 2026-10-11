@@ -52,6 +52,7 @@ describe('calendar loading geometry', () => {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       await loadAppFonts(page)
       const loading = await measure()
+      expect(await page.locator('[data-testid="calendar-day-skeleton"]').textContent()).toContain('00:00')
       view.rerender(<MonthContent loading={false} />)
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       await loadAppFonts(page)

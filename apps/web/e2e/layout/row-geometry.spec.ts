@@ -52,16 +52,28 @@ async function assertPersonalCheckRow(body: Locator) {
   const geometry = await body.evaluate((element) => {
     const bounds = element.getBoundingClientRect()
     const label = element.querySelector('.orbit-check-row-label')!
+    const labelBounds = label.getBoundingClientRect()
+    const labelStyle = getComputedStyle(label)
     const box = element.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
     const style = getComputedStyle(element)
-    return { start: label.getBoundingClientRect().left - bounds.left, end: bounds.right - box.right,
+    return { start: labelBounds.left - bounds.left, end: bounds.right - box.right,
       minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd,
-      gap: parseFloat(style.gap), textGap: parseFloat(getComputedStyle(label).gap),
+      gap: parseFloat(style.gap), textGap: parseFloat(labelStyle.gap),
+      calendarDay: label.getAttribute('data-variant') === 'calendar-day',
+      labelMinHeight: labelStyle.minHeight, labelPaddingStart: labelStyle.paddingBlockStart, labelPaddingEnd: labelStyle.paddingBlockEnd,
+      labelTop: labelBounds.top - bounds.top, labelBottom: labelBounds.bottom - bounds.bottom,
       border: parseFloat(style.borderBottomWidth), supporting: label.children.length > 2 }
   })
   expect(Math.abs(geometry.start - 16)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
-  expect(geometry).toMatchObject({ minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', gap: 12, textGap: 4, border: 0 })
+  expect(geometry).toMatchObject({ minHeight: geometry.calendarDay || geometry.supporting ? '68px' : '52px', gap: 12, textGap: 4, border: 0 })
+  if (geometry.calendarDay) {
+    expect(geometry).toMatchObject({ paddingStart: '0px', paddingEnd: '0px', labelPaddingStart: '12px', labelPaddingEnd: '12px', labelMinHeight: '68px' })
+    expect(Math.abs(geometry.labelTop)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(geometry.labelBottom)).toBeLessThanOrEqual(0.5)
+  } else {
+    expect(geometry).toMatchObject({ paddingStart: '12px', paddingEnd: '12px' })
+  }
   for (const control of await body.getByRole('button').or(body.getByRole('checkbox')).all()) {
     if (await control.isEnabled()) await expectInteractionFill(control)
   }
