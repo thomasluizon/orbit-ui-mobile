@@ -10,7 +10,46 @@ const read = (name) => readFileSync(path(name), "utf8")
 const completeBlock = renderReviewEvidenceBlock().replaceAll(/: <[^\n]+>/g, ": no findings")
 const reportWithBlock = (block) => `## Test evidence\n\n## Assumptions\n\n## Manual steps\n\n${block}\n`
 
+const markdownBlockCases = () => {
+  const table = "| Check | Result |\n| --- | --- |\n| Original | Pass |"
+  const fence = ["```text", "Shared paragraph.", "", "- shared item", "", table, "```"].join("\n")
+  const original = stage("merge-review-batch-body/blocks-original.md", [
+    "Closes #1360.", "", "## Test evidence", "", "Shared paragraph.", "",
+    "- shared item", "- original item", "", table, "", fence,
+  ].join("\n"))
+  const report = stage("merge-review-batch-body/blocks-report.md", [
+    "## Test evidence", "", "Shared   paragraph.", "", "- shared item", "", table, "",
+    "Report paragraph.", "", "- report item", "- another report item", "",
+    "| Check | Result |", "| --- | --- |", "| Report | Pass |", "", fence, "",
+    "## Assumptions", "", "## Manual steps",
+  ].join("\n"))
+  check(TOOL, "merges Markdown blocks from the body and report", args(original, report, path("blocks-output.md")), { status: 0 })
+  const expected = [
+    "Closes #1360.", "", "## Test evidence", "", "Shared paragraph.", "",
+    "- shared item", "- original item", "", table, "", fence, "",
+    "Report paragraph.", "", "- report item", "- another report item", "",
+    "| Check | Result |", "| --- | --- |", "| Report | Pass |", "", fence, "",
+  ].join("\n")
+  T(`${TOOL}: preserves exact Markdown blocks and deduplicates only ordinary entries`, read("blocks-output.md") === expected, read("blocks-output.md"))
+
+  for (const [label, fence] of [
+    ["backticks", "````markdown\n## Example\n\n```\n- shared item\n\n  indented code  \n`````"],
+    ["tildes", "~~~markdown\n## Example\n\n```\n- shared item\n\n  indented code  \n~~~~"],
+  ]) {
+    const report = stage(`merge-review-batch-body/${label}-report.md`, [
+      "## Test evidence", "", "- shared item", fence, "Paragraph after the fence.", "",
+      "## Assumptions", "", "## Manual steps",
+    ].join("\n"))
+    const body = stage(`merge-review-batch-body/${label}-body.md`, "## Test evidence\n")
+    const output = path(`${label}-output.md`)
+    check(TOOL, `keeps headings and shorter or mismatched markers inside ${label} fences`, args(body, report, output), { status: 0 })
+    const expected = `## Test evidence\n\n- shared item\n\n${fence}\n\nParagraph after the fence.\n`
+    T(`${TOOL}: ${label} fence content remains intact and separate from adjacent blocks`, readFileSync(output, "utf8") === expected, readFileSync(output, "utf8"))
+  }
+}
+
 export const cases = () => {
+  markdownBlockCases()
   const original = stage("merge-review-batch-body/original.md", "Closes #542.\n\n## Test evidence\n\n- original test\n\n## Assumptions\n\n- original choice\n\n## Manual steps\n\n- original setup\n\n## Review harness\n\n- gates lane: no findings\n")
   const firstBlock = completeBlock.replace("- gates lane: no findings", "- gates lane: first finding")
   const first = stage("merge-review-batch-body/first.md", `Commit abc\n\n## Test evidence\n\n- first test\n\n## Assumptions\n\n- first choice\n\n## Manual steps\n\n- first setup\n\n${firstBlock}\n`)
