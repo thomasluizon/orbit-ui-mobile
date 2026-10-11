@@ -97,7 +97,9 @@ describe('Bottom tab geometry in Chromium', () => {
           expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).toBe(hover.token)
           await page.mouse.down()
           expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).toBe(hover.token)
+          await page.mouse.move(0, 0)
           await page.mouse.up()
+          await button.hover()
           const colors = await button.evaluate((element) => {
             const icon = element.querySelector('svg')!
             const iconStyle = getComputedStyle(icon)
