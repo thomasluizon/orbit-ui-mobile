@@ -125,7 +125,7 @@ describe('rendered light hover contrast', () => {
       expect(await measure()).toMatchObject({ color: hovered.color, backgrounds: hovered.backgrounds, indicatorFill: hovered.indicatorFill, hover: true, active: true, current: active ? 'page' : null })
       await page.mouse.move(width - 1, 850)
       await page.waitForFunction(() => {
-        const button = document.querySelector('button')!
+        const button = document.querySelector('a[href]')!
         return button.matches(':active') && !button.matches(':hover')
       })
       await page.waitForTimeout(300)
