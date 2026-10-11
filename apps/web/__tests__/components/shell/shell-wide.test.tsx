@@ -443,7 +443,9 @@ it('keeps the Astra layer open when a destination opens in another browsing cont
   media.width = 1352
   const onSelect = vi.fn()
   const onSidebarNavigate = vi.fn()
+  const onCreate = vi.fn()
   render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" onSelect={onSelect}
+    onCreate={onCreate} createLabel="Create"
     astraRow={{ label: 'Astra', onOpen: vi.fn() }} onSidebarNavigate={onSidebarNavigate}
     conversationOpen conversationLabel="Astra" conversation={<button type="button">Close</button>} />)
   const calendar = screen.getByRole('link', { name: 'Calendário' })
@@ -456,4 +458,7 @@ it('keeps the Astra layer open when a destination opens in another browsing cont
   expect(fireEvent.click(calendar)).toBe(false)
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
   expect(onSidebarNavigate).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }), { ctrlKey: true })
+  expect(onCreate).toHaveBeenCalledOnce()
+  expect(onSidebarNavigate).toHaveBeenCalledTimes(2)
 })

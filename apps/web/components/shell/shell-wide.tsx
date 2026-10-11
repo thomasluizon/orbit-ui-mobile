@@ -122,8 +122,9 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
     <aside
       data-shell-sidebar=""
       onClickCapture={(event) => {
-        if (!props.layerOpen || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !(event.target instanceof Element)) return
+        if (!props.layerOpen || !(event.target instanceof Element)) return
         const control = event.target.closest('button, a[href]')
+        if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
         if (control && !control.hasAttribute('data-shell-astra-row')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
