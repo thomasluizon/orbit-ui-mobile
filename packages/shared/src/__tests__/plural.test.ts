@@ -21,16 +21,16 @@ describe('plural', () => {
 
   it('selects the singular and plural day celebration copy in both locales', () => {
     expect(plural(en.celebration.day.line.replace('{count}', '1'), 1)).toBe(
-      'All 1 habit for today is done.',
+      'Your 1 habit for today is done.',
     )
     expect(plural(en.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
       'All 2 habits for today are done.',
     )
     expect(plural(ptBR.celebration.day.line.replace('{count}', '1'), 1)).toBe(
-      'O 1 hábito de hoje está feito.',
+      'Tudo feito: 1 hábito hoje.',
     )
     expect(plural(ptBR.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
-      'Os 2 hábitos de hoje estão feitos.',
+      'Tudo feito: 2 hábitos hoje.',
     )
   })
 })

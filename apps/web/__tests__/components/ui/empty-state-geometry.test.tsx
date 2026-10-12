@@ -16,7 +16,7 @@ const cases = [320, 360, 384, 412].flatMap((width) => [
 ].flatMap(({ words, ...viewport }) => emptyStateTitles(words).map((title) => ({ ...viewport, ...title }))))
 
 it.each([
-  { locale: 'pt-BR', words: ptBR, goals: 'Nenhuma meta ainda', achievements: 'Vêm dos seus registros' },
+  { locale: 'pt-BR', words: ptBR, goals: 'Nenhuma meta ainda', achievements: 'Registre para conquistar' },
   { locale: 'en', words: en, goals: 'No goals yet', achievements: 'Log habits to earn them' },
 ])('explains the empty progress sections in $locale', ({ words, goals, achievements }) => {
   expect(words.progressScreen.goals.empty).toBe(goals)

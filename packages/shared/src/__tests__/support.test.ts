@@ -40,7 +40,7 @@ describe('support copy', () => {
       description: 'Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.',
       message: 'O que aconteceu',
       email: 'Resposta para',
-      emailLockedReason: 'Gerido pela sua conta.',
+      emailLockedReason: 'Definido pela sua conta.',
       subjectRequired: 'Escolha um assunto para a gente encaminhar certo.',
       messageRequired: 'Escreva pelo menos uma frase sobre o que aconteceu.',
     })

@@ -914,7 +914,7 @@
       "noValue": "Não definido",
       "delete": "Apagar hábito",
       "proGate": "Pro",
-      "slipAlert": "Alerta de deslize",
+      "slipAlert": "Avisar deslize",
       "slipAlertDescription": "Um aviso quando você começar a ter deslizes neste hábito.",
       "rescheduleAccept": "Usar plano",
       "rescheduleLoading": "Buscando um plano realista...",
@@ -1424,7 +1424,7 @@
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
-      "filter": "Filtrar a lista",
+      "filter": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
       "clearFilter": "Limpar filtro",
       "open": { "notifications": "Abrir Avisos", "tags": "Abrir Tags", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }

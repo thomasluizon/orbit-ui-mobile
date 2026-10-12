@@ -106,7 +106,7 @@ describe('FeatureGuideDrawer', () => {
       'Orbit banks a freeze as your streak grows. You choose to spend one to repair yesterday.',
     )
     expect(ptBR.onboarding.featureGuide.rewardsSection.streakFreezeDesc).toBe(
-      'O Orbit guarda uma proteção conforme a sua sequência cresce. Você escolhe usar uma para reparar o dia de ontem.',
+      'O Orbit guarda um congelamento conforme a sua sequência cresce. Você escolhe usar um para reparar o dia de ontem.',
     )
   })
 
@@ -124,7 +124,7 @@ describe('FeatureGuideDrawer', () => {
       'The bell opens everything Orbit sends you: reminders that fired, streak and level updates, friend activity, calendar results, and goal deadlines. Its badge counts the unread ones.',
     )
     expect(ptBR.onboarding.featureGuide.remindersSection.bellDesc).toBe(
-      'O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O badge conta os não lidos.',
+      'O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O número no sino mostra quantos você ainda não leu.',
     )
   })
 

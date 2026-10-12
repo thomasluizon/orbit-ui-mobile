@@ -1386,7 +1386,7 @@ describe('ProgressContent', () => {
       'A freeze covered {date}. {count, plural, =0 {None remain.} one {One remains.} other {# remain.}}',
     )
     expect(ptBR.progressScreen.streak.covered).toBe(
-      'Um congelamento cobriu {date}. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}',
+      'Um congelamento cobriu {date}. {count, plural, =0 {Não resta nenhum.} one {Resta um.} other {Restam #.}}',
     )
   })
 
@@ -1394,7 +1394,7 @@ describe('ProgressContent', () => {
     expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.automaticCovered', { date: 'Tuesday, Sep 15', count: 2 }))
       .toBe('Orbit automatically covered Tuesday, Sep 15 with a freeze. 2 remain.')
     expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.automaticCovered', { date: 'terça-feira, 15 de set.', count: 2 }))
-      .toBe('Orbit cobriu terça-feira, 15 de set. automaticamente com um congelamento. 2 restam.')
+      .toBe('O Orbit cobriu terça-feira, 15 de set. automaticamente com um congelamento. Restam 2.')
   })
 
   it('shows the no-freeze gap without an action or blame', () => {

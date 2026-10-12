@@ -182,7 +182,7 @@ describe('PendingOperationCard (mobile)', () => {
       expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
       expect(tree.root.findByType('ConfirmSheet').props).toMatchObject({
         title: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?',
-        message: locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.',
+        message: locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo o que há neles serão removidos da sua lista. Não há como restaurar por aqui.',
         confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos', destructive: true,
       })
     })

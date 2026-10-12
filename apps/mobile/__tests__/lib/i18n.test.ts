@@ -47,8 +47,8 @@ describe('mobile i18n interpolation', () => {
     },
     {
       locale: 'pt-BR',
-      manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
-      open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
+      manual: 'Atualize o progresso. Ao bater a meta, ela é concluída.',
+      open: 'Você bateu esta meta, mas ela continua ativa. Conclua quando quiser.',
     },
   ])('renders truthful goal completion copy through the app i18n instance in $locale', async ({ locale, manual, open }) => {
     await i18n.changeLanguage(locale)

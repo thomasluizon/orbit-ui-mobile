@@ -80,7 +80,7 @@ describe('OnboardingCreateHabit', () => {
     try {
       render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
       expect(screen.getByRole('img', { name: 'Emoji proposto pela Astra' })).toHaveTextContent('🚶')
-      expect(screen.getByRole('button', { name: 'Corrigir agenda. Emoji proposto pela Astra' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Corrigir frequência. Emoji proposto pela Astra' })).toBeInTheDocument()
     } finally {
       translations.current = previous
     }

@@ -1424,7 +1424,7 @@
       "markReadError": "Couldn't mark that alert read. Try again.",
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
-      "filter": "Filter this list",
+      "filter": "Filter list",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter",
       "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }

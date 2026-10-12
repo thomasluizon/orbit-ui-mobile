@@ -29,22 +29,22 @@ const locales = ['en', 'pt-BR'] as const
 const deletionSubjects = [
   { subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits',
     english: ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
-    portuguese: ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.'] },
+    portuguese: ['O hábito e tudo o que há nele serão removidos da sua lista.', '# hábitos e tudo o que há neles serão removidos da sua lista.'] },
   { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal',
     english: ['The goal leaves your list.', '# goals leave your list.'],
-    portuguese: ['A meta sai da sua lista.', '# metas saem da sua lista.'] },
+    portuguese: ['A meta será removida da sua lista.', '# metas serão removidas da sua lista.'] },
   { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag',
     english: ['The tag leaves your list.', '# tags leave your list.'],
-    portuguese: ['A tag sai da sua lista.', '# tags saem da sua lista.'] },
+    portuguese: ['A tag será removida da sua lista.', '# tags serão removidas da sua lista.'] },
   { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications',
     english: ['The alert leaves your list.', '# alerts leave your list.'],
-    portuguese: ['O aviso sai da sua lista.', '# avisos saem da sua lista.'] },
+    portuguese: ['O aviso será removido da sua lista.', '# avisos serão removidos da sua lista.'] },
   { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts',
     english: ['The memory leaves your list.', '# memories leave your list.'],
-    portuguese: ['A memória sai da sua lista.', '# memórias saem da sua lista.'] },
+    portuguese: ['A memória será removida da sua lista.', '# memórias serão removidas da sua lista.'] },
   { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate',
     english: ['The template leaves your list.', '# templates leave your list.'],
-    portuguese: ['O modelo sai da sua lista.', '# modelos saem da sua lista.'] },
+    portuguese: ['O modelo será removido da sua lista.', '# modelos serão removidos da sua lista.'] },
 ]
 const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const originalOperation = makeHeldHabitMessage().pendingOperations![0]!

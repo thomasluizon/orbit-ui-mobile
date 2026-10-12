@@ -119,9 +119,9 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     const tree = render()
     const placeholder = locale === 'en' ? 'name@example.com' : 'nome@exemplo.com'
     const input = host(tree.root, 'TextInput')[0]
-    expect(input?.props.accessibilityLabel).toBe('Email')
+    expect(input?.props.accessibilityLabel).toBe(locale === 'en' ? 'Email' : 'E-mail')
     expect(input?.props.placeholder).toBe(placeholder)
-    expect(textOf(tree.root)).toContain('Email')
+    expect(textOf(tree.root)).toContain(locale === 'en' ? 'Email' : 'E-mail')
     act(() => tree.unmount())
   })
   it('blocks code requests while keeping code entry available until a mobile token exists', () => {

@@ -10,7 +10,7 @@ describe('i18n interpolation config', () => {
       item: 'Walk',
     })
 
-    expect(message).toBe('The log for Walk did not go up and was dropped.')
+    expect(message).toBe('The log for Walk did not sync and was discarded.')
   })
 
   it('resolves the dropped-sync placeholder in pt-BR too', async () => {

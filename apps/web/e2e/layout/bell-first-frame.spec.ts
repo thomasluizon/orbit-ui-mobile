@@ -31,7 +31,7 @@ test.describe('header bell first frame at 600px', () => {
         await page.evaluate(() => document.fonts.ready)
         const firstLeft = await control.evaluate((element) => element.getBoundingClientRect().left)
         releaseNotifications()
-        const bell = page.getByRole('button', { name: 'Avisos, 15 sem ler', exact: true }).filter({ visible: true })
+        const bell = page.getByRole('button', { name: 'Avisos não lidos: 15', exact: true }).filter({ visible: true })
         await expect(bell.locator('[data-notification-count]')).toHaveText('9+')
         const loadedLeft = await control.evaluate((element) => element.getBoundingClientRect().left)
         expect(loadedLeft).toBe(firstLeft)
