@@ -40,13 +40,23 @@ function translator(messages: typeof en | typeof ptBR) {
   }
 }
 
+function getExpectedHabitSummary({ days, locale, time, weeks, expected }: Pick<(typeof localizedScheduleCases)[number], 'days' | 'locale' | 'time' | 'weeks' | 'expected'>): string {
+  const timeSuffix = time ? `${locale === 'en' ? ' at ' : ' às '}${time}` : ''
+  if (days.length === 7) {
+    return locale === 'en' ? `every day${timeSuffix}, every ${weeks} weeks`
+      : `todo dia${timeSuffix}, a cada ${weeks} semanas`
+  }
+  if (locale === 'en' && weeks > 1) {
+    return `every ${new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(days)}${timeSuffix}, every ${weeks} weeks`
+  }
+  return expected
+}
+
 describe('weekday schedule sentences', () => {
   it.each(localizedScheduleCases)('formats the habit summary $days in $locale at $time every $weeks weeks', ({ days, locale, time, weeks, expected }) => {
     const translate = translator(locale === 'en' ? en : ptBR)
     const options = weekdayCases.map(([value]) => ({ value, label: value }))
-    const expectedSummary = locale === 'en' && weeks > 1
-      ? `every ${new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(days)}${time ? ` at ${time}` : ''}, every ${weeks} weeks`
-      : expected
+    const expectedSummary = getExpectedHabitSummary({ days, locale, time, weeks, expected })
     const sentence = buildHabitUnderstandingSentence(days, options, false, 'Day', 1, time, locale, translate, weeks)
     expect(sentence).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
     expect(sentence).toBe(expectedSummary)

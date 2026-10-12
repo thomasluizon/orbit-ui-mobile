@@ -647,7 +647,7 @@ export function buildHabitUnderstandingSentence(
     ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
     : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
   if (!isFlexible && frequencyUnit === 'Day' && quantity === 1 &&
-    (days.length === 0 || (days.length === 7 && new Set(days).size === 7 && intervalWeeks === 1))) {
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
     key = 'habits.form.understoodDaily'
   } else if (days.length > 0) {
     const weekdayUnderstanding = getHabitWeekdayUnderstanding(days, dayOptions, locale, translate, intervalWeeks)
@@ -671,7 +671,7 @@ export function buildHabitUnderstandingSentence(
   }
   const sentence = translate(key, values)
   return intervalWeeks > 1
-    && days.length === 0
+    && !key.startsWith('habits.form.understoodIntervalDays')
     ? translate('habits.form.understoodRepeatWeeks', { schedule: sentence, count: intervalWeeks })
     : sentence
 }
