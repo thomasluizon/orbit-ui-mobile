@@ -290,7 +290,7 @@ describe('Hoje header geometry', () => {
           await document.fonts.ready
         }, textScale)
         const geometry = await page.evaluate(() => {
-          const date = document.querySelector('[data-today-date-row] [title] p')!
+          const date = document.querySelector('[data-today-date-row] [title]')!
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
@@ -321,7 +321,8 @@ describe('Hoje header geometry', () => {
                 emptyBandHeight: wrapper.bottom - bounds.bottom,
                 emptyBandHitsBody: document.elementFromPoint(centerX, (bounds.bottom + wrapper.bottom) / 2)?.closest('button') === body }
             }),
-            contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div, [data-personal-text-content] > div'))!)].map((element) => element.getBoundingClientRect().left),
+            dateCenter: date.getBoundingClientRect().left + date.getBoundingClientRect().width / 2,
+            contentEdges: [sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div, [data-personal-text-content] > div'))!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
             wellInsets: rows.map((row) => {
               const body = row.querySelector('[data-habit-row-body]')!
@@ -358,7 +359,8 @@ describe('Hoje header geometry', () => {
         expect(geometry.leafDisclosure).toBe(false)
         expect(geometry.leafBody).toBe(16)
         expect(geometry.insetEdges).toEqual([16, 16, 16])
-        expect(geometry.contentEdges).toEqual([84, 84, 84, 84, 84])
+        expect(geometry.dateCenter).toBeCloseTo(width / 2, 0)
+        expect(geometry.contentEdges).toEqual([84, 84, 84, 84])
         expect(geometry.overflow).toBeLessThanOrEqual(width)
         expect(geometry.rowHeights.every((height) => height >= 52)).toBe(true)
         if (textScale === 2) expect(geometry.rowHeights.every((height) => height > 68)).toBe(true)
@@ -511,7 +513,9 @@ describe('Hoje header geometry', () => {
       expect(geometry.documentWidth).toBe(width)
       expect(geometry.dayLines).toBe(1)
       expect(geometry.dayFontSize).toBe(22 * scale)
-      expect(geometry.arrows[1]!.left - geometry.dateBlock.right).toBeCloseTo(12)
+      expect(geometry.arrows[0]!.left).toBeCloseTo(geometry.date.left + 16)
+      expect(geometry.arrows[1]!.right).toBeCloseTo(geometry.date.right - 16)
+      expect(Math.abs((geometry.dateBlock.left + geometry.dateBlock.right - geometry.date.left - geometry.date.right) / 2)).toBeLessThanOrEqual(1)
       assertHeaderControls(geometry.arrows, width, scale)
       assertHeaderControls(geometry.actions, width, scale, true)
     } finally { await page.close() }

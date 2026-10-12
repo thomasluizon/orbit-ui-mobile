@@ -162,18 +162,18 @@ describe('Today date control feedback (mobile)', () => {
     }
   })
 
-  it('uses display type and leading alignment for the date', () => {
+  it('uses display type and centred alignment for the date', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
-    expect(StyleSheet.flatten(date.props.style)).not.toHaveProperty('alignItems', 'center')
-    expect(StyleSheet.flatten(date.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 0 })
+    expect(StyleSheet.flatten(date.props.style)).toHaveProperty('alignItems', 'center')
+    expect(StyleSheet.flatten(date.props.style)).toMatchObject({ flexGrow: 1, flexShrink: 1 })
     const row = date.parent
     expect(StyleSheet.flatten(row.props.style).flexWrap).toBeUndefined()
     const day = date.findAllByType(Text)[0]
     expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
   })
 
-  it.each([1, 2].flatMap((fontScale) => [320, 384].map((width) => ({ fontScale, width }))))('groups the date at $width dp and $fontScale text scale', ({ fontScale, width }) => {
+  it.each([1, 2].flatMap((fontScale) => [320, 384, 412].map((width) => ({ fontScale, width }))))('centres the date between edge controls at $width dp and $fontScale text scale', ({ fontScale, width }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.' })
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Quarta-feira, 8 abr.')
@@ -194,12 +194,12 @@ describe('Today date control feedback (mobile)', () => {
       layout.setPadding(Yoga.EDGE_TOP, rowStyle.paddingVertical)
       layout.setPadding(Yoga.EDGE_BOTTOM, rowStyle.paddingVertical)
       layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
-      for (const childWidth of [48, Math.max(dayWidth, numericWidth), 48]) {
+      for (const [index, childWidth] of [48, Math.max(dayWidth, numericWidth), 48].entries()) {
         const node = Yoga.Node.create()
         node.setWidth(childWidth)
         node.setHeight(48)
-        node.setFlexGrow(dateStyle.flexGrow)
-        node.setFlexShrink(dateStyle.flexShrink)
+        node.setFlexGrow(index === 1 ? dateStyle.flexGrow : 0)
+        node.setFlexShrink(index === 1 ? dateStyle.flexShrink : 0)
         layout.insertChild(node, layout.getChildCount())
       }
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
@@ -209,7 +209,16 @@ describe('Today date control feedback (mobile)', () => {
         expect(layout.getComputedLayout().height - bounds.top - bounds.height).toBeGreaterThanOrEqual(4)
         expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
       }
-      expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 24)
+      const previous = layout.getChild(0).getComputedLayout()
+      const title = layout.getChild(1).getComputedLayout()
+      const next = layout.getChild(2).getComputedLayout()
+      expect(previous.left).toBe(0)
+      expect(next.left + next.width).toBe(rowWidth)
+      expect(Math.abs(title.left + title.width / 2 - rowWidth / 2)).toBeLessThanOrEqual(1)
+      expect(title.width).toBeGreaterThanOrEqual(Math.max(dayWidth, numericWidth))
+      for (const label of date.findAllByType(Text)) {
+        expect(StyleSheet.flatten(label.props.style).textAlign).toBe('center')
+      }
       const header = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'today-header-actions')
       expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4, flexWrap: 'wrap' })
       const cluster = button(renderer, 'Search')!.parent

@@ -212,8 +212,14 @@ describe('Hoje leading edges on Android', () => {
         layout.setWidth(width)
         layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
         const textEdges = [...nodes].filter(([element]) => element.type === 'Text' && StyleSheet.flatten(element.props.style as StyleProp<TextStyle>).opacity !== 0 &&
-          ['Sua rotina mudou. Vamos conversar?', 'Quarta-feira', 'Qua.', '8 abr.', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
-        expect(textEdges).toHaveLength(6)
+          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
+        expect(textEdges).toHaveLength(4)
+        const dateLabels = [...nodes].filter(([element]) => element.type === 'Text' &&
+          ['Quarta-feira', 'Qua.', '8 abr.'].includes(textContent(element)))
+        expect(dateLabels).toHaveLength(2)
+        for (const [, node] of dateLabels) {
+          expect(Math.abs(leadingPosition(node) + node.getComputedWidth() / 2 - width / 2)).toBeLessThanOrEqual(1)
+        }
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
         expect(rows).toHaveLength(3)
         for (const [rowHost] of rows) assertPaddedBody(nodes, rowHost)
