@@ -130,7 +130,9 @@ function FlowHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: 
     <View style={styles.headerStart}>
       {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <Pressable accessibilityRole="button" accessibilityLabel={t('onboarding.flow.back')} onPress={onBack}
         style={({ pressed }) => [styles.back, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-        <ArrowLeft size={20} color={tokens.fg1} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ transform: [{ translateX: I18nManager.isRTL ? -1 : 1 }, { scaleX: I18nManager.isRTL ? -1 : 1 }] }} />
+        <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ transform: [{ translateX: I18nManager.isRTL ? -1 : 1 }, { scaleX: I18nManager.isRTL ? -1 : 1 }] }}>
+          <ArrowLeft size={20} color={tokens.fg1} accessible={false} />
+        </View>
       </Pressable> : null}
       <Text style={[styles.counter, { color: tokens.fg3 }]}>Orbit · <Text style={{ color: tokens.fg1 }}>{String(displayStep).padStart(2, '0')}</Text> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</Text><Text accessibilityLiveRegion="polite" style={styles.srOnly}>{t('onboarding.flow.step', { current: displayStep, total: getOnboardingDisplayTotal() })}</Text></View>
     <View style={{ flex: 1, minWidth: 0 }}><ActionRow>

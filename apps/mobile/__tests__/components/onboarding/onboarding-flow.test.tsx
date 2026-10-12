@@ -53,6 +53,12 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+vi.unmock('@/components/ui/icons')
+vi.mock('react-native-svg', async () => {
+  const svg = await import('@/test-mocks/react-native-svg')
+  return { ...svg, Svg: svg.default }
+})
+
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -316,9 +322,15 @@ describe('OnboardingFlow state model', () => {
       const target = StyleSheet.flatten(prop<(state: { pressed: boolean }) => unknown>(back, 'style')({ pressed: false })) as { width: number; minHeight: number }
       expect(target.width).toBeGreaterThanOrEqual(48)
       expect(target.minHeight).toBeGreaterThanOrEqual(48)
-      const arrow = oneByType(back, 'ArrowLeft')
-      expect(arrow.props).toMatchObject({ size: 20, accessible: false, importantForAccessibility: 'no-hide-descendants' })
-      expect(StyleSheet.flatten(arrow.props.style)).toMatchObject({ transform: [{ translateX: rtl ? -1 : 1 }, { scaleX: rtl ? -1 : 1 }] })
+      const arrow = oneByType(back, 'Svg')
+      expect(arrow.props).toMatchObject({ width: 20, height: 20, accessible: false })
+      const transformOwners = ['View', 'Svg', 'Path'].flatMap((type) => byType(back, type)).filter((node) => {
+        const style = StyleSheet.flatten(node.props.style) as { transform?: unknown } | undefined
+        return style?.transform !== undefined
+      })
+      expect(transformOwners).toHaveLength(1)
+      expect(transformOwners[0]!.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+      expect(StyleSheet.flatten(transformOwners[0]!.props.style)).toMatchObject({ transform: [{ translateX: rtl ? -1 : 1 }, { scaleX: rtl ? -1 : 1 }] })
     },
   )
 
