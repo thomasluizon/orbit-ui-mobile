@@ -387,6 +387,26 @@
     "notNow": "Agora não"
   },
   "dates": {
+    "weekdaySchedule": {
+      "single": {
+        "sunday": "todo domingo",
+        "monday": "toda segunda",
+        "tuesday": "toda terça",
+        "wednesday": "toda quarta",
+        "thursday": "toda quinta",
+        "friday": "toda sexta",
+        "saturday": "todo sábado"
+      },
+      "list": {
+        "sunday": "aos domingos",
+        "monday": "às segundas",
+        "tuesday": "às terças",
+        "wednesday": "às quartas",
+        "thursday": "às quintas",
+        "friday": "às sextas",
+        "saturday": "aos sábados"
+      }
+    },
     "today": "Hoje",
     "todayWithDate": "Hoje, {date}",
     "goToToday": "Ir para hoje",
@@ -675,10 +695,13 @@
       "askAstraCost": "Usa 1 das {allowance} mensagens de hoje.",
       "astraReading": "A Astra está lendo a frase",
       "localReadLimit": "As {allowance} mensagens da Astra de hoje foram usadas. O Orbit lê a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.",
-      "understoodDay": "toda {days}",
-      "understoodDayAt": "toda {days} às {time}",
-      "understoodDays": "toda {days}",
-      "understoodDaysAt": "toda {days} às {time}",
+      "understoodIntervalDays": "a cada {count} semanas, {days}",
+      "understoodIntervalDaysAt": "a cada {count} semanas, {days} às {time}",
+      "understoodRepeatWeeks": "{schedule}, a cada {count} semanas",
+      "understoodDay": "{days}",
+      "understoodDayAt": "{days} às {time}",
+      "understoodDays": "{days}",
+      "understoodDaysAt": "{days} às {time}",
       "understoodCount": "{count} vezes por semana, qualquer dia",
       "understoodCountAt": "{count} vezes por semana, qualquer dia, às {time}",
       "understoodMonthOnce": "Uma vez por mês",
@@ -2392,8 +2415,8 @@
           "sunday": "domingo", "monday": "segunda", "tuesday": "terça", "wednesday": "quarta", "thursday": "quinta", "friday": "sexta", "saturday": "sábado"
         },
         "cadence": {
-          "fixed": "toda {days}",
-          "fixedAt": "toda {days} às {time}",
+          "fixed": "{days}",
+          "fixedAt": "{days} às {time}",
           "daily": "todo dia",
           "dailyAt": "todo dia às {time}",
           "flexible": {
@@ -2422,9 +2445,8 @@
             "month": "{count, plural, =0 {a cada # meses, às {time}} one {todo mês às {time}} other {a cada # meses, às {time}}}",
             "year": "{count, plural, =0 {a cada # anos, às {time}} one {todo ano às {time}} other {a cada # anos, às {time}}}"
           },
-          "intervalDays": "{count, plural, =0 {a cada # semanas, toda {days}} one {toda semana, toda {days}} other {a cada # semanas, toda {days}}}",
-          "intervalDaysAt": "{count, plural, =0 {a cada # semanas, toda {days}, às {time}} one {toda semana, toda {days}, às {time}} other {a cada # semanas, toda {days}, às {time}}}",
-          "and": "e"
+          "intervalDays": "{count, plural, =0 {a cada # semanas, {days}} one {toda semana, {days}} other {a cada # semanas, {days}}}",
+          "intervalDaysAt": "{count, plural, =0 {a cada # semanas, {days} às {time}} one {toda semana, {days} às {time}} other {a cada # semanas, {days} às {time}}}"
         }
       },
       "remind": {

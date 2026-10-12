@@ -784,3 +784,5 @@ export { DESTINATION_ICONS, SHELL_DESTINATION_IDS, getDestinationForLabel, getDe
 export type { DestinationIconName } from './destination-icons'
 
 export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
+
+export { formatWeekdaySchedule } from './weekday-schedule'
