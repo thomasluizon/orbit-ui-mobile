@@ -2384,7 +2384,7 @@
         "anyTime": "Qualquer hora",
         "scheduleMode": "Agenda",
         "fixedMode": "Fixa",
-        "flexibleMode": "Flexível",
+        "flexibleMode": "Livre",
         "intervalMode": "Repetir",
         "oneTimeMode": "Única",
         "frequencyUnitLabel": "Unidade de repetição",

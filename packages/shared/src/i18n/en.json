@@ -2384,7 +2384,7 @@
         "anyTime": "Any time",
         "scheduleMode": "Schedule",
         "fixedMode": "Fixed",
-        "flexibleMode": "Flexible",
+        "flexibleMode": "Open",
         "intervalMode": "Repeat",
         "oneTimeMode": "Once",
         "frequencyUnitLabel": "Repeat unit",
