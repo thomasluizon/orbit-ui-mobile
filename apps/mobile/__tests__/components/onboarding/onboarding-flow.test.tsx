@@ -318,7 +318,7 @@ describe('OnboardingFlow state model', () => {
       expect(target.minHeight).toBeGreaterThanOrEqual(48)
       const arrow = oneByType(back, 'ArrowLeft')
       expect(arrow.props).toMatchObject({ size: 20, accessible: false, importantForAccessibility: 'no-hide-descendants' })
-      expect(StyleSheet.flatten(arrow.props.style)).toMatchObject({ transform: [{ scaleX: rtl ? -1 : 1 }] })
+      expect(StyleSheet.flatten(arrow.props.style)).toMatchObject({ transform: [{ translateX: rtl ? -1 : 1 }, { scaleX: rtl ? -1 : 1 }] })
     },
   )
 
@@ -572,7 +572,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await mount(true)
 
     expect(oneByType(tree.root, 'ReminderState').props.state).toBe('failed')
-    expect(renderedText(tree)).not.toContain('onboarding.flow.back')
+    expect(byType(tree.root, 'Pressable').filter((node) => node.props.accessibilityLabel === 'onboarding.flow.back')).toHaveLength(0)
     await click(tree, 'onboarding.flow.retry')
 
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)

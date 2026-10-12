@@ -237,8 +237,8 @@ describe('OnboardingFlow state model', () => {
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each([320, 412, 1440].flatMap((width) => ['ltr', 'rtl'].flatMap((direction) =>
-      [1, 2, 3].map((step) => ({ width, direction, step })))))(
-      'keeps the header ordered at $width on step $step in $direction', async ({ width, direction, step }) => {
+      [1, 2, 3].map((step) => ({ width, direction, step, arrowTranslation: direction === 'rtl' ? '-1px' : '1px' })))))(
+      'keeps the header ordered at $width on step $step in $direction', async ({ width, direction, step, arrowTranslation }) => {
         mocks.useRealShell = true
         await act(async () => { mount(false) })
         if (step > 1) {
@@ -263,6 +263,7 @@ describe('OnboardingFlow state model', () => {
             const buttons = [...header.querySelectorAll('button')]
             return { header: bounds(header), counter: bounds(counter), back: back ? bounds(back) : null,
               arrowScale: back ? getComputedStyle(back.querySelector('svg')!).scale : null,
+              arrowTranslate: back ? getComputedStyle(back.querySelector('svg')!).translate : null,
               skip: buttons.find((button) => button.textContent === 'skip') ? bounds(buttons.at(-1)!) : null,
               lastLabel: buttons.at(-1)?.textContent }
           })
@@ -275,6 +276,7 @@ describe('OnboardingFlow state model', () => {
             if (direction === 'ltr') expect(geometry.back!.right).toBeLessThanOrEqual(geometry.counter.left)
             else expect(geometry.back!.left).toBeGreaterThanOrEqual(geometry.counter.right)
             expect(geometry.arrowScale).toBe(direction === 'rtl' ? '-1 1' : 'none')
+            expect(geometry.arrowTranslate).toBe(arrowTranslation)
           }
           if (step < 3) {
             expect(geometry.lastLabel).toBe('skip')
