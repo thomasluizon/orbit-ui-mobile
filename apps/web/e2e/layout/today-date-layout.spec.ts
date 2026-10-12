@@ -26,6 +26,57 @@ for (const width of [412, 1024, 1280]) {
   })
 }
 
+for (const width of [320, 412]) {
+  for (const selectedDate of [null, '2026-09-30']) {
+    test(`centres the Hoje date between column-edge controls at ${width}px, date=${selectedDate ?? 'today'}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 915 })
+      await page.goto(selectedDate ? `/?date=${selectedDate}` : '/')
+      const row = page.locator('[data-today-date-row]')
+      await expect(row).toBeVisible()
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await row.evaluate((element) => {
+        const [previous, next] = element.querySelectorAll('button')
+        const date = element.querySelector('[title]')
+        if (!previous || !next || !date) throw new Error('Date pager missing')
+        const rowBounds = element.getBoundingClientRect()
+        const padding = getComputedStyle(element)
+        const dateBounds = date.getBoundingClientRect()
+        const measure = (control: Element) => {
+          const bounds = control.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+        }
+        return {
+          columnLeft: rowBounds.left + Number.parseFloat(padding.paddingLeft),
+          columnRight: rowBounds.right - Number.parseFloat(padding.paddingRight),
+          dateCenter: (dateBounds.left + dateBounds.right) / 2,
+          previous: measure(previous), next: measure(next),
+          labels: Array.from(date.querySelectorAll('p')).map((label) => {
+            const range = document.createRange()
+            range.selectNodeContents(label)
+            const fragments = Array.from(range.getClientRects()).filter((bounds) => bounds.width > 0)
+            return { lines: new Set(fragments.map((bounds) => bounds.top)).size,
+              left: range.getBoundingClientRect().left, right: range.getBoundingClientRect().right }
+          }),
+        }
+      })
+      expect(Math.abs(geometry.previous.left - geometry.columnLeft)).toBeLessThanOrEqual(1)
+      expect(Math.abs(geometry.next.right - geometry.columnRight)).toBeLessThanOrEqual(1)
+      expect(Math.abs(geometry.dateCenter - (geometry.columnLeft + geometry.columnRight) / 2)).toBeLessThanOrEqual(1)
+      for (const control of [geometry.previous, geometry.next]) {
+        expect(control.width).toBe(48)
+        expect(control.height).toBeGreaterThanOrEqual(48)
+      }
+      expect(geometry.labels).toHaveLength(2)
+      for (const label of geometry.labels) {
+        expect(label.lines).toBe(1)
+        expect(label.left).toBeGreaterThanOrEqual(geometry.previous.right + 12 - 1)
+        expect(label.right).toBeLessThanOrEqual(geometry.next.left - 12 + 1)
+        expect(Math.abs((label.left + label.right) / 2 - geometry.dateCenter)).toBeLessThanOrEqual(1)
+      }
+    })
+  }
+}
+
 test('keeps an off-today date and every action legible at 400px with enlarged text', async ({ page }) => {
   await page.goto('/?date=2026-09-01')
   const previous = page.getByRole('button', { name: ptBr.dates.previousDay })

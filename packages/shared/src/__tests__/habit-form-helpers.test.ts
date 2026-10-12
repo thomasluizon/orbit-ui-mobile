@@ -264,7 +264,7 @@ describe('habit form helpers', () => {
 
   it('builds truthful daily, fixed-day, flexible, and time-only summaries', () => {
     const translate = (key: string, values?: Record<string, string | number>) =>
-      key === 'dates.daysValue.monday' ? 'Monday' : `${key}:${JSON.stringify(values ?? {})}`
+      key === 'dates.weekdaySchedule.single.monday' ? 'Monday' : `${key}:${JSON.stringify(values ?? {})}`
     const days = [{ value: 'Monday', label: 'Monday' }]
 
     expect(buildHabitUnderstandingSentence([], days, false, 'Day', 1, '', 'en', translate))
@@ -277,21 +277,28 @@ describe('habit form helpers', () => {
       .toBe('habits.form.understoodTime:{"time":"15:00"}')
   })
 
-  it('formats singular and multi-day pt-BR schedules naturally', () => {
-    const translations: Record<string, string> = {
-      'habits.form.understoodDay': ptBR.habits.form.understoodDay,
-      'habits.form.understoodDayAt': ptBR.habits.form.understoodDayAt,
-      'habits.form.understoodDays': ptBR.habits.form.understoodDays,
-      'habits.form.understoodDaysAt': ptBR.habits.form.understoodDaysAt,
-      'dates.daysValue.monday': ptBR.dates.daysValue.monday,
-      'dates.daysValue.wednesday': ptBR.dates.daysValue.wednesday,
-      'dates.daysValue.friday': ptBR.dates.daysValue.friday,
+  it.each([
+    ['Sunday', 'todo domingo'], ['Monday', 'toda segunda'],
+    ['Tuesday', 'toda terça'], ['Wednesday', 'toda quarta'],
+    ['Thursday', 'toda quinta'], ['Friday', 'toda sexta'],
+    ['Saturday', 'todo sábado'], ['Saturday,Sunday', 'aos sábados e domingos'],
+  ])('uses the weekday article in the habit summary for %s', (selected, expected) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), ptBR) as string
+      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
     }
-    const translate = (key: string, values?: Record<string, string | number>) =>
-      Object.entries(values ?? {}).reduce(
-        (message, [name, value]) => message.replace(`{${name}}`, String(value)),
-        translations[key] ?? key,
-      )
+    const days = selected.split(',')
+    const options = days.map((value) => ({ value, label: value }))
+    const sentence = buildHabitUnderstandingSentence(days, options, false, 'Day', 1, '', 'pt-BR', translate)
+    expect(sentence).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+    expect(sentence).toBe(expected)
+  })
+
+  it('formats singular and multi-day pt-BR schedules naturally', () => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), ptBR) as string
+      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+    }
     const days = [
       { value: 'Monday', label: 'Seg' },
       { value: 'Wednesday', label: 'Qua' },
@@ -303,9 +310,9 @@ describe('habit form helpers', () => {
     expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
       .toBe('toda segunda às 08:00')
     expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '', 'pt-BR', translate))
-      .toBe('toda segunda, quarta e sexta')
+      .toBe('às segundas, quartas e sextas')
     expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
-      .toBe('toda segunda, quarta e sexta às 08:00')
+      .toBe('às segundas, quartas e sextas às 08:00')
   })
 
   it.each([
@@ -792,26 +799,16 @@ describe('habit form helpers', () => {
     )).toBe(sentence)
   })
 
-  it('appends a localized repeat interval to the schedule summary', () => {
-    const translate = (key: string, values?: Record<string, string | number>) =>
-      key === 'habits.form.repeatWeeks'
-        ? `Every ${values?.count} weeks`
-        : 'Run Wednesday and Thursday'
-
+  it('templates the repeat interval with the complete weekday summary', () => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), en) as string
+      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+    }
     expect(buildHabitUnderstandingSentence(
       ['Wednesday', 'Thursday'],
-      [
-        { value: 'Wednesday', label: 'Wednesday' },
-        { value: 'Thursday', label: 'Thursday' },
-      ],
-      false,
-      'Day',
-      1,
-      '',
-      'en',
-      translate,
-      2,
-    )).toBe('Run Wednesday and Thursday, every 2 weeks')
+      [{ value: 'Wednesday', label: 'Wednesday' }, { value: 'Thursday', label: 'Thursday' }],
+      false, 'Day', 1, '', 'en', translate, 2,
+    )).toBe('every Wednesday and Thursday, every 2 weeks')
   })
 
   it('honors locked cadence and toggle overrides', async () => {
@@ -971,7 +968,7 @@ describe('habit form helpers', () => {
 describe('drawn cadence sentences', () => {
   it.each([
     { locale: 'en' as const, messages: en, phrase: 'Read every Monday and Thursday at 08:00', expected: 'every Monday and Thursday at 08:00' },
-    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler toda segunda e quinta às 08:00', expected: 'toda segunda e quinta às 08:00' },
+    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler toda segunda e quinta às 08:00', expected: 'às segundas e quintas às 08:00' },
     { locale: 'en' as const, messages: en, phrase: 'Read every Monday', expected: 'every Monday' },
     { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler toda segunda', expected: 'toda segunda' },
     { locale: 'en' as const, messages: en, phrase: 'Read every day at 08:00', expected: 'every day at 08:00' },

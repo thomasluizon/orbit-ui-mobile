@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { expect as expectLayout } from '@playwright/test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
@@ -19,6 +19,34 @@ describe('layout destination heading', () => {
   let browserLaunch: BrowserLaunch | undefined
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   afterAll(async () => { await closeChrome(browserLaunch) })
+
+  it('finishes inspection without waiting for an in-flight monitor request', async () => {
+    const page = await browser.newPage()
+    let releaseCount = () => {}
+    const pendingCount = new Promise<number>((resolve) => { releaseCount = () => resolve(0) })
+    const stalledLocator = page.locator('.error-surface')
+    vi.spyOn(stalledLocator, 'count').mockReturnValueOnce(pendingCount)
+    vi.spyOn(page, 'locator').mockReturnValueOnce(stalledLocator)
+    let markInspected = () => {}
+    const inspected = new Promise<void>((resolve) => { markInspected = resolve })
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    try {
+      const inspection = inspectDestinationHeading(page, '/habits/habit-1', 'Read', async () => { markInspected() },
+        () => page.setContent('<h1>Read</h1>'))
+      await inspected
+      await Promise.race([
+        inspection,
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error('Inspection waited for the stalled monitor')), 1000)
+        }),
+      ])
+    } finally {
+      clearTimeout(deadline)
+      releaseCount()
+      vi.restoreAllMocks()
+      await page.close()
+    }
+  })
 
   it('reproduces the first heading locator accepting the focused route error title', async () => {
     const page = await browser.newPage()
@@ -74,7 +102,7 @@ describe('layout destination heading', () => {
     try {
       page.setDefaultTimeout(100)
       await expect(inspectDestinationHeading(page, '/calendar', ptBR.nav.calendar,
-        async () => {}, () => page.setContent(`<h1>${ptBR.nav.profile}</h1>`)))
+        async () => {}, () => page.setContent(`<h1>${ptBR.nav.profile}</h1>`, { timeout: 5000 })))
         .rejects.toThrow(`Route /calendar expected heading "${ptBR.nav.calendar}"`)
     } finally {
       await page.close()

@@ -21,6 +21,7 @@ module.exports = () => {
     ...baseConfig,
     android: {
       ...baseConfig.android,
+      allowBackup: false,
       googleServicesFile: captureMode ? undefined : baseConfig.android?.googleServicesFile,
     },
     plugins: withLocalPlugin(

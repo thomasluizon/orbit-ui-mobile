@@ -1,5 +1,7 @@
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import React from 'react'
+import { I18nManager, StyleSheet } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -49,6 +51,12 @@ const mocks = vi.hoisted(() => {
       registrationStatus: 'idle',
     },
   }
+})
+
+vi.unmock('@/components/ui/icons')
+vi.mock('react-native-svg', async () => {
+  const svg = await import('@/test-mocks/react-native-svg')
+  return { ...svg, Svg: svg.default }
 })
 
 vi.mock('react-i18next', () => ({
@@ -125,6 +133,12 @@ function renderedText(tree: ReturnType<typeof TestRenderer.create>): unknown[] {
   return byType(tree.root, 'Text').map((node) => node.props.children)
 }
 
+async function pressBack(tree: ReturnType<typeof TestRenderer.create>) {
+  const back = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.back')
+  expect(back).toBeDefined()
+  await TestRenderer.act(() => prop<() => void>(back!, 'onPress')())
+}
+
 async function pressTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string) {
   const action = findTextAction(tree, label)
   await TestRenderer.act(() => prop<() => void>(action, 'onClick')())
@@ -178,6 +192,8 @@ describe('OnboardingFlow state model', () => {
   })
 
   beforeEach(() => {
+    I18nManager.isRTL = false
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.clearAllMocks()
     vi.useRealTimers()
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
@@ -265,14 +281,58 @@ describe('OnboardingFlow state model', () => {
     expect(byType(tree.root, 'PillButton').some((node) => node.props.children === 'onboarding.flow.what.haveAccount')).toBe(false)
   })
 
-  it('uses small ghost controls for back and skip', async () => {
+  it('puts icon-only Back before the counter and keeps Skip last', async () => {
     const tree = await mount(false)
-    await enterSentence(tree, 'Walk')
+    expect(byType(tree.root, 'Pressable').filter((node) => node.props.accessibilityLabel === 'onboarding.flow.back')).toHaveLength(0)
+    const header = byType(oneByType(tree.root, 'FlowShell'), 'View')[0]!
+    expect(header.findAll((node) => String(node.type) === 'PillButton')).toHaveLength(1)
+
+    await enterSentence(tree, 'Walk every Monday at 18:00')
     await click(tree, 'onboarding.flow.continue')
-    for (const label of ['onboarding.flow.back', 'onboarding.flow.skip']) {
-      expect(findTextAction(tree, label).props).toMatchObject({ variant: 'ghost', size: 'sm' })
-    }
+    const back = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.back')
+    expect(back).toBeDefined()
+    expect(back!.props.accessibilityRole).toBe('button')
+    expect(byType(back!, 'Text')).toHaveLength(0)
+    const ordered = header.findAll((node) => String(node.type) === 'Pressable' || isCounterText(node))
+    expect(ordered[0]).toBe(back)
+    expect(isCounterText(ordered[1]!)).toBe(true)
+    const controls = header.findAll((node) => String(node.type) === 'Pressable' || String(node.type) === 'PillButton')
+    expect(controls[0]).toBe(back)
+    expect(controls.at(-1)).toBe(findTextAction(tree, 'onboarding.flow.skip'))
+    expect(findTextAction(tree, 'onboarding.flow.skip').props).toMatchObject({ variant: 'ghost', size: 'sm' })
+
+    await click(tree, 'onboarding.flow.create')
+    expect(byType(tree.root, 'Pressable').filter((node) => node.props.accessibilityLabel === 'onboarding.flow.back')).toHaveLength(1)
+    expect(header.findAll((node) => String(node.type) === 'PillButton')).toHaveLength(0)
+    await pressBack(tree)
+    expect(oneByType(tree.root, 'Schedule')).toBeDefined()
+    await pressBack(tree)
+    expect(oneByType(tree.root, 'SentenceInput').props.value).toBe('Walk every Monday at 18:00')
+    expect(byType(tree.root, 'Pressable').filter((node) => node.props.accessibilityLabel === 'onboarding.flow.back')).toHaveLength(0)
   })
+
+  it.each([320, 412].flatMap((width) => [false, true].map((rtl) => ({ width, rtl }))))(
+    'keeps a 48 target and mirrors the arrow at $width with RTL=$rtl', async ({ width, rtl }) => {
+      I18nManager.isRTL = rtl
+      __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
+      const tree = await mount(false)
+      await enterSentence(tree, 'Walk')
+      await click(tree, 'onboarding.flow.continue')
+      const back = byType(tree.root, 'Pressable').find((node) => node.props.accessibilityLabel === 'onboarding.flow.back')!
+      const target = StyleSheet.flatten(prop<(state: { pressed: boolean }) => unknown>(back, 'style')({ pressed: false })) as { width: number; minHeight: number }
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.minHeight).toBeGreaterThanOrEqual(48)
+      const arrow = oneByType(back, 'Svg')
+      expect(arrow.props).toMatchObject({ width: 20, height: 20, accessible: false })
+      const transformOwners = ['View', 'Svg', 'Path'].flatMap((type) => byType(back, type)).filter((node) => {
+        const style = StyleSheet.flatten(node.props.style) as { transform?: unknown } | undefined
+        return style?.transform !== undefined
+      })
+      expect(transformOwners).toHaveLength(1)
+      expect(transformOwners[0]!.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+      expect(StyleSheet.flatten(transformOwners[0]!.props.style)).toMatchObject({ transform: [{ translateX: rtl ? -1 : 1 }, { scaleX: rtl ? -1 : 1 }] })
+    },
+  )
 
   it('uses a ghost button for the reminder deny action', async () => {
     const tree = await reachReminder(false)
@@ -451,7 +511,7 @@ describe('OnboardingFlow state model', () => {
     await click(tree, 'onboarding.flow.continue')
     await click(tree, 'onboarding.flow.create')
 
-    await pressTextAction(tree, 'onboarding.flow.back')
+    await pressBack(tree)
     await TestRenderer.act(() => prop<(day: string) => void>(oneByType(tree.root, 'Schedule'), 'onToggleDay')('Monday'))
     await click(tree, 'onboarding.flow.create')
 
@@ -464,7 +524,7 @@ describe('OnboardingFlow state model', () => {
   it.each([true, false])('removes Skip after a habit exists when isLive=%s', async (isLive) => {
     const tree = await reachReminder(isLive)
     expect(renderedText(tree)).not.toContain('onboarding.flow.skip')
-    await pressTextAction(tree, 'onboarding.flow.back')
+    await pressBack(tree)
     expect(oneByType(tree.root, 'Schedule')).toBeDefined()
     expect(renderedText(tree)).not.toContain('onboarding.flow.skip')
   })
@@ -524,7 +584,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await mount(true)
 
     expect(oneByType(tree.root, 'ReminderState').props.state).toBe('failed')
-    expect(renderedText(tree)).not.toContain('onboarding.flow.back')
+    expect(byType(tree.root, 'Pressable').filter((node) => node.props.accessibilityLabel === 'onboarding.flow.back')).toHaveLength(0)
     await click(tree, 'onboarding.flow.retry')
 
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
@@ -554,7 +614,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachReminder(true)
 
     await click(tree, 'onboarding.flow.remind.allow')
-    await pressTextAction(tree, 'onboarding.flow.back')
+    await pressBack(tree)
 
     expect(oneByType(tree.root, 'ReminderState')).toBeDefined()
     expect(byType(tree.root, 'Schedule')).toHaveLength(0)

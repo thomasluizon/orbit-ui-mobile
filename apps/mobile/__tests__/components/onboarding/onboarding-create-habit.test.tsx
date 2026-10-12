@@ -41,9 +41,55 @@ function readText(tree: ReturnType<typeof TestRenderer.create>): string {
   return tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
 }
 
+const weekdayCases = [
+  ['Sunday', 'todo domingo', 'domingos', false],
+  ['Monday', 'toda segunda', 'segundas', true],
+  ['Tuesday', 'toda terça', 'terças', true],
+  ['Wednesday', 'toda quarta', 'quartas', true],
+  ['Thursday', 'toda quinta', 'quintas', true],
+  ['Friday', 'toda sexta', 'sextas', true],
+  ['Saturday', 'todo sábado', 'sábados', false],
+] as const
+const scheduleCases = [
+  ...weekdayCases.map(([day, single]) => ({ days: [day], portuguese: single, english: `every ${day}`, weeks: 1 })),
+  ...weekdayCases.flatMap(([first, , firstPlural, firstFeminine], index) =>
+    weekdayCases.slice(index + 1).map(([second, , secondPlural, secondFeminine]) => ({
+      days: [first, second],
+      portuguese: `${firstFeminine ? 'às' : 'aos'} ${firstPlural} e ${firstFeminine === secondFeminine ? '' : secondFeminine ? 'às ' : 'aos '}${secondPlural}`,
+      english: `every ${first} and ${second}`, weeks: 1,
+    }))),
+  { days: ['Monday', 'Thursday', 'Saturday'], portuguese: 'às segundas, quintas e aos sábados', english: 'every Monday, Thursday and Saturday', weeks: 1 },
+  { days: ['Sunday'], portuguese: 'a cada 2 semanas, aos domingos', english: 'every 2 weeks on Sunday', weeks: 2 },
+  { days: ['Monday'], portuguese: 'a cada 2 semanas, às segundas', english: 'every 2 weeks on Monday', weeks: 2 },
+  { days: ['Friday', 'Saturday'], portuguese: 'a cada 2 semanas, às sextas e aos sábados', english: 'every 2 weeks on Friday and Saturday', weeks: 2 },
+  { days: weekdayCases.map(([day]) => day), portuguese: 'a cada 2 semanas, aos domingos, às segundas, terças, quartas, quintas, sextas e aos sábados', english: 'every 2 weeks on Sunday, Monday, Tuesday, Wednesday, Thursday, Friday and Saturday', weeks: 2 },
+]
+const localizedScheduleCases = scheduleCases.flatMap((scheduleCase) =>
+  (['en', 'pt-BR'] as const).flatMap((locale) => ['', '08:00'].map((time) => ({
+    ...scheduleCase, locale, time,
+    expected: `${locale === 'en' ? scheduleCase.english : scheduleCase.portuguese}${time ? `${locale === 'en' ? ' at ' : ' às '}${time}` : ''}`,
+  }))))
+
 describe('OnboardingCreateHabit data', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('en')
+  })
+
+  it.each(localizedScheduleCases)('formats onboarding $days in $locale at $time every $weeks weeks', async ({ days, locale, time, weeks, expected }) => {
+    await i18n.changeLanguage(locale)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<OnboardingCreateHabit {...base} schedule={{ ...everyThirdMonday, days, intervalWeeks: weeks, dueTime: time }} />)
+      })
+      expect(readText(tree)).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+      expect(readText(tree)).toContain(expected)
+      const proposal = tree.root.findAll((node) => typeof node.props.accessibilityHint === 'string' && node.props.accessibilityRole === 'button').at(0)
+      expect(prop<string>(proposal!, 'accessibilityHint')).toContain(expected)
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('exposes the four sentence starters', () => {

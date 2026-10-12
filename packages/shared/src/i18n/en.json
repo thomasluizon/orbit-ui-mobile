@@ -387,6 +387,26 @@
     "notNow": "Not now"
   },
   "dates": {
+    "weekdaySchedule": {
+      "single": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      },
+      "list": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      }
+    },
     "today": "Today",
     "todayWithDate": "Today, {date}",
     "goToToday": "Go to today",
@@ -451,6 +471,7 @@
     "minutesShort": "{minutes} min left",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
+    "openInOrbit": "Open in Orbit",
     "signInWithGoogle": "Continue with Google",
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
@@ -674,6 +695,9 @@
       "askAstraCost": "Uses 1 of today's {allowance} messages.",
       "astraReading": "Astra is reading the phrase",
       "localReadLimit": "Today's {allowance} Astra messages are used. Orbit reads the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.",
+      "understoodIntervalDays": "every {days}, every {count} weeks",
+      "understoodIntervalDaysAt": "every {days} at {time}, every {count} weeks",
+      "understoodRepeatWeeks": "{schedule}, every {count} weeks",
       "understoodDay": "every {days}",
       "understoodDayAt": "every {days} at {time}",
       "understoodDays": "every {days}",
@@ -2422,8 +2446,7 @@
             "year": "{count, plural, one {every year at {time}} other {every # years at {time}}}"
           },
           "intervalDays": "{count, plural, one {every week on {days}} other {every # weeks on {days}}}",
-          "intervalDaysAt": "{count, plural, one {every week on {days} at {time}} other {every # weeks on {days} at {time}}}",
-          "and": "and"
+          "intervalDaysAt": "{count, plural, one {every week on {days} at {time}} other {every # weeks on {days} at {time}}}"
         }
       },
       "remind": {

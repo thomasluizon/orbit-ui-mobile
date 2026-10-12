@@ -1,8 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
-import { toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { formatWeekdaySchedule, toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -30,13 +30,6 @@ interface OnboardingCreateHabitProps {
   onIntervalWeeksChange: (intervalWeeks: number) => void
 }
 
-function joinDays(days: string[], label: (day: string) => string, conjunction: string): string {
-  const labels = days.map(label)
-  if (labels.length < 2) return labels[0] ?? ''
-  if (labels.length === 2) return `${labels[0]} ${conjunction} ${labels[1]}`
-  return `${labels.slice(0, -1).join(', ')} ${conjunction} ${labels.at(-1)}`
-}
-
 function EmphasizedCadence({ text, emphasis }: Readonly<{ text: string; emphasis: string }>) {
   /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
   const start = emphasis ? text.indexOf(emphasis) : -1
@@ -59,7 +52,7 @@ function getIntervalCadence(schedule: OnboardingSchedule, days: string, t: Caden
   return { text: t(key, { count, days, time }), emphasis: time || String(count) }
 }
 
-function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate): CadencePresentation {
+function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate, locale: string, translateDays: (key: string) => string): CadencePresentation {
   const time = schedule.dueTime
   if (schedule.isFlexible) {
     const count = schedule.frequencyQuantity ?? 1
@@ -68,14 +61,16 @@ function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslat
   }
   if (schedule.frequencyUnit === null && !schedule.isGeneral) return { text: t(cadenceKey('once', time), { time }), emphasis: time }
   if (schedule.days.length === DAYS.length && schedule.intervalWeeks === 1) return { text: t(cadenceKey('daily', time), { time }), emphasis: time }
-  const days = joinDays(schedule.days, (day) => t(`daysLong.${day.toLowerCase()}`), t('cadence.and'))
+  const days = formatWeekdaySchedule(schedule.days, locale, translateDays, schedule.days.length > 1 || schedule.intervalWeeks > 1)
   if (days && schedule.intervalWeeks === 1) return { text: t(cadenceKey('fixed', time), { days, time }), emphasis: time }
   return getIntervalCadence(schedule, days, t)
 }
 
 function CadenceSentence({ schedule }: Readonly<{ schedule: OnboardingSchedule }>) {
   const t = useTranslations('onboarding.flow.when')
-  const presentation = getCadencePresentation(schedule, t)
+  const locale = useLocale()
+  const translateDays = useTranslations()
+  const presentation = getCadencePresentation(schedule, t, locale, translateDays)
   return <EmphasizedCadence {...presentation} />
 }
 
@@ -100,6 +95,8 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, o
 
 export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
   const t = useTranslations('onboarding.flow')
+  const locale = useLocale()
+  const translateDays = useTranslations()
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
   const frequencyUnitOptions = [
@@ -110,7 +107,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
   ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
-  const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'))
+  const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'), locale, translateDays)
   const controls = (
     <div className="flex flex-col gap-4">
       <SegmentedControl fullWidth label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} />

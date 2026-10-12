@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
-import { toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { formatWeekdaySchedule, toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -16,13 +16,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 interface Props { title: string; emoji: string; schedule: OnboardingSchedule; proposed: boolean; correcting: boolean; canSaveRepeatWeeks: boolean; atLimit: boolean; allowance: number; onCorrect: () => void; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void; onModeChange: (mode: OnboardingScheduleMode) => void; onFrequencyUnitChange: (unit: FrequencyUnit) => void; onQuantityChange: (quantity: number) => void; onIntervalWeeksChange: (intervalWeeks: number) => void }
-
-function joinDays(days: string[], label: (day: string) => string, conjunction: string): string {
-  const labels = days.map(label)
-  if (labels.length < 2) return labels[0] ?? ''
-  if (labels.length === 2) return `${labels[0]} ${conjunction} ${labels[1]}`
-  return `${labels.slice(0, -1).join(', ')} ${conjunction} ${labels.at(-1)}`
-}
 
 function EmphasizedCadence({ text, emphasis, color, strongColor }: Readonly<{ text: string; emphasis: string; color: string; strongColor: string }>) {
   /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
@@ -46,7 +39,7 @@ function getIntervalCadence(schedule: OnboardingSchedule, days: string, t: Caden
   return { text: t(`onboarding.flow.when.cadence.${key}`, { count, days, time }), emphasis: time || String(count) }
 }
 
-function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate): CadencePresentation {
+function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate, locale: string): CadencePresentation {
   const time = schedule.dueTime
   if (schedule.isFlexible) {
     const count = schedule.frequencyQuantity ?? 1
@@ -55,14 +48,14 @@ function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslat
   }
   if (schedule.frequencyUnit === null && !schedule.isGeneral) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('once', time)}`, { time }), emphasis: time }
   if (schedule.days.length === DAYS.length && schedule.intervalWeeks === 1) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('daily', time)}`, { time }), emphasis: time }
-  const days = joinDays(schedule.days, (day) => t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`), t('onboarding.flow.when.cadence.and'))
+  const days = formatWeekdaySchedule(schedule.days, locale, t, schedule.days.length > 1 || schedule.intervalWeeks > 1)
   if (days && schedule.intervalWeeks === 1) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('fixed', time)}`, { days, time }), emphasis: time }
   return getIntervalCadence(schedule, days, t)
 }
 
 function CadenceSentence({ schedule, color, emphasis }: Readonly<{ schedule: OnboardingSchedule; color: string; emphasis: string }>) {
-  const { t } = useTranslation()
-  const presentation = getCadencePresentation(schedule, t)
+  const { t, i18n } = useTranslation()
+  const presentation = getCadencePresentation(schedule, t, i18n.language)
   return <EmphasizedCadence {...presentation} color={color} strongColor={emphasis} />
 }
 
@@ -77,7 +70,7 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, c
 }
 
 export function OnboardingCreateHabit(props: Readonly<Props>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
@@ -90,7 +83,7 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
   ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
-  const proposalCadence = getCadencePresentation(schedule, t)
+  const proposalCadence = getCadencePresentation(schedule, t, i18n.language)
   const controls = <View style={styles.controls}>
     <SegmentedControl fullWidth label={t('onboarding.flow.when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('onboarding.flow.when.fixedMode') }, { value: 'flexible', label: t('onboarding.flow.when.flexibleMode') }, { value: 'interval', label: t('onboarding.flow.when.intervalMode') }, { value: 'oneTime', label: t('onboarding.flow.when.oneTimeMode') }]} onChange={props.onModeChange} />
     {mode === 'flexible' ? <><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></> : null}

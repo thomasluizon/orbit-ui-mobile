@@ -52,17 +52,17 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;align-items:center;gap:8px">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
+            <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding-block:4px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="48px,48px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
               </x-import>
-              <div style="min-width:0;display:flex;flex-direction:column">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;text-align:center">
                 <p style="font-family:var(--font-display);font-size:22px;font-weight:500;letter-spacing:-0.02em;color:var(--fg-1)">{{ dayLabel }}</p>
                 <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dayDate }}</p>
               </div>
               <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
                 <div style="display:flex;align-items:center;gap:8px">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
+                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="48px,48px">
                     <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                   </x-import>
                 </div>
@@ -193,17 +193,17 @@ a:hover{color:var(--fg-1)}
             </sc-if>
 
             <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;align-items:center;gap:8px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
+              <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding-block:4px">
+                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="48px,48px">
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                 </x-import>
-                <div style="min-width:0;display:flex;flex-direction:column">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;text-align:center">
                   <p style="font-family:var(--font-display);font-size:22px;font-weight:500;letter-spacing:-0.02em;color:var(--fg-1)">{{ dayLabel }}</p>
                   <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dayDate }}</p>
                 </div>
                 <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
                   <div style="display:flex;align-items:center;gap:8px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="48px,48px">
                       <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                     </x-import>
                   </div>
@@ -2731,8 +2731,8 @@ class Component extends DCLogic {
       drillEmpty: drillOn && live && rows.length === 0,
       drillEmptyLine: x.drillEmpty,
       dayLabel: dayLabel, dayDate: dayDate, showNav: true, awayFromToday: off !== 0, todayLabel: t.today,
-      prevProps: { 'aria-label': t.prev, style: { width: 44, height: 44, paddingInline: 0 } },
-      nextProps: { 'aria-label': t.next, style: { width: 44, height: 44, paddingInline: 0 } },
+      prevProps: { 'aria-label': t.prev, style: { width: 48, minHeight: 48, flexShrink: 0, paddingInline: 0 } },
+      nextProps: { 'aria-label': t.next, style: { width: 48, minHeight: 48, flexShrink: 0, paddingInline: 0 } },
       todayProps: { 'aria-label': t.toToday, style: { height: 44 } },
       goPrev: () => this.setState((p) => ({ off: p.off - 1, prompted: [], promptKey: null })),
       goNext: () => this.setState((p) => ({ off: Math.min(90, p.off + 1), prompted: [], promptKey: null })),
