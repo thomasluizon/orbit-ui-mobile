@@ -153,7 +153,7 @@ describe('i18n locale parity', () => {
     expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
   })
 
-  it('keeps internal habit type names out of rendered copy', () => {
+  it('keeps internal habit type names out of copy except the pinned schedule mode', () => {
     const otherMeanings = new Set([
       'preferences.general',
       'chat.insight.overview',
@@ -162,10 +162,12 @@ describe('i18n locale parity', () => {
       'referral.drawer.disclaimer',
     ])
     for (const [key, value] of ptFlat) {
+      if (key === 'onboarding.flow.when.flexibleMode') { expect(value).toBe('Flexível'); continue }
       if (otherMeanings.has(key)) continue
       expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?|\bgera(l|is)\b/i)
     }
     for (const [key, value] of enFlat) {
+      if (key === 'onboarding.flow.when.flexibleMode') { expect(value).toBe('Flexible'); continue }
       if (otherMeanings.has(key)) continue
       expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b|\bgeneral\b/i)
     }

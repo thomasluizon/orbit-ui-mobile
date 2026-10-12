@@ -76,6 +76,36 @@ function expectOnboardingRows(geometry: { group: number; top: number; groupWidth
   for (const label of geometry) expect(label.groupWidth).toBe(contentWidth)
 }
 
+function measureCalendarSegments() {
+  const group = document.querySelector('[data-testid="calendar-header-group"] [role="radiogroup"]')!
+  const bounds = group.getBoundingClientRect()
+  return [...group.querySelectorAll('[role="radio"]')].map((button) => {
+    const box = button.getBoundingClientRect()
+    const label = button.firstElementChild!
+    const content = label.getBoundingClientRect()
+    const range = document.createRange(); range.selectNodeContents(label)
+    const fragments = [...range.getClientRects()]
+    return { top: box.top, width: box.width, height: box.height, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+      contained: box.left >= bounds.left && box.right <= bounds.right,
+      fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1),
+      overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis' }
+  })
+}
+
+function expectCalendarSegments(segments: ReturnType<typeof measureCalendarSegments>, scale: number) {
+  expect(segments).toHaveLength(calendarKeys.length)
+  expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
+  for (const segment of segments) {
+    expect(segment.width).toBeGreaterThanOrEqual(48)
+    expect(segment.height).toBeGreaterThanOrEqual(48)
+    expect(segment.contained).toBe(true)
+    expect(segment.fits).toBe(true)
+    expect(segment.overflow).toBe(false)
+    expect(segment.ellipsis).toBe(false)
+    if (scale === 1) expect(segment.lines).toBe(1)
+  }
+}
+
 describe('Calendar header geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -582,7 +612,7 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
+  it.each([320, 360, 384, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
     [{ width, view, locale: 'en', messages: en }, { width, view, locale: 'pt-BR', messages: ptBR }],
   )))('keeps the $view pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, view, locale, messages }) => {
     const viewOptions = [
@@ -618,6 +648,7 @@ describe('Calendar header geometry in Chromium', () => {
           const range = document.createRange(); range.selectNodeContents(title.querySelector('span') ?? title)
           return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
         })
+        expectCalendarSegments(await page.evaluate(measureCalendarSegments), scale)
         expect(geometry.controls).toHaveLength(3)
         if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
         expect(geometry.titleRadius).toBe(12)
