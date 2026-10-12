@@ -8,10 +8,11 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 
 const translations = vi.hoisted(() => ({
+  locale: 'en',
   current: (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 
-vi.mock('next-intl', () => ({ useTranslations: (namespace: string) => (key: string, values?: Record<string, unknown>) => translations.current(`${namespace}.${key}`, values) }))
+vi.mock('next-intl', () => ({ useLocale: () => translations.locale, useTranslations: (namespace?: string) => (key: string, values?: Record<string, unknown>) => translations.current(namespace ? `${namespace}.${key}` : key, values) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div data-testid="time-field" /> }))
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
@@ -34,6 +35,35 @@ function EditableSchedule({ initialSchedule, onQuantityChange = () => {}, onInte
   </>
 }
 
+const weekdayCases = [
+  ['Sunday', 'todo domingo', 'domingos', false],
+  ['Monday', 'toda segunda', 'segundas', true],
+  ['Tuesday', 'toda terça', 'terças', true],
+  ['Wednesday', 'toda quarta', 'quartas', true],
+  ['Thursday', 'toda quinta', 'quintas', true],
+  ['Friday', 'toda sexta', 'sextas', true],
+  ['Saturday', 'todo sábado', 'sábados', false],
+] as const
+const scheduleCases = [
+  ...weekdayCases.map(([day, single]) => ({ days: [day], portuguese: single, english: `every ${day}`, weeks: 1 })),
+  ...weekdayCases.flatMap(([first, , firstPlural, firstFeminine], index) =>
+    weekdayCases.slice(index + 1).map(([second, , secondPlural, secondFeminine]) => ({
+      days: [first, second],
+      portuguese: `${firstFeminine ? 'às' : 'aos'} ${firstPlural} e ${firstFeminine === secondFeminine ? '' : secondFeminine ? 'às ' : 'aos '}${secondPlural}`,
+      english: `every ${first} and ${second}`, weeks: 1,
+    }))),
+  { days: ['Monday', 'Thursday', 'Saturday'], portuguese: 'às segundas, quintas e aos sábados', english: 'every Monday, Thursday and Saturday', weeks: 1 },
+  { days: ['Sunday'], portuguese: 'a cada 2 semanas, aos domingos', english: 'every 2 weeks on Sunday', weeks: 2 },
+  { days: ['Monday'], portuguese: 'a cada 2 semanas, às segundas', english: 'every 2 weeks on Monday', weeks: 2 },
+  { days: ['Friday', 'Saturday'], portuguese: 'a cada 2 semanas, às sextas e aos sábados', english: 'every 2 weeks on Friday and Saturday', weeks: 2 },
+  { days: weekdayCases.map(([day]) => day), portuguese: 'a cada 2 semanas, aos domingos, às segundas, terças, quartas, quintas, sextas e aos sábados', english: 'every 2 weeks on Sunday, Monday, Tuesday, Wednesday, Thursday, Friday and Saturday', weeks: 2 },
+]
+const localizedScheduleCases = scheduleCases.flatMap((scheduleCase) =>
+  (['en', 'pt-BR'] as const).flatMap((locale) => ['', '08:00'].map((time) => ({
+    ...scheduleCase, locale, time,
+    expected: `${locale === 'en' ? scheduleCase.english : scheduleCase.portuguese}${time ? `${locale === 'en' ? ' at ' : ' às '}${time}` : ''}`,
+  }))))
+
 describe('OnboardingCreateHabit', () => {
   beforeAll(async () => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
@@ -42,20 +72,18 @@ describe('OnboardingCreateHabit', () => {
     translations.current = (key, values) => translateKey(key, values)
   })
 
-  it.each([
-    ['Sunday', 'todo domingo'], ['Monday', 'toda segunda'],
-    ['Tuesday', 'toda terça'], ['Wednesday', 'toda quarta'],
-    ['Thursday', 'toda quinta'], ['Friday', 'toda sexta'],
-    ['Saturday', 'todo sábado'], ['Saturday,Sunday', 'aos sábados e domingos'],
-  ])('uses the weekday article in onboarding for %s', async (selected, expected) => {
+  it.each(localizedScheduleCases)('formats onboarding $days in $locale at $time every $weeks weeks', async ({ days, locale, time, weeks, expected }) => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
     const previous = translations.current
-    translations.current = createTranslator({ locale: 'pt-BR', messages: ptBR }) as (key: string, values?: Record<string, unknown>) => string
+    translations.locale = locale
+    translations.current = createTranslator({ locale, messages: locale === 'en' ? en : ptBR }) as (key: string, values?: Record<string, unknown>) => string
     try {
-      const { container } = render(<OnboardingCreateHabit {...base} proposed correcting={false} schedule={{ ...everyThirdMonday, days: selected.split(','), intervalWeeks: 1 }} />)
+      const { container } = render(<OnboardingCreateHabit {...base} proposed correcting={false} schedule={{ ...everyThirdMonday, days, intervalWeeks: weeks, dueTime: time }} />)
       expect(container.textContent).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
-      expect(container.textContent).toContain(expected)
+      expect(container.querySelector('p')?.textContent).toBe(expected)
+      expect(screen.getByRole('button', { name: locale === 'en' ? 'Correct schedule. Emoji proposed by Astra' : 'Corrigir agenda. Emoji proposto pela Astra' })).toHaveAccessibleDescription(expect.stringContaining(expected))
     } finally {
+      translations.locale = 'en'
       translations.current = previous
     }
   })
@@ -100,6 +128,7 @@ describe('OnboardingCreateHabit', () => {
       expect(screen.getByRole('img', { name: 'Emoji proposto pela Astra' })).toHaveTextContent('🚶')
       expect(screen.getByRole('button', { name: 'Corrigir agenda. Emoji proposto pela Astra' })).toBeInTheDocument()
     } finally {
+      translations.locale = 'en'
       translations.current = previous
     }
   })

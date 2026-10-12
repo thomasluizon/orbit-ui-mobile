@@ -1,3 +1,4 @@
+import { formatWeekdaySchedule } from './weekday-schedule'
 import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
@@ -612,6 +613,23 @@ function getHabitFlexibleIntervalUnderstandingKey(
   return null
 }
 
+function getHabitWeekdayUnderstanding(
+  days: string[],
+  dayOptions: { value: string; label: string }[],
+  locale: string,
+  translate: UnderstandingTranslator,
+  intervalWeeks: number,
+): { key: string; values: Record<string, string | number> } {
+  const selectedDays = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.value)
+  const key = intervalWeeks > 1 ? 'habits.form.understoodIntervalDays'
+    : selectedDays.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
+  const values: Record<string, string | number> = {
+    days: formatWeekdaySchedule(selectedDays, locale, translate, selectedDays.length > 1 || intervalWeeks > 1),
+  }
+  if (intervalWeeks > 1) values.count = intervalWeeks
+  return { key, values }
+}
+
 export function buildHabitUnderstandingSentence(
   days: string[],
   dayOptions: { value: string; label: string }[],
@@ -629,16 +647,12 @@ export function buildHabitUnderstandingSentence(
     ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
     : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
   if (!isFlexible && frequencyUnit === 'Day' && quantity === 1 &&
-    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7 && intervalWeeks === 1))) {
     key = 'habits.form.understoodDaily'
   } else if (days.length > 0) {
-    const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => translate(`dates.daysValue.${day.value.toLowerCase()}`))
-    const listLocale = locale === 'en' ? 'en-GB' : locale
-    key = labels.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
-    values.days = new Intl.ListFormat(listLocale, {
-      style: 'long',
-      type: 'conjunction',
-    }).format(labels)
+    const weekdayUnderstanding = getHabitWeekdayUnderstanding(days, dayOptions, locale, translate, intervalWeeks)
+    key = weekdayUnderstanding.key
+    values = weekdayUnderstanding.values
   } else if (intervalKey) {
     key = intervalKey
     values.count = quantity
@@ -657,7 +671,8 @@ export function buildHabitUnderstandingSentence(
   }
   const sentence = translate(key, values)
   return intervalWeeks > 1
-    ? `${sentence}, ${translate('habits.form.repeatWeeks', { count: intervalWeeks }).toLocaleLowerCase(locale)}`
+    && days.length === 0
+    ? translate('habits.form.understoodRepeatWeeks', { schedule: sentence, count: intervalWeeks })
     : sentence
 }
 
