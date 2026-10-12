@@ -1026,7 +1026,7 @@
       "googleConnected": "Google Agenda conectado",
       "lastSyncedLabel": "Última sincronização",
       "lastSynced": "Última sincronização {time}",
-      "autoSync": "Sincronização automática",
+      "autoSync": "Manter sincronizado",
       "disconnectedTitle": "Google Agenda desconectado",
       "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
       "noEventsToImport": "Nenhum evento do Google Agenda neste dia."
