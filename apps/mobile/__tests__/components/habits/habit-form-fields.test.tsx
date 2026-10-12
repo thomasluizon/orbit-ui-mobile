@@ -25,7 +25,7 @@ const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, 
 const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
 const testTranslations: Record<string, string> = {
-  'dates.daysValue.monday': 'Monday',
+  'dates.weekdaySchedule.single.monday': en.dates.weekdaySchedule.single.monday,
   'habits.form.understoodDaily': 'every day',
   'habits.form.understoodDailyAt': 'every day at {time}',
   'habits.form.understoodDayAt': 'every {days} at {time}',
