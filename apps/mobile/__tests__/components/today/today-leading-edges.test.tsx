@@ -3,7 +3,7 @@ import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -46,8 +46,9 @@ interface Host {
 }
 
 const noop = () => {}
+const numericDate = formatLocaleDayMonth('2026-09-30', 'pt-BR')
 const dateProps = {
-  dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.', isTodaySelected: true, nextDisabled: false,
+  dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate, isTodaySelected: true, nextDisabled: false,
   previousLabel: 'Previous', nextLabel: 'Next', todayLabel: 'Today', goToTodayLabel: 'Today',
   moreLabel: 'Options', searchLabel: 'Search', selectLabel: 'Select', collapseLabel: 'Collapse', allCollapsed: false,
   refreshLabel: 'Refresh', completedLabel: 'Completed', showCompleted: false, isFetching: false,
@@ -187,6 +188,26 @@ function pressAt(element: Host, nodes: Map<Host, YogaNode>, x: number, y: number
   return false
 }
 
+function assertDatePager(nodes: Map<Host, YogaNode>, width: number, fontScale: number) {
+  const dateLabels = [...nodes].filter(([element]) => element.type === 'Text' &&
+    ['Quarta-feira', 'Qua.', numericDate].includes(textContent(element)))
+  expect(dateLabels).toHaveLength(2)
+  const previous = [...nodes].find(([element]) => element.type === 'Pressable' && element.props.accessibilityLabel === 'Previous')![1]
+  const next = [...nodes].find(([element]) => element.type === 'Pressable' && element.props.accessibilityLabel === 'Next')![1]
+  expect(leadingPosition(previous)).toBe(16)
+  expect(leadingPosition(next) + next.getComputedWidth()).toBe(width - 16)
+  for (const [element, node] of dateLabels) {
+    expect(Math.abs(leadingPosition(node) + node.getComputedWidth() / 2 - width / 2)).toBeLessThanOrEqual(1)
+    expect(leadingPosition(node)).toBeGreaterThanOrEqual(leadingPosition(previous) + previous.getComputedWidth() + 12)
+    expect(leadingPosition(node) + node.getComputedWidth()).toBeLessThanOrEqual(leadingPosition(next) - 12)
+    const measured = measureText(element, StyleSheet.flatten(element.props.style as StyleProp<TextStyle>), fontScale)
+    if (fontScale === 1) expect(node.getComputedWidth()).toBeGreaterThanOrEqual(measured.width)
+    if (fontScale === 2 && textContent(element) === numericDate && width === 320) {
+      expect(node.getComputedHeight()).toBeGreaterThan(measured.lineHeight)
+    }
+  }
+}
+
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
 describe('Hoje leading edges on Android', () => {
@@ -212,8 +233,9 @@ describe('Hoje leading edges on Android', () => {
         layout.setWidth(width)
         layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
         const textEdges = [...nodes].filter(([element]) => element.type === 'Text' && StyleSheet.flatten(element.props.style as StyleProp<TextStyle>).opacity !== 0 &&
-          ['Sua rotina mudou. Vamos conversar?', 'Quarta-feira', 'Qua.', '8 abr.', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
-        expect(textEdges).toHaveLength(6)
+          ['Sua rotina mudou. Vamos conversar?', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
+        expect(textEdges).toHaveLength(4)
+        assertDatePager(nodes, width, fontScale)
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
         expect(rows).toHaveLength(3)
         for (const [rowHost] of rows) assertPaddedBody(nodes, rowHost)
