@@ -42,6 +42,24 @@ describe('OnboardingCreateHabit', () => {
     translations.current = (key, values) => translateKey(key, values)
   })
 
+  it.each([
+    ['Sunday', 'todo domingo'], ['Monday', 'toda segunda'],
+    ['Tuesday', 'toda terça'], ['Wednesday', 'toda quarta'],
+    ['Thursday', 'toda quinta'], ['Friday', 'toda sexta'],
+    ['Saturday', 'todo sábado'], ['Saturday,Sunday', 'aos sábados e domingos'],
+  ])('uses the weekday article in onboarding for %s', async (selected, expected) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const previous = translations.current
+    translations.current = createTranslator({ locale: 'pt-BR', messages: ptBR }) as (key: string, values?: Record<string, unknown>) => string
+    try {
+      const { container } = render(<OnboardingCreateHabit {...base} proposed correcting={false} schedule={{ ...everyThirdMonday, days: selected.split(','), intervalWeeks: 1 }} />)
+      expect(container.textContent).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+      expect(container.textContent).toContain(expected)
+    } finally {
+      translations.current = previous
+    }
+  })
+
   it('shows direct controls without Astra framing', () => {
     render(<OnboardingCreateHabit {...base} />)
     expect(screen.getByText('Pick the days and the time.')).toBeInTheDocument()

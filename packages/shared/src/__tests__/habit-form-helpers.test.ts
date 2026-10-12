@@ -277,6 +277,23 @@ describe('habit form helpers', () => {
       .toBe('habits.form.understoodTime:{"time":"15:00"}')
   })
 
+  it.each([
+    ['Sunday', 'todo domingo'], ['Monday', 'toda segunda'],
+    ['Tuesday', 'toda terça'], ['Wednesday', 'toda quarta'],
+    ['Thursday', 'toda quinta'], ['Friday', 'toda sexta'],
+    ['Saturday', 'todo sábado'], ['Saturday,Sunday', 'aos sábados e domingos'],
+  ])('uses the weekday article in the habit summary for %s', (selected, expected) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = key.split('.').reduce<unknown>((current, part) => Reflect.get(current as object, part), ptBR) as string
+      return Object.entries(values ?? {}).reduce((result, [name, value]) => result.replace(`{${name}}`, String(value)), message)
+    }
+    const days = selected.split(',')
+    const options = days.map((value) => ({ value, label: value }))
+    const sentence = buildHabitUnderstandingSentence(days, options, false, 'Day', 1, '', 'pt-BR', translate)
+    expect(sentence).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+    expect(sentence).toBe(expected)
+  })
+
   it('formats singular and multi-day pt-BR schedules naturally', () => {
     const translations: Record<string, string> = {
       'habits.form.understoodDay': ptBR.habits.form.understoodDay,

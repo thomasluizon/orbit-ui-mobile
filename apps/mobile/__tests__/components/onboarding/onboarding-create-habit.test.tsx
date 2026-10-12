@@ -46,6 +46,26 @@ describe('OnboardingCreateHabit data', () => {
     await i18n.changeLanguage('en')
   })
 
+  it.each([
+    ['Sunday', 'todo domingo'], ['Monday', 'toda segunda'],
+    ['Tuesday', 'toda terça'], ['Wednesday', 'toda quarta'],
+    ['Thursday', 'toda quinta'], ['Friday', 'toda sexta'],
+    ['Saturday', 'todo sábado'], ['Saturday,Sunday', 'aos sábados e domingos'],
+  ])('uses the weekday article in onboarding for %s', async (selected, expected) => {
+    await i18n.changeLanguage('pt-BR')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<OnboardingCreateHabit {...base} schedule={{ ...everyThirdMonday, days: selected.split(','), intervalWeeks: 1 }} />)
+      })
+      expect(readText(tree)).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
+      expect(readText(tree)).toContain(expected)
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('exposes the four sentence starters', () => {
     expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
   })
