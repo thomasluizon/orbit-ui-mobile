@@ -47,7 +47,6 @@ export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncCha
       <span className="font-mono tabular-nums">{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</span>
     </div>
     {isConnected ? <>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Calendario syncAuto controls this label under D42. */}
       <ListRow title={t('calendar.dayDetail.autoSync')} disabled={!isOnline || pendingAction !== null} toggle={{ checked: autoSyncState?.enabled ?? false, onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} />
       <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></div>
     </> : null}
