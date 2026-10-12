@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens, with the native mobile rule and Perfil sub-menu amendments. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager and Perfil sub-menu amendments. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
 
 ## The authority
@@ -16,12 +16,13 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
 | #1321 | Calendário's any-time gutter uses `Sem horário` in pt-BR and retains `No set time` in en, at 12 with 1.4 line height and 8 padding inside a gutter of at least 96; the label stays whole on one line at default text size and its cell grows when accessibility text wraps | The prior pt-BR label wrapped inside the drawn gutter, contrary to `DESIGN.md` Bans. Agenda values and entry details share the same no-time wording. |
 | Astra full screen | One conversation layout at every width, with NavHeader, a shared thread, one live chip set and a composer with 16 padding; wide web keeps its sidebar with an Astra row above Hoje and drops the resting Hoje shell composer while retaining the active selection tray in the pinned bottom slot; habit detail keeps its own composer | Astra opens as a layer with no route or Android tab. Compact shells cover the tab bar; wide web replaces the destination column from every Astra entry, including proactive and empty-state actions. The empty disclosure uses `--fg-3` and the close control is 48. App implementation follows in #1295. |
 | 2026-10-04 | Dark `--primary-text` uses `#ED773E` and dark `--track-empty` uses `#8B8B8E`, with their widget mirrors | Each is the first rounded byte at constant source OKLCH hue and chroma with higher lightness. Accent text clears 4.518:1 on card-child hover; the empty track clears 3.001:1 on the calendar card and hover inside a sheet. The immediately preceding bytes measure 4.497:1 and 2.993:1. |
-| Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, grouped date controls and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
+| Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, date paging at the content edges and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
 | Touch targets | `--touch-min` is 48px on web and 48 logical pixels on Android, from shared `TOUCH_TARGET_MIN`; small pills retain their visible geometry and reserve the expanded hit area; month-grid cells use their full column width and at least 44px | Controls stay usable with distinct, non-overlapping targets at compact widths. |
 | Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
@@ -41,6 +42,19 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### Hoje date pager amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Hoje selected day | Day title and full month date centred between edge targets; compact 320 and 412 geometry and full date labels in both locales. |
+| Hoje another day and forward boundary | Same geometry with the separate Hoje jump action and an enabled or disabled forward target; existing navigation, accessible names and feedback retained. Native composition tests include the proactive line and populated habit rows. |
+| Hoje compact and wide drawing | Both pager compositions span their content column with 48px targets and centred labels; this amendment and DESIGN.md record the placement. |
+
+The date pager has no separate loading, empty or error state. Those belong to the surrounding habit
+list and do not change its placement. Large text grows the date row without clipping or overlap.
+Vitest owns isolated Chromium and native Yoga evidence; the layout workflow owns whole-page
+geometry, and real Android text rendering remains a device-verification boundary.
 
 ### Legal title amendment surface inventory
 

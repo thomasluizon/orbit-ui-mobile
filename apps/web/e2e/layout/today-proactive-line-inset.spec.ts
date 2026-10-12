@@ -65,7 +65,8 @@ for (const mode of ['dark', 'light'] as const) {
             const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
             const sentenceBounds = sentence.getBoundingClientRect()
             const dateRow = document.querySelector('[data-today-date-row]')!
-            const date = dateRow.querySelector('[title] p')!
+            const date = dateRow.querySelector('[title]')!.getBoundingClientRect()
+            const column = dateRow.getBoundingClientRect()
             const title = document.querySelector('[data-habit-row-heading] > div > span, [data-habit-row-body] > div > span')!
             return {
               client: { left, right: left + scroller.clientWidth, top, bottom: top + scroller.clientHeight },
@@ -73,7 +74,8 @@ for (const mode of ['dark', 'light'] as const) {
               outline: { left: bounds.left - extent, right: bounds.right + extent,
                 top: bounds.top - extent, bottom: bounds.bottom + extent },
               lineToDate: dateRow.getBoundingClientRect().top - bounds.bottom,
-              sentenceLeft: sentenceBounds.left, dateLeft: date.getBoundingClientRect().left,
+              sentenceLeft: sentenceBounds.left, dateCenter: (date.left + date.right) / 2,
+              columnCenter: (column.left + column.right) / 2,
               titleLeft: title.getBoundingClientRect().left,
               sentenceHeight: sentenceBounds.height,
               lineHeight: Number.parseFloat(getComputedStyle(sentence).lineHeight),
@@ -86,7 +88,7 @@ for (const mode of ['dark', 'light'] as const) {
           expect.soft(geometry.outline.right).toBeLessThanOrEqual(geometry.client.right)
           expect.soft(geometry.outline.top).toBeGreaterThanOrEqual(geometry.client.top)
           expect.soft(geometry.outline.bottom).toBeLessThanOrEqual(geometry.client.bottom)
-          expect(Math.abs(geometry.sentenceLeft - geometry.dateLeft)).toBeLessThanOrEqual(1)
+          expect(Math.abs(geometry.dateCenter - geometry.columnCenter)).toBeLessThanOrEqual(1)
           expect(Math.abs(geometry.sentenceLeft - geometry.titleLeft)).toBeLessThanOrEqual(1)
           expect(geometry.line.height).toBeGreaterThanOrEqual(48)
           expect(geometry.sentenceHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 1)

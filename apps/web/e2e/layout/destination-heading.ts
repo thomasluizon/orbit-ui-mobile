@@ -8,6 +8,8 @@ export async function inspectDestinationHeading(
   visit: () => Promise<unknown> = () => page.goto(route),
 ): Promise<void> {
   const monitoring = { active: true }
+  let stopMonitoring = () => {}
+  const stopped = new Promise<void>((resolve) => { stopMonitoring = resolve })
   let rejectRouteError: (error: Error) => void = () => {}
   const routeError = new Promise<never>((_, reject) => { rejectRouteError = reject })
   const onPageError = (error: Error) => rejectRouteError(new Error(`Route ${route} raised an error: ${error.message}`, { cause: error }))
@@ -20,7 +22,7 @@ export async function inspectDestinationHeading(
   }
   const monitor = (async () => {
     while (monitoring.active) {
-      await assertNoErrorSurface()
+      await Promise.race([assertNoErrorSurface(), stopped])
       await new Promise<void>((resolve) => setTimeout(resolve, 25))
     }
   })()
@@ -40,6 +42,7 @@ export async function inspectDestinationHeading(
     await Promise.race([routeError, monitor, inspectHeading()])
   } finally {
     monitoring.active = false
+    stopMonitoring()
     page.off('pageerror', onPageError)
     await monitor
   }

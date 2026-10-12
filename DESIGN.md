@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -791,7 +791,7 @@ price response does not shift the layout.
 - **App-authored headings stay on one line at the default text size.** Test both locales at every compact width; shorten copy, restructure the layout or move secondary content to disclosure. Never shrink the text to make it fit. Large accessibility text follows the large-text rule in **Voice**.
 - **Ration eyebrows: at most one per three sections, hero included.** An eyebrow labels a section, it never enumerates one. Numbered meta-labels are banned outright.
 - **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap only between words to at most two lines, then use an ellipsis. An unbroken token (an email, a URL, a code or a word longer than the row) never breaks inside itself: it stays on its line and ends in an ellipsis. Keep the full text one tap away in the row's destination or expanded state and in its accessible name. Habit detail rename headings remain unclamped: words wrap and oversized tokens ellipsize without scrolling, with the full title in the rename input. Running prose, such as a paragraph or a sentence in a message, keeps `overflow-wrap: anywhere` as its last resort. App-authored labels never truncate.
-- **Text aligns to the start edge.** Numbers in a table align to the trailing edge. Justified text does not exist in this interface.
+- **Text aligns to the start edge.** Hoje's date pager centres its day title and date within the content column. Numbers in a table align to the trailing edge. Justified text does not exist in this interface.
 - **Underlines take their metrics from the font**: `text-underline-position: from-font` and `text-decoration-thickness: from-font`, with `text-decoration-skip-ink: auto`. Only colour animates reliably on a real underline; build any other animated underline as its own element.
 
 ## Layout & spacing
@@ -817,6 +817,16 @@ price response does not shift the layout.
 - **Breakpoints come from the content, not from device presets.** Hold the expanded layout while it genuinely fits and collapse late. Test the smallest and largest sizes first.
 - **Never park a critical action where it can be clipped**: the bottom of a resizable pane, below the fold of a fixed-height overlay, behind the keyboard. If an overlay's body scrolls, its action row does not.
 - **A sidebar uses the same background as the canvas.** A hairline is the only separation it earns. Web only.
+
+### Hoje date pager
+
+The previous-day target starts at the leading content edge and the next-day target ends at the
+trailing content edge. Each target remains 48px wide and at least 48px high. The day title and
+numeric date occupy the remaining space, with equal 12px gaps to the targets, centred within 1px
+of the content-column centre. Both labels stay whole on one line at the default text size at 320,
+360, 384 and 412. The column retains its 16px shell inset. The title keeps display 22/500 and the
+date keeps mono 12 with tabular numerals. Large text follows the wrapping rule in **Voice** without
+clipping or overlap. This placement applies on Android and web, including the wide content column.
 
 ## Primitives kit
 

@@ -331,6 +331,8 @@ export function findNodeHandle(input: unknown): number | null {
   return null
 }
 
+export const I18nManager = { isRTL: false }
+
 export const Platform = {
   OS: 'android',
   select: <T,>(values: { android?: T; default?: T }) => values.android ?? values.default,
@@ -391,6 +393,7 @@ export default {
   useWindowDimensions,
   findNodeHandle,
   Image,
+  I18nManager,
   Keyboard,
   KeyboardAvoidingView,
   LayoutAnimation,

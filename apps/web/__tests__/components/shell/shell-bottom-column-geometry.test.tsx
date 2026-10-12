@@ -13,6 +13,7 @@ import { Fab } from '@/components/ui/fab'
 import { Button } from '@/components/ui/pill-button'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { expectCompactFabNoticeGeometry } from '@/e2e/layout/fab-notice-geometry'
 import { measureChromePaint } from '@/e2e/layout/composer-column-paint'
 import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -33,6 +34,39 @@ describe('Shell bottom column geometry', () => {
     stylesheet += `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('resamples the shell when a refresh removes the FAB after the visibility checks', async () => {
+    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+      compactComposer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={() => {}} onSend={() => {}} />}
+      notice={<div />} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
+      fab={<Fab label="Create" onClick={() => {}}><span aria-hidden="true">+</span></Fab>} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      const evaluate = page.evaluate.bind(page)
+      let interrupted = false
+      vi.spyOn(page, 'evaluate').mockImplementation(async (callback, argument) => {
+        if (interrupted) return evaluate(callback, argument)
+        interrupted = true
+        await evaluate(() => {
+          const fab = document.querySelector('[data-shell-fab]')!
+          const placeholder = document.createElement('template')
+          placeholder.id = 'pending-fab'
+          fab.replaceWith(placeholder)
+          placeholder.content.append(fab)
+        })
+        try { return await evaluate(callback, argument) }
+        finally {
+          await evaluate(() => {
+            const placeholder = document.querySelector<HTMLTemplateElement>('#pending-fab')!
+            placeholder.replaceWith(placeholder.content)
+          })
+        }
+      })
+      await expectCompactFabNoticeGeometry(page, en.celebration.close)
+      expect(interrupted).toBe(true)
+    } finally { vi.restoreAllMocks(); await page.close(); view.unmount() }
+  })
 
   it.each([1100, 1352])('keeps the account block and destinations in place as the profile loads at %ipx', async (width) => {
     const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',

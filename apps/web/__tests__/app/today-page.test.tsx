@@ -245,13 +245,13 @@ describe('Hoje date control', () => {
 
   it('shows the day name over the numeric date', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
-    expect(screen.getByText('Wednesday')).not.toHaveClass('truncate')
-    expect(screen.getByText('08/04/2026')).toBeInTheDocument()
-    expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
-    expect(screen.getByText('Wednesday').parentElement).not.toHaveClass('text-center')
-    expect(screen.getByText('Wednesday').parentElement).toHaveClass('shrink-0', 'grow-0')
-    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).not.toHaveClass('flex-wrap')
-    expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[1.375rem]')
+    const day = screen.getByText('Wednesday')
+    const numeric = screen.getByText('08/04/2026')
+    expect(day.parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
+    expect(numeric.parentElement).toBe(day.parentElement)
+    expect(day.nextElementSibling).toBe(numeric)
+    expect(screen.getByRole('button', { name: 'Previous day' }).nextElementSibling).toBe(day.parentElement)
+    expect(day.parentElement?.nextElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
   })
 
   it('opens search from the compact header row', () => {
@@ -276,10 +276,10 @@ describe('Hoje date control', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} /></NextIntlClientProvider>)
     const date = screen.getByText('Quarta-feira').parentElement
     const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
-    expect(row).not.toHaveClass('flex-wrap')
-    expect(row).not.toHaveClass('max-[399px]:flex-wrap')
-    expect(date).toHaveClass('shrink-0', 'grow-0')
-    expect(date).not.toHaveClass('max-[399px]:min-w-[150px]')
+    expect(screen.getByRole('button', { name: 'Next day' }).parentElement).toBe(row)
+    expect(screen.getByRole('button', { name: 'Go to today' }).parentElement).not.toBe(row)
+    expect(screen.getByRole('button', { name: 'Previous day' }).nextElementSibling).toBe(date)
+    expect(date?.nextElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
     expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
   })
 

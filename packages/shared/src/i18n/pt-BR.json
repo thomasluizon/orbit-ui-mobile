@@ -451,6 +451,7 @@
     "minutesShort": "faltam {minutes} min",
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
+    "openInOrbit": "Abrir no Orbit",
     "signInWithGoogle": "Continuar com o Google",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
     "signingIn": "Entrando...",

@@ -51,7 +51,7 @@ export async function markRequiredLabels(labels: Locator) {
 
 export async function expectLabelsFit(page: Page, surface: Page | Locator = page, requiredUserValues: readonly string[] = []) {
   await page.evaluate(() => document.fonts.ready)
-  const measurements = await surface.locator(`${authoredLabelSelector}, [data-layout-text-origin="user"]`).evaluateAll((elements, selector) => {
+  const readMeasurements = () => surface.locator(`${authoredLabelSelector}, [data-layout-text-origin="user"]`).evaluateAll((elements, selector) => {
     const nodes = new Set<Text>()
     for (const element of elements) {
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
@@ -149,10 +149,19 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       userText: [...userText.values()].map((typed) => ({ text: typed.text.join(' '), lines: countVisualLines(typed.fragments), clipped: typed.clipped, ellipsized: typed.ellipsized, brokenWords: typed.brokenWords, unclampedHeading: typed.unclampedHeading })),
     }
   }, logicalLabelSelector)
-  for (const value of requiredUserValues) {
-    expect(measurements.userText.filter((typed) => typed.text === value && typed.lines > 0).length,
-      `required user field must retain its rendered mark: ${value}`).toBeGreaterThan(0)
+  let measurements = await readMeasurements()
+  const expectRequiredUserValues = () => {
+    for (const value of requiredUserValues) {
+      expect(measurements.userText.filter((typed) => typed.text === value && typed.lines > 0).length,
+        `required user field must retain its rendered mark: ${value}`).toBeGreaterThan(0)
+    }
   }
+  expectRequiredUserValues()
+  await expect.poll(async () => {
+    if (measurements.labels.length === 0) measurements = await readMeasurements()
+    expectRequiredUserValues()
+    return measurements.labels.length
+  }, { message: 'the rendered surface has app-authored labels' }).toBeGreaterThan(0)
   expect(measurements.labels.length, 'the rendered surface has app-authored labels').toBeGreaterThan(0)
   expect.soft(measurements.labels.filter((label) => label.lines > 1), 'app-authored labels must stay on one line').toEqual([])
   expect.soft(measurements.labels.filter((label) => label.clipped), 'app-authored labels must remain whole, without ellipsis or clipping').toEqual([])
