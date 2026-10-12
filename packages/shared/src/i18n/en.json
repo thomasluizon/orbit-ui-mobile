@@ -451,6 +451,7 @@
     "minutesShort": "{minutes} min left",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
+    "openInOrbit": "Open in Orbit",
     "signInWithGoogle": "Continue with Google",
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
