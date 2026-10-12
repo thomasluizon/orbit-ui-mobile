@@ -92,7 +92,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
               <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
             </> : props.dayName}
           </p>
-          <p className="m-0 whitespace-nowrap font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
+          <p className="m-0 font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
         </div>
         <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>

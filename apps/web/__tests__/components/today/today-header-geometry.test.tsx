@@ -11,7 +11,7 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { HabitRow } from '@/components/habits/habit-row'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -520,6 +520,48 @@ describe('Hoje header geometry', () => {
       assertHeaderControls(geometry.actions, width, scale, true)
     } finally { await page.close() }
   })
+  it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+    'keeps full month names inside the centred $locale pager at $width', async ({ width, locale }) => {
+      const messages = locale === 'en' ? en : ptBr
+      const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
+        <TodayDateControl {...props} dayName={messages.dates.today} shortDayName={messages.dates.today}
+          numericDate={formatLocaleDayMonth('2026-09-30', locale)} isTodaySelected nextDisabled />
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(async () => { await document.fonts.ready })
+        for (const scale of [1, 2]) {
+          await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px` }, scale)
+          const geometry = await page.evaluate(() => {
+            const row = document.querySelector('[data-today-date-row]')!
+            const arrows = Array.from(row.querySelectorAll('button')).map((arrow) => {
+              const bounds = arrow.getBoundingClientRect()
+              return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+            })
+            const labels = Array.from(row.querySelectorAll('p')).map((label) => {
+              const range = document.createRange()
+              range.selectNodeContents(label)
+              const fragments = Array.from(range.getClientRects()).filter((bounds) => bounds.width > 0)
+              const bounds = range.getBoundingClientRect()
+              return { left: bounds.left, right: bounds.right,
+                lines: new Set(fragments.map((fragment) => fragment.top)).size }
+            })
+            return { arrows, labels, documentWidth: document.documentElement.scrollWidth }
+          })
+          expect(geometry.documentWidth).toBe(width)
+          expect(geometry.arrows[0]!.left).toBe(16)
+          expect(geometry.arrows[1]!.right).toBe(width - 16)
+          for (const label of geometry.labels) {
+            expect(label.left).toBeGreaterThanOrEqual(geometry.arrows[0]!.right + 12 - 1)
+            expect(label.right).toBeLessThanOrEqual(geometry.arrows[1]!.left - 12 + 1)
+            expect(Math.abs((label.left + label.right) / 2 - width / 2)).toBeLessThanOrEqual(1)
+            if (scale === 1) expect(label.lines).toBe(1)
+          }
+        }
+      } finally { await page.close() }
+    },
+  )
   it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {
     const messages = locale === 'en' ? en : ptBr
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}

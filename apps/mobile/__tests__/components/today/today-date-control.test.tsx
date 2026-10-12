@@ -5,6 +5,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Menu } from '@/components/ui/menu'
@@ -175,15 +176,16 @@ describe('Today date control feedback (mobile)', () => {
 
   it.each([1, 2].flatMap((fontScale) => [320, 384, 412].map((width) => ({ fontScale, width }))))('centres the date between edge controls at $width dp and $fontScale text scale', ({ fontScale, width }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-    const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.' })
-    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Quarta-feira, 8 abr.')
+    const numericDate = fontScale === 1 ? formatLocaleDayMonth('2026-09-30', 'pt-BR') : '8 abr.'
+    const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate })
+    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === `Quarta-feira, ${numericDate}`)
     const dateStyle = StyleSheet.flatten(date.props.style)
     const rowStyle = StyleSheet.flatten(date.parent.props.style)
     const rowWidth = width - 32
     const day = width / fontScale < 240 ? 'Qua.' : 'Quarta-feira'
     const dayWidth = measuredTextWidth(day, 'Space Grotesk', 22,
       require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')) * fontScale
-    const numericWidth = measuredTextWidth('8 abr.', 'Geist Mono', 12,
+    const numericWidth = measuredTextWidth(numericDate, 'Geist Mono', 12,
       require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf')) * fontScale
     const layout = Yoga.Node.create()
     try {
