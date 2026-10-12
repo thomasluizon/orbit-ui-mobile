@@ -186,18 +186,18 @@
     "queued": "No connection. {count} changes held on the device.",
     "syncing": "Sending {count} changes.",
     "synced": "Everything is synced.",
-    "syncDropped": "The log for {item} did not go up and was dropped.",
-    "syncRetrying": "One change did not go up yet. It stays in the queue and tries again on its own.",
-    "syncDroppedDetail": "The rest of the queue landed. Tap to log it again.",
+    "syncDropped": "The log for {item} did not sync and was discarded.",
+    "syncRetrying": "One change has not synced yet. It stays in the queue and retries automatically.",
+    "syncDroppedDetail": "The rest of the queue synced. Tap to log it again.",
     "syncDroppedAction": "Log it again",
     "syncDroppedPending": "Other changes are still in the queue.",
     "syncOrphaned": "The habit was never created. The log for {date} has no habit to attach to.",
     "syncOrphanedDetail": "Create the habit to record it again.",
     "syncUnknownDate": "that day",
-    "syncChangeDropped": "The change to {item} did not go up and was dropped.",
+    "syncChangeDropped": "The change to {item} did not sync and was discarded.",
     "syncRetryAction": "Try this change again",
     "syncReviewAction": "Review the change",
-    "syncChangeDroppedDetail": "The rest of the queue landed.",
+    "syncChangeDroppedDetail": "The rest of the queue synced.",
     "syncHabitNotCreated": "The habit {item} was not created.",
     "syncEntity": {
       "habits": "habit",
@@ -442,7 +442,7 @@
     "turnstileExpired": "Security check expired.",
     "turnstileRetry": "Try again",
     "codeSent": "Code sent.",
-    "codeSentTo": "We sent 6 digits to {email}.",
+    "codeSentTo": "We sent a 6-digit code to {email}.",
     "verificationCode": "6 digit code",
     "verify": "Sign in",
     "resendCode": "Resend code",
@@ -650,7 +650,7 @@
       "everyNMonths": "Every {n} month | Every {n} months",
       "everyNYears": "Every {n} year | Every {n} years",
       "flexibleLabel": "{n}x / {unit}",
-      "flexibleProgress": "{done}/{target} this {unit}"
+      "flexibleProgress": "{unit}: {done}/{target}"
     },
     "frequencyLabel": "Frequency",
     "form": {
@@ -837,7 +837,7 @@
       "templateNamePlaceholder": "e.g. Weekly groceries",
       "saveTemplateError": "Couldn't save template. Please try again.",
       "deleteTemplateError": "Couldn't delete template. Please try again.",
-      "resetChecklist": "Reset",
+      "resetChecklist": "Uncheck all",
       "clearChecklist": "Clear checklist",
       "duplicateChecklistItem": "Duplicate item",
       "removeChecklistItem": "Remove item",
@@ -848,7 +848,7 @@
       "checklistItemTooLong": "Shorten each checklist item to 500 characters or fewer",
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
-      "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
+      "reminderLastRequired": "Keep at least one reminder. To have none, turn reminders off.",
       "reminderPermissionNeeded": "Reminders will not arrive on this device until notifications are on.",
       "reminderSettingsDescription": "Opens notification settings in a new tab, keeping your form draft.",
       "reminderSettingsHint": "Opens Orbit's page in system settings.",
@@ -1026,7 +1026,7 @@
       "googleConnected": "Google Calendar connected",
       "lastSyncedLabel": "Last sync",
       "lastSynced": "Last synced {time}",
-      "autoSync": "Sync on its own",
+      "autoSync": "Sync automatically",
       "disconnectedTitle": "Google Calendar disconnected",
       "disconnectedBody": "Reconnect to see the events you can import.",
       "noEventsToImport": "No Google Calendar events on this day."
@@ -1079,7 +1079,7 @@
     "entrySearchEmpty": "No matches for \"{query}\"",
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
-    "completionHistory": "Completion History",
+    "completionHistory": "Completion history",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",
@@ -1225,8 +1225,8 @@
       "summary": "{name} requested via chat",
       "confirmed": "Confirmed. Done.",
       "errors": {
-        "confirmation_required": "That confirmation expired. Tap Confirm again.",
-        "step_up_required": "Extra verification is needed. Tap Confirm again."
+        "confirmation_required": "That confirmation expired. Confirm again.",
+        "step_up_required": "Extra verification is needed. Confirm again."
       }
     },
     "empty": {
@@ -1379,7 +1379,7 @@
       "percentage": "{pct}%",
       "deadline": "Due {date}",
       "projected": "Projected {date} at this pace",
-      "empty": "No goals yet. A goal starts from a habit, or from an ask right here.",
+      "empty": "No goals yet. Start one from a habit, or ask for one right here.",
       "done": "{name} is done",
       "ring": "Progress of {name}",
       "progressLink": "See it on Progress"
@@ -1424,7 +1424,7 @@
       "markReadError": "Couldn't mark that alert read. Try again.",
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
-      "filter": "Filter shown",
+      "filter": "Filter this list",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter",
       "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
@@ -1628,7 +1628,7 @@
     },
     "breakdown": {
       "title": "Split {name}",
-      "frequency": "Frequency of {name}, tap to change",
+      "frequency": "Change the frequency of {name}",
       "conflict": "A habit called {name} already exists.",
       "confirmNote": "Approving creates every proposed habit at once.",
       "confirmTitle": "Create these habits?",
@@ -1683,7 +1683,7 @@
         "is_general": "Anytime",
         "is_flexible": "Any day",
         "checklist_items": "Checklist items",
-        "sub_habits": "Sub habits",
+        "sub_habits": "Sub-habits",
         "date": "Date",
         "enabled": "Enabled",
         "is_completed": "Completed",
@@ -2029,7 +2029,7 @@
       "deleteNotifications": "All notifications",
       "deleteChecklist": "Saved checklist templates",
       "deleteOnboarding": "Onboarding progress (will replay welcome flow)",
-      "preserveAccount": "Your account (email, name, password)",
+      "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, language, and timezone",
       "confirmInstruction": "Type ORBIT below to confirm this action.",
@@ -2151,7 +2151,7 @@
       },
       "completions": {
         "label": "Habits logged",
-        "caption": "Each one was a tap of yours, on a day you chose to show up."
+        "caption": "Each one was yours, on a day you chose to show up."
       },
       "activeDays": {
         "label": "Days active",
@@ -2282,7 +2282,7 @@
     "deletion": {
       "title": "Data Deletion",
       "body": "You can delete your account and all associated data at any time from the Profile page in the app. The process requires email confirmation:",
-      "step1": "1. Go to Profile and tap \"Delete account\"",
+      "step1": "1. Go to Profile and select \"Delete account\"",
       "step2": "2. A confirmation code will be sent to your email",
       "step3": "3. Enter the code to confirm deletion",
       "step4": "7 days after confirmation, or 7 days after the end of your current paid period, whichever is later, all data is permanently deleted, including habits, completion history, AI conversations, and settings. This action is irreversible."
@@ -2351,7 +2351,7 @@
         "continueReason": "Write what you want to keep up."
       },
       "when": {
-        "astraRead": "This is how I read it. Tap to correct it.",
+        "astraRead": "This is how I read it. Correct anything that is wrong.",
         "direct": "Pick the days and the time.",
         "proposedBy": "Proposed by Astra",
         "emojiLabel": "Emoji proposed by Astra",
@@ -2448,16 +2448,16 @@
         "unsupportedBody": "This device cannot receive Orbit reminders. The habit is already saved.",
         "unsupportedSignedOutBody": "This device cannot receive Orbit reminders. The habit stays on this device until you sign in.",
         "failedTitle": "Reminders did not turn on",
-        "failedBody": "Permission was given and registering this device failed. The habit is already saved.",
-        "failedSignedOutBody": "Permission was given and registering this device failed. The habit stays on this device until you sign in.",
+        "failedBody": "You gave permission, but this device could not be registered. The habit is already saved.",
+        "failedSignedOutBody": "You gave permission, but this device could not be registered. The habit stays on this device until you sign in.",
         "allow": "Allow reminders",
         "deny": "Not now",
         "continue": "Continue"
       },
       "done": {
         "title": "Done. It is in your day.",
-        "body": "Tap its ring on Today to log it when it happens.",
-        "remindersOffBody": "Tap its ring on Today to log it when it happens. You can turn reminders on from the habit.",
+        "body": "When you do it, mark its ring on Today to log it.",
+        "remindersOffBody": "When you do it, mark its ring on Today to log it. You can turn reminders on from the habit.",
         "notTodayTitle": "Done. It waits for its first day.",
         "notTodayBody": "It is not due today. It shows up on Today on the days you picked.",
         "notTodayRemindersOffBody": "It is not due today. It shows up on Today on the days you picked. You can turn reminders on from the habit.",
@@ -2555,7 +2555,7 @@
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "63 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
+        "toolsBreadthDesc": "Astra does more than chat. It can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -2569,7 +2569,7 @@
         "cannotDoTitle": "Limitations",
         "cannotDoDesc": "Astra is focused on habits and routines. It can't answer general knowledge questions, help with homework, or do things unrelated to your habits.",
         "tipsTitle": "Tips",
-        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback"
+        "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback."
       },
       "connectSection": {
         "mcpTitle": "Outside assistants",
@@ -2640,7 +2640,7 @@
       }
     },
     "convert": {
-      "promise": "The plan changes Astra, never your habits and logs.",
+      "promise": "The plan changes what Astra can do, never your habits and logs.",
       "trialEyebrow": "Your Pro trial is active",
       "trialDaysLeft": "{days} trial day left | {days} trial days left",
       "trialLastDay": "Last day of the trial",
@@ -2836,11 +2836,11 @@
     "description": "Check your connection and try again.",
     "create": {
       "title": "Create habit",
-      "reason": "Creating needs a connection because the habit is made on the server. Come back when the connection does."
+      "reason": "Creating a habit needs a connection. Try again when you are back online."
     },
     "calendar": {
       "title": "Sync the calendar",
-      "reason": "Google Calendar does not answer without a connection. Events already loaded stay in view."
+      "reason": "Google Calendar cannot be reached offline. Events already loaded stay in view."
     }
   },
   "undo": {
@@ -2863,7 +2863,7 @@
   },
   "goals": {
     "empty": "No goals yet",
-    "create": "New Goal",
+    "create": "New goal",
     "dragItem": "draggable item",
     "reorderHint": "Hold to reorder",
     "form": {
@@ -2903,7 +2903,7 @@
     "progress": "Progress",
     "progressOf": "{current} of {target} {unit}",
     "progressPercentage": "{pct}% complete",
-    "updateProgress": "Update Progress",
+    "updateProgress": "Update progress",
     "progressNote": "Note (optional)",
     "progressHistory": "History",
     "status": {
@@ -2950,13 +2950,13 @@
       "delete": "Failed to delete goal",
       "progress": "Failed to update progress"
     },
-    "linkedHabits": "Linked Habits",
+    "linkedHabits": "Linked habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
-      "onTrack": "On Track",
-      "atRisk": "At Risk",
-      "behind": "Behind Schedule",
-      "noDeadline": "No Deadline"
+      "onTrack": "On track",
+      "atRisk": "At risk",
+      "behind": "Behind schedule",
+      "noDeadline": "No deadline"
     }
   },
   "progressScreen": {
@@ -3047,8 +3047,8 @@
       "bestWeekdayEmpty": "No data",
       "topHabit": "Top habit",
       "topHabitEmpty": "No data",
-      "lockedTitle": "Thirty day figures",
-      "lockedBody": "Orbit Pro shows your rolling thirty day figures.",
+      "lockedTitle": "Thirty-day figures",
+      "lockedBody": "Orbit Pro shows your rolling thirty-day figures.",
       "lockedAction": "See Orbit Pro"
     },
     "achievements": {
@@ -3140,7 +3140,7 @@
         "description": "Achieve a 500-day streak"
       },
       "getting_momentum": {
-        "name": "Getting momentum",
+        "name": "Gaining momentum",
         "description": "Complete 10 habits total"
       },
       "building_habits": {
@@ -3562,7 +3562,7 @@
     },
     "day": {
       "eyebrow": "Today",
-      "line": "All {count} habit for today is done. | All {count} habits for today are done."
+      "line": "Your {count} habit for today is done. | All {count} habits for today are done."
     }
   }
 }

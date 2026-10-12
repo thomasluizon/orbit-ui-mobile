@@ -1034,6 +1034,8 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 
 **pt-BR register: "você", plain and warm, never corporate and never slang.** Address the reader directly. "Orbit" and "Astra" are never translated, and both carry `translate="no"` so auto-translation cannot garble them.
 
+pt-BR is written as a Brazilian would say it. A word-for-word translation of the en string is a defect, even when it is grammatical.
+
 **Tone flexes with the stakes:** warm on success, onboarding and empty states; neutral on routine actions and settings; calm and plain on errors and destructive confirmations; serious and explicit on data loss.
 
 **The six Pierre rules**, extracted mechanically:

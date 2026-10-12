@@ -6,7 +6,6 @@ import { parseAPIDate } from '../utils/dates'
 import {
   canLogHabitOnDate,
   computeHabitCardStatus,
-  computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
@@ -74,7 +73,7 @@ describe('habit card helpers', () => {
     expect(computeHabitCardStatus(monthly, new Date('2025-01-02'))).toBe('overdue')
   })
 
-  it('builds frequency and flexible progress labels', () => {
+  it('builds flexible frequency labels', () => {
     const translator = createTranslator()
     const habit = createMockHabit({
       isGeneral: false,
@@ -82,15 +81,10 @@ describe('habit card helpers', () => {
       frequencyQuantity: 2,
       days: [],
       isFlexible: true,
-      flexibleTarget: 3,
-      flexibleCompleted: 1,
     })
 
     expect(computeHabitFrequencyLabel(habit, translator)).toContain(
       'habits.frequency.flexibleLabel',
-    )
-    expect(computeHabitFlexibleProgressLabel(habit, translator)).toContain(
-      'habits.frequency.flexibleProgress',
     )
   })
 
@@ -274,31 +268,6 @@ describe('habit card helpers', () => {
         fallbackTranslator,
       ),
     ).toBe('a | b | c | d')
-  })
-
-  it('builds flexible progress labels and returns null for non-flexible habits', () => {
-    const translator = createTranslator()
-
-    expect(
-      computeHabitFlexibleProgressLabel(
-        createMockHabit({
-          isFlexible: true,
-          frequencyUnit: null,
-          flexibleTarget: null,
-          frequencyQuantity: 4,
-          flexibleCompleted: 2,
-        }),
-        translator,
-      ),
-    ).toContain('"target":4')
-    expect(
-      computeHabitFlexibleProgressLabel(
-        createMockHabit({
-          isFlexible: false,
-        }),
-        translator,
-      ),
-    ).toBeNull()
   })
 
   it('omits match lines when there is no query or no metadata', () => {

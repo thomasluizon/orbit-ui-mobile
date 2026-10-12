@@ -270,7 +270,6 @@ export {
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
-  computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
