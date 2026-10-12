@@ -35,6 +35,7 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { ActionRow } from '@/components/ui/action-row'
+import { ArrowLeft } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -149,12 +150,16 @@ function DecisionAction(props: Readonly<DecisionProps>) {
 function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void; completionPending: boolean }>) {
   const t = useTranslations('onboarding.flow')
   const displayStep = getOnboardingDisplayStep(step)
-  return <div className="flex min-h-14 items-center gap-4 px-4 min-[1024px]:px-0">
-    <div className="shrink-0"><span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
-    <ActionRow>
-      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" disabled={completionPending} onClick={onBack}>{t('back')}</PillButton> : null}
+  return <div className="flex min-h-14 items-center justify-between gap-4 px-4 min-[1024px]:px-0">
+    <div className="flex shrink-0 items-center gap-2">
+      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <button type="button" aria-label={t('back')} disabled={completionPending} onClick={onBack}
+        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-none place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40">
+        <ArrowLeft size={20} aria-hidden="true" focusable="false" className="rtl:-scale-x-100" />
+      </button> : null}
+      <span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
+    <div className="min-w-0 flex-1"><ActionRow>
       {onSkip ? <PillButton variant="ghost" size="sm" loading={completionPending} onClick={onSkip}>{t('skip')}</PillButton> : null}
-    </ActionRow>
+    </ActionRow></div>
   </div>
 }
 

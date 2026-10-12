@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { I18nManager, Pressable, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
@@ -36,6 +36,7 @@ import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Toast } from '@/components/ui/app-toast'
 import { ActionRow } from '@/components/ui/action-row'
+import { ArrowLeft } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
@@ -126,9 +127,13 @@ function FlowHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: 
   const tokens = createTokensV2(currentScheme, currentTheme)
   const displayStep = getOnboardingDisplayStep(step)
   return <View style={styles.header}>
-    <View style={styles.headerStart}><Text style={[styles.counter, { color: tokens.fg3 }]}>Orbit · <Text style={{ color: tokens.fg1 }}>{String(displayStep).padStart(2, '0')}</Text> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</Text><Text accessibilityLiveRegion="polite" style={styles.srOnly}>{t('onboarding.flow.step', { current: displayStep, total: getOnboardingDisplayTotal() })}</Text></View>
+    <View style={styles.headerStart}>
+      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <Pressable accessibilityRole="button" accessibilityLabel={t('onboarding.flow.back')} onPress={onBack}
+        style={({ pressed }) => [styles.back, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <ArrowLeft size={20} color={tokens.fg1} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ transform: [{ scaleX: I18nManager.isRTL ? -1 : 1 }] }} />
+      </Pressable> : null}
+      <Text style={[styles.counter, { color: tokens.fg3 }]}>Orbit · <Text style={{ color: tokens.fg1 }}>{String(displayStep).padStart(2, '0')}</Text> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</Text><Text accessibilityLiveRegion="polite" style={styles.srOnly}>{t('onboarding.flow.step', { current: displayStep, total: getOnboardingDisplayTotal() })}</Text></View>
     <View style={{ flex: 1, minWidth: 0 }}><ActionRow>
-      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('onboarding.flow.back')}</PillButton> : null}
       {onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('onboarding.flow.skip')}</PillButton> : null}
     </ActionRow></View>
   </View>
@@ -322,4 +327,4 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   return <Modal visible animationType="none" onRequestClose={() => runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) })}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></Modal>
 }
 
-const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', gap: 12 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 16, width: '100%' } })
+const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: 8 }, back: { alignItems: 'center', borderRadius: 999, justifyContent: 'center', minHeight: 48, width: 48 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 16, width: '100%' } })

@@ -236,6 +236,57 @@ describe('OnboardingFlow state model', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each([320, 412, 1440].flatMap((width) => ['ltr', 'rtl'].flatMap((direction) =>
+      [1, 2, 3].map((step) => ({ width, direction, step })))))(
+      'keeps the header ordered at $width on step $step in $direction', async ({ width, direction, step }) => {
+        mocks.useRealShell = true
+        await act(async () => { mount(false) })
+        if (step > 1) {
+          fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+          fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+        }
+        if (step === 3) {
+          fireEvent.click(screen.getByRole('button', { name: 'create' }))
+          await screen.findByTestId('reminder-state')
+        }
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          await page.setContent(`<html dir="${direction}"><style>${stylesheet}</style>${screen.getByRole('dialog').outerHTML}</html>`)
+          const geometry = await page.evaluate(() => {
+            const header = document.querySelector('[data-shell-header]')!
+            const counter = [...header.querySelectorAll('span')].find((node) => /^Orbit · \d{2} \/ \d{2}$/.test(node.textContent))!
+            const back = header.querySelector('button[aria-label="back"]')
+            const bounds = (element: Element) => {
+              const rect = element.getBoundingClientRect()
+              return { left: rect.left, right: rect.right, width: rect.width, height: rect.height }
+            }
+            const buttons = [...header.querySelectorAll('button')]
+            return { header: bounds(header), counter: bounds(counter), back: back ? bounds(back) : null,
+              arrowScale: back ? getComputedStyle(back.querySelector('svg')!).scale : null,
+              skip: buttons.find((button) => button.textContent === 'skip') ? bounds(buttons.at(-1)!) : null,
+              lastLabel: buttons.at(-1)?.textContent }
+          })
+          expect(geometry.counter.left).toBeGreaterThanOrEqual(geometry.header.left)
+          expect(geometry.counter.right).toBeLessThanOrEqual(geometry.header.right)
+          if (step === 1) expect(geometry.back).toBeNull()
+          else {
+            expect(geometry.back!.width).toBe(48)
+            expect(geometry.back!.height).toBeGreaterThanOrEqual(48)
+            if (direction === 'ltr') expect(geometry.back!.right).toBeLessThanOrEqual(geometry.counter.left)
+            else expect(geometry.back!.left).toBeGreaterThanOrEqual(geometry.counter.right)
+            expect(geometry.arrowScale).toBe(direction === 'rtl' ? '-1 1' : 'none')
+          }
+          if (step < 3) {
+            expect(geometry.lastLabel).toBe('skip')
+            if (direction === 'ltr') expect(geometry.skip!.left).toBeGreaterThan(geometry.counter.right)
+            else expect(geometry.skip!.right).toBeLessThan(geometry.counter.left)
+            expect(geometry.skip!.left).toBeGreaterThanOrEqual(geometry.header.left)
+            expect(geometry.skip!.right).toBeLessThanOrEqual(geometry.header.right)
+          } else expect(geometry.skip).toBeNull()
+        } finally { await page.close() }
+      },
+    )
+
     it.each([320, 412, 600].flatMap((width) => [24, 48].flatMap((top) =>
       ['decision', 'done'].map((step) => ({ width, top, step })))))(
       'applies one top inset in the real $step shell at $width with top $top', async ({ width, top, step }) => {
@@ -557,12 +608,33 @@ describe('OnboardingFlow state model', () => {
     expect(screen.queryByRole('button', { name: 'what.haveAccount' })).not.toBeInTheDocument()
   })
 
-  it('uses small ghost controls for back and skip', () => {
+  it('puts icon-only Back before the counter and keeps Skip last', async () => {
     mount(false)
-    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk' } })
+    expect(screen.queryByRole('button', { name: 'back' })).toBeNull()
+    const counter = screen.getByText((_, element) => isCounter(element))
+    const header = counter.parentElement!.parentElement!
+    expect(header.querySelectorAll('button')).toHaveLength(1)
+    expect(header.querySelector('button')).toBe(screen.getByRole('button', { name: 'skip' }))
+
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-    for (const label of ['back', 'skip']) expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-variant', 'ghost')
-    for (const label of ['back', 'skip']) expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-size', 'sm')
+    const back = screen.getByRole('button', { name: 'back' })
+    expect(back.textContent).toBe('')
+    expect(back.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(header.querySelectorAll('button')).toEqual(expect.objectContaining({ 0: back, 1: screen.getByRole('button', { name: 'skip' }) }))
+    expect(back.compareDocumentPosition(counter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'skip' })).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'skip' })).toHaveAttribute('data-size', 'sm')
+
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+    expect(screen.getByRole('button', { name: 'back' }).textContent).toBe('')
+    expect(header.querySelectorAll('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+    expect(screen.getByTestId('schedule')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+    expect(screen.queryByRole('button', { name: 'back' })).toBeNull()
+    expect(screen.getByLabelText('sentence')).toHaveValue('Walk every Monday at 18:00')
   })
 
   it('uses a ghost button for the reminder deny action', async () => {
