@@ -98,7 +98,7 @@ describe('OnboardingCreateHabit', () => {
     expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent === '3 times a week, any day')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' }))
     rerender(<OnboardingCreateHabit {...base} proposed correcting onModeChange={onModeChange} />)
-    fireEvent.click(screen.getByRole('radio', { name: 'Set days' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Fixed' }))
 
     expect(onModeChange).toHaveBeenCalledWith('fixed')
     expect(screen.getByRole('button', { name: 'More times' })).toBeInTheDocument()
@@ -121,7 +121,7 @@ describe('OnboardingCreateHabit', () => {
 
   it('never offers a repeat interval the saved habit would drop', () => {
     render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 4, days: [], isGeneral: true, isFlexible: false }} />)
-    expect(screen.getByRole('radio', { name: 'Set days' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Fixed' })).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Repeat more often' })).not.toBeInTheDocument()
   })
 

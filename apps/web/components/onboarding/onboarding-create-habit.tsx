@@ -113,9 +113,9 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
   const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'))
   const controls = (
     <div className="flex flex-col gap-4">
-      <SegmentedControl label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} />
+      <SegmentedControl fullWidth label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} />
       {mode === 'flexible' ? (
-        <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></>
+        <><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></>
       ) : null}
       {mode === 'fixed' ? (
         <div className="flex flex-col gap-2">
@@ -123,7 +123,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
           <div className="flex flex-wrap gap-2">{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} ariaLabel={t(`when.daysLong.${day.toLowerCase()}`)} onClick={() => props.onToggleDay(day)}>{t(`when.days.${day.toLowerCase()}`)}</Chip>)}</div>
         </div>
       ) : null}
-      {mode === 'interval' ? <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></> : null}
+      {mode === 'interval' ? <><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></> : null}
       {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
       <TimeField label={t('when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>
