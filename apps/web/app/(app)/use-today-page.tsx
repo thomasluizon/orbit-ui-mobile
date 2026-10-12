@@ -50,13 +50,12 @@ export function useTodayPage(
 
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || listSurfaceOpen ||
-      data.isFetching || data.showLoadError || (data.hasFetched && data.habitsCount === 0)
+      !data.hasFetched || data.showLoadError || data.habitsCount === 0
     setTodayFabHidden(hidden)
     return () => setTodayFabHidden(false)
   }, [
     data.hasFetched,
     data.habitsCount,
-    data.isFetching,
     data.showLoadError,
     isSelectMode,
     listSurfaceOpen,

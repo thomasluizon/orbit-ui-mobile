@@ -8,7 +8,7 @@ import { formatBillingDate } from '../../components/upgrade/styles'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { readOutlineVisibility } from './focus-indicators'
+import { expectCalendarDayLinkFocus } from './calendar-day-link-focus'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
@@ -89,15 +89,7 @@ for (const width of [412, 1280]) {
       test('keyboard focus follows the row radius without clipping', async ({ page }) => {
         await page.goto('/calendar')
         const link = page.getByRole('link', { name: ptBR.calendar.goToDay, exact: true })
-        await expect(link).toBeVisible()
-        await link.focus()
-        await page.keyboard.press('Shift+Tab')
-        await page.keyboard.press('Tab')
-        await expect(link).toBeFocused()
-        await expect(link).toHaveCSS('border-top-left-radius', '12px')
-        const outline = await readOutlineVisibility(link)
-        expect(outline.visible).toBe(true)
-        expect(outline.clippedBy).toEqual([])
+        await expectCalendarDayLinkFocus(link)
       })
     })
   }
