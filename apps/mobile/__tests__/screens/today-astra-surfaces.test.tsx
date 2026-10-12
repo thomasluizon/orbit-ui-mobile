@@ -231,6 +231,24 @@ describe('mobile Today Astra owned surfaces', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
+  it('keeps the FAB available through refetch failure with retained habits', async () => {
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    try {
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.isFetching = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.isFetching = false
+      mocks.isError = true
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(false)
+      mocks.hasData = false
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(useUIStore.getState().todayFabHidden).toBe(true)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each(['first load', 'load error', 'select mode', 'list surface'])(
     'withholds the proactive line during %s', async (state) => {
       mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
