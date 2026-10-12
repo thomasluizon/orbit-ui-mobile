@@ -71,10 +71,16 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
   const geometry = await page.evaluate((includeSentence) => {
     const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
     const dates = Array.from(document.querySelectorAll('[data-today-date-row] [title] p'))
+    const dateRow = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
     const sentence = document.querySelector('.today-astra-sentence')
     const titles = rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!)
     return {
-      edges: [...dates, ...titles, ...(includeSentence && sentence ? [sentence] : [])].map((element) => element.getBoundingClientRect().left),
+      dateCenters: dates.map((element) => {
+        const bounds = element.getBoundingClientRect()
+        return (bounds.left + bounds.right) / 2
+      }),
+      columnCenter: (dateRow.left + dateRow.right) / 2,
+      edges: [...titles, ...(includeSentence && sentence ? [sentence] : [])].map((element) => element.getBoundingClientRect().left),
       insets: rows.map((row) => {
         const body = row.querySelector('[data-habit-row-body]')!
         const content = body.children.length ? body : body.parentElement!.querySelector('[data-personal-text-content]')!
@@ -88,7 +94,9 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
       overflow: document.documentElement.scrollWidth,
     }
   }, sentenceVisible)
-  expect(geometry.edges).toHaveLength(sentenceVisible ? 6 : 5)
+  expect(geometry.dateCenters).toHaveLength(2)
+  for (const center of geometry.dateCenters) expect(Math.abs(center - geometry.columnCenter)).toBeLessThanOrEqual(1)
+  expect(geometry.edges).toHaveLength(sentenceVisible ? 4 : 3)
   for (const edge of geometry.edges) expect(Math.abs(edge - 84)).toBeLessThanOrEqual(1)
   expect(geometry.insets).toHaveLength(3)
   for (const inset of geometry.insets) expect(inset).toBeGreaterThanOrEqual(8)
