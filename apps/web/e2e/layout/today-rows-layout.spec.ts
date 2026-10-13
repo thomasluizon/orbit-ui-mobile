@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -142,7 +143,7 @@ for (const width of [320, 600]) {
         }, textScale)
         for (const selecting of [false, true]) {
           if (selecting) {
-            await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+            await openTodayListOptions(page, ptBr.habits.listOptions)
             await page.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
             await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(3)
             await expect(page.locator('.today-astra-sentence')).toHaveCount(0)

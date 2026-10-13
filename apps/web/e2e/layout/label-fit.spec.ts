@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -179,7 +180,7 @@ for (const width of [320, 360, 384, 412]) {
       test('Today tabs, buttons and menu titles remain whole', async ({ page }) => {
         await page.goto(`/?date=${reviewDay}`)
         await checkTodayLabels(page, words)
-        await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, words.habits.listOptions)
         const sheet = page.getByRole('dialog', { name: words.habits.listOptions, exact: true })
         await expect(sheet.getByRole('menu', { name: words.habits.listOptions, exact: true })).toBeVisible()
         await checkSurfaceLabels(page, sheet)
@@ -219,8 +220,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('hover and press fills follow Principle 3', async ({ page }) => {
         await page.goto(`/?date=${reviewDay}`)
-        const listOptions = page.getByRole('button', { name: words.habits.listOptions, exact: true })
-        await listOptions.click()
+        await openTodayListOptions(page, words.habits.listOptions)
         await expect(page.getByRole('menu', { name: words.habits.listOptions })).toBeVisible()
         await page.keyboard.press('Escape')
         await expect(page.getByRole('menu')).toHaveCount(0)
@@ -232,7 +232,7 @@ for (const width of [320, 360, 384, 412]) {
           await expectInteractionFill(page.getByRole('button', { name: label, exact: true }))
         }
         await expectInteractionFill(tabBar.locator('nav > a').last().locator('[data-tab-indicator]'))
-        await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, words.habits.listOptions)
         await expectInteractionFill(page.getByRole('menu', { name: words.habits.listOptions })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }))
         await page.goto('/calendar')

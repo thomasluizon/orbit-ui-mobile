@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -106,7 +107,7 @@ for (const width of [320, 360, 384, 412, 600]) {
 
       test('product sheet titles retain one line', async ({ page }) => {
         await page.goto(`/?date=${day}`)
-        await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, words.habits.listOptions)
         const sheet = page.getByRole('dialog', { name: words.habits.listOptions, exact: true })
         const heading = sheet.getByRole('heading')
         await markRequiredLabels(heading)

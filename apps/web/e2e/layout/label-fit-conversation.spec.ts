@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -68,7 +69,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
 
       test('keeps the empty heading and suggestions whole with a peek at the gutter', async ({ page }) => {
         await page.goto('/')
-        await page.locator('[data-today-header-actions]').getByRole('button', { name: words.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, words.habits.listOptions)
         await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()

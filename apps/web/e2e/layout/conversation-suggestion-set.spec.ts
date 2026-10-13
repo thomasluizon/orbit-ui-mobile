@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -31,7 +32,7 @@ for (const width of [412, 1280]) {
 
         test('keeps the empty introduction chip-free and lets the composer own the suggestion set', async ({ page }) => {
           await page.goto('/')
-          await page.locator('[data-today-header-actions]').getByRole('button', { name: words.habits.listOptions, exact: true }).click()
+          await openTodayListOptions(page, words.habits.listOptions)
           await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
             .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
           await expect(page.locator(`[data-habit-title="${habitTitle}"]`)).toBeVisible()

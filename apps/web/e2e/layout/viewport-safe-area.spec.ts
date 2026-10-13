@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { settleAnimations } from './settle-animations'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
@@ -30,7 +31,7 @@ async function installLongToday(context: BrowserContext) {
 }
 
 async function revealTodayControls(page: Page) {
-  await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+  await openTodayListOptions(page, messages.habits.listOptions)
   const menu = page.getByRole('menu', { name: messages.habits.listOptions })
   await menu.getByRole('menuitem', { name: messages.habits.refresh, exact: true }).click()
   await expect(menu).toHaveCount(0)
@@ -71,7 +72,7 @@ for (const width of [320, 412, 600]) {
         await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', /(?:^|,)\s*viewport-fit=cover(?:,|$)/)
         const header = page.locator('[data-shell-header]')
         await expect(header.locator('[data-today-header-actions]')).toBeVisible()
-        await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, messages.habits.listOptions)
         const panel = page.getByRole('dialog', { name: messages.habits.listOptions })
         await expect(panel).toBeVisible()
         const menuItems = panel.getByRole('menuitem')
@@ -178,7 +179,7 @@ for (const inset of [0, 44]) {
     test('sheets, the palette, toasts and public content protect both inline edges', async ({ page, context }) => {
       await installLongToday(context)
       await page.goto('/')
-      await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+      await openTodayListOptions(page, messages.habits.listOptions)
       const sheet = page.getByRole('dialog', { name: messages.habits.listOptions })
       await expect(sheet).toBeVisible()
       const items = sheet.getByRole('menuitem')

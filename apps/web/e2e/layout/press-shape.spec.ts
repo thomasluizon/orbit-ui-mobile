@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
@@ -117,11 +118,11 @@ for (const width of [412, 1280] as const) {
       await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
-      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await openTodayListOptions(page, ptBr.habits.listOptions)
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expectHoverOnHitArea(listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }), 12)
       await listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
-      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await openTodayListOptions(page, ptBr.habits.listOptions)
       await listMenu.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
       const selectionTray = page.getByTestId('bulk-action-bar')
       await expectFullTouchTarget(selectionTray.getByRole('button', { name: ptBr.common.selectAll, exact: true }), 'pill', '--bg-hover-opaque')

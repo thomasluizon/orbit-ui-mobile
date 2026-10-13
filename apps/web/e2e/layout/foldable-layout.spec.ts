@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { completeInstallOnboarding } from './install-onboarding'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
@@ -111,7 +112,7 @@ for (const { width, height } of windows) {
         await page.goto(name === 'Hoje' ? `/?date=${fixtureDate}` : path)
         await loadAppFonts(page)
         if (name === 'Hoje') {
-          await page.getByRole('button', { name: en.habits.listOptions }).click()
+          await openTodayListOptions(page, en.habits.listOptions)
           await page.getByRole('menu', { name: en.habits.listOptions })
             .getByRole('menuitem', { name: en.habits.refresh }).click()
           await expect(page.locator('[data-habit-title]')).toHaveCount(habits.items.length)

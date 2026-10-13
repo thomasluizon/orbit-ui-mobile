@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -26,7 +27,7 @@ async function expectCompleteTabIndicator(page: Page, control: Locator, surface:
 async function refreshTodayHabits(page: Page) {
   const trigger = page.getByRole('button', { name: messages.habits.listOptions })
   const menu = page.getByRole('menu', { name: messages.habits.listOptions })
-  await trigger.click()
+  await openTodayListOptions(page, messages.habits.listOptions)
   await menu.getByRole('menuitem', { name: messages.habits.refresh }).click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   await expect(menu).toHaveCount(0)

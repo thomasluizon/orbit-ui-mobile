@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -34,7 +35,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         await setLayoutProfileSession(context, profileSchema.parse({ ...profileFixture, language: locale }))
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await page.goto('/')
-        await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, messages.habits.listOptions)
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Rotina da casa"]')).toBeVisible()

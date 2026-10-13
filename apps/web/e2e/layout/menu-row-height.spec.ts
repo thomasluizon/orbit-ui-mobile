@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -40,7 +41,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/?date=2026-09-03')
       await expect(page.locator('html')).toHaveClass(new RegExp(mode))
-      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await openTodayListOptions(page, ptBr.habits.listOptions)
       await page.getByRole('menu', { name: ptBr.habits.listOptions })
         .getByRole('menuitem', { name: ptBr.habits.refresh }).click()
 
@@ -91,7 +92,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       }
       await expect(menu).toHaveCount(0)
 
-      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await openTodayListOptions(page, ptBr.habits.listOptions)
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expect(listMenu).toBeVisible()
       for (const item of await listMenu.getByRole('menuitem').all()) {
