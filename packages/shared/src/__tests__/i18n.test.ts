@@ -67,8 +67,8 @@ describe('Portuguese ICU zero plurals', () => {
   })).filter(({ elements }) => allMessageElements(elements).some(isPluralElement))
   const customZeroMessages = new Map([
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
-    ['progressScreen.streak.covered', 'Um congelamento cobriu date. Nenhum resta.'],
-    ['progressScreen.streak.automaticCovered', 'Orbit cobriu date automaticamente com um congelamento. Nenhum resta.'],
+    ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
+    ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
   ])
 
   it('requires an explicit zero arm in every Portuguese plural, including nested arguments', () => {
@@ -240,7 +240,7 @@ describe('i18n locale parity', () => {
 
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
     expect(en.chat.limitReachedError).toContain('tomorrow')
-    expect(ptBR.chat.limitReachedError).toContain('amanhã')
+    expect(ptBR.chat.limitReachedError).toMatch(/amanhã/i)
     for (const locale of [en, ptBR]) {
       expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
       expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
@@ -360,8 +360,8 @@ describe('i18n locale parity', () => {
     }
   })
 
-  it('uses one Portuguese verb for removing data', () => {
-    const offenders = [...ptFlat].filter(([, value]) => /exclu/i.test(value)).map(([key]) => key)
+  it('uses apagar for Portuguese deletion verbs', () => {
+    const offenders = [...ptFlat].filter(([, value]) => /\bexclu(?:ir|indo|íd[oa]s?|[aioe]\w*)\b/i.test(value)).map(([key]) => key)
 
     expect(offenders).toEqual([])
   })

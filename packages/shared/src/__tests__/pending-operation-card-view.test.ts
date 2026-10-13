@@ -74,7 +74,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   })
 
   it.each([
-    ['status', 'Abandoned', 'Abandoned', 'Active', 'Mark abandoned', 'Marcar abandonada'],
+    ['status', 'Abandoned', 'Abandoned', 'Active', 'Mark abandoned', 'Abandonar meta'],
     ['current_value', '100', 100, '20', 'Set progress to 100', 'Definir progresso: 100'],
     ['tag_names', '["Reading","Evening"]', ['Reading', 'Evening'], 'Morning', 'Replace all tags with: Reading, Evening', 'Substituir todas as tags por: Reading, Evening'],
     ['tag_ids', '[]', [], 'Morning', 'Remove all tags', 'Remover todas as tags'],
@@ -107,13 +107,13 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   })
 
   it.each([
-    ['target_value', '12', 12, 'Set the target to 12', 'Definir alvo: 12'],
+    ['target_value', '12', 12, 'Set the target to 12', 'Definir meta: 12'],
     ['unit', 'books', 'books', 'Measure in books', 'Medir em books'],
     ['deadline', null, null, 'Remove the deadline', 'Remover o prazo'],
     ['goal_type', 'Streak', 'Streak', 'Streak', 'Sequência'],
     ['habit_ids', '[]', [], 'Remove all habit links', 'Remover todos os vínculos com hábitos'],
     ['goal_ids', '[]', [], 'Remove all goal links', 'Remover todos os vínculos com metas'],
-    ['new_parent_id', null, null, 'Move out of the parent habit', 'Mover para fora do hábito pai'],
+    ['new_parent_id', null, null, 'Move out of the parent habit', 'Mover para fora do hábito principal'],
     ['slip_alert_enabled', 'false', false, 'Stop slip alerts', 'Parar alertas de deslize'],
     ['items', '["Pack shoes"]', ['Pack shoes'], 'Pack shoes', 'Pack shoes'],
     ['action', 'mark_all_read', 'mark_all_read', 'Mark all alerts as read', 'Marcar todos os avisos como lidos'],
@@ -138,8 +138,8 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['emoji', '📚', '📚', 'Use 📚', 'Usar 📚'],
     ['emoji', null, null, 'Remove the icon', 'Remover o ícone'],
     ['end_date', null, null, 'Remove the end date', 'Remover a data final'],
-    ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os hábitos dentro'],
-    ['sub_habits', '[{"title":"Read"}]', [{ title: 'Read' }], '1 habit inside', '1 hábito dentro'],
+    ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os sub-hábitos'],
+    ['sub_habits', '[{"title":"Read"}]', [{ title: 'Read' }], '1 habit inside', '1 sub-hábito'],
     ['reminder_times', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
     ['scheduled_reminders', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
     ['scheduled_reminders', '[{"when":"same_day","time":"08:00"}]', [{ when: 'same_day', time: '08:00' }], 'Remind me the same day at clock:08:00', 'Lembrar no mesmo dia às clock:08:00'],
@@ -157,8 +157,8 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['expires_at_utc', null, null, 'No expiry date', 'Sem data de expiração'],
     ['language', 'en', 'en', 'Use English', 'Usar Inglês'],
     ['language', 'pt-BR', 'pt-BR', 'Use Português (Brasil)', 'Usar Português (Brasil)'],
-    ['week_start_day', '0', 0, 'Start the week on Sunday', 'Começar a semana no Domingo'],
-    ['week_start_day', '1', 1, 'Start the week on Monday', 'Começar a semana no Segunda-feira'],
+    ['week_start_day', '0', 0, 'Start the week on Sunday', 'Início da semana: Domingo'],
+    ['week_start_day', '1', 1, 'Start the week on Monday', 'Início da semana: Segunda-feira'],
     ['theme_preference', 'dark', 'dark', 'Use the Dark theme', 'Usar tema Escuro'],
     ['theme_preference', 'light', 'light', 'Use the Light theme', 'Usar tema Claro'],
     ['interval', 'monthly', 'monthly', 'Monthly', 'Mensal'],
@@ -589,22 +589,22 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   const deletionSubjects = [
     ['habits', 'habits.delete', 'habit', 'habits', 'hábito', 'hábitos',
       ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
-      ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.']],
+      ['O hábito e tudo o que há nele serão removidos da sua lista.', '# hábitos e tudo o que há neles serão removidos da sua lista.']],
     ['goals', 'goals.delete', 'goal', 'goals', 'meta', 'metas',
       ['The goal leaves your list.', '# goals leave your list.'],
-      ['A meta sai da sua lista.', '# metas saem da sua lista.']],
+      ['A meta será removida da sua lista.', '# metas serão removidas da sua lista.']],
     ['tags', 'tags.delete', 'tag', 'tags', 'tag', 'tags',
       ['The tag leaves your list.', '# tags leave your list.'],
-      ['A tag sai da sua lista.', '# tags saem da sua lista.']],
+      ['A tag será removida da sua lista.', '# tags serão removidas da sua lista.']],
     ['alerts', 'notifications.delete', 'alert', 'alerts', 'aviso', 'avisos',
       ['The alert leaves your list.', '# alerts leave your list.'],
-      ['O aviso sai da sua lista.', '# avisos saem da sua lista.']],
+      ['O aviso será removido da sua lista.', '# avisos serão removidos da sua lista.']],
     ['memories', 'user-facts.delete', 'memory', 'memories', 'memória', 'memórias',
       ['The memory leaves your list.', '# memories leave your list.'],
-      ['A memória sai da sua lista.', '# memórias saem da sua lista.']],
+      ['A memória será removida da sua lista.', '# memórias serão removidas da sua lista.']],
     ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos',
       ['The template leaves your list.', '# templates leave your list.'],
-      ['O modelo sai da sua lista.', '# modelos saem da sua lista.']],
+      ['O modelo será removido da sua lista.', '# modelos serão removidos da sua lista.']],
   ] as const
 
   it('covers every deletion title and body subject', () => {

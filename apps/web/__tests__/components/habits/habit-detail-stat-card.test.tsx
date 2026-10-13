@@ -89,13 +89,13 @@ describe('habit detail stat card', () => {
     expect(StatTile).not.toHaveBeenCalled()
   })
 
-  it('uses Sem recaída for an avoid habit in Portuguese', () => {
+  it('uses Sem deslize for an avoid habit in Portuguese', () => {
     mocks.language = 'pt-BR'
     mocks.detail = { ...makeHabitDetail(), isBadHabit: true, children: [] }
     const { container } = render(<HabitDetailScreen habitId="habit-1" />)
     const card = container.querySelector('[data-habit-detail-stat-card]')!
     expect(card).not.toBeNull()
-    expect(within(card as HTMLElement).getByText('Sem recaída')).toBeInTheDocument()
+    expect(within(card as HTMLElement).getByText('Sem deslize')).toBeInTheDocument()
     expect(within(card as HTMLElement).queryByText(ptBR.habits.detail.currentStreak)).not.toBeInTheDocument()
   })
 

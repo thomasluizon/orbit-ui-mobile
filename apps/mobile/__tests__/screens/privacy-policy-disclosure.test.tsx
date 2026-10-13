@@ -85,7 +85,7 @@ describe('PrivacyScreen disclosures', () => {
 
     expect(rendersText(tree!.root, en.privacy.thirdParty.admob)).toBe(true)
     expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
-    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
+    expect(ptBR.privacy.dataCollected.device).toBe('Dados do aparelho: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu aparelho, que o SDK de anúncios podia acessar')
     expect(rendersText(tree!.root, en.privacy.dataCollected.device)).toBe(true)
   })
 

@@ -47,7 +47,6 @@ export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncCha
       <Text style={[styles.date, { color: tokens.fg3 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
     </View>
     {isConnected ? <>
-      {/* eslint-disable-next-line local/max-button-words -- Orbit Calendario draws the labelled auto-sync switch. */}
       <ListRow title={t('calendar.dayDetail.autoSync')} disabled={!isOnline || pendingAction !== null} toggle={{ checked: autoSyncState?.enabled ?? false, onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} />
       <View style={styles.action}><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></View>
     </> : null}

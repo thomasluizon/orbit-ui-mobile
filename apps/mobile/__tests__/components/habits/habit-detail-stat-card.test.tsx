@@ -183,12 +183,12 @@ describe('habit detail stat card (mobile)', () => {
     expect(StatTile).not.toHaveBeenCalled()
   })
 
-  it('uses Sem recaída for an avoid habit in Portuguese', () => {
+  it('uses Sem deslize for an avoid habit in Portuguese', () => {
     mocks.language = 'pt-BR'
     mocks.detail = { ...makeHabitDetail(), isBadHabit: true, children: [] }
     const cards = renderScreen()
     expect(cards).toHaveLength(1)
-    expect(rowTexts(cards[0]!)[0]).toEqual(['Sem recaída', '2'])
+    expect(rowTexts(cards[0]!)[0]).toEqual(['Sem deslize', '2'])
   })
 
   it.each([1, 2])('keeps loaded and loading heights at 412 and font scale %i', (fontScale) => {
