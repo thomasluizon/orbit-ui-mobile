@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
@@ -18,12 +19,17 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
+import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { FlowShell } from '@/components/shell/flow-shell'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
+
+vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 
@@ -41,12 +47,64 @@ function expectFullColumnDays(days: { width: number; height: number; columnWidth
   }
 }
 
+const calendarKeys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web').find((site) => site.path === 'app/(app)/calendar/page.tsx')!.optionKeys
+
 const options = [
-  { value: 'month', label: ptBR.calendar.view.month },
-  { value: 'week', label: ptBR.calendar.view.week },
-  { value: 'range', label: ptBR.calendar.view.range },
-  { value: 'agenda', label: ptBR.calendar.view.agenda },
+  { value: 'month', label: segmentTranslation(ptBR, calendarKeys[0]!) },
+  { value: 'week', label: segmentTranslation(ptBR, calendarKeys[1]!) },
+  { value: 'range', label: segmentTranslation(ptBR, calendarKeys[2]!) },
+  { value: 'agenda', label: segmentTranslation(ptBR, calendarKeys[3]!) },
 ] as const
+
+function renderOnboardingSegments(locale: string, messages: typeof en | typeof ptBR, mode: string) {
+  return render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><FlowShell nav={false} mode="onboarding"><OnboardingCreateHabit
+      title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
+      schedule={{ frequencyUnit: mode === 'oneTime' ? null : mode === 'fixed' ? 'Day' : 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: mode === 'fixed' ? ['Monday'] : [], isGeneral: false, isFlexible: mode === 'flexible', dueTime: '' }}
+      onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()}
+    /></FlowShell></NextIntlClientProvider>)
+}
+
+function expectOnboardingRows(geometry: { group: number; top: number; groupWidth: number; width: number; textWidth: number }[], mode: string, contentWidth: number) {
+  const groups = new Set(geometry.map((label) => label.group))
+  expect(groups.size).toBe(mode === 'flexible' || mode === 'interval' ? 2 : 1)
+  for (const group of groups) {
+    const row = geometry.filter((label) => label.group === group)
+    expect(new Set(row.map((label) => label.top)).size).toBe(1)
+    const remaining = row.map((label) => label.width - label.textWidth)
+    expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+  }
+  for (const label of geometry) expect(label.groupWidth).toBe(contentWidth)
+}
+
+function measureCalendarSegments() {
+  const group = document.querySelector('[data-testid="calendar-header-group"] [role="radiogroup"]')!
+  const bounds = group.getBoundingClientRect()
+  return [...group.querySelectorAll('[role="radio"]')].map((button) => {
+    const box = button.getBoundingClientRect()
+    const label = button.firstElementChild!
+    const content = label.getBoundingClientRect()
+    const range = document.createRange(); range.selectNodeContents(label)
+    const fragments = [...range.getClientRects()]
+    return { top: box.top, width: box.width, height: box.height, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+      contained: box.left >= bounds.left && box.right <= bounds.right,
+      fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1),
+      overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis' }
+  })
+}
+
+function expectCalendarSegments(segments: ReturnType<typeof measureCalendarSegments>, scale: number) {
+  expect(segments).toHaveLength(calendarKeys.length)
+  expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
+  for (const segment of segments) {
+    expect(segment.width).toBeGreaterThanOrEqual(48)
+    expect(segment.height).toBeGreaterThanOrEqual(48)
+    expect(segment.contained).toBe(true)
+    expect(segment.fits).toBe(true)
+    expect(segment.overflow).toBe(false)
+    expect(segment.ellipsis).toBe(false)
+    if (scale === 1) expect(segment.lines).toBe(1)
+  }
+}
 
 describe('Calendar header geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -329,11 +387,9 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('fits compact onboarding segment labels in $locale at 320', async ({ messages }) => {
-    const labels = messages.onboarding.flow.when
-    const { container } = render(<div style={{ padding: 16 }}><SegmentedControl label={labels.scheduleMode} value="fixed" onChange={vi.fn()}
-      options={[{ value: 'fixed', label: labels.fixedMode }, { value: 'flexible', label: labels.flexibleMode }, { value: 'interval', label: labels.intervalMode }, { value: 'oneTime', label: labels.oneTimeMode }]} /></div>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].map((mode) => ({ ...locale, width, mode })))))('fits compact onboarding $mode containers in $locale at $width', async ({ locale, messages, width, mode }) => {
+    const { container } = renderOnboardingSegments(locale, messages, mode)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
@@ -346,7 +402,7 @@ describe('Calendar header geometry in Chromium', () => {
           const bounds = range.getBoundingClientRect()
           const box = label.getBoundingClientRect()
           return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
-            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top }
+            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, group: button.closest('[role="radiogroup"]')!.getBoundingClientRect().top, groupWidth: button.closest('[role="radiogroup"]')!.getBoundingClientRect().width }
         }))
         for (const label of geometry) {
           expect(label.fits, JSON.stringify(geometry)).toBe(true)
@@ -354,11 +410,49 @@ describe('Calendar header geometry in Chromium', () => {
           expect(label.ellipsis).toBe(false)
           if (scale === 1) expect(label.lines).toBe(1)
           expect(label.textHeight).toBeLessThanOrEqual(label.height)
-          expect(label.right).toBeLessThanOrEqual(304)
+          expect(label.right).toBeLessThanOrEqual(width - 16)
         }
-        if (scale === 1) for (const top of new Set(geometry.map((label) => label.top))) {
-          const remaining = geometry.filter((label) => label.top === top).map((label) => label.width - label.textWidth)
-          expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+        if (scale === 1) {
+          const contentWidth = await page.locator('[data-flow-mode="onboarding"]').evaluate((column) => column.clientWidth - parseFloat(getComputedStyle(column).paddingLeft) - parseFloat(getComputedStyle(column).paddingRight))
+          expectOnboardingRows(geometry, mode, contentWidth)
+        }
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 384, 412].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('fits the goal type sheet container in $locale at $width', async ({ width, locale, messages }) => {
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalFromHabitSheet open onClose={vi.fn()} /></NextIntlClientProvider>)
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+          const bounds = group.getBoundingClientRect()
+          const body = group.closest('[data-slot="sheet-body"]')!
+          return { width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
+            segments: [...group.querySelectorAll('[role="radio"]')].map((button) => {
+              const box = button.getBoundingClientRect()
+              const label = button.firstElementChild!
+              const text = document.createRange(); text.selectNodeContents(label)
+              const fragments = [...text.getClientRects()]
+              const content = label.getBoundingClientRect()
+              return { top: box.top, height: box.height, contained: box.left >= bounds.left && box.right <= bounds.right, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+                fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1), ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', overflow: label.scrollWidth > label.clientWidth }
+            }) }
+        })
+        expect(geometry.segments).toHaveLength(2)
+        expect(geometry.width).toBeLessThanOrEqual(geometry.bodyWidth)
+        expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+        for (const segment of geometry.segments) {
+          expect(segment.contained).toBe(true)
+          expect(segment.height).toBeGreaterThanOrEqual(48)
+          expect(segment.fits).toBe(true)
+          expect(segment.overflow).toBe(false)
+          expect(segment.ellipsis).toBe(false)
+          if (scale === 1) expect(segment.lines).toBe(1)
         }
       }
     } finally { await page.close() }
@@ -472,7 +566,7 @@ describe('Calendar header geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width }}>
       <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
-        viewSelector={<SegmentedControl fullWidth options={[{ value: 'month', label: messages.calendar.view.month }, { value: 'week', label: messages.calendar.view.week }, { value: 'agenda', label: messages.calendar.view.agenda }, { value: 'range', label: messages.calendar.view.range }]} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
+        viewSelector={<SegmentedControl fullWidth options={[{ value: 'month', label: segmentTranslation(messages, calendarKeys[0]!) }, { value: 'week', label: segmentTranslation(messages, calendarKeys[1]!) }, { value: 'agenda', label: segmentTranslation(messages, calendarKeys[3]!) }, { value: 'range', label: segmentTranslation(messages, calendarKeys[2]!) }]} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
       {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()}
         todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
         : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel={messages.calendar.loading}
@@ -518,14 +612,14 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
+  it.each([320, 360, 384, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
     [{ width, view, locale: 'en', messages: en }, { width, view, locale: 'pt-BR', messages: ptBR }],
   )))('keeps the $view pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, view, locale, messages }) => {
     const viewOptions = [
-      { value: 'month', label: messages.calendar.view.month },
-      { value: 'week', label: messages.calendar.view.week },
-      { value: 'range', label: messages.calendar.view.range },
-      { value: 'agenda', label: messages.calendar.view.agenda },
+      { value: 'month', label: segmentTranslation(messages, calendarKeys[0]!) },
+      { value: 'week', label: segmentTranslation(messages, calendarKeys[1]!) },
+      { value: 'range', label: segmentTranslation(messages, calendarKeys[2]!) },
+      { value: 'agenda', label: segmentTranslation(messages, calendarKeys[3]!) },
     ] as const
     const ends = formatCalendarSpanEnds(new Date(2026, 7, 31), new Date(2026, 8, 6), locale)
     const weekLabel = messages.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
@@ -554,6 +648,7 @@ describe('Calendar header geometry in Chromium', () => {
           const range = document.createRange(); range.selectNodeContents(title.querySelector('span') ?? title)
           return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
         })
+        expectCalendarSegments(await page.evaluate(measureCalendarSegments), scale)
         expect(geometry.controls).toHaveLength(3)
         if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
         expect(geometry.titleRadius).toBe(12)

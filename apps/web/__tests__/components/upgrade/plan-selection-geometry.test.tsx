@@ -78,7 +78,10 @@ describe('Pro tier geometry in Chromium', () => {
           const box = segment.getBoundingClientRect()
           const range = document.createRange()
           range.selectNodeContents(segment.querySelector('span')!)
-          return { width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height }
+          const label = segment.querySelector('span')!
+          const labelBox = label.getBoundingClientRect()
+          return { width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height,
+            lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size, fits: range.getBoundingClientRect().width <= labelBox.width + 1, overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', contained: box.left >= bounds.left && box.right <= bounds.right }
         })
         return { width: bounds.width, columnWidth: column.width, segments }
       })
@@ -88,7 +91,14 @@ describe('Pro tier geometry in Chromium', () => {
       expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
       const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
       expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
-      for (const segment of geometry.segments) expect(segment.height).toBeGreaterThanOrEqual(48)
+      for (const segment of geometry.segments) {
+        expect(segment.height).toBeGreaterThanOrEqual(48)
+        expect(segment.lines).toBe(1)
+        expect(segment.fits).toBe(true)
+        expect(segment.overflow).toBe(false)
+        expect(segment.ellipsis).toBe(false)
+        expect(segment.contained).toBe(true)
+      }
     } finally { await page.close() }
   })
 

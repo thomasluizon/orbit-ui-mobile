@@ -171,7 +171,7 @@ describe('PlanSelection (mobile)', () => {
     expect(segments).toHaveLength(2)
     for (const segment of segments) {
       expect(StyleSheet.flatten(segment.props.style)).toEqual(expect.objectContaining({
-        flexGrow: 1, flexBasis: 'auto', flexShrink: 0, paddingHorizontal: 8, minHeight: 48,
+        flexGrow: 1, flexBasis: 'auto', paddingHorizontal: 8, minHeight: 48,
       }))
     }
   })
