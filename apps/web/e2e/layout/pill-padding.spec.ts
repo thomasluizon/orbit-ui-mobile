@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -30,7 +31,7 @@ test('keeps both client-rendered delete actions padded on both sides', async ({ 
   await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
 
   await page.goto('/')
-  await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+  await openTodayListOptions(page, ptBr.habits.listOptions)
   await page.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
 
   const row = page.getByTestId('habit-row').filter({ has: page.getByText(habit.title, { exact: true }) })

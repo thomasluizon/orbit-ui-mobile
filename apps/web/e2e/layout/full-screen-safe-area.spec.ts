@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
@@ -145,7 +146,7 @@ for (const width of [320, 412, 600, 844]) {
 
       test('the command palette starts at the larger of its base offset and the inset', async ({ page }) => {
         await page.goto('/')
-        await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, messages.habits.listOptions)
         const listOptionsMenu = page.getByRole('menu', { name: messages.habits.listOptions })
         await listOptionsMenu.getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(listOptionsMenu).toHaveCount(0)

@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -58,7 +59,7 @@ for (const width of [1352, 1100, 840, 412]) {
           await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
 
           await page.goto('/')
-          await page.getByRole('button', { name: messages.habits.listOptions }).click()
+          await openTodayListOptions(page, messages.habits.listOptions)
           await page.getByRole('menu', { name: messages.habits.listOptions })
             .getByRole('menuitem', { name: messages.habits.refresh }).click()
           const todayPanel = page.locator('.habit-panel').first()

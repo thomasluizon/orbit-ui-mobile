@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -25,7 +26,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: habits.totalCount } }))
         await page.goto('/')
-        await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
+        await openTodayListOptions(page, messages.habits.listOptions)
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Reading"]')).toBeVisible()

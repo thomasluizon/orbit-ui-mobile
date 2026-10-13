@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -212,7 +213,7 @@ test('a menu sheet without actions keeps its last row above the safe area', asyn
   })
   await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
   await page.goto('/?date=2026-09-03')
-  await page.getByRole('button', { name: messages.habits.listOptions }).click()
+  await openTodayListOptions(page, messages.habits.listOptions)
   const panel = page.getByRole('dialog', { name: messages.habits.listOptions })
   await expect(panel).toBeVisible()
   await expect(panel.locator('[data-slot="sheet-actions"]')).toHaveCount(0)

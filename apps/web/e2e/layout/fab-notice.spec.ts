@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
@@ -26,7 +27,7 @@ for (const width of [412, 600] as const) {
     test('keeps the FAB above the notice control and the composer', async ({ page, context }) => {
       await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       await page.goto(`/?date=${today}`)
-      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await openTodayListOptions(page, ptBr.habits.listOptions)
       await page.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
       await expect(page.locator('[data-habit-title="Beber água"]')).toBeVisible()
       await expect(page.getByRole('menu', { name: ptBr.habits.listOptions })).toHaveCount(0)

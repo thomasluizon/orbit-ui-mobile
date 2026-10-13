@@ -1,3 +1,4 @@
+import { openTodayListOptions } from './hydration-guard'
 import { expect, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -44,7 +45,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
       await page.goto(`/?date=${selectedDate}`)
-      await page.getByRole('button', { name: words.habits.listOptions }).click()
+      await openTodayListOptions(page, words.habits.listOptions)
       await page.getByRole('menu', { name: words.habits.listOptions })
         .getByRole('menuitem', { name: words.habits.refresh }).click()
       await expect(page.getByTestId('habit-row')).toHaveCount(habits.length)
