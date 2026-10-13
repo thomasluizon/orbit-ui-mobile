@@ -242,7 +242,7 @@ describe('mobile search', () => {
     expect(text()).toContain(locale === 'en' ? '4 habits' : '4 hábitos')
     const expectedNames = locale === 'en'
       ? ['Open Walk in the name', 'Open Run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
-      : ['Abrir Walk no nome', 'Abrir Run na descrição', 'Abrir Stretch na etiqueta “walking”', 'Abrir House routine dentro de “Walk to the shop”']
+      : ['Abrir Walk no nome', 'Abrir Run na descrição', 'Abrir Stretch na tag “walking”', 'Abrir House routine dentro de “Walk to the shop”']
     const results = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
     expect(results.map((node) => node.props.accessibilityLabel)).toEqual(expectedNames)
     await pressLabel(expectedNames[3]!)

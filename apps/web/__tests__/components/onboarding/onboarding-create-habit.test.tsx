@@ -81,7 +81,8 @@ describe('OnboardingCreateHabit', () => {
       const { container } = render(<OnboardingCreateHabit {...base} proposed correcting={false} schedule={{ ...everyThirdMonday, days, intervalWeeks: weeks, dueTime: time }} />)
       expect(container.textContent).not.toMatch(/toda (sábado|domingo)|todo (segunda|terça|quarta|quinta|sexta)/)
       expect(container.querySelector('p')?.textContent).toBe(expected)
-      expect(screen.getByRole('button', { name: locale === 'en' ? 'Correct schedule. Emoji proposed by Astra' : 'Corrigir agenda. Emoji proposto pela Astra' })).toHaveAccessibleDescription(expect.stringContaining(expected))
+      const words = (locale === 'en' ? en : ptBR).onboarding.flow.when
+      expect(screen.getByRole('button', { name: `${words.correctSchedule}. ${words.emojiLabel}` })).toHaveAccessibleDescription(expect.stringContaining(expected))
     } finally {
       translations.locale = 'en'
       translations.current = previous
@@ -126,7 +127,7 @@ describe('OnboardingCreateHabit', () => {
     try {
       render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
       expect(screen.getByRole('img', { name: 'Emoji proposto pela Astra' })).toHaveTextContent('🚶')
-      expect(screen.getByRole('button', { name: 'Corrigir agenda. Emoji proposto pela Astra' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Corrigir frequência. Emoji proposto pela Astra' })).toBeInTheDocument()
     } finally {
       translations.locale = 'en'
       translations.current = previous

@@ -168,7 +168,7 @@ export function makeBulkCreateResponse(
 }
 
 export const pendingWriteSummaryCases = [
-  { name: 'abandon goal', field: 'status', newValue: 'Abandoned', proposedValue: 'Abandoned', oldValue: 'Active', capabilityId: 'goals.write', english: 'Mark abandoned', portuguese: 'Marcar abandonada' },
+  { name: 'abandon goal', field: 'status', newValue: 'Abandoned', proposedValue: 'Abandoned', oldValue: 'Active', capabilityId: 'goals.write', english: 'Mark abandoned', portuguese: 'Abandonar meta' },
   { name: 'complete goal', field: 'status', newValue: 'Completed', proposedValue: 'Completed', oldValue: 'Active', capabilityId: 'goals.write', english: 'Complete goal', portuguese: 'Concluir meta' },
   { name: 'reopen goal', field: 'status', newValue: 'Active', proposedValue: 'Active', oldValue: 'Completed', capabilityId: 'goals.write', english: 'Reopen goal', portuguese: 'Reabrir meta' },
   { name: 'set goal progress', field: 'current_value', newValue: '100', proposedValue: 100, oldValue: '20', capabilityId: 'goals.write', english: 'Set progress to 100', portuguese: 'Definir progresso: 100' },

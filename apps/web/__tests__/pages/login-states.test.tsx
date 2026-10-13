@@ -30,7 +30,7 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
     setFixture('email', locale)
     render(<LoginContent />)
     const placeholder = locale === 'en' ? 'name@example.com' : 'nome@exemplo.com'
-    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveAttribute('placeholder', placeholder)
+    expect(screen.getByRole('textbox', { name: locale === 'en' ? 'Email' : 'E-mail' })).toHaveAttribute('placeholder', placeholder)
   })
   it('renders the complete localized legal sentence with both destinations', () => {
     setFixture('email', locale)

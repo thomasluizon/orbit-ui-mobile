@@ -166,20 +166,6 @@ export function computeHabitFutureHint(
   })
 }
 
-export function computeHabitFlexibleProgressLabel(
-  habit: Pick<
-    NormalizedHabit,
-    'isFlexible' | 'flexibleTarget' | 'frequencyQuantity' | 'flexibleCompleted' | 'frequencyUnit'
-  >,
-  t: HabitCardTranslationAdapter,
-): string | null {
-  if (!habit.isFlexible) return null
-  const target = habit.flexibleTarget ?? habit.frequencyQuantity ?? 1
-  const done = habit.flexibleCompleted ?? 0
-  const unit = habit.frequencyUnit ? t(`habits.form.unit${habit.frequencyUnit}`) : ''
-  return t('habits.frequency.flexibleProgress', { done, target, unit })
-}
-
 export function computeHabitMatchBadges(
   searchQuery: string,
   habit: Pick<NormalizedHabit, 'searchMatches'>,

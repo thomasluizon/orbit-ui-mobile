@@ -337,7 +337,7 @@ describe('UpgradeScreen', () => {
 
   describe.each([
     { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 ficam ou 5 por dia.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 por dia ou só 5.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     beforeEach(async () => {
       mocks.renderComposition = true

@@ -50,7 +50,7 @@ describe('root bell count geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 600, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
-      const bell = page.getByRole('button', { name: 'Avisos, 15 sem ler', exact: true })
+      const bell = page.getByRole('button', { name: 'Avisos não lidos: 15', exact: true })
       await expect.poll(() => bell.locator('[data-notification-count]').textContent()).toBe('9+')
       const bounds = await bell.boundingBox()
       expect(bounds!.width).toBeGreaterThan(48)

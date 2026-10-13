@@ -179,7 +179,7 @@ describe('PendingOperationCard', () => {
       fireEvent.click(screen.getByRole('button', { name: messages.chat.pendingOp.action.applyChanges }))
       expect(confirm).not.toHaveBeenCalled()
       expect(screen.getByRole('dialog', { name: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?' })).toHaveAttribute('data-destructive', 'true')
-      expect(screen.getByText(locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.')).toBeInTheDocument()
+      expect(screen.getByText(locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo o que há neles serão removidos da sua lista. Não há como restaurar por aqui.')).toBeInTheDocument()
       expect(screen.getByText(locale === 'en' ? 'Delete habits' : 'Apagar hábitos')).toBeInTheDocument()
     })
   })

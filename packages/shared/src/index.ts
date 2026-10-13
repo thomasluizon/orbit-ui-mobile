@@ -124,7 +124,6 @@ export {
   deriveStreakFreezeState,
   getAchievementsByCategory,
   computeHabitCardStatus,
-  computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
   getEarnedAchievements,

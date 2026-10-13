@@ -123,9 +123,9 @@ describe('GoalDetailDrawer', () => {
     {
       locale: 'pt-BR',
       messages: ptBR,
-      manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      manual: 'Atualize o progresso. Ao bater a meta, ela é concluída.',
       updated: 'Progresso atualizado para 4 de 12 livros.',
-      open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
+      open: 'Você bateu esta meta, mas ela continua ativa. Conclua quando quiser.',
     },
   ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, updated, open }) => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
