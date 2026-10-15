@@ -211,9 +211,17 @@ describe('Android widget content sizing', () => {
     expect(layoutViews().get('widget_root')?.['android:layout_height']).toBe('wrap_content')
   })
 
+  it('shows a progress ring beside the day summary', () => {
+    expect(layoutViews().get('widget_progress_ring')).toMatchObject({
+      'android:layout_width': '24dp',
+      'android:layout_height': '24dp',
+      'android:importantForAccessibility': 'no',
+    })
+  })
+
   it('keeps the due time on the narrow widget', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
-    expect(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('if (!showTime)')
+    expect(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('showTime')
   })
 })
 
@@ -270,7 +278,7 @@ describe('Android widget header', () => {
       'android:layout_height': '48dp',
     })
     expect(views.get('widget_header')).toMatchObject({
-      'android:textAllCaps': 'true',
+      'android:textAllCaps': 'false',
       'android:textColor': '@color/widget_fg_3',
       'android:textSize': '13sp',
     })
@@ -305,7 +313,7 @@ describe('Android widget header', () => {
     const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
 
     expect(buildWidgetViews).toContain(
-      'val streakVisible = if (streak > 0) View.VISIBLE else View.GONE',
+      'val streakVisible = if (streak > 0 && streakUnitVisibility == View.VISIBLE) View.VISIBLE else View.GONE',
     )
     expect(buildWidgetViews).toContain(
       'views.setViewVisibility(R.id.widget_streak_group, streakVisible)',
@@ -385,10 +393,10 @@ describe('Android widget header', () => {
       ).toBe(breakpointDp + 1)
     }
     expect(provider).toMatch(
-      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*bgHeight \/ context\.resources\.displayMetrics\.density,\s*true\s*\)\s*\}/,
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*bgHeight \/ context\.resources\.displayMetrics\.density\s*\)\s*\}/,
     )
     expect(provider).toMatch(
-      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*FOUR_BY_ONE_HEIGHT_DP\s*\)/,
     )
   })
 
@@ -405,7 +413,7 @@ describe('Android widget header', () => {
     ] as const
 
     expect.soft(provider).toMatch(
-      /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP,\s*true\s*\)/,
+      /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP\s*\)/,
     )
     expect.soft(provider).toContain(
       'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
@@ -414,19 +422,19 @@ describe('Android widget header', () => {
       'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
     )
     expect.soft(provider).toMatch(
-      /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP,\s*true\s*\)/,
+      /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP\s*\)/,
     )
     expect.soft(provider).toContain(
       'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
     )
     expect.soft(provider).toMatch(
-      /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
+      /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP\s*\)/,
     )
     expect.soft(provider).toContain(
       'SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews',
     )
     expect.soft(provider).toMatch(
-      /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*putExtra\(EXTRA_SHOW_TIME, showTime\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
+      /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
     )
     for (const { host, viewName } of expectedSelections) {
       expect.soft(
@@ -560,7 +568,7 @@ describe('Android widget header', () => {
     expect.soft(service).toMatch(
       /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
     )
-    expect.soft(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('if (!showTime)')
+    expect.soft(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('showTime')
     expect.soft(service).toContain('override fun getViewTypeCount(): Int = 2')
   })
 
@@ -699,7 +707,7 @@ describe('Android widget header', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 
     expect(provider).toMatch(
-      /fun applyOpenAppActions\(context: Context, views: RemoteViews\)[\s\S]*?setEmptyView\(R\.id\.widget_list, R\.id\.widget_empty\)[\s\S]*?setPendingIntentTemplate\(R\.id\.widget_list, openApp\)[\s\S]*?for \(target in OPEN_APP_TARGETS\) views\.setOnClickPendingIntent\(target, openApp\)/,
+      /fun applyOpenAppActions\(context: Context, views: RemoteViews\)[\s\S]*?setPendingIntentTemplate\(R\.id\.widget_list, openApp\)[\s\S]*?for \(target in OPEN_APP_TARGETS\) views\.setOnClickPendingIntent\(target, openApp\)/,
     )
     for (const target of ['widget_root', 'widget_header_container', 'widget_header', 'widget_empty', 'widget_loading']) {
       expect(provider).toContain(`R.id.${target},`)
@@ -709,6 +717,8 @@ describe('Android widget header', () => {
     )
     expect(provider).toContain('applyOpenAppActions(context, views)')
     expect(provider).toContain('views.setViewVisibility(R.id.widget_empty, View.VISIBLE)')
+    expect(provider).not.toContain('setEmptyView(')
+    expect(provider).toContain('if (signedOut || (!showSkeleton && rowCount == 0)) View.VISIBLE else View.GONE')
   })
 
 
@@ -737,9 +747,9 @@ describe('Android widget header', () => {
     const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
 
     expect(saveToken).toMatch(/putString\(KEY_TOKEN, token\)\.apply\(\)\s*\}\s*refreshWidgets\(context\)/)
-    expect(buildWidgetViews).toContain('renderSessionKey(appWidgetId, widgetHeightDp, showTime)')
+    expect(buildWidgetViews).toContain('renderSessionKey(appWidgetId, widgetHeightDp)')
     expect(buildWidgetViews).toContain('OrbitWidgetModule.sessionKey')
-    expect(buildWidgetViews).toMatch(/views\.setViewVisibility\(R\.id\.widget_list, if \(ownsRows && !showSkeleton\) View\.VISIBLE else View\.GONE\)/)
+    expect(buildWidgetViews).toMatch(/views\.setViewVisibility\(R\.id\.widget_list, if \(ownsRows && !showSkeleton && rowCount > 0\) View\.VISIBLE else View\.GONE\)/)
     expect(buildWidgetViews).toMatch(/val headerLabel = if \(ownsRows\)/)
     expect(provider).toContain('fallback.setViewVisibility(R.id.widget_list, View.GONE)')
     expect(loadWidgetData).toContain('.putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))')
@@ -755,26 +765,25 @@ describe('Android widget header', () => {
     const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
     const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
     const keyTemplate = provider.match(
-      /fun renderSessionKey\(appWidgetId: Int, widgetHeightDp: Float, showTime: Boolean\): String =\s*"([^"]+)"/,
+      /fun renderSessionKey\(appWidgetId: Int, widgetHeightDp: Float\): String =\s*"([^"]+)"/,
     )?.[1]
 
-    expect(keyTemplate).toBe('render_session_${appWidgetId}_${widgetHeightDp}_${showTime}')
+    expect(keyTemplate).toBe('render_session_${appWidgetId}_${widgetHeightDp}')
     if (!keyTemplate) throw new Error('Missing adapter readiness key')
-    const renderSessionKey = (widgetId: number, height: number, time: boolean) => keyTemplate
+    const renderSessionKey = (widgetId: number, height: number) => keyTemplate
       .replace('${appWidgetId}', String(widgetId))
       .replace('${widgetHeightDp}', String(height))
-      .replace('${showTime}', String(time))
-    const readySessions = new Map([[renderSessionKey(101, 192, true), 'account-b']])
+    const readySessions = new Map([[renderSessionKey(101, 192), 'account-b']])
 
-    expect(readySessions.get(renderSessionKey(101, 192, true))).toBe('account-b')
-    expect(readySessions.get(renderSessionKey(202, 192, true))).toBeUndefined()
-    expect(readySessions.get(renderSessionKey(101, 96, true))).toBeUndefined()
-    readySessions.delete(renderSessionKey(202, 192, true))
-    expect(readySessions.get(renderSessionKey(101, 192, true))).toBe('account-b')
+    expect(readySessions.get(renderSessionKey(101, 192))).toBe('account-b')
+    expect(readySessions.get(renderSessionKey(202, 192))).toBeUndefined()
+    expect(readySessions.get(renderSessionKey(101, 96))).toBeUndefined()
+    readySessions.delete(renderSessionKey(202, 192))
+    expect(readySessions.get(renderSessionKey(101, 192))).toBe('account-b')
     expect(service).toContain('intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)')
-    expect(service).toContain('OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)')
+    expect(service).toContain('OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp)')
     expect(loadWidgetData).toContain('.putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))')
-    expect(buildWidgetViews).toMatch(/prefs\.getString\(\s*renderSessionKey\(appWidgetId, widgetHeightDp, showTime\), null\s*\)/)
+    expect(buildWidgetViews).toMatch(/prefs\.getString\(\s*renderSessionKey\(appWidgetId, widgetHeightDp\), null\s*\)/)
     expect(buildWidgetViews).not.toContain('prefs.getString("render_session", null)')
     const renderPlaceholder = kotlinFunctionBody(service, 'renderPlaceholder')
     expect(renderPlaceholder).toContain('.remove(renderSessionKey)')

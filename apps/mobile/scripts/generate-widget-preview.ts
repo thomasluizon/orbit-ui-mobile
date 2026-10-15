@@ -120,7 +120,6 @@ function statusMark(status: PreviewStatus, centerY: number, colors: ReadonlyMap<
 function previewSvg(
   strings: ReadonlyMap<string, string>,
   colors: ReadonlyMap<string, string>,
-  locale: 'en' | 'pt-rBR',
   embeddedFonts: string,
 ) {
   const fixture = PICKER_PREVIEW_FIXTURE
@@ -132,10 +131,8 @@ function previewSvg(
   const fg3 = requiredResource(colors, 'widget_fg_3')
   const streak = requiredResource(colors, 'widget_streak_text')
   const overdue = requiredResource(colors, 'widget_overdue')
-  const languageTag = locale === 'pt-rBR' ? 'pt-BR' : locale
-  const today = requiredResource(strings, 'widget_today').toLocaleUpperCase(languageTag)
-  const subtitle = `${fixture.completed} ${requiredResource(strings, 'widget_of')} ` +
-    `${fixture.total} ${requiredResource(strings, 'widget_completed')}`
+  const today = requiredResource(strings, 'widget_today')
+  const subtitle = `${fixture.completed}/${fixture.total}`
   const streakUnit = requiredResource(strings, 'widget_streak_unit')
   const deeper = requiredResource(strings, 'widget_deeper_count').replace('%1$d', '2')
 
@@ -169,15 +166,19 @@ function previewSvg(
     `<rect width="336" height="192" fill="${card}"/>` +
     `<rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" ` +
     `stroke="${hairline}" stroke-width="1"/>` +
-    `<text x="12" y="18" fill="${fg3}" font-size="13" font-weight="500" ` +
-    `letter-spacing="0.52">${escaped(today)}</text>` +
-    `<text x="12" y="35" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
+    `<circle cx="24" cy="24" r="10" fill="none" ` +
+    `stroke="${requiredResource(colors, 'widget_track_empty')}" stroke-width="2"/>` +
+    `<circle cx="24" cy="24" r="10" fill="none" stroke="${fg1}" stroke-width="2" ` +
+    `stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 10 * fixture.completed / fixture.total} ` +
+    `${2 * Math.PI * 10}" transform="rotate(-90 24 24)"/>` +
+    `<text x="44" y="18" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
+    `<text x="44" y="35" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
     `<text x="250" y="28" text-anchor="end" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
     `<text x="253" y="28" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
-    `<rect y="47" width="336" height="1" fill="${hairline}"/>${rows}</g></svg>`
+    `${rows}</g></svg>`
 
   return svg.replaceAll('><', '>\n<')
 }
@@ -237,7 +238,7 @@ export async function buildWidgetPreviewSvgs() {
     const { strings, colors } = await loadPreviewInputs(output.locale, output.mode)
     return {
       output,
-      svg: previewSvg(strings, colors, output.locale, embeddedFonts),
+      svg: previewSvg(strings, colors, embeddedFonts),
     }
   }))
 }

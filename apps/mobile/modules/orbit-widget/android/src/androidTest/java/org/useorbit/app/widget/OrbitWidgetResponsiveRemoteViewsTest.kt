@@ -133,7 +133,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                 hostView.findViewById<View>(R.id.widget_streak_unit).visibility
             )
             assertEquals("Today", text(R.id.widget_header))
-            assertEquals("3 of 7 completed", text(R.id.widget_subtitle))
+            assertEquals("3/7", text(R.id.widget_subtitle))
+            assertEquals("3 of 7 completed", contentDescription(R.id.widget_subtitle))
             assertEquals("12", text(R.id.widget_streak))
             assertEquals("Refresh", contentDescription(R.id.widget_refresh))
             assertEquals("Refreshing", contentDescription(R.id.widget_refresh_loading))

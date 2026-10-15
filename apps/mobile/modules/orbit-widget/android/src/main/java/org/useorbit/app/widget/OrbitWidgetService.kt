@@ -30,8 +30,7 @@ class OrbitWidgetService : RemoteViewsService() {
             intent.getFloatExtra(
                 OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
                 OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
-            ),
-            intent.getBooleanExtra(OrbitWidgetProvider.EXTRA_SHOW_TIME, true)
+            )
         )
     }
 }
@@ -256,11 +255,10 @@ internal fun RemoteViews.setModeAwareBitmap(
 class OrbitWidgetFactory(
     private val context: Context,
     appWidgetId: Int,
-    private val widgetHeightDp: Float,
-    private val showTime: Boolean
+    private val widgetHeightDp: Float
 ) : RemoteViewsService.RemoteViewsFactory {
 
-    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)
+    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp)
     private var habits: List<HabitItem> = emptyList()
     private var habitsSession: String? = null
     private var headerLabel: String = "Today"

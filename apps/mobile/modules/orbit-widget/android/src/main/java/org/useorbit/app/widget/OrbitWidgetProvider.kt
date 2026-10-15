@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -35,14 +36,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         internal const val FOUR_BY_THREE_HEIGHT_DP = 288f
         internal const val TWO_BY_TWO_HEIGHT_DP = 192f
         internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
-        internal const val EXTRA_SHOW_TIME = "show_time"
         // The widget's own minResizeWidth. A compact key sitting on the breakpoint would
         // win the nearest-distance tie just above it and hide the unit there.
         private const val COMPACT_IDEAL_WIDTH_DP = 110f
         internal const val CACHE_REFRESHING = "refresh_loading"
         internal const val CACHE_LOADING_SKELETON = "loading_skeleton"
-        internal fun renderSessionKey(appWidgetId: Int, widgetHeightDp: Float, showTime: Boolean): String =
-            "render_session_${appWidgetId}_${widgetHeightDp}_${showTime}"
+        internal fun renderSessionKey(appWidgetId: Int, widgetHeightDp: Float): String =
+            "render_session_${appWidgetId}_${widgetHeightDp}"
         // Every region that opens the app. The whole card is one tap target, per the drawing's
         // touch note, and only the refresh is its own.
         private val OPEN_APP_TARGETS = intArrayOf(
@@ -109,7 +109,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 context, 0, openAppIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
             views.setPendingIntentTemplate(R.id.widget_list, openApp)
             for (target in OPEN_APP_TARGETS) views.setOnClickPendingIntent(target, openApp)
         }
@@ -180,11 +179,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     context,
                     appWidgetId,
                     bgWidth,
-                    bgHeight,
                     signedOut,
                     View.VISIBLE,
-                    bgHeight / context.resources.displayMetrics.density,
-                    true
+                    bgHeight / context.resources.displayMetrics.density
                 )
             }
 
@@ -192,51 +189,41 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 context,
                 appWidgetId,
                 bgWidth,
-                bgHeight,
                 signedOut,
                 View.GONE,
-                TWO_BY_TWO_HEIGHT_DP,
-                false
+                FOUR_BY_ONE_HEIGHT_DP
             )
             val fourByOneViews = buildWidgetViews(
                 context,
                 appWidgetId,
                 bgWidth,
-                bgHeight,
                 signedOut,
                 View.VISIBLE,
-                FOUR_BY_ONE_HEIGHT_DP,
-                true
+                FOUR_BY_ONE_HEIGHT_DP
             )
             val fourByTwoViews = buildWidgetViews(
                 context,
                 appWidgetId,
                 bgWidth,
-                bgHeight,
                 signedOut,
                 View.VISIBLE,
-                FOUR_BY_TWO_HEIGHT_DP,
-                true
+                FOUR_BY_TWO_HEIGHT_DP
             )
             val fourByThreeViews = buildWidgetViews(
                 context,
                 appWidgetId,
                 bgWidth,
-                bgHeight,
                 signedOut,
                 View.VISIBLE,
-                FOUR_BY_THREE_HEIGHT_DP,
-                true
+                FOUR_BY_THREE_HEIGHT_DP
             )
             val twoByTwoViews = buildWidgetViews(
                 context,
                 appWidgetId,
                 bgWidth,
-                bgHeight,
                 signedOut,
                 View.GONE,
-                TWO_BY_TWO_HEIGHT_DP,
-                false
+                TWO_BY_TWO_HEIGHT_DP
             )
             return RemoteViews(
                 mapOf(
@@ -249,15 +236,37 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
         }
 
+        private fun applyProgressRing(
+            context: Context,
+            views: RemoteViews,
+            colorModes: WidgetColorModes,
+            completed: Int,
+            total: Int,
+            visible: Boolean
+        ) {
+            views.setViewVisibility(R.id.widget_progress_ring, if (visible) View.VISIBLE else View.GONE)
+            if (!visible) return
+            val density = context.resources.displayMetrics.density
+            val light = createWidgetProgressBitmap(completed, total, density, colorModes.light)
+            val dark = createWidgetProgressBitmap(completed, total, density, colorModes.dark)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                views.setModeAwareBitmap(R.id.widget_progress_ring, light, dark)
+            } else {
+                val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                views.setImageViewBitmap(
+                    R.id.widget_progress_ring,
+                    if (nightMode == Configuration.UI_MODE_NIGHT_YES) dark else light
+                )
+            }
+        }
+
         private fun buildWidgetViews(
             context: Context,
             appWidgetId: Int,
             bgWidth: Int,
-            bgHeight: Int,
             signedOut: Boolean,
             streakUnitVisibility: Int,
-            widgetHeightDp: Float,
-            showTime: Boolean
+            widgetHeightDp: Float
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
@@ -268,7 +277,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val lang = cachedLanguage(context)
             val ownsRows = !signedOut && OrbitWidgetModule.getToken(context)?.let {
                 OrbitWidgetModule.sessionKey(it) == prefs.getString(
-                    renderSessionKey(appWidgetId, widgetHeightDp, showTime), null
+                    renderSessionKey(appWidgetId, widgetHeightDp), null
                 )
             } == true
             val headerLabel = if (ownsRows) prefs.getString("header_label", null) else null
@@ -303,6 +312,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 24f * density, 1f * density, colorModes.dark.border
             )
             views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
+
+            applyProgressRing(context, views, colorModes, completedCount, habitCount, syncedOnce && !signedOut)
 
             // Apply dynamic text colors
             // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
@@ -345,8 +356,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 } else {
                     ""
                 }
-                views.setTextViewText(R.id.widget_subtitle, subtitleText)
-                val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
+                views.setTextViewText(R.id.widget_subtitle, if (syncedOnce) "$completedCount/$habitCount" else "")
+                views.setContentDescription(R.id.widget_subtitle, subtitleText)
+                val streakVisible = if (streak > 0 && streakUnitVisibility == View.VISIBLE) View.VISIBLE else View.GONE
                 views.setTextViewText(R.id.widget_streak, "$streak")
                 views.setTextViewText(
                     R.id.widget_streak_unit,
@@ -364,19 +376,21 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 R.id.widget_loading,
                 if (!signedOut && showSkeleton) View.VISIBLE else View.GONE
             )
-            views.setViewVisibility(R.id.widget_list, if (ownsRows && !showSkeleton) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widget_list, if (ownsRows && !showSkeleton && rowCount > 0) View.VISIBLE else View.GONE)
 
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp)
-                putExtra(EXTRA_SHOW_TIME, showTime)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
 
-            // The empty-view relation and every open-app target, shared with the render fallback.
             applyOpenAppActions(context, views)
+            views.setViewVisibility(
+                R.id.widget_empty,
+                if (signedOut || (!showSkeleton && rowCount == 0)) View.VISIBLE else View.GONE
+            )
 
             // Refresh button triggers data reload
             val refreshIntent = Intent(context, OrbitWidgetProvider::class.java).apply {

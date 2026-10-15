@@ -29,13 +29,25 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp">
+            android:paddingEnd="0dp">
+
+            <ImageView
+                android:id="@+id/widget_progress_ring"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:src="@drawable/widget_progress_track"
+                android:importantForAccessibility="no"
+                android:contentDescription="@null"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:id="@+id/widget_header_left"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
+                android:layout_marginStart="32dp"
                 android:layout_centerVertical="true"
                 android:layout_toStartOf="@id/widget_header_right"
                 android:orientation="vertical">
@@ -46,10 +58,9 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="0.04"
                     android:maxLines="1"
                     android:text="@string/widget_today"
-                    android:textAllCaps="true"
+                    android:textAllCaps="false"
                     android:textColor="@color/widget_fg_3"
                     android:textSize="13sp" />
 
@@ -106,7 +117,6 @@
                     android:id="@+id/widget_refresh"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
                     android:src="@drawable/widget_refresh_icon"
                     android:padding="12dp"
                     android:accessibilityLiveRegion="polite"
@@ -118,19 +128,11 @@
                     style="?android:attr/progressBarStyleSmall"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
                     android:indeterminateTint="@color/widget_fg_3"
                     android:accessibilityLiveRegion="polite"
                     android:visibility="gone" />
             </LinearLayout>
 
-            <!-- FrameLayout, not View: RemoteViews only inflates classes annotated @RemoteView,
-                 and android.view.View is not one of them. -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_alignParentBottom="true"
-                android:background="@color/widget_hairline" />
         </RelativeLayout>
 
         <!-- Content area: list, empty message, and loading skeleton overlap so the
