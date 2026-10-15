@@ -77,7 +77,6 @@ const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
 describe('MessageBubble', () => {
   beforeEach(() => {
     push.mockClear()
-
   })
 
   it('reveals the period insight only after the final response', () => {
