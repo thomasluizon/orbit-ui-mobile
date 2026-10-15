@@ -1,6 +1,6 @@
 # Web image deployment
 
-> **At a glance** - `Dockerfile` builds the web workspace into a standalone Next.js image. The manual release workflow builds and deploys a selected branch to staging or `main` to production.
+> **At a glance** - `Dockerfile` builds the web workspace into a standalone Next.js image. CI authenticates its Node base pulls through GHCR; a daily workflow refreshes the official image copy. The manual release workflow builds and deploys a selected branch to staging or `main` to production.
 
 The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags it with the source commit SHA, then deploys the immutable digest. Render services `orbit-web-staging` and `orbit-web` must be image-backed web services configured to pull this GHCR image. Give each service a GHCR registry credential, set port `3000`, and check `/api/health`. The image runs `node server.js` as the `orbit` user. The image carries `WEB_COMMIT_SHA`; the health response includes that SHA so the workflows can verify the served build. The builder stage also inlines it as `NEXT_PUBLIC_WEB_COMMIT_SHA`, and the About screen shows its first 7 characters as the web version.
 
@@ -27,6 +27,20 @@ Keep automatic deploys disabled on both Render services; releases use explicit d
 In **Settings > Branches > main > Branch protection**, remove the retired `Post-deploy smoke (required)` check if it is listed as required. The production smoke suite now runs as the final job of the manual release workflow and fails that run when a core flow fails.
 
 ## Workflows
+
+Both Dockerfile stages use `NODE_IMAGE`, which defaults to `public.ecr.aws/docker/library/node:22-bookworm-slim` for local builds without registry credentials. The PR image job and both release builds override it with `ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim` after signing in to GHCR with `GITHUB_TOKEN`. The PR job requests `packages: read`; releases request `packages: write`. All three builds use the engine's `docker` driver, which needs no separate BuildKit image or Dockerfile frontend image.
+
+`refresh-node-base.yml` runs daily and on dispatch. It resolves `docker.io/library/node:22-bookworm-slim` once, copies the complete index by digest to GHCR, and fails unless the copied index digest matches. It preserves every platform and attestation without changing labels or annotations. Only this maintenance copy contacts Docker Hub; PR and release builds pull the authenticated GHCR copy. A failed refresh leaves the previous base available and fails the workflow so the refresh can be rerun.
+
+Publish the initial copy before requiring the PR image job. The existing release dispatcher can run the refresh workflow from a source branch before the standalone workflow reaches `main`:
+
+```sh
+gh workflow run release.yml --ref <source-branch> -f environment=staging -f branch=main -f refresh_base_only=true
+```
+
+With `refresh_base_only` selected, all web build and deployment jobs are skipped. After the refresh workflow reaches `main`, dispatch `refresh-node-base.yml` directly to refresh without a release. Its summary and `imagetools inspect` output record the copied index digest.
+
+Publishing with the repository's `GITHUB_TOKEN` automatically links the new package to this repository. In **thomasluizon > Packages > orbit-node-base > Package settings > Manage Actions access**, confirm `orbit-ui-mobile` has at least **Read** access, including Dependabot. If access is absent, add that repository with **Read** access; the refresh also needs its publishing **Write** access. An authenticated PR image build, including one triggered by Dependabot, proves the read grant. No personal token or Dependabot secret is needed. See GitHub's [workflow package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package) documentation. GitHub's [package billing](https://docs.github.com/en/billing/concepts/product-billing/github-packages#package-downloads-by-github-actions) documentation states that downloads authenticated with `GITHUB_TOKEN` do not count against package data transfer usage, so shared runner IPs do not consume an anonymous ECR allowance.
 
 `test.yml` builds an unpushed image on pull requests and checks the health route in a container. `release.yml` runs only through `workflow_dispatch` from `main`. Choose `production` for `main`, or choose `staging` and enter the branch to release. The workflow resolves that branch's head, builds with the matching repository `NEXT_PUBLIC_*` variables, and pushes the image. Production refuses another branch before building. Each release job uses its own environment's Render API key to deploy the selected digest and waits for that deploy to reach `live` before checking `/api/health` and recording a GitHub Deployment. Production checks both the service URL and public host; staging checks the public staging URL. The production smoke job then uploads a Playwright report.
 

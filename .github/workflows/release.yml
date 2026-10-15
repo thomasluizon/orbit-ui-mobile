@@ -23,6 +23,11 @@ on:
         required: true
         default: main
         type: string
+      refresh_base_only:
+        description: Refresh the Node base image without building or deploying web
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,7 +42,15 @@ env:
   IMAGE: ghcr.io/thomasluizon/orbit-web
 
 jobs:
+  refresh-base:
+    if: inputs.refresh_base_only
+    uses: ./.github/workflows/refresh-node-base.yml
+    permissions:
+      contents: read
+      packages: write
+
   build:
+    if: ${{ !inputs.refresh_base_only }}
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
@@ -84,6 +97,7 @@ jobs:
           tags: |
             ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.sha }}
           build-args: |
+            NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
             WEB_COMMIT_SHA=${{ steps.source.outputs.sha }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
@@ -109,6 +123,7 @@ jobs:
           tags: |
             ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.sha }}
           build-args: |
+            NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
             WEB_COMMIT_SHA=${{ steps.source.outputs.sha }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
