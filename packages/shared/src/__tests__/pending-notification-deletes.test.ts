@@ -4,6 +4,7 @@ import {
   clearPendingNotificationDeletes,
   clearFailedNotificationDeletes,
   dismissFailedNotificationDelete,
+  dismissNotificationDeleteNotices,
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
@@ -212,4 +213,16 @@ describe('pending notification deletes', () => {
     expect(retryFailedNotificationDelete('active')).toBe(false)
     expect(pendingDelete).not.toHaveBeenCalled()
   })
+  it('reports a new in-flight failure after existing notices are dismissed', async () => {
+    let rejectDelete!: (error: Error) => void
+    const request = new Promise<never>((_resolve, reject) => { rejectDelete = reject })
+    queuePendingNotificationDelete('in-flight', () => request)
+    vi.advanceTimersByTime(5000)
+    dismissNotificationDeleteNotices()
+    rejectDelete(new Error('Unavailable'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['in-flight'])
+  })
+
 })

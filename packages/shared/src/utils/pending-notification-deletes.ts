@@ -65,7 +65,6 @@ export function dismissPendingNotificationDeleteNotice(notificationId: string): 
 export function dismissNotificationDeleteNotices(): void {
   for (const id of pendingDeleteEntries.keys()) dismissedPendingDeleteNotices.add(id)
   failedDeleteEntries.clear()
-  activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
