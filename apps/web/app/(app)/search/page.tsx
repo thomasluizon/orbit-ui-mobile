@@ -24,7 +24,7 @@ export default function SearchPage() {
   useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
   return <>
     <PageHeader title={t('habits.search.title')} onBack={() => router.back()} backLabel={t('common.back')} />
-    <div className="max-w-[620px]">
+    <div className="mx-auto w-full max-w-[740px]">
       <HabitSearch search={search} onCreateHabit={createHabit} />
     </div>
   </>

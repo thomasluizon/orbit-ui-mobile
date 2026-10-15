@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+import GlobalError from '@/app/global-error'
 import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -13,6 +15,7 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { NotFoundContent } from '@/components/ui/not-found-content'
@@ -21,10 +24,11 @@ import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { useUIStore } from '@/stores/ui-store'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const windows = ([[360, 740], [412, 915], [480, 800], [600, 900], [840, 900], [1100, 900]] as const)
+const windows = ([[360, 740], [412, 915], [480, 800], [600, 900], [840, 900], [1100, 900], [1200, 900], [1600, 900]] as const)
   .flatMap(([width, height]) => [{ width, height }, { width: height, height: width }])
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/app/fonts', () => ({ geist: { variable: '' }, geistMono: { variable: '' }, spaceGrotesk: { variable: '' } }))
+vi.mock('next-intl', async (original) => ({ ...await original<typeof import('next-intl')>(), useTranslations: () => (key: string) => key }))
 
 describe('Foldable shell geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -36,6 +40,43 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1200, 1600])('centres the global failure block at %ipx', async (width) => {
+    const markup = renderToStaticMarkup(<GlobalError error={new Error('failed')} reset={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      const geometry = await page.evaluate(() => {
+        const section = document.querySelector('section')!.getBoundingClientRect()
+        const first = document.querySelector('section')!.firstElementChild!.getBoundingClientRect()
+        const last = document.querySelector('section')!.lastElementChild!.getBoundingClientRect()
+        return { width: section.width, centre: section.left + section.width / 2,
+          before: first.top - section.top, after: section.bottom - last.bottom }
+      })
+      expect(geometry.width).toBe(Math.min(width, 740))
+      expect(geometry.centre).toBe(width / 2)
+      expect(geometry.before).toBeGreaterThan(200)
+      expect(geometry.before).toBeCloseTo(geometry.after, 0)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1200, 1600])('fills the shared destination frame at %ipx', async (width) => {
+    const { container } = render(<ShellWide nav={false}><ProfileSettingsFrame isLoading={false} loadingLabel="Loading" labels={{}} rows={{}} /></ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        const frame = document.querySelector('[data-testid="profile-settings-groups"]')!.getBoundingClientRect()
+        const section = document.querySelector('[data-testid^="profile-settings-group-"]')!.getBoundingClientRect()
+        return { available: scroller.clientWidth, left: scroller.getBoundingClientRect().left,
+          frameLeft: frame.left, frameWidth: frame.width, sectionWidth: section.width }
+      })
+      expect(geometry.frameWidth).toBe(geometry.available)
+      expect(geometry.frameLeft).toBe(geometry.left)
+      expect(geometry.sectionWidth).toBe(geometry.frameWidth - 32)
+    } finally { await page.close() }
+  })
 
   it.each([
     ...[320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0, left: 0, right: 0 }))),
@@ -207,7 +248,7 @@ describe('Foldable shell geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each([840, 1100].flatMap((width) => (['card', 'onboarding'] as const).map((mode) => ({ width, mode }))))(
+  it.each([412, 840, 1200, 1600].flatMap((width) => (['card', 'onboarding'] as const).map((mode) => ({ width, mode }))))(
     'preserves full-height flow centering at $width in $mode mode', async ({ width, mode }) => {
     const { container } = render(<FlowShell mode={mode} action={<button type="button" className="h-[50px]">Continue</button>}>
       <div style={{ height: 100 }}>Flow content</div>

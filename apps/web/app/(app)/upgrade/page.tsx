@@ -12,7 +12,7 @@ import {
   resolveUpgradeHeader,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
-import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
+import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -39,11 +39,6 @@ import { useHeldAccountId } from '@/stores/auth-store'
 
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
-
-function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
-  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
-  return isPitch ? 'pitch' : undefined
-}
 
 export default function UpgradePage() {
   const t = useTranslations()
@@ -248,14 +243,14 @@ export default function UpgradePage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-1 flex-col">
       <PageHeader
         backLabel={backLabel}
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className="orbit-content-frame flex-1 pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>

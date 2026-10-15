@@ -93,22 +93,22 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
       const content = tree.root.findAll((node) => node.props.testID === 'about-content')[0]!
       const identity = tree.root.findAll((node) => node.props.testID === 'about-identity')[0]!
       const [box, body] = layout(width, [styleOf(content), styleOf(identity)])
-      expect(body!.left).toBe(16)
-      expect(box!.width).toBe(width < 1024 ? width : 652)
+      expect(body!.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+      expect(box!.width).toBe(Math.min(width, 740))
       expect(body!.width).toBe(box!.width - 32)
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 
-  it.each([true, false])('starts Support and its 520 form at 16, online=%s', async (online) => {
+  it.each([true, false])('starts Support and its full-column form at 16, online=%s', async (online) => {
     mocks.online = online
     const tree = await renderScreen(<SupportScreen />, width)
     try {
       const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
       const form = firstView(scroll)
       const [box, body] = layout(width, [StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(form)])
-      expect(body!.left).toBe(16)
-      expect(box!.width).toBe(Math.min(width, 620))
-      expect(body!.width).toBe(Math.min(width - 32, 520))
+      expect(body!.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+      expect(box!.width).toBe(Math.min(width, 740))
+      expect(body!.width).toBe(Math.min(width, 740) - 32)
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 
@@ -135,8 +135,8 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
         const [box, , body] = layout(width, [
           StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(success), styleOf(child),
         ])
-        expect.soft(body!.left).toBe(16)
-        expect.soft(box!.width).toBe(Math.min(width, 620))
+        expect.soft(body!.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+        expect.soft(box!.width).toBe(Math.min(width, 740))
       }
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
@@ -152,15 +152,14 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
       })
       const tree = await renderScreen(<UpgradeScreen />, width)
       try {
-        const pitch = state === 'free' || state === 'offline'
         const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
         const root = firstView(scroll)
         const content = root.findAll((node) => node.type === View)[1]!
         const [box, body] = layout(width, [styleOf(root), styleOf(content)])
-        expect.soft(body!.left).toBe(16)
-        expect.soft(box!.left).toBe(0)
-        expect.soft(box!.width).toBe(width < 1024 ? width : (pitch ? 652 : 560) + 32)
-        expect.soft(body!.width).toBe(width < 1024 ? width - 32 : pitch ? 652 : 560)
+        expect.soft(body!.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+        expect.soft(box!.left).toBe((width - Math.min(width, 740)) / 2)
+        expect.soft(box!.width).toBe(Math.min(width, 740))
+        expect.soft(body!.width).toBe(Math.min(width, 740) - 32)
       } finally { await TestRenderer.act(() => tree.update(<></>)) }
     })
 })

@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
   content: { width: '100%', gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
-  profileLoading: { gap: 16, padding: 16 },
+  profileLoading: { gap: 16 },
   surface: { gap: 8 },
   header: { gap: 12 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },

@@ -73,7 +73,6 @@ export default function AboutPage() {
           <div
             className="orbit-content-frame flex flex-col py-4"
             data-testid="about-content"
-            data-content-cap="about"
             style={{ gap: 24 }}
           >
             <div

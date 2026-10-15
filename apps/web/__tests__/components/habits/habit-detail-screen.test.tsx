@@ -200,7 +200,7 @@ vi.mock('@/components/dates/day-cell', () => ({
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} /> }))
 vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => <div aria-label={label}>{children}</div>,
+  MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => <div aria-label={label}><div role={loadingLabel ? 'progressbar' : undefined} aria-label={loadingLabel} aria-busy={loadingLabel ? true : undefined}>{children}</div></div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
@@ -796,7 +796,8 @@ describe('HabitDetailScreen', () => {
     mocks.detailLoading = true
     const view = render(<HabitDetailScreen habitId="habit-1" />)
 
-    expect(screen.getAllByText('habits.detail.loading')).toHaveLength(3)
+    expect(screen.getAllByText('habits.detail.loading')).toHaveLength(2)
+    expect(screen.getByRole('progressbar', { name: 'habits.detail.loading' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
 
     mocks.detailLoading = false
@@ -2191,7 +2192,7 @@ describe('HabitDetailScreen', () => {
         expect(geometry.family).toContain('Space Grotesk')
         expect(geometry.size).toBe(width < 640 ? '22px' : '28px')
         expect(geometry.weight).toBe('500')
-        expect(geometry.contentWidth).toBe(width < 640 ? width - 32 : 620)
+        expect(geometry.contentWidth).toBe(Math.min(width, 740) - 32)
         expect(geometry.headerInset).toBe(geometry.columnInset)
         const rename = title.getByRole('button', { name: habitTitle, exact: true })
         await rename.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))

@@ -18,7 +18,7 @@ const cases = [320, 360, 384, 412, 600, 640, 840, 1352, 1440].flatMap((width) =>
 afterEach(__resetTestHostConfig)
 
 function PitchContent({ trial, t }: Readonly<{ trial: boolean; t: (key: string) => string }>) {
-  const frameStyle = useContentFrameStyle(652)
+  const frameStyle = useContentFrameStyle()
   return <View style={frameStyle}>
     <ProPitch inset={false} profile={{ isTrialActive: trial }} trialDaysLeft={null} t={t} tokens={createTokensV2('orange', 'dark')} />
   </View>
@@ -50,6 +50,6 @@ it.each(cases)('fits the Android pitch at $width in $locale, trial=$trial', asyn
     const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!
     process.stdout.write(`${JSON.stringify({ width, locale, trial, measure, textWidth: bounds.x + bounds.width })}\n`)
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(measure)
-    expect(measure).toBe(width < 1024 ? width - 32 : 652)
+    expect(measure).toBe(Math.min(width, 740) - 32)
   } finally { await TestRenderer.act(() => tree.update(<></>)) }
 })

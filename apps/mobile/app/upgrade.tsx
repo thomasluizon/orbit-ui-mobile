@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
@@ -81,11 +82,6 @@ function UpgradeContent({
   )
 }
 
-function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 652 {
-  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
-  return isPitch ? 652 : 560
-}
-
 export default function UpgradeScreen() {
   const clearance = useShellScrollerClearance()
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
@@ -164,7 +160,7 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
-  const contentFrameStyle = useContentFrameStyle(upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus)))
+  const contentFrameStyle = useContentFrameStyle()
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -317,9 +313,11 @@ export default function UpgradeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
   container: { flex: 1 },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingTop: 16,
     paddingBottom: 32,
   },

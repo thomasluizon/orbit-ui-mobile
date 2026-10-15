@@ -438,7 +438,7 @@ function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Rea
 function HabitDetailFrame({ header, children }: Readonly<{ header: React.ReactNode; children: React.ReactNode }>) {
   return <>
     <ShellHeader>{header}</ShellHeader>
-    <div data-habit-detail-content="" className="flex min-h-full w-full flex-col gap-6 px-4 pt-6">{children}</div>
+    <div data-habit-detail-content="" className="orbit-content-frame flex min-h-full flex-col gap-6 pt-6">{children}</div>
   </>
 }
 
@@ -471,7 +471,7 @@ function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Read
     }} />}>
       {isError
         ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('habits.detail.retry')}</PillButton>} />
-        : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4 p-4">
+        : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
             <HistoryLoading />
@@ -643,7 +643,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   }
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
   if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)

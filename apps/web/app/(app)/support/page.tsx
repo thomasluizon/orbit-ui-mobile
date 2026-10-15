@@ -173,7 +173,7 @@ export default function SupportPage() {
   const disabled = isSending || !isOnline
 
   return (
-    <div className="min-w-0 md:w-full md:max-w-[620px]">
+    <div className="min-w-0 md:w-full md:max-w-[740px]">
       <div className="flex flex-col">
         <PageHeader
           backLabel={backLabel}
@@ -190,7 +190,7 @@ export default function SupportPage() {
               onBack={() => router.push('/about')}
             />
           ) : (
-            <div className="min-w-0 md:max-w-[520px]">
+            <div className="min-w-0">
               <SupportForm
                 email={resolvedEmail}
                 subject={subject}

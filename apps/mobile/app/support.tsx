@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -442,10 +443,9 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 16 },
   formBlock: {
     width: '100%',
-    maxWidth: 520,
     alignSelf: 'flex-start',
     gap: 24,
   },

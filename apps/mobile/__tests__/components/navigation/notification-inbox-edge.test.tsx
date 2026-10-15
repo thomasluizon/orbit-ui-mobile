@@ -78,12 +78,12 @@ describe('Avisos content edge on Android', () => {
         layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
         const list = [...nodes].find(([host]) => host.props.accessibilityLabel === 'notifications.title')![1]
         const firstRow = list.getChild(0)
-        expect(leadingEdge(firstRow)).toBe(16)
+        expect(leadingEdge(firstRow)).toBe((width - Math.min(width, 740)) / 2 + 16)
         expect(nodes.get(screen)!.getComputedWidth()).toBe(width)
         expect(nodes.get(header)!.getComputedWidth()).toBe(width)
         expect(leadingEdge(nodes.get(header)!)).toBe(0)
-        expect(list.getComputedWidth()).toBe(width < 1024 ? width : 592)
-        expect(firstRow.getComputedWidth()).toBe(width < 1024 ? width - 32 : 560)
+        expect(list.getComputedWidth()).toBe(Math.min(width, 740))
+        expect(firstRow.getComputedWidth()).toBe(Math.min(width, 740) - 32)
         expect(list.getChild(list.getChildCount() - 1).getComputedWidth()).toBe(firstRow.getComputedWidth())
       } finally {
         layout.freeRecursive()

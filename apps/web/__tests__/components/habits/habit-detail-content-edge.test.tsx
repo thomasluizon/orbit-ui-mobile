@@ -46,6 +46,7 @@ describe('habit detail frame content edge in Chromium', () => {
         const bounds = content.getBoundingClientRect()
         const paddingLeft = Number.parseFloat(style.paddingLeft)
         return {
+          calendarWidth: document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect().width,
           availableWidth: document.querySelector<HTMLElement>('[data-shell-scroller]')!.clientWidth,
           contentLeft: bounds.left + paddingLeft,
           backLeft: back.getBoundingClientRect().left,
@@ -55,6 +56,7 @@ describe('habit detail frame content edge in Chromium', () => {
       expect(Math.abs(geometry.contentLeft - geometry.backLeft)).toBeLessThanOrEqual(0.5)
       expect(geometry.contentWidth).toBeGreaterThan(0)
       expect(geometry.contentWidth).toBe(geometry.availableWidth - 32)
+      if (!isError) expect(geometry.calendarWidth).toBe(geometry.contentWidth)
     } finally {
       await page.close()
       view.unmount()

@@ -9,10 +9,10 @@ import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
-const state = vi.hoisted(() => ({ loading: false }))
+const state = vi.hoisted(() => ({ loading: false, profileLoading: false }))
 
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: state.profileLoading ? undefined : createMockProfile() }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: makeHabitDetail(), isLoading: state.loading, isError: false }),
   useHabitLogs: () => ({ data: [] }),
@@ -75,15 +75,17 @@ describe('habit detail content edge', () => {
   })
 })
 
-it.each([412, 1200, 1600])('fills the loading calendar with seven columns at %ipx', async (width) => {
+it.each([412, 1200, 1600].flatMap((width) => [false, true].map((profileLoading) => ({ width, profileLoading }))))('fills the loading calendar at $width with profile loading $profileLoading', async ({ width, profileLoading }) => {
+  state.profileLoading = profileLoading
   state.loading = true
   let tree!: GeometryTree
   await act(() => { tree = create(<View style={{ flex: 1 }}><HabitDetailScreen habitId="habit-1" /></View>) as GeometryTree })
   try {
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width, height: 915 })
     const grid = boxes.get('month-grid-7-columns')!
+    expect(grid).toBeDefined()
     expect(grid.width).toBe(Math.min(width, 740) - 32)
     expect(grid.left + grid.width / 2).toBe(width / 2)
     for (let row = 0; row < 6; row++) expect(boxes.get(`month-grid-row-${row}`)!.width).toBe(grid.width)
-  } finally { state.loading = false; await act(() => tree.unmount()) }
+  } finally { state.loading = false; state.profileLoading = false; await act(() => tree.unmount()) }
 })
