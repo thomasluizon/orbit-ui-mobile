@@ -10,8 +10,8 @@ const TestRenderer = require('react-test-renderer')
 
 let queryGoals: Record<string, unknown>[] = []
 
-vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
-  CreateGoalFromHabitSheet: 'CreateGoalFromHabitSheet',
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: 'CreateGoalSheet',
 }))
 
 vi.mock('react-i18next', () => ({
@@ -32,7 +32,8 @@ vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'default', currentTheme: 'light' }),
 }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => new Proxy({}, { get: () => '#000000' }),
 }))
 function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }) {
@@ -63,10 +64,10 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
 
     expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
-    expect(tree.root.findByType('CreateGoalFromHabitSheet').props.open).toBe(true)
+    expect(tree.root.findByType('CreateGoalSheet').props.open).toBe(true)
 
     await TestRenderer.act(() => {
-      tree.root.findByType('CreateGoalFromHabitSheet').props.onClose()
+      tree.root.findByType('CreateGoalSheet').props.onClose()
     })
     await TestRenderer.act(() => {
       (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()

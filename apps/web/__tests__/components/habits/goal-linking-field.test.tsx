@@ -6,8 +6,8 @@ import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal } from '@orbit/shared/types/goal'
 import React from 'react'
 
-vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
-  CreateGoalFromHabitSheet: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
     open ? <button type="button" onClick={onClose}>contextual-goal-creator</button> : null,
 }))
 

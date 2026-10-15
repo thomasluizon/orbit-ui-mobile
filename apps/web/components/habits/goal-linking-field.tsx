@@ -12,11 +12,14 @@ import { API } from '@orbit/shared/api'
 import type { Goal } from '@orbit/shared/types/goal'
 import { fetchJson } from '@/lib/api-fetch'
 import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
+import { CreateGoalSheet } from '../goals/create-goal-sheet'
 
 interface GoalLinkingFieldProps {
+  habitId?: string
   selectedGoalIds: string[]
   atGoalLimit: boolean
   onToggleGoal: (goalId: string) => void
@@ -60,7 +63,7 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   }} />
 }
 
-export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
+export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
   const t = useTranslations()
   const [open, setOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
@@ -91,18 +94,18 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
         </div>
       ) : null}
       {open ? (
-        <Sheet ref={sheetRef} open virtualizedBody={activeGoals.length >= 21} title={t('habits.form.goals')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open virtualizedBody={activeGoals.length >= 21} title={t('habits.form.goals')} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
           {activeGoals.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
               <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
-              <button type="button" className="chip mt-2" onClick={openCreateGoal}>{t('habits.form.createGoal')}</button>
+              <PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton>
             </div>
           ) : (
             <GoalPickerList goals={activeGoals} selectedIds={selectedSet} atLimit={atGoalLimit} onToggle={onToggleGoal} />
           )}
         </Sheet>
       ) : null}
-      <CreateGoalFromHabitSheet open={creating} onClose={() => setCreating(false)} />
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

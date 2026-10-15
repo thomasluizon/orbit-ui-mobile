@@ -86,7 +86,7 @@ export function useCreateGoal() {
       const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
       const tempId = createTempEntityId('goal')
       pendingCreateGoalIds.set(data, tempId)
-      const nextGoal = buildTempGoal(data, tempId, 999999)
+      const nextGoal = { ...buildTempGoal(data, tempId, 999999), linkedHabits: findLinkedHabits(queryClient, data.habitIds ?? []) }
 
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },
@@ -122,6 +122,7 @@ export function useCreateGoal() {
             goal.id === context.tempId
               ? {
                   ...buildTempGoal(context.request, result.id, goal.position),
+                  linkedHabits: goal.linkedHabits,
                   createdAtUtc: goal.createdAtUtc,
                   position: goal.position,
                 }

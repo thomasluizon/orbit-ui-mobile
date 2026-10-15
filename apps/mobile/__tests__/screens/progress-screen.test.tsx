@@ -21,6 +21,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
+
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 const accessibilityMocks = vi.hoisted(() => ({ sendAccessibilityEvent: vi.fn() }))
@@ -54,6 +58,7 @@ type TestTree = {
 }
 
 const mocks = vi.hoisted(() => ({
+  create: { mutateAsync: vi.fn().mockResolvedValue({ id: 'goal-created' }), isPending: false },
   router: { push: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
@@ -184,6 +189,7 @@ vi.mock('react-native-draggable-flatlist', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
+  useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,
   useReorderGoals: () => mocks.reorder,
   useUpdateGoalStatus: () => mocks.updateStatus,
@@ -794,8 +800,8 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => {
       ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
     })
-    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
@@ -820,29 +826,51 @@ describe('mobile ProgressContent', () => {
     expect(StyleSheet.flatten(line.props.style as TextStyle)).toMatchObject({ color: createTokensV2('purple', theme.mode).fg2, fontSize: 14 })
     const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
     expect(StyleSheet.flatten(style({ pressed: false })).minHeight).toBe(48)
-    ;(action.props.onPress as () => void)()
-    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('keeps an unsent Astra draft when starting a goal', async () => {
     useChatStore.getState().setDraft('Unsent note')
     const tree = await renderProgress()
 
-    ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
+    await TestRenderer.act(() => { (findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)() })
     expect(useChatStore.getState().draft).toBe('Unsent note')
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'progress-create-goal',
-      label: 'progressScreen.goals.createAction',
-      prompt: 'progressScreen.goals.request',
-    })
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
     await TestRenderer.act(async () => {
       tree.update(<ProgressScreen />)
       await Promise.resolve()
     })
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
+  })
+
+  it.each(['page empty', 'section empty', 'populated'] as const)('creates a goal from %s and shows it in Metas', async (entry) => {
+    if (entry === 'page empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    if (entry === 'populated') mocks.goals.data.allGoals = [createMockGoal()]
+    mocks.create.mutateAsync.mockImplementationOnce(() => {
+      mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
+      return Promise.resolve({ id: 'goal-created' })
+    })
+    const tree = await renderProgress()
+    await TestRenderer.act(() => { (findPill(tree.root, entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction').props.onPress as () => void)() })
+    for (const [label, value] of [['goals.form.title', 'Walk 100 km'], ['goals.form.targetValue', '100'], ['goals.form.unit', 'km']]) {
+      await TestRenderer.act(() => {
+        const input = tree.root.findAll((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+        ;(input.props.onChangeText as (value: string) => void)(value!)
+      })
+    }
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')[0]!
+    await TestRenderer.act(async () => { (findPill(sheet, 'goals.create').props.onPress as () => void)(); await Promise.resolve() })
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created').length).toBeGreaterThan(0)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {
@@ -1481,8 +1509,8 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => {
       ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
     })
-    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(ptBR.progressScreen.goals.createAction).toBe('Criar meta')
     expect(en.progressScreen.goals.createAction).toBe('Create goal')
   })

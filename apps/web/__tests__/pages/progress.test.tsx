@@ -19,6 +19,7 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
+  create: { mutateAsync: vi.fn().mockResolvedValue({ id: 'goal-created' }), isPending: false },
   router: { push: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
@@ -141,6 +142,7 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ g
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
+  useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,
   useReorderGoals: () => mocks.reorder,
   useUpdateGoalStatus: () => mocks.updateStatus,
@@ -796,7 +798,7 @@ describe('ProgressContent', () => {
       'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
     ])
     expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
     for (const width of [320, 412, 840]) {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
@@ -886,9 +888,9 @@ describe('ProgressContent', () => {
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
     expect(action).toHaveAttribute('data-variant', 'primary')
     fireEvent.click(action)
-    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
   })
 
   it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global goal action for desktop=%s as a %s button', (isDesktop, variant) => {
@@ -912,8 +914,8 @@ describe('ProgressContent', () => {
     expect(action.style.minHeight).toBe('48px')
     expect(within(section).queryByRole('link')).not.toBeInTheDocument()
     fireEvent.click(action)
-    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('keeps an unsent Astra draft when starting a goal', () => {
@@ -922,15 +924,33 @@ describe('ProgressContent', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.createAction' }))
     expect(useChatStore.getState().draft).toBe('Unsent note')
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'progress-create-goal',
-      label: 'progressScreen.goals.createAction',
-      prompt: 'progressScreen.goals.request',
-    })
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
     rerender(<ProgressContent />)
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
+  })
+
+  it.each(['page empty', 'section empty', 'populated'] as const)('creates a goal from %s and shows it in Metas', async (entry) => {
+    if (entry === 'page empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    if (entry === 'populated') mocks.goals.data.allGoals = [createMockGoal()]
+    mocks.create.mutateAsync.mockImplementationOnce(async () => {
+      mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
+      return { id: 'goal-created' }
+    })
+    render(<ProgressPage />)
+    fireEvent.click(screen.getByRole('button', { name: entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction' }))
+    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Walk 100 km' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'km' } })
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'goals.create' })).getByRole('button', { name: 'goals.create' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
+    expect(getGoalCard('Walk 100 km')).toBeInTheDocument()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {

@@ -25,8 +25,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: pickerData.goals }),
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
-vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
-  CreateGoalFromHabitSheet: 'CreateGoalFromHabitSheet',
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: 'CreateGoalSheet',
 }))
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRow', props),

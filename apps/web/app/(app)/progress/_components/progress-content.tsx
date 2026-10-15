@@ -1,5 +1,8 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
+
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 
@@ -20,7 +23,6 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { useLocale, useTranslations } from 'next-intl'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal } from '@orbit/shared/types/goal'
-import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
 import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
@@ -69,8 +71,6 @@ import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
-import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
@@ -398,25 +398,14 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   )
 }
 
-function GoalsEmptyState({ inSection = false }: Readonly<{ inSection?: boolean }>) {
+function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?: boolean; onCreate: () => void }>) {
   const t = useTranslations()
   const isDesktop = useIsDesktop()
-  useEffect(() => () => {
-    clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
-  }, [])
-  const askAstraForGoal = () => {
-    prepareChatRequest(useChatStore.getState(), {
-      id: 'progress-create-goal',
-      label: t('progressScreen.goals.createAction'),
-      prompt: t('progressScreen.goals.request'),
-    })
-    useUIStore.getState().setAstraConversationOpen(true)
-  }
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
-  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton></div></div>
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></div></div>
 }
 
-function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
+function GoalsSection({ goals, onOpenGoal, onCreate }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; onOpenGoal: (goalId: string) => void }>) {
   const headingId = useId()
   const t = useTranslations()
   const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
@@ -456,12 +445,12 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <>
-        <div className="flex items-start"><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton></div>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton size="sm" onClick={() => { setFilter('all'); onCreate() }}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
       </> : null}
-      {goals.length === 0 ? <GoalsEmptyState inSection /> : null}
+      {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} inSection /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
@@ -603,6 +592,8 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
 }
 
 export function ProgressContent() {
+  const [creating, setCreating] = useAccountScopedState(false)
+  const openCreateGoal = () => setCreating(true)
   const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
   const isDesktop = useIsDesktop()
@@ -626,6 +617,7 @@ export function ProgressContent() {
   }
   return (
     <div className="mx-auto flex w-full max-w-[740px] flex-col">
+      {creating ? <CreateGoalSheet open onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col">
         <RootNotificationHeader />
@@ -633,8 +625,8 @@ export function ProgressContent() {
           <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
           {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
-          {empty ? <div className="pt-12"><GoalsEmptyState /></div> : null}
-          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+          {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
+          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
         </div>
       </div>
     </div>
