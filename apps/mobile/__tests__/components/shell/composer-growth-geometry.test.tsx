@@ -22,10 +22,11 @@ it('places the caret after the prefilled prompt only on conversation entry', asy
   try {
     expect(__getFocusedInputSelection()).toEqual({ start: prompt.length, end: prompt.length })
     const selection = __getFocusedInputSelection()!
-    selection.start = 3
-    selection.end = 3
-    await renderer.act(() => tree.update(<AstraConversation chat={{ ...chat, composerProps: { ...chat.composerProps, value: `${prompt}!` } }} />))
-    expect(__getFocusedInputSelection()).toEqual({ start: 3, end: 3 })
+    const edited = `${prompt.slice(0, 3)}!${prompt.slice(3)}`
+    selection.start = 4
+    selection.end = 4
+    await renderer.act(() => tree.update(<AstraConversation chat={{ ...chat, composerProps: { ...chat.composerProps, value: edited } }} />))
+    expect(__getFocusedInputSelection()).toEqual({ start: 4, end: 4 })
   } finally { await renderer.act(() => tree.unmount()) }
 })
 
