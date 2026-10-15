@@ -6,12 +6,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitDetailScopedParent } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
+
+const state = vi.hoisted(() => ({ loading: false }))
 
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: makeHabitDetail(), isLoading: false, isError: false }),
+  useHabitDetail: () => ({ data: makeHabitDetail(), isLoading: state.loading, isError: false }),
   useHabitLogs: () => ({ data: [] }),
   useHabitMetrics: () => ({ data: undefined, isLoading: false, isError: false }),
   useHabits: () => ({ data: { habitsById: new Map([['habit-1', makeHabitDetailScopedParent()]]) }, isLoading: false, isError: false }),
@@ -43,7 +46,7 @@ function applyColumnStyle(node: YogaNode, style: ViewStyle) {
 }
 
 describe('habit detail content edge', () => {
-  it.each([412, 840])('starts the capped body on the FlowShell content edge at %i', async (width) => {
+  it.each([412, 840, 1200, 1600])('starts the capped body on the FlowShell content edge at %i', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof create> & { unmount: () => void }
     await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) as typeof tree })
@@ -62,13 +65,25 @@ describe('habit detail content edge', () => {
       column.insertChild(content, 0)
       viewport.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
       expect(content.getComputedLeft()).toBe(16)
-      expect(content.getComputedWidth()).toBe(Math.min(column.getComputedWidth() - 32, 620))
-      expect(content.getComputedWidth()).toBeLessThanOrEqual(620)
-      expect(column.getComputedLeft()).toBe((width - column.getComputedWidth()) / 2)
+      expect(content.getComputedWidth()).toBe(column.getComputedWidth() - 32)
+      expect(scroller.getComputedLeft() + column.getComputedLeft()).toBe((width - column.getComputedWidth()) / 2)
     } finally {
       viewport.freeRecursive()
       await act(() => { tree.unmount() })
       __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
     }
   })
+})
+
+it.each([412, 1200, 1600])('fills the loading calendar with seven columns at %ipx', async (width) => {
+  state.loading = true
+  let tree!: GeometryTree
+  await act(() => { tree = create(<View style={{ flex: 1 }}><HabitDetailScreen habitId="habit-1" /></View>) as GeometryTree })
+  try {
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width, height: 915 })
+    const grid = boxes.get('month-grid-7-columns')!
+    expect(grid.width).toBe(Math.min(width, 740) - 32)
+    expect(grid.left + grid.width / 2).toBe(width / 2)
+    for (let row = 0; row < 6; row++) expect(boxes.get(`month-grid-row-${row}`)!.width).toBe(grid.width)
+  } finally { state.loading = false; await act(() => tree.unmount()) }
 })

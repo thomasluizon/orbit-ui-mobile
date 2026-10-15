@@ -35,12 +35,12 @@ export function WrappedCover({
 
   return (
     <div
-      className="flex flex-1 flex-col items-start justify-center gap-6 overflow-y-auto px-6 py-8"
+      className="flex flex-1 flex-col items-center justify-center text-center gap-6 overflow-y-auto px-6 py-8"
       data-state={state}
     >
       <OrbitMark size={96} />
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col items-center gap-2">
         <p style={coverEyebrowStyle}>{t('wrapped.title')}</p>
         <h1 style={coverTitleStyle}>{t(`wrapped.coverTitles.${period}`)}</h1>
         <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
@@ -91,7 +91,7 @@ function CoverBody({
   }
   if (state === 'empty') {
     return (
-      <div className="flex w-full flex-col items-start gap-4 sm:w-auto">
+      <div className="flex w-full max-w-[360px] flex-col items-center gap-4">
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -111,7 +111,7 @@ function CoverBody({
   }
 
   return (
-    <div className="w-full sm:w-auto [&>button]:w-full">
+    <div className="flex w-full max-w-[360px] justify-center">
       <Button size="md" onClick={onStart}>{t('wrapped.start')}</Button>
     </div>
   )

@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn(), replace: 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isError: mocks.isError, refetch: vi.fn() }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 
-const cases = [412, 840, 1100, 1352].flatMap((width) => (['pt-BR', 'en'] as const).flatMap((locale) =>
+const cases = [412, 840, 1200, 1600].flatMap((width) => (['pt-BR', 'en'] as const).flatMap((locale) =>
   [false, true].map((isError) => ({ width, locale, isError })),
 ))
 
@@ -46,6 +46,7 @@ describe('habit detail frame content edge in Chromium', () => {
         const bounds = content.getBoundingClientRect()
         const paddingLeft = Number.parseFloat(style.paddingLeft)
         return {
+          availableWidth: document.querySelector<HTMLElement>('[data-shell-scroller]')!.clientWidth,
           contentLeft: bounds.left + paddingLeft,
           backLeft: back.getBoundingClientRect().left,
           contentWidth: bounds.width - paddingLeft - Number.parseFloat(style.paddingRight),
@@ -53,7 +54,7 @@ describe('habit detail frame content edge in Chromium', () => {
       })
       expect(Math.abs(geometry.contentLeft - geometry.backLeft)).toBeLessThanOrEqual(0.5)
       expect(geometry.contentWidth).toBeGreaterThan(0)
-      expect(geometry.contentWidth).toBeLessThanOrEqual(620)
+      expect(geometry.contentWidth).toBe(geometry.availableWidth - 32)
     } finally {
       await page.close()
       view.unmount()

@@ -123,6 +123,27 @@ describe('WrappedPage cover geometry in Chromium', () => {
     }
   }
 
+  it.each([412, 1200, 1600])('centres the cover inside the shared cap at %ipx', async (width) => {
+    const rendered = renderPage()
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const frame = document.querySelector('main')!.getBoundingClientRect()
+        const heading = document.querySelector('h1')!.getBoundingClientRect()
+        const start = [...document.querySelectorAll('button')].at(-1)!.getBoundingClientRect()
+        return { width: frame.width, centre: frame.left + frame.width / 2,
+          headingCentre: heading.left + heading.width / 2, startWidth: start.width,
+          startCentre: start.left + start.width / 2 }
+      })
+      expect(geometry.width).toBe(Math.min(width, 740))
+      expect(geometry.centre).toBe(width / 2)
+      expect(geometry.headingCentre).toBeCloseTo(width / 2, 0)
+      expect(geometry.startWidth).toBeLessThanOrEqual(360)
+      expect(geometry.startCentre).toBeCloseTo(width / 2, 0)
+    } finally { await page.close() }
+  })
+
   it.each(COVER_STATES.flatMap((cover) => [
     { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },
     { width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 },

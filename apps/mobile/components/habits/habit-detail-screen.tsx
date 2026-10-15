@@ -223,6 +223,13 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
   )
 }
 
+function HistoryLoading() {
+  const { t, i18n } = useTranslation()
+  return <MonthGrid weekdayLabels={formatWeekdayLabels(i18n.language, 1)} gap={4} loadingLabel={t('habits.detail.loading')}>
+    {Array.from({ length: 42 }, (_, index) => <View key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></View>)}
+  </MonthGrid>
+}
+
 function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<{ habit: NormalizedHabit; logs: ReturnType<typeof useHabitLogs>['data']; today: Date; locale: string; weekStartsOn: 0 | 1; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const [month, setMonth] = useState(startOfMonth(today))
@@ -394,7 +401,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
-    return <FlowShell nav={false} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
+    return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
       if (parentId || fromToday) router.back()
       else router.replace(date ? { pathname: '/(tabs)', params: { date } } : '/(tabs)')
     }} />}>
@@ -403,7 +410,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
         : <View accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }} style={styles.profileLoading}>
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
-            <Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} grouped />
+            <HistoryLoading />
           </View>}
     </FlowShell>
   }
@@ -579,8 +586,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const childUnavailableReason = t(childUnavailableReasonKey)
 
   const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || allHabitsQuery.isLoading || detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data} onBack={back} />
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></FlowShell>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data, dateStr)
     .childrenByParent.get(habit.id) ?? [])
@@ -604,7 +611,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     : undefined
 
   return (
-    <FlowShell nav={false} header={appBar}>
+    <FlowShell nav={false} mode="detail" header={appBar}>
       <View testID="habit-detail-content" style={styles.content}>
       <View>
         <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
@@ -650,7 +657,7 @@ const styles = StyleSheet.create({
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   stripSection: { gap: 8, paddingTop: 24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  content: { width: '100%', maxWidth: 620, gap: 24 },
+  content: { width: '100%', gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16, padding: 16 },
   surface: { gap: 8 },

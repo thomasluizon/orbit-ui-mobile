@@ -1,12 +1,12 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
 export type Tokens = ReturnType<typeof createTokensV2>
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  player: { flex: 1 },
+  safeArea: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
+  player: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -25,7 +25,10 @@ export const styles = StyleSheet.create({
   closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
     flex: 1,
-    alignItems: 'flex-start',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 24,
@@ -39,19 +42,19 @@ export const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   streakNumeral: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 44, lineHeight: 44, letterSpacing: -1.32, fontVariant: ['tabular-nums'] },
-  label: { fontFamily: 'Geist_400Regular', fontSize: 20 },
-  caption: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
-  weekdayReading: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
-  weekdayNote: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
-  title: {
+  label: { textAlign: 'center', fontFamily: 'Geist_400Regular', fontSize: 20 },
+  caption: { textAlign: 'center', fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
+  weekdayReading: { textAlign: 'center', fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
+  weekdayNote: { textAlign: 'center', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+  title: { textAlign: 'center',
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 28,
     lineHeight: 32,
     letterSpacing: -0.56,
   },
   introTitleWide: { fontSize: 44, lineHeight: 48.4, letterSpacing: -1.32 },
-  introTitle: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -1.02 },
-  topHabitTitle: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -0.68 },
+  introTitle: { textAlign: 'center', fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -1.02 },
+  topHabitTitle: { textAlign: 'center', fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -0.68 },
   introSlide: { gap: 16 },
   weekdaySlide: { gap: 24 },
   streakSlide: { gap: 24 },
@@ -65,7 +68,10 @@ export const styles = StyleSheet.create({
   nextZone: { flex: 2 },
   shareSlide: {
     flex: 1,
-    alignItems: 'flex-start',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -80,28 +86,31 @@ export const styles = StyleSheet.create({
   coverScroller: { flex: 1 },
   cover: {
     flexGrow: 1,
-    alignItems: 'flex-start',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 32,
     gap: 24,
   },
-  coverHeader: { alignItems: 'flex-start', gap: 8 },
+  coverHeader: { alignItems: 'center', gap: 8 },
   coverEyebrow: {
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     letterSpacing: 0.72,
     textTransform: 'uppercase',
   },
-  coverTitle: {
+  coverTitle: { textAlign: 'center',
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 34,
     lineHeight: 37,
     letterSpacing: -1.02,
   },
-  coverSubtitle: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
+  coverSubtitle: { textAlign: 'center', fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  coverBody: { width: '100%', alignItems: 'stretch', gap: 16 },
+  coverBody: { width: '100%', maxWidth: 360, alignItems: 'center', gap: 16 },
   stateText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, maxWidth: 300 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyIcon: {

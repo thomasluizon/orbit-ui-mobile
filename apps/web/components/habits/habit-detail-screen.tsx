@@ -3,6 +3,7 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
@@ -211,6 +212,14 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
       {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} aria-controls="habit-description" onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span id="habit-description" className={`block ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button></div> : null}
     </header>
   )
+}
+
+function HistoryLoading() {
+  const t = useTranslations()
+  const locale = useLocale()
+  return <MonthGrid weekdayLabels={formatWeekdayLabels(locale, 1)} gap={4} loadingLabel={t('habits.detail.loading')}>
+    {Array.from({ length: 42 }, (_, index) => <div key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
+  </MonthGrid>
 }
 
 function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
@@ -429,7 +438,7 @@ function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Rea
 function HabitDetailFrame({ header, children }: Readonly<{ header: React.ReactNode; children: React.ReactNode }>) {
   return <>
     <ShellHeader>{header}</ShellHeader>
-    <div data-habit-detail-content="" className="flex min-h-full w-full max-w-[652px] flex-col gap-6 px-4 pt-6">{children}</div>
+    <div data-habit-detail-content="" className="flex min-h-full w-full flex-col gap-6 px-4 pt-6">{children}</div>
   </>
 }
 
@@ -465,7 +474,7 @@ function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Read
         : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4 p-4">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
-            <Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} grouped />
+            <HistoryLoading />
           </div>}
     </HabitDetailFrame>
   }
@@ -634,7 +643,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   }
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
   if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
