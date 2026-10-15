@@ -827,7 +827,7 @@
       "habitTypeBuild": "Construir",
       "habitTypeAvoid": "Evitar este hábito",
       "habitTypeBuildHint": "Uma rotina que você quer fortalecer.",
-      "habitTypeAvoidHint": "Você marca quando resistiu, não quando fez.",
+      "habitTypeAvoidHint": "Anote deslizes. Sequência: dias sem eles.",
       "generalBadHabit": "Hábitos sem dia certo não podem ser marcados como maus hábitos.",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",

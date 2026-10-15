@@ -35,7 +35,8 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue : testTranslations[key]
+  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
+    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -163,6 +164,20 @@ describe('HabitFormFields mobile', () => {
     })
     expect(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
     TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each([
+    ['en', 'Log slips. Streak: days without them.'],
+    ['pt-BR', 'Anote deslizes. Sequência: dias sem eles.'],
+  ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
+    formLocale.language = locale
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+    })
+    try {
+      expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   beforeEach(() => {

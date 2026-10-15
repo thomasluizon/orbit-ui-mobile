@@ -136,6 +136,15 @@ function isInstructionOrFormatExample(value: string): boolean {
     || value === 'ORBIT'
 }
 
+describe('bad-habit logging instructions', () => {
+  it.each([
+    { locale: 'en', messages: en, hint: 'Log slips. Streak: days without them.' },
+    { locale: 'pt-BR', messages: ptBR, hint: 'Anote deslizes. Sequência: dias sem eles.' },
+  ])('describes logging slips and counting days without them in $locale', ({ messages, hint }) => {
+    expect(messages.habits.form.habitTypeAvoidHint).toBe(hint)
+  })
+})
+
 describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)

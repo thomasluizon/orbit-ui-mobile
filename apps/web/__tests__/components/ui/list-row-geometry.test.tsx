@@ -58,6 +58,26 @@ describe('personal ListRow text in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([{ locale: 'en', words: en }, { locale: 'pt-BR', words: ptBR }])('fits the avoid-habit hint on one whole line at 360px in $locale', async ({ words }) => {
+    const markup = renderToStaticMarkup(<div style={{ padding: 16 }}>
+      <ListRow placement="column" title={words.habits.form.habitTypeAvoid} description={words.habits.form.habitTypeAvoidHint} toggle={{ checked: true, onChange: vi.fn() }} />
+    </div>)
+    const page = await browser.newPage({ viewport: { width: 360, height: 800 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => {
+        const description = document.querySelector<HTMLElement>('[data-slot="list-row-description"]')!
+        const range = document.createRange()
+        range.selectNodeContents(description)
+        const rects = Array.from(range.getClientRects())
+        const bounds = description.getBoundingClientRect()
+        return { lines: new Set(rects.map((rect) => rect.top)).size, fits: rects.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right + 1), visible: description.clientWidth >= description.scrollWidth }
+      })
+      expect(geometry).toEqual({ lines: 1, fits: true, visible: true })
+    } finally { await page.close() }
+  })
+
   it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((textScale) => [en, ptBR].map((words) => ({ width, textScale, words })))))('keeps paused feature titles and descriptions unclipped at $width, scale $textScale', async ({ width, textScale, words }) => {
     const paused = words.trial.expired
     const markup = renderToStaticMarkup(<div style={{ padding: 24 }}>
