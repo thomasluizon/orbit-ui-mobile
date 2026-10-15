@@ -76,6 +76,11 @@ export const cases = () => {
   checkSources("checks continued instructions across comments", "# FROM node:22-bookworm-slim\nFROM \\\n# platform image\n  node:22-bookworm-slim AS builder\n", { status: 1, stderr: /Dockerfile:2: FROM node/ })
   checkSources("checks alternate escape directive", "# escape=`\nFROM `\n  node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:2: FROM node/ })
   checkSources("rejects unresolved image variables", "ARG IMAGE=node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1, stderr: /explicit registry host/ })
+  checkSources("accepts explicit global image defaults in every stage", "ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${NODE_IMAGE} AS builder\nFROM $NODE_IMAGE AS runner\n", { status: 0 })
+  checkSources("rejects image arguments without defaults", "ARG IMAGE\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("rejects nested image variables", "ARG IMAGE=${REGISTRY}/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("does not resolve stage arguments as global defaults", "FROM scratch AS builder\nARG IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("keeps global image defaults across stage argument declarations", "ARG IMAGE=node:22-bookworm-slim\nFROM scratch AS builder\nARG IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
   checkSources("does not treat a tag as a host", "FROM node:22-bookworm-slim\n", { status: 1 })
 
   const nested = stageRepository("tracked inventory", {

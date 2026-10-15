@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-docker-registries.mjs [--root <path>]
 
   Requires an explicit registry host in every tracked Dockerfile FROM image.
-  Allows scratch and references to earlier build stages. Variable image references
-  must be replaced with explicit registry paths so the source can be checked.
+  Allows scratch, earlier build stages, and global ARG image references whose
+  literal defaults include explicit registry hosts. Unresolved variables fail.
   Also requires provenance: false on pushing docker/build-push-action steps
   when their steps list sets the docker/setup-buildx-action driver to docker.
   Reads tracked Dockerfiles and .github/workflows YAML as working-tree text,
@@ -37,6 +37,8 @@ if (argumentsToParse.length > 0) {
 
 const inspectDockerfile = (filename, contents) => {
   const stages = new Set()
+  const globalArguments = new Map()
+  let beforeFirstStage = true
   const violations = []
   const escape = contents.match(/^\s*#\s*escape\s*=\s*([\\`])\s*$/im)?.[1] ?? "\\"
   let instruction = ""
@@ -48,12 +50,17 @@ const inspectDockerfile = (filename, contents) => {
     const continued = trimmed.endsWith(escape)
     instruction += `${continued ? trimmed.slice(0, -1) : trimmed} `
     if (continued) continue
+    const argument = instruction.match(/^ARG\s+([A-Za-z_][A-Za-z0-9_]*)(?:=(\S+))?\s*$/i)
+    if (beforeFirstStage && argument) globalArguments.set(argument[1], argument[2])
     const from = instruction.match(/^FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+(\S+))?\s*$/i)
     instruction = ""
     if (!from) continue
+    beforeFirstStage = false
     const [, image, stage] = from
-    const host = image.split("/")[0]
-    const explicitRegistry = image.includes("/") && !image.includes("$") && (host.includes(".") || host.includes(":") || host === "localhost")
+    const variable = image.match(/^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/)
+    const resolvedImage = (variable && globalArguments.get(variable[1] ?? variable[2])) || image
+    const host = resolvedImage.split("/")[0]
+    const explicitRegistry = resolvedImage.includes("/") && !resolvedImage.includes("$") && (host.includes(".") || host.includes(":") || host === "localhost")
     if (image !== "scratch" && !stages.has(image.toLowerCase()) && !explicitRegistry) {
       violations.push(`${filename}:${instructionLine}: FROM ${image} needs an explicit registry host`)
     }
