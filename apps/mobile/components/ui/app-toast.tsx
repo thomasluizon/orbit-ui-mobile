@@ -127,36 +127,36 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         </View>
       ) : null}
 
-      <View style={styles.copy}>
+      <View style={[styles.copy, props.actionLabel ? styles.actionCopy : null]}>
         <Text style={[styles.message, { color: tokens.fg1 }]}>{announcedMessage}</Text>
         {props.kind === 'lost' && announcedMessage ? (
           <Text style={[styles.detail, { color: tokens.fg3 }]}>{props.detail}</Text>
         ) : null}
       </View>
 
-      {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
-        <Pressable
-          onPress={props.onAction}
-          onPressIn={() => setActionPressed(true)}
-          onPressOut={() => setActionPressed(false)}
-          onFocus={() => { setFocused(true); setActionFocused(true) }}
-          onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
-          accessibilityRole="button"
-          accessibilityLabel={props.actionLabel}
-          style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
-          testID="toast-action"
-        >
-          <Text style={[styles.actionText, {
-            color: resolveActionColor(props.kind, actionPressed, colors.action, tokens),
-          }]}>
-            {props.actionLabel}
-          </Text>
-        </Pressable>
-      ) : null}
       {props.actionLabel ? (
-        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
-          <X size={20} color={tokens.fg2} />
-        </PillButton>
+        <View style={styles.controls}>
+          <Pressable
+            onPress={props.onAction}
+            onPressIn={() => setActionPressed(true)}
+            onPressOut={() => setActionPressed(false)}
+            onFocus={() => { setFocused(true); setActionFocused(true) }}
+            onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
+            accessibilityRole="button"
+            accessibilityLabel={props.actionLabel}
+            style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
+            testID="toast-action"
+          >
+            <Text style={[styles.actionText, {
+              color: resolveActionColor(props.kind, actionPressed, colors.action, tokens),
+            }]}>
+              {props.actionLabel}
+            </Text>
+          </Pressable>
+          <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
+            <X size={20} color={tokens.fg2} />
+          </PillButton>
+        </View>
       ) : null}
     </Pressable>
   )
@@ -204,8 +204,10 @@ const styles = StyleSheet.create({
   toast: {
     width: '100%',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 12,
+    rowGap: 0,
     borderWidth: 1,
     borderRadius: radius.xl,
     padding: 16,
@@ -222,6 +224,8 @@ const styles = StyleSheet.create({
   },
   icon: { flexShrink: 0 },
   copy: { flex: 1, gap: 4 },
+  actionCopy: { flexBasis: '50%' },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   action: { padding: 8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },

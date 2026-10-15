@@ -62,7 +62,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
       aria-atomic="true"
       data-kind={props.kind}
       tabIndex={-1}
-      className={`flex items-center gap-3 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -76,7 +76,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         </span>
       ) : null}
 
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex min-w-0 flex-1 flex-col gap-1" style={props.actionLabel ? { flexBasis: '50%' } : undefined}>
         <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
           {announcedMessage}
         </span>
@@ -87,21 +87,21 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         ) : null}
       </span>
 
-      {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
-        <button
-          type="button"
-          className={`cursor-pointer border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
-          style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -4 }}
-          onFocus={() => setFocused(true)}
-          onClick={props.onAction}
-        >
-          {props.actionLabel}
-        </button>
-      ) : null}
       {props.actionLabel ? (
-        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
-          <X size={20} aria-hidden="true" />
-        </PillButton>
+        <div className="ms-auto flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
+            style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -4 }}
+            onFocus={() => setFocused(true)}
+            onClick={props.onAction}
+          >
+            {props.actionLabel}
+          </button>
+          <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+            <X size={20} aria-hidden="true" />
+          </PillButton>
+        </div>
       ) : null}
     </div>
   )

@@ -132,7 +132,12 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
           undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
             const bounds = button.getBoundingClientRect()
             return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
-          }).map((button) => button.getAttribute('aria-label') ?? button.textContent),
+          }).map((button) => ({
+            name: button.getAttribute('aria-label') ?? button.textContent,
+            target: button.getAttribute('data-testid'),
+            width: button.getBoundingClientRect().width,
+            height: button.getBoundingClientRect().height,
+          })),
           unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
           unavailableValueOverflow,
           controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
@@ -178,12 +183,13 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
     await act(async () => {})
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
+    if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
     for (const slide of wrapped.slides as { id: string }[]) {
       const measured = await measureSlide(viewport, container.innerHTML, safeArea)
 
-      expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height - insets.bottom })
-        .toEqual({ slide: slide.id, pagerBottom: true })
+      expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
+        .toBeLessThanOrEqual(viewport.height - insets.bottom)
       for (const control of measured.controls) {
         expect(control.left).toBeGreaterThanOrEqual(insets.left)
         expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
