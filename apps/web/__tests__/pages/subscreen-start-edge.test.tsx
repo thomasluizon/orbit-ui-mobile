@@ -13,6 +13,7 @@ import { subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { billingDetailsFixture } from '@/test-support/hermetic/mock-api/fixtures/subscriptions'
 import { subscriptionPlansFixtures } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
+import { ShellWide } from '@/components/shell/shell-wide'
 import AboutPage from '@/app/(app)/about/page'
 import SupportPage from '@/app/(app)/support/page'
 import UpgradePage from '@/app/(app)/upgrade/page'
@@ -60,13 +61,6 @@ vi.mock('@/lib/actions/support', () => ({ sendSupportMessage: vi.fn() }))
 
 const cases = ['about', 'support', 'support-success', 'free', 'lapsed', 'stripe', 'play', 'loading', 'load-failed', 'offline'] as const
 
-function expectedFrameWidth(state: typeof cases[number], width: number) {
-  if (state.startsWith('support')) return Math.min(width, width < 768 ? width : 620)
-  if (width < 1024) return Math.min(width, 736)
-  const cap = state === 'about' ? 620 : state === 'free' || state === 'offline' ? 652 : 560
-  return cap + 32
-}
-
 describe('sub-screen start edges in isolated Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -88,7 +82,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
   })
 
   for (const locale of ['en', 'pt-BR'] as const) {
-    for (const width of [412, 600, 840, 1100, 1352]) {
+    for (const width of [412, 600, 840, 1100, 1200, 1352, 1600]) {
       it.each(cases)(`starts %s at the header inset with its cap at ${width}px in ${locale}`, async (state) => {
         mocks.locale = locale
         mocks.loading = state === 'loading'
@@ -100,9 +94,11 @@ describe('sub-screen start edges in isolated Chromium', () => {
         })
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
         const support = state.startsWith('support')
-        const view = render(<QueryClientProvider client={client}>
-          {state === 'about' ? <AboutPage /> : support ? <SupportPage /> : <UpgradePage />}
-        </QueryClientProvider>)
+        const content = state === 'about' ? <AboutPage /> : support ? <SupportPage /> : <UpgradePage />
+        const destination = (header?: ReactNode) => <QueryClientProvider client={client}>
+          <ShellWide nav={false} header={header}>{content}</ShellWide>
+        </QueryClientProvider>
+        const view = render(destination())
         if (state === 'support-success') {
           fireEvent.click(screen.getAllByRole('radio')[0]!)
           const words = locale === 'en' ? en : ptBR
@@ -110,37 +106,42 @@ describe('sub-screen start edges in isolated Chromium', () => {
           fireEvent.click(screen.getByRole('button', { name: words.profile.support.send }))
           await waitFor(() => expect(screen.getByRole('heading', { name: words.profile.support.success })).toBeInTheDocument())
         }
-        const header = render(mocks.header!())
+        view.rerender(destination(mocks.header!()))
         const page = await browser.newPage({ viewport: { width, height: 915 } })
         try {
           await page.emulateMedia({ reducedMotion: 'reduce' })
-          await page.setContent(`<style>${stylesheet}</style><main style="width:${Math.min(width, 736)}px">${header.container.innerHTML}${view.container.innerHTML}</main>`)
+          await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
           await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()))
           const geometry = await page.evaluate((state) => {
             const bounds = (element: Element) => {
               const rect = element.getBoundingClientRect()
               return { left: rect.left, width: rect.width }
             }
-            const back = document.querySelector('main > header button')!
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const owner = { column: bounds(document.querySelector('[data-shell-column]')!), scroller: bounds(scroller), available: scroller.clientWidth }
+            const back = document.querySelector('[data-shell-header] button')!
             const upgrade = document.querySelector('[data-upgrade-screen]')
             if (upgrade) {
               const body = state === 'free' || state === 'offline'
                 ? upgrade.querySelector('h2')! : state === 'loading' || state === 'load-failed'
                   ? upgrade.firstElementChild! : upgrade.querySelector('section')!
-              return { back: bounds(back), body: bounds(body), box: bounds(upgrade) }
+              return { ...owner, back: bounds(back), body: bounds(body), box: bounds(upgrade) }
             }
             if (state === 'about') {
               const body = document.querySelector('[data-testid="about-identity"]')!
-              return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('[data-testid="about-content"]')!) }
+              return { ...owner, back: bounds(back), body: bounds(body), box: bounds(document.querySelector('[data-testid="about-content"]')!) }
             }
             const body = state === 'support-success'
               ? document.querySelector('h2')! : document.querySelector('form button')!
-            return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
+            return { ...owner, back: bounds(back), body: bounds(body), box: bounds(document.querySelector('[data-shell-scroller] > div')!) }
           }, state)
           expect.soft(Math.abs(geometry.body.left - geometry.back.left - 8)).toBeLessThanOrEqual(0.5)
-          expect.soft(geometry.box.width).toBe(expectedFrameWidth(state, width))
-          if (state === 'support') expect(geometry.body.width).toBe(width < 768 ? width - 32 : 520)
-        } finally { await page.close(); header.unmount(); view.unmount(); client.clear() }
+          expect.soft(geometry.column.width).toBe(Math.min(width, 740))
+          expect.soft(geometry.column.left + geometry.column.width / 2).toBe(width / 2)
+          expect.soft(geometry.box.left).toBe(geometry.scroller.left)
+          expect.soft(geometry.box.width).toBe(geometry.available)
+          if (state === 'support') expect(geometry.body.width).toBe(geometry.available - 32)
+        } finally { await page.close(); view.unmount(); client.clear() }
       })
     }
   }
