@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
 import { toggleSelectedId } from '@orbit/shared/utils'
-import { useHabits } from '@/hooks/use-habits'
+import { useHabits } from '@/hooks/use-habit-queries'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'

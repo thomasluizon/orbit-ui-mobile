@@ -34,7 +34,7 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: mocks.pending }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => mocks.habits }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))

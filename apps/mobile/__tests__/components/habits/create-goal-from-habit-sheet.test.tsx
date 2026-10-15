@@ -8,7 +8,7 @@ import {
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
 const TestRenderer = require('react-test-renderer')
 

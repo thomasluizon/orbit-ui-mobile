@@ -23,7 +23,7 @@ import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))

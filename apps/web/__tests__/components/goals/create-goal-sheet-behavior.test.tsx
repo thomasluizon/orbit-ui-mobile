@@ -19,7 +19,7 @@ vi.mock('next-intl', async (importOriginal) => ({
   useLocale: () => mocks.locale,
 }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: mocks.pending }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: () => mocks.habits }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/date-field', () => ({
   DateField: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => <input aria-label="Deadline" type="date" value={value} onChange={(event) => onChange(event.target.value)} />,
