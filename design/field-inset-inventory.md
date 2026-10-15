@@ -82,6 +82,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/ui/input.tsx` | 32 | `TextInput` | standard | 16 |
 | `apps/mobile/components/ui/otp-input.tsx` | 43 | `TextInput` | otp | centred |
 | `apps/mobile/components/ui/time-field.tsx` | 234 | `TextInput` | time | 16 |
+| `apps/mobile/components/ui/typed-text-input.tsx` | 10 | `TextInput` | foreground adapter | caller-owned |
 | `apps/web/app/(app)/layout.tsx` | 376 | `input` | file | glyphless |
 | `apps/web/app/(app)/layout.tsx` | 383 | `input` | file | glyphless |
 | `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 85 | `input` | standard | 16 |
@@ -128,6 +129,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/ui/otp-input.tsx` | 38 | `input` | otp | centred |
 | `apps/web/components/ui/picker-list.tsx` | 51 | `input` | standard | 16 |
 | `apps/web/components/ui/time-field.tsx` | 141 | `input` | time | 16 |
+| `apps/web/components/ui/typed-textarea.tsx` | 6 | `textarea` | foreground adapter | caller-owned |
 
 ## Typed foreground ownership
 
