@@ -173,7 +173,7 @@ describe('Composer compact geometry in Chromium', () => {
         builder.onResolve({ filter: /^@\\/components\\/ui\\/(menu|sheet)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^(next-intl|next\\/navigation)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
         builder.onResolve({ filter: /^@\\/components\\/(goals\\/goal-detail-drawer|chat\\/message-bubble)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
-        builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 
+        builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
           'export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const useRouter = () => ({}); export const useTranslations = () => key => key;', loader: 'js' }));
       } }];
       const result = await build(options);
