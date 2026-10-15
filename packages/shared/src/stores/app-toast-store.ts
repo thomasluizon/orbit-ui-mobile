@@ -18,6 +18,7 @@ export interface AppToastStore {
   showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => number | undefined
   triggerAction: () => void
   dismissToast: (id?: number) => void
+  dismissAllToasts: () => void
 }
 
 type SetState = (updater: (state: AppToastStore) => Partial<AppToastStore>) => void
@@ -101,5 +102,11 @@ export function createAppToastStoreState(set: SetState, get: GetState): AppToast
       if (get().currentToast?.id === current.id) dismissToast(current.id)
     },
     dismissToast,
+    dismissAllToasts: () => {
+      const { currentToast, queue } = get()
+      set(() => ({ currentToast: null, queue: [] }))
+      currentToast?.onDismiss?.()
+      queue.forEach((item) => item.onDismiss?.())
+    },
   }
 }

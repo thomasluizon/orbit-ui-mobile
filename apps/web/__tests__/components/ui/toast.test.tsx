@@ -5,6 +5,9 @@ import { Toast } from '@/components/ui/toast'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
+vi.mock('next/navigation', () => ({ usePathname: () => '/calendar' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
 function revealMessage() {
   void act(() => vi.advanceTimersByTime(0))
 }
@@ -134,7 +137,7 @@ describe('Toast', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Deleting')
   })
 
-  it('keeps lost feedback mounted and calls its action once per press', () => {
+  it('keeps the lost action available before its timeout', () => {
     const onAction = vi.fn()
     render(
       <Toast
@@ -147,7 +150,7 @@ describe('Toast', () => {
     )
     revealMessage()
 
-    void act(() => vi.advanceTimersByTime(30000))
+    void act(() => vi.advanceTimersByTime(4999))
     expect(screen.getByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))

@@ -1,22 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { useToastDestination, useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native'
-import { Check } from '@/components/ui/icons'
+import { Check, X } from '@/components/ui/icons'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+import { PillButton } from './pill-button'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
-
-const MINIMUM_TOAST_LIFE_MS = 5000
 
 function resolveActionColor(
   kind: ToastProps['kind'],
@@ -37,41 +40,6 @@ function resolveActionOutline(focused: boolean, color: string) {
   } : undefined
 }
 
-function useToastLife(
-  kind: ToastProps['kind'],
-  message: string,
-  doneAfterMs: number | undefined,
-  onDone: (() => void) | undefined,
-  paused: boolean,
-) {
-  const remainingMs = useRef(MINIMUM_TOAST_LIFE_MS)
-  const completed = useRef(false)
-
-  useEffect(() => {
-    remainingMs.current = Math.max(MINIMUM_TOAST_LIFE_MS, doneAfterMs ?? MINIMUM_TOAST_LIFE_MS)
-    completed.current = false
-  }, [doneAfterMs, kind, message, onDone])
-
-  useEffect(() => {
-    if (!onDone || paused || completed.current) return
-
-    const startedAt = Date.now()
-    const timer = setTimeout(() => {
-      if (completed.current) return
-      completed.current = true
-      remainingMs.current = 0
-      onDone()
-    }, remainingMs.current)
-
-    return () => {
-      clearTimeout(timer)
-      if (!completed.current) {
-        remainingMs.current = Math.max(0, remainingMs.current - (Date.now() - startedAt))
-      }
-    }
-  }, [kind, onDone, paused])
-}
-
 function WorkingMark({ color }: Readonly<{ color: string }>) {
   return (
     <View style={styles.workingMark} testID="toast-working-mark" accessibilityElementsHidden>
@@ -82,8 +50,20 @@ function WorkingMark({ color }: Readonly<{ color: string }>) {
   )
 }
 
+function useToastSwipe(hasAction: boolean, dismiss: () => void) {
+  return useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => hasAction
+      && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderRelease: (_event, gesture) => {
+      if (Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
+    },
+  }), [hasAction, dismiss])
+}
+
 /** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
+  const pathname = usePathname()
+  const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -94,22 +74,24 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
   const [focused, setFocused] = useState(false)
   const [actionPressed, setActionPressed] = useState(false)
   const [actionFocused, setActionFocused] = useState(false)
-  const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
-  const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  useToastLife(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, pathname, props.onDismiss)
+  const swipe = useToastSwipe(Boolean(props.actionLabel), dismiss)
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
     return () => clearTimeout(timer)
   }, [props.message])
 
+  if (dismissed) return null
+
   return (
     <Pressable
-      accessible
+      {...swipe.panHandlers}
+      accessible={!props.actionLabel}
       accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
       accessibilityRole={props.kind === 'lost' ? 'alert' : undefined}
       accessibilityLabel={
@@ -173,6 +155,11 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
           </Text>
         </Pressable>
       ) : null}
+      {props.actionLabel ? (
+        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+          <X size={20} color={tokens.fg2} />
+        </PillButton>
+      ) : null}
     </Pressable>
   )
 }
@@ -184,6 +171,11 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
+  const dismissToast = useAppToastStore((state) => state.dismissToast)
+  const dismissAllToasts = useAppToastStore((state) => state.dismissAllToasts)
+  const toastId = currentToast?.id
+  const dismiss = useCallback(() => { if (toastId !== undefined) dismissToast(toastId) }, [dismissToast, toastId])
+  useToastDestination(usePathname(), dismissAllToasts)
   const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
 
   if (placement === 'sheet') {
@@ -197,11 +189,11 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
       ? { ...toast, onAction: triggerAction }
       : toast
 
-  if (placement !== 'overlay') return <Toast {...hostedToast} outlined={placement === 'sheet'} />
+  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
 
   return (
     <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>
-      <Toast {...hostedToast} />
+      <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
     </View>
   )
 }

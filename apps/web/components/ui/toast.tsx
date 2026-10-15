@@ -2,46 +2,13 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-import { Check } from '@/components/ui/icons'
-
-const MINIMUM_TOAST_LIFE_MS = 5000
-
-function useToastLife(
-  kind: ToastProps['kind'],
-  message: string,
-  doneAfterMs: number | undefined,
-  onDone: (() => void) | undefined,
-  paused: boolean,
-) {
-  const remainingMs = useRef(MINIMUM_TOAST_LIFE_MS)
-  const completed = useRef(false)
-
-  useEffect(() => {
-    remainingMs.current = Math.max(MINIMUM_TOAST_LIFE_MS, doneAfterMs ?? MINIMUM_TOAST_LIFE_MS)
-    completed.current = false
-  }, [doneAfterMs, kind, message, onDone])
-
-  useEffect(() => {
-    if (!onDone || paused || completed.current) return
-
-    const startedAt = Date.now()
-    const timer = window.setTimeout(() => {
-      if (completed.current) return
-      completed.current = true
-      remainingMs.current = 0
-      onDone()
-    }, remainingMs.current)
-
-    return () => {
-      window.clearTimeout(timer)
-      if (!completed.current) {
-        remainingMs.current = Math.max(0, remainingMs.current - (Date.now() - startedAt))
-      }
-    }
-  }, [kind, onDone, paused])
-}
+import { Check, X } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 
 export function WorkingMark() {
   return (
@@ -66,14 +33,13 @@ function DoneMark() {
 }
 
 /** Stable live-region feedback. It owns no portal, position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
+  const pathname = usePathname()
+  const t = useTranslations()
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
-  const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
-
-  useToastLife(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, pathname, props.onDismiss)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setAnnouncedMessage(props.message), 0)
@@ -88,6 +54,8 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
   const neutralColors = { background: 'bg-[var(--bg-elev)]', action: 'text-[var(--fg-1)]' }
   const lossColors = { background: 'bg-[var(--bg)]', action: 'text-[var(--primary-soft)]' }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
+
+  if (dismissed) return null
 
   return (
     <div
@@ -131,6 +99,11 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
         >
           {props.actionLabel}
         </button>
+      ) : null}
+      {props.actionLabel ? (
+        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+          <X size={20} aria-hidden="true" />
+        </PillButton>
       ) : null}
     </div>
   )

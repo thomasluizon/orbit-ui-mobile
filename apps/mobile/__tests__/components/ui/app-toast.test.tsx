@@ -7,6 +7,8 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 
+vi.mock('expo-router', () => ({ usePathname: () => '/calendar' }))
+
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 
@@ -234,7 +236,7 @@ describe('mobile Toast', () => {
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps lost feedback mounted and calls its action once per press', () => {
+  it('keeps the lost action available before its timeout', () => {
     const onAction = vi.fn()
     const tree = render(
       <Toast
@@ -246,7 +248,7 @@ describe('mobile Toast', () => {
       />,
     )
     advance(0)
-    advance(30000)
+    advance(4999)
 
     expect(tree.root.findByProps({ testID: 'toast-lost' })).toBeTruthy()
     const action = tree.root.findByProps({ testID: 'toast-action' })
