@@ -270,7 +270,7 @@ describe('pressed hit area shapes', () => {
   })
 
   it('keeps an unimportable calendar row on its elevated fill until pressed', () => {
-    const event = { id: 'e2', title: 'Second Monday review', description: null, startDate: '2026-09-14', startTime: null, endTime: null, startUtc: null, recurrenceTimeZone: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO', reminders: [] }
+    const event = { id: 'e2', title: 'Midnight routine', description: null, endTime: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null, reminders: [] }
     const row = (
       <CalendarSyncEventRow
         event={event}
@@ -289,7 +289,7 @@ describe('pressed hit area shapes', () => {
 
     withTree(row, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
-      expect(control.props).toMatchObject({ accessibilityState: { disabled: true }, accessibilityHint: 'calendar.importIssue.ordinalWeekday' })
+      expect(control.props).toMatchObject({ accessibilityState: { disabled: true }, accessibilityHint: 'calendar.importIssue.utcUntilOffsetShift' })
       expect(pressedFill(control, false)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgElev })
       expect(pressedFill(control, true).backgroundColor).toBe(tokens.bgHover)
     })
