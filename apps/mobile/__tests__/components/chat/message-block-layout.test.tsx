@@ -12,7 +12,6 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
@@ -57,15 +56,15 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
       </React.Fragment>)}
     </View>) as GeometryTree })
     let frameIndex = 0
-    let copyIndex = 0
+    let proseIndex = 0
     const geometry = measureSafeArea(feed.toJSON(), host => {
       if (host.props.testID && /^block-frame-(resting|preview|partiallyFailed|confirm|stale|done|executing)/.test(host.props.testID)) return `block-${frameIndex++}`
-      if (host.props.accessibilityLabel === i18n.t('chat.copy')) return `copy-${copyIndex++}`
+      if (host.props.testID === 'message-prose') return `prose-${proseIndex++}`
     }, { width, height: 30000 })
     expect(frameIndex).toBe(scenario.count)
-    const previousCopy = geometry.get('copy-0')!
-    const currentCopy = prose ? geometry.get('copy-1')! : previousCopy
-    expect(geometry.get('block-0')!.top - currentCopy.bottom).toBeCloseTo(16, 1)
+    const previousProse = geometry.get('prose-0')!
+    const currentProse = prose ? geometry.get('prose-1')! : previousProse
+    expect(geometry.get('block-0')!.top - currentProse.bottom).toBeCloseTo(16, 1)
     for (let index = 0; index < scenario.count; index++) {
       const block = geometry.get(`block-${index}`)!
       expect(block.left).toBeCloseTo(16, 1)
