@@ -111,6 +111,12 @@ export const cases = () => {
   checkWorkflow("accepts a quoted explicit image build argument", workflow([
     "load: true", `build-args: "NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim"`,
   ]), { status: 0 }, imageArguments)
+  checkWorkflow("rejects CSV-quoted image build arguments in a scalar", workflow([
+    "load: true", `build-args: '"NODE_IMAGE=node:22-bookworm-slim"'`,
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*build-args.*CSV quoting/ }, imageArguments)
+  checkWorkflow("rejects CSV-quoted image build arguments in a literal block", workflow([
+    "load: true", "build-args: |", "  WEB_COMMIT_SHA=abc", `  "NODE_IMAGE=node:22-bookworm-slim"`,
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:13:.*build-args.*CSV quoting/ }, imageArguments)
 
   checkSources("rejects implicit official image", "FROM node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:1: FROM node:22-bookworm-slim/ })
   checkSources("rejects implicit organization image", "FROM moby/buildkit:buildx-stable-1\n", { status: 1, stderr: /moby\/buildkit/ })

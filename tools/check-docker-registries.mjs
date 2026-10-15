@@ -12,7 +12,8 @@ const USAGE = `usage: check-docker-registries.mjs [--root <path>]
   literal defaults include explicit registry hosts. Unresolved variables fail.
   Requires the same explicit hosts in docker/build-push-action build-args
   overrides of global ARGs referenced by tracked Dockerfile FROM instructions,
-  and rejects quoted build-args forms whose decoded value it cannot read.
+  and rejects quoted build-args forms and CSV-quoted build-args entries
+  whose decoded value it cannot read.
   Also requires provenance: false on pushing docker/build-push-action steps
   when their steps list sets the docker/setup-buildx-action driver to docker.
   Reads tracked Dockerfiles and .github/workflows YAML as working-tree text,
@@ -140,7 +141,12 @@ const inspectBuildArguments = (filename, step, imageArguments) => {
   }
   const violations = []
   for (const { text, number } of lines) {
-    const argument = text.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
+    const entry = text.trim()
+    if (entry.startsWith('"')) {
+      violations.push(`${filename}:${number}: build-args entry ${entry} uses CSV quoting this guard cannot read; write it unquoted`)
+      continue
+    }
+    const argument = entry.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
     if (argument && imageArguments.has(argument[1]) && !hasExplicitRegistry(argument[2])) {
       violations.push(`${filename}:${number}: build-args ${argument[1]}=${argument[2]} needs an explicit registry host`)
     }
