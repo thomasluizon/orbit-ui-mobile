@@ -326,11 +326,13 @@ describe('mobile goal hooks', () => {
       title: 'Workout',
       targetValue: 4,
       unit: 'sessions',
+      habitIds: ['habit-1'],
     }
 
     mocks.queueOrExecute.mockResolvedValue({ id: 'goal-2' })
 
     const context = await mutation.onMutate?.(request)
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
     const result = await mutation.mutationFn(request)
     mutation.onSuccess?.(result, request, context)
     mutation.onSettled?.(result, null, request, context)
@@ -339,7 +341,10 @@ describe('mobile goal hooks', () => {
       'goal-1',
       'goal-2',
     ])
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
+    expect(mocks.state.lists[0]?.value.at(-1)?.isProgressDerived).toBe(true)
     expect(mocks.invalidateGoalQueries).toHaveBeenCalledTimes(1)
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(mocks.queryClient, { includeHabits: true })
   })
 
   it('restores optimistic goal progress updates when the mutation fails', async () => {

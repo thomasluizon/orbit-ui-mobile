@@ -13,6 +13,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
@@ -405,12 +406,12 @@ function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?:
   return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></div></div>
 }
 
-function GoalsSection({ goals, onOpenGoal, onCreate }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; onOpenGoal: (goalId: string) => void }>) {
+function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void }>) {
   const headingId = useId()
+  const isDesktop = useIsDesktop()
   const t = useTranslations()
   const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
   const reorder = useReorderGoals()
-  const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [filterOpen, setFilterOpen] = useState(false)
   // WHY: Repeated text must move between mounted regions so assistive technology sees a DOM change. https://github.com/thomasluizon/orbit-tickets/issues/480
   const [reorderAnnouncements, setReorderAnnouncements] = useState<readonly [string, string]>(['', ''])
@@ -445,7 +446,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate }: Readonly<{ goals: readonl
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <>
-        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton size="sm" onClick={() => { setFilter('all'); onCreate() }}>{t('goals.create')}</PillButton></ActionRow>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
@@ -592,8 +593,17 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
 }
 
 export function ProgressContent() {
+  const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
-  const openCreateGoal = () => setCreating(true)
+  const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
+  const openCreateGoal = () => { setCreatedGoalId(null); setCreating(true) }
+  const contentRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (creating || !createdGoalId) return
+    const card = Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[data-goal-id]') ?? []).find((element) => element.dataset.goalId === createdGoalId)
+    const destination = card ?? contentRef.current?.querySelector<HTMLElement>('h1')
+    destination?.focus()
+  }, [creating, createdGoalId])
   const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
   const isDesktop = useIsDesktop()
@@ -616,8 +626,8 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <div className="mx-auto flex w-full max-w-[740px] flex-col">
-      {creating ? <CreateGoalSheet open onClose={() => setCreating(false)} /> : null}
+    <div ref={contentRef} className="mx-auto flex w-full max-w-[740px] flex-col">
+      {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col">
         <RootNotificationHeader />
@@ -626,7 +636,7 @@ export function ProgressContent() {
           {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
           {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
-          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
         </div>
       </div>
     </div>

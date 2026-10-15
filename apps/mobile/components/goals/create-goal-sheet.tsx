@@ -1,5 +1,7 @@
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useCallback, useMemo, useRef, useEffect } from 'react'
 import { Text, View, type TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -25,7 +27,8 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { GoalHabitsField } from './goal-habits-field'
+import { ListRow } from '@/components/ui/list-row'
+import { GoalHabitsPicker } from './goal-habits-field'
 import type { CreateGoalRequest, GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, validateGoalForm } from '@orbit/shared/validation'
 import { GoalDeadlineField } from '../habits/create-goal-from-habit/goal-deadline-field'
@@ -41,7 +44,6 @@ interface CreateGoalSheetProps {
 }
 
 
-
 export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated }: Readonly<CreateGoalSheetProps>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
@@ -55,24 +57,25 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
   const { showError } = useAppToast()
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  const [goalType, setGoalType] = useState<GoalType>('Standard')
-  const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState('')
-  const [unit, setUnit] = useState('')
-  const [deadline, setDeadline] = useState('')
-  const [habitIds, setHabitIds] = useState<string[]>(initialHabitIds)
+  const [goalType, setGoalType] = useAccountScopedState<GoalType>('Standard')
+  const [description, setDescription] = useAccountScopedState('')
+  const [targetValue, setTargetValue] = useAccountScopedState('')
+  const [unit, setUnit] = useAccountScopedState('')
+  const [deadline, setDeadline] = useAccountScopedState('')
+  const [habitIds, setHabitIds] = useAccountScopedState<string[]>(initialHabitIds)
+  const [selectingHabits, setSelectingHabits] = useAccountScopedState(false)
   const descriptionRef = useRef<TextInput>(null)
   const targetRef = useRef<TextInput>(null)
   const unitRef = useRef<TextInput>(null)
-  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
+  const [focusRequest, setFocusRequest] = useAccountScopedState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
   useEffect(() => {
     if (focusRequest?.field === 'description') descriptionRef.current?.focus()
     else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
     else if (focusRequest?.field === 'unit') unitRef.current?.focus()
   }, [focusRequest])
   const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
-  const [submitted, setSubmitted] = useState(false)
-  const [formError, setFormError] = useState('')
+  const [submitted, setSubmitted] = useAccountScopedState(false)
+  const [formError, setFormError] = useAccountScopedState('')
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
@@ -84,7 +87,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
     deadline.length > 0 ||
     habitIds.join() !== initialHabitIds.join()
 
-  const resetForm = useCallback(() => {
+  const resetForm = () => {
     setGoalType('Standard')
     setDescription('')
     setTargetValue('')
@@ -94,7 +97,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
     setSubmitted(false)
     setFormError('')
     backendErrors.clearBackendErrors()
-  }, [backendErrors, initialHabitIds])
+  }
 
   const dismissGuard = useDismissGuard({
     isDirty,
@@ -132,19 +135,12 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
 
   const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
 
-  const handleTypeChange = useCallback(
-    (type: GoalType) => {
-      setGoalType(type)
-      if (type === 'Streak') {
-        setUnit(t('goals.form.streakUnit'))
-      } else {
-        setUnit('')
-      }
-    },
-    [t],
-  )
+  const handleTypeChange = (type: GoalType) => {
+    setGoalType(type)
+    setUnit(type === 'Streak' ? t('goals.form.streakUnit') : '')
+  }
 
-  const onSubmit = useCallback(async () => {
+  const onSubmit = async () => {
     setSubmitted(true)
     setFormError('')
     const err = translateErrorKey(
@@ -155,13 +151,14 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
       showError(err)
       const field = getFirstGoalDraftFieldError(getGoalDraftFieldErrorKeys(description, targetValue, unit))
       if (err === translateErrorKey(translate, 'goals.form.titleRequired')) setFocusRequest({ field: 'description' })
-        else if (field) setFocusRequest({ field: field.field })
+      else if (field) setFocusRequest({ field: field.field })
       return
     }
 
     const numVal = parseGoalTargetValue(targetValue)
     if (numVal === null) return
 
+    const accountGeneration = getAccountGeneration()
     try {
       const title = buildGoalTitle(description, targetValue, unit)
       const request: CreateGoalRequest = {
@@ -174,42 +171,30 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
       if (deadline) request.deadline = deadline
 
       const created = await createGoal.mutateAsync(request)
+      if (getAccountGeneration() !== accountGeneration) return
       const finishSave = () => {
+        if (getAccountGeneration() !== accountGeneration) return
         onCreated?.(created.id)
         onClose()
         resetForm()
       }
       closeSheet(finishSave, finishSave)
     } catch (error: unknown) {
+      if (getAccountGeneration() !== accountGeneration) return
       const { field, handled } = backendErrors.reportBackendErrors(error)
       if (field) setFocusRequest({ field })
       if (handled) return
-      setFormError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
+      setFormError(getFriendlyErrorMessage(error, translate, 'goals.form.createError', 'goal'))
     }
-  }, [
-    backendErrors,
-    closeSheet,
-    createGoal,
-    deadline,
-    description,
-    goalType,
-    habitIds,
-    onClose,
-    onCreated,
-    resetForm,
-    showError,
-    targetValue,
-    translate,
-    unit,
-  ])
+  }
 
   return (
     <>
-      {open ? (<Sheet
+      {open && !selectingHabits ? (<Sheet
         ref={sheetRef}
         open
-        onClose={dismissGuard.canDismiss ? onClose : undefined}
-        onAttemptDismiss={dismissGuard.requestDismiss}
+        onClose={!isSubmitting && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={isSubmitting ? undefined : dismissGuard.requestDismiss}
         title={t('goals.create')}
         actions={(
           <ActionRow>
@@ -237,7 +222,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
               placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_TITLE_LENGTH}
               accessibilityLabel={t('goals.form.title')}
-              accessibilityHint={fieldErrors.description}
+              accessibilityHint={fieldErrors.description ?? t('common.required')}
             />
             {fieldErrors.description ? (
               <Text style={styles.fieldError} accessibilityRole="alert">
@@ -272,9 +257,10 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
             onChangeDeadline={setDeadline}
           />
           {formError ? <Text accessibilityRole="alert" style={styles.fieldError}>{formError}</Text> : null}
-          <GoalHabitsField selectedIds={habitIds} onChange={setHabitIds} disabled={isSubmitting} />
+          <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
         </View>
       </Sheet>) : null}
+      {open && selectingHabits ? <GoalHabitsPicker selectedIds={habitIds} onChange={setHabitIds} disabled={isSubmitting} onClose={() => setSelectingHabits(false)} /> : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
         onKeepEditing={dismissGuard.cancelDismiss}

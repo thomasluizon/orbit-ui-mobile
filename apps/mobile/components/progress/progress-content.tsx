@@ -1,3 +1,4 @@
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -127,7 +128,7 @@ function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; b
     <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
       <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
       <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
+      <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
     </View>
   )
 }
@@ -334,10 +335,10 @@ function GoalsEmptyState({ tokens, inSection = false, onCreate }: Readonly<{ tok
   return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></View>
 }
 
-function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onCreate: () => void; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
+function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
   const { t } = useTranslation()
+  const { width } = useWindowDimensions()
   const reorder = useReorderGoals()
-  const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const announceReorderResult = (message: string) => {
     AccessibilityInfo.announceForAccessibility(message)
@@ -375,7 +376,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate }: R
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <>
-        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton size="sm" onClick={() => { setFilter('all'); onCreate() }}>{t('goals.create')}</PillButton></ActionRow>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
@@ -543,8 +544,10 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
 }
 
 export function ProgressContent() {
-  const [creating, setCreating] = useState(false)
-  const openCreateGoal = () => setCreating(true)
+  const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
+  const [creating, setCreating] = useAccountScopedState(false)
+  const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
+  const openCreateGoal = () => { setCreatedGoalId(null); setCreating(true) }
   const scrollRef = useRef<GestureScrollView>(null)
   const detailScrollRef = useRef<ScrollView>(null)
   const clearance = useShellScrollerClearance()
@@ -594,9 +597,14 @@ export function ProgressContent() {
       openingGoalIdRef.current = null
     }
   }, [detailGoalId])
+  useEffect(() => {
+    if (creating || !createdGoalId) return
+    const destination = goalCardRefs.current.get(createdGoalId) ?? pageHeadingRef.current
+    if (destination) AccessibilityInfo.sendAccessibilityEvent(destination, 'focus')
+  }, [creating, createdGoalId])
   return (
     <>
-      {creating ? <CreateGoalSheet open onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <ScrollView ref={detailScrollRef} style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer ref={scrollRef} style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
       <RootNotificationHeader />
@@ -605,7 +613,7 @@ export function ProgressContent() {
         {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
         {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
         {empty ? <View style={styles.empty}><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></View> : null}
-        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
       </View>
     </NestableScrollContainer>
     </>

@@ -105,7 +105,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
           )}
         </Sheet>
       ) : null}
-      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

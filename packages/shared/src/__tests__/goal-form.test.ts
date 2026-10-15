@@ -1,3 +1,4 @@
+import { createGoalRequestSchema } from '../types/goal'
 import { describe, expect, it } from 'vitest'
 import {
   MAX_GOAL_TITLE_LENGTH,
@@ -112,5 +113,15 @@ describe('goal form validation', () => {
     expect(validateGoalProgressInput(' 12.5 ')).toBeNull()
     expect(validateGoalProgressInput(3)).toBeNull()
     expect(validateGoalProgressInput(null)).toBe('goals.form.progressValueInvalid')
+  })
+})
+
+
+describe('create goal contract', () => {
+  it('preserves optional linked habit IDs and accepts clients without them', () => {
+    const request = { title: 'Read every day', targetValue: 12, unit: 'books' }
+    expect(createGoalRequestSchema.parse(request)).toEqual(request)
+    expect(createGoalRequestSchema.parse({ ...request, habitIds: ['habit-reading'] }).habitIds).toEqual(['habit-reading'])
+    expect(createGoalRequestSchema.safeParse({ ...request, habitIds: 'habit-reading' }).success).toBe(false)
   })
 })

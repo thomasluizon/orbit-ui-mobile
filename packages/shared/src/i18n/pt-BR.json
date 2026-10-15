@@ -2890,6 +2890,7 @@
     "dragItem": "item arrastável",
     "reorderHint": "Segure para reordenar",
     "form": {
+      "createError": "Não foi possível criar a meta. Tente de novo.",
       "title": "Título",
       "searchHabits": "Buscar hábitos",
       "description": "Descrição",

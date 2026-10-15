@@ -4,14 +4,27 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { HabitDetailFields, HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 
 const preferences = vi.hoisted(() => ({ weekStartDay: 1 }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: preferences.weekStartDay } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
+vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
+vi.mock('@/components/habits/habit-detail-tags', () => ({ HabitDetailTags: () => null }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: ({ habitId }: { habitId: string }) => <output aria-label="Goal habit context">{habitId}</output> }))
 
 beforeEach(() => { preferences.weekStartDay = 1 })
+
+it('passes the owning habit to goal creation from habit detail', () => {
+  const habit = makeHabitDetailScopedChild('2026-09-29')
+  render(<NextIntlClientProvider locale="en" messages={en}><HabitDetailFields habit={habit} hasProAccess relationshipControlsAvailable onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></NextIntlClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(en.habits.detail.linkedGoals) }))
+  expect(screen.getByLabelText('Goal habit context')).toHaveTextContent(habit.id)
+})
 
 describe.each(['en', 'pt-BR'])('HabitDetailSchedule weekday preference in %s', (locale) => {
   it.each([0, 1].flatMap((weekStartDay) => [false, true].flatMap((open) => [[], ['Monday']].map((days) => ({ weekStartDay, open, days })))))('orders and saves weekdays with week start $weekStartDay, editor $open and selected $days', ({ weekStartDay, open, days }) => {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 import { FlatList, StyleSheet } from 'react-native'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -36,10 +37,10 @@ vi.mock('@/lib/theme', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => new Proxy({}, { get: () => '#000000' }),
 }))
-function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }) {
+function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }, label = 'habits.form.createGoal') {
   return root.findAll((node) =>
     node.props.accessibilityRole === 'button' &&
-    node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.createGoal').length > 0,
+    node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
   )[0]!
 }
 
@@ -74,6 +75,21 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
     expect(tree.root.findAllByType('Sheet')).toHaveLength(1)
   })
+})
+
+it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s without overriding saved associations', async (habitId) => {
+  queryGoals = [createMockGoal({ id: 'existing-goal', title: 'Existing goal' })]
+  const onToggleGoal = vi.fn()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />) })
+  await TestRenderer.act(() => tree.root.findByType('ListRow').props.onClick())
+  await TestRenderer.act(() => createGoalButton(tree.root, 'goals.create').props.onPress())
+  const creator = tree.root.findByType('CreateGoalSheet')
+  expect(creator.props.initialHabitIds).toEqual(habitId ? [habitId] : [])
+  await TestRenderer.act(() => { creator.props.onCreated?.('created-goal'); creator.props.onClose() })
+  if (habitId) expect(onToggleGoal).not.toHaveBeenCalled()
+  else expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  await TestRenderer.act(() => tree.unmount())
 })
 
 it('selects a goal below the first viewport while the search keyboard is open', async () => {

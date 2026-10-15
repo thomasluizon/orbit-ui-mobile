@@ -26,7 +26,8 @@ import {
   isStreakGoal,
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
-import { GoalHabitsField } from './goal-habits-field'
+import { ListRow } from '@/components/ui/list-row'
+import { GoalHabitsPicker } from './goal-habits-field'
 import type { CreateGoalRequest, GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, validateGoalForm } from '@orbit/shared/validation'
 import { FieldWell } from '@/components/goals/field-well'
@@ -40,7 +41,6 @@ interface CreateGoalSheetProps {
   initialHabitIds?: string[]
   onCreated?: (goalId: string) => void
 }
-
 
 
 type GoalModalTranslateValues = Record<string, string | number | Date>
@@ -116,6 +116,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
   const [unit, setUnit] = useAccountScopedState('')
   const [deadline, setDeadline] = useAccountScopedState('')
   const [habitIds, setHabitIds] = useAccountScopedState<string[]>(initialHabitIds)
+  const [selectingHabits, setSelectingHabits] = useAccountScopedState(false)
   const descriptionRef = useRef<HTMLInputElement>(null)
   const targetRef = useRef<HTMLInputElement>(null)
   const unitRef = useRef<HTMLInputElement>(null)
@@ -236,7 +237,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
         const { field, handled } = backendErrors.reportBackendErrors(error)
         if (field) setFocusRequest({ field })
         if (handled) return
-        setFormError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
+        setFormError(getFriendlyErrorMessage(error, translate, 'goals.form.createError', 'goal'))
       }
     },
     [backendErrors, setFocusRequest, closeSheet, createGoal, deadline, habitIds, description, goalType, onClose, onCreated, resetForm, setFormError, setSubmitted, showError, targetValue, translate, unit],
@@ -244,11 +245,11 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
 
   return (
     <>
-      {open ? (<Sheet
+      {open && !selectingHabits ? (<Sheet
         ref={sheetRef}
         open
-        onClose={dismissGuard.canDismiss ? onClose : undefined}
-        onAttemptDismiss={dismissGuard.requestDismiss}
+        onClose={!isSubmitting && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={isSubmitting ? undefined : dismissGuard.requestDismiss}
         title={t('goals.create')}
         actions={(
           <ActionRow>
@@ -262,7 +263,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
         )}
       >
         <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
-          <div style={{ padding: '4px 0 0' }}>
+          <div>
             <FieldWell
               inputRef={descriptionRef}
               label={t('goals.form.title')}
@@ -281,7 +282,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
             />
           </div>
 
-          <div style={{ padding: '12px 0 0' }}>
+          <div style={{ padding: '16px 0 0' }}>
             <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
           </div>
 
@@ -297,10 +298,11 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
           />
 
           <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
-          <GoalHabitsField selectedIds={habitIds} onChange={setHabitIds} disabled={isSubmitting} />
+          <ListRow title={t('goals.linkedHabits')} value={t('habits.form.selectedCount', { count: habitIds.length })} placement="column" disabled={isSubmitting} onClick={() => closeSheet(() => setSelectingHabits(true))} />
           {formError ? <p role="alert" className="pt-3 text-sm text-[var(--status-bad-text)]">{formError}</p> : null}
         </form>
       </Sheet>) : null}
+      {open && selectingHabits ? <GoalHabitsPicker selectedIds={habitIds} onChange={setHabitIds} disabled={isSubmitting} onClose={() => setSelectingHabits(false)} /> : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
         onKeepEditing={dismissGuard.cancelDismiss}

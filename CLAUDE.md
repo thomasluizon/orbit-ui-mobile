@@ -62,6 +62,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
+| `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, deletion confirmation, revision, terminal outcomes and responsive parity. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |

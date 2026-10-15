@@ -35,7 +35,7 @@ export function GoalDeadlineField({
             </div>
             <button
               type="button"
-              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
               style={{
                 width: TOUCH_TARGET_MIN,
                 height: TOUCH_TARGET_MIN,
@@ -44,7 +44,7 @@ export function GoalDeadlineField({
               aria-label={t('goals.form.removeDeadline')}
               onClick={() => onChangeDeadline('')}
             >
-              <X size={16} strokeWidth={1.8} />
+              <X size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           </div>
         ) : (
@@ -61,7 +61,7 @@ export function GoalDeadlineField({
             }}
             onClick={() => onChangeDeadline(formatAPIDate(new Date()))}
           >
-            <Plus size={16} strokeWidth={1.8} />
+            <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
             {t('goals.form.addDeadline')}
           </button>
         )}

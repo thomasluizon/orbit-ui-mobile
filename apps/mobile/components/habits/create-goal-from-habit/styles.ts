@@ -8,7 +8,6 @@ export type CreateGoalStyles = ReturnType<typeof createStyles>
 export function createStyles(tokens: CreateGoalTokens) {
   return StyleSheet.create({
     form: {
-      paddingTop: 8,
       gap: 16,
     },
     row: {
@@ -34,7 +33,7 @@ export function createStyles(tokens: CreateGoalTokens) {
     fieldError: {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdueText,
+      color: tokens.statusBadText,
       marginTop: 8,
     },
     typeCaption: {

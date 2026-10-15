@@ -1,5 +1,6 @@
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
@@ -51,8 +52,8 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const [open, setOpen] = useAccountScopedState(false)
+  const [creating, setCreating] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const { data: goals } = useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
   const activeGoals = useMemo(() => goals?.filter((goal) => goal.status === 'Active') ?? [], [goals])
@@ -71,7 +72,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
       {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
         {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
       </Sheet> : null}
-      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
+      {creating ? <CreateGoalSheet open initialHabitIds={habitId ? [habitId] : []} onCreated={habitId || atGoalLimit ? undefined : onToggleGoal} onClose={() => setCreating(false)} /> : null}
     </>
   )
 }

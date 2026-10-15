@@ -132,9 +132,9 @@ export function useCreateGoal() {
       )
     },
 
-    onSettled: (data) => {
+    onSettled: async (data) => {
       if (isQueuedResult(data)) return
-      void invalidateGoalQueries(queryClient)
+      await invalidateGoalQueries(queryClient, { includeHabits: true })
     },
   })
 }

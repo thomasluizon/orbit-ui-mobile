@@ -14,11 +14,13 @@ interface PickerListProps<Item> {
   getKey: (item: Item) => string
   renderRow: (item: Item) => ReactNode
   searchLabel: string
+  inset?: boolean
+  emptySearch?: ReactNode
   empty?: ReactNode
   children?: ReactNode
 }
 
-export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabel, empty, children }: Readonly<PickerListProps<Item>>) {
+export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabel, inset = true, empty, emptySearch, children }: Readonly<PickerListProps<Item>>) {
   const t = useTranslations()
   const [query, setQuery] = useState('')
   const [scrollTop, setScrollTop] = useState(0)
@@ -46,11 +48,12 @@ export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabe
   const end = Math.min(filtered.length, start + visible.length)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
+    <div className={`flex min-h-0 flex-1 flex-col gap-1${inset ? ' p-2' : ''}`}>
       {items.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: items.length })}</p> : null}
-      {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={searchLabel} placeholder={searchLabel} /> : null}
+      {virtualized ? <input name="picker-search" autoComplete="off" value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={searchLabel} placeholder={searchLabel} /> : null}
       {items.length === 0 ? empty : null}
       <div ref={scrollRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+        {items.length > 0 && filtered.length === 0 ? emptySearch : null}
         {start > 0 ? <div aria-hidden="true" style={{ height: start * rowHeight }} /> : null}
         {visible.map((item) => <Fragment key={getKey(item)}>{renderRow(item)}</Fragment>)}
         {end < filtered.length ? <div aria-hidden="true" style={{ height: (filtered.length - end) * rowHeight }} /> : null}

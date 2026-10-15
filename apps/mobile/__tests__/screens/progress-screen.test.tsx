@@ -859,6 +859,7 @@ describe('mobile ProgressContent', () => {
       return Promise.resolve({ id: 'goal-created' })
     })
     const tree = await renderProgress()
+    if (entry === 'populated') await selectGoalFilter(tree, 'completed')
     await TestRenderer.act(() => { (findPill(tree.root, entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction').props.onPress as () => void)() })
     for (const [label, value] of [['goals.form.title', 'Walk 100 km'], ['goals.form.targetValue', '100'], ['goals.form.unit', 'km']]) {
       await TestRenderer.act(() => {
@@ -871,6 +872,16 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created').length).toBeGreaterThan(0)
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it('keeps the Metas filter when goal creation is cancelled', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const tree = await renderProgress()
+    await selectGoalFilter(tree, 'completed')
+    await TestRenderer.act(() => { (findPill(tree.root, 'goals.create').props.onPress as () => void)() })
+    await TestRenderer.act(() => { (findPill(tree.root, 'common.cancel').props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
+    expect(findPill(tree.root, 'progressScreen.goals.completed')).toBeDefined()
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {

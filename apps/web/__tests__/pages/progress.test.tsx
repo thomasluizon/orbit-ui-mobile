@@ -943,6 +943,7 @@ describe('ProgressContent', () => {
       return { id: 'goal-created' }
     })
     render(<ProgressPage />)
+    if (entry === 'populated') await selectGoalFilter('completed')
     fireEvent.click(screen.getByRole('button', { name: entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction' }))
     fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Walk 100 km' } })
     fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '100' } })
@@ -950,7 +951,18 @@ describe('ProgressContent', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'goals.create' })).getByRole('button', { name: 'goals.create' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
     expect(getGoalCard('Walk 100 km')).toBeInTheDocument()
+    expect(getGoalCard('Walk 100 km')).toHaveFocus()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it('keeps the Metas filter when goal creation is cancelled', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<ProgressPage />)
+    await selectGoalFilter('completed')
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.filter: progressScreen.goals.completed' })).toBeInTheDocument()
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {

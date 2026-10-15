@@ -2890,6 +2890,7 @@
     "dragItem": "draggable item",
     "reorderHint": "Hold to reorder",
     "form": {
+      "createError": "Could not create the goal. Try again.",
       "title": "Title",
       "searchHabits": "Search habits",
       "description": "Description",

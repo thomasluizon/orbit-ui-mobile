@@ -195,7 +195,7 @@ describe('CreateGoalSheet', () => {
     fillStandardGoal()
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('goals.errors.create'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('goals.form.createError'))
     expect(screen.getByLabelText('goals.form.title')).toHaveValue('Read more books')
   })
 
