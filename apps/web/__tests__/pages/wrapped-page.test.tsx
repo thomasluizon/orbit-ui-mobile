@@ -215,7 +215,7 @@ describe('WrappedPage', () => {
     render(<WrappedPage />)
     await act(async () => {})
     const main = screen.getByRole('main')
-    expect(main).toHaveClass('max-w-[900px]')
+    expect(main).toHaveClass('max-w-[740px]')
     expect(main).toContainElement(screen.getByRole('button', { name: 'common.backToProfile' }))
   })
 
