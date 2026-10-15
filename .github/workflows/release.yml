@@ -23,11 +23,6 @@ on:
         required: true
         default: main
         type: string
-      refresh_base_only:
-        description: Refresh the Node base image without building or deploying web
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -42,15 +37,7 @@ env:
   IMAGE: ghcr.io/thomasluizon/orbit-web
 
 jobs:
-  refresh-base:
-    if: inputs.refresh_base_only
-    uses: ./.github/workflows/refresh-node-base.yml
-    permissions:
-      contents: read
-      packages: write
-
   build:
-    if: ${{ !inputs.refresh_base_only }}
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
