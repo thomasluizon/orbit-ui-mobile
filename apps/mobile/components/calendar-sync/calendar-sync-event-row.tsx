@@ -118,7 +118,7 @@ export function CalendarSyncEventRow({
         accessibilityHint={importIssueLabel ?? undefined}
         style={[styles.eventRow, { flex: 1 }]}
       >
-        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12, backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
+        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
         <View style={styles.eventBody}>
           <PersonalText
             style={[styles.eventTitle, { color: issueVisuals.titleColor }]}

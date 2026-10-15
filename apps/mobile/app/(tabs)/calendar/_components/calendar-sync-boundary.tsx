@@ -69,5 +69,5 @@ const styles = StyleSheet.create({
   summary: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 4, paddingVertical: 12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   date: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
-  refresh: { minHeight: 48, minWidth: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  refresh: { minHeight: 48, minWidth: 48, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })

@@ -89,6 +89,10 @@ function discFill(node: StyledNode) {
   return StyleSheet.flatten(node.findAllByProps({ testID: 'day-disc' })[0]!.props.style as StyleProp<ViewStyle>).backgroundColor
 }
 
+function calendarEventFill(tree: TestTree) {
+  return StyleSheet.flatten(tree.root.findAllByProps({ testID: 'calendar-event-fill' })[0]!.props.style as StyleProp<ViewStyle>)
+}
+
 function numeralColor(node: StyledNode) {
   return StyleSheet.flatten(node.findAllByType(Text)[0]!.props.style as StyleProp<TextStyle>).color
 }
@@ -244,8 +248,11 @@ describe('pressed hit area shapes', () => {
 
     withTree(row, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
-      expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
-      expect(pressedFill(control, false).backgroundColor).toBe('transparent')
+      expect(control.props.hitSlop).toMatchObject({ left: 16, right: 16 })
+      renderer.act(() => control.props.onPressIn?.())
+      expect(calendarEventFill(tree)).toMatchObject({ borderRadius: 12, overflow: 'hidden', left: -16, right: -16, backgroundColor: tokens.bgHover })
+      renderer.act(() => control.props.onPressOut?.())
+      expect(calendarEventFill(tree).backgroundColor).toBe('transparent')
     })
   })
 
@@ -269,7 +276,7 @@ describe('pressed hit area shapes', () => {
     })
   })
 
-  it('keeps an unimportable calendar row on its elevated fill until pressed', () => {
+  it('keeps a disabled calendar row on its elevated fill', () => {
     const event = { id: 'e2', title: 'Second Monday review', description: null, startDate: '2026-09-14', startTime: null, endTime: null, startUtc: null, recurrenceTimeZone: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO', reminders: [] }
     const row = (
       <CalendarSyncEventRow
@@ -290,8 +297,9 @@ describe('pressed hit area shapes', () => {
     withTree(row, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(control.props).toMatchObject({ accessibilityState: { disabled: true }, accessibilityHint: 'calendar.importIssue.ordinalWeekday' })
-      expect(pressedFill(control, false)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgElev })
-      expect(pressedFill(control, true).backgroundColor).toBe(tokens.bgHover)
+      expect(calendarEventFill(tree)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgElev })
+      renderer.act(() => control.props.onPressIn?.())
+      expect(calendarEventFill(tree).backgroundColor).toBe(tokens.bgElev)
     })
   })
 })
