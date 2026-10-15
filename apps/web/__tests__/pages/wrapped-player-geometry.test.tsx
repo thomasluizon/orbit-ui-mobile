@@ -210,6 +210,8 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },
     { width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 },
     { width: 844, height: 390, top: 0, bottom: 0, left: 0, right: 0 },
+    { width: 1200, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
+    { width: 1600, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
   ])('restores the cover inset after closing the player at $width', async ({ width, height, ...insets }) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
@@ -222,7 +224,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const back = (await page.getByRole('button', { name: en.common.backToProfile }).boundingBox())!
       expect(back.y).toBe(insets.top + 4)
-      expect(back.x).toBe(insets.left + 16)
+      expect(back.x).toBe((width - Math.min(width, 740)) / 2 + insets.left + 16)
       expect(back.x + back.width).toBeLessThanOrEqual(width - insets.right)
       expect(container.querySelector('[role="dialog"]')).toBeNull()
     } finally { await page.close() }
