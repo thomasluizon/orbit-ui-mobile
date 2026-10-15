@@ -204,6 +204,19 @@ function rootAttributes(relativePath: string) {
   return attributes ?? {}
 }
 
+describe('Android widget content sizing', () => {
+  it('lets the visible card hug the rows instead of filling the launcher slot', () => {
+    const root = rootAttributes('layout/widget_layout.xml')
+    expect(root['android:layout_height']).toBe('wrap_content')
+    expect(layoutViews().get('widget_root')?.['android:layout_height']).toBe('wrap_content')
+  })
+
+  it('keeps the due time on the narrow widget', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    expect(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('if (!showTime)')
+  })
+})
+
 describe('Android widget header', () => {
   it('ships the complete header copy in English and Brazilian Portuguese', () => {
     const english = resourceStrings('values/widget_strings.xml')
@@ -372,7 +385,7 @@ describe('Android widget header', () => {
       ).toBe(breakpointDp + 1)
     }
     expect(provider).toMatch(
-      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)\s*\}/,
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*bgHeight \/ context\.resources\.displayMetrics\.density,\s*true\s*\)\s*\}/,
     )
     expect(provider).toMatch(
       /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
@@ -519,7 +532,7 @@ describe('Android widget header', () => {
     )
   })
 
-  it('renders an accessible remainder item and hides only time on the narrow variant', () => {
+  it('renders an accessible remainder item and retains time on every variant', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const remainder = layoutViews('layout/widget_remainder.xml')
 
@@ -547,7 +560,7 @@ describe('Android widget header', () => {
     expect.soft(service).toMatch(
       /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
     )
-    expect.soft(service).toMatch(/if \(!showTime\) \{[\s\S]*?R\.id\.item_time[\s\S]*?R\.id\.item_time_overdue/)
+    expect.soft(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('if (!showTime)')
     expect.soft(service).toContain('override fun getViewTypeCount(): Int = 2')
   })
 

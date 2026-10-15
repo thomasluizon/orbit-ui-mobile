@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content"
+    android:layout_gravity="top"
+    android:background="@drawable/widget_bg_fallback"
+    android:clipToOutline="true">
 
     <!-- Dynamic background (rendered programmatically with theme colors).
          Static fallback drawable guarantees a visible surface if the bitmap is
@@ -17,7 +20,7 @@
     <LinearLayout
         android:id="@+id/widget_root"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <!-- Header: a fixed two-line day summary with the streak on the right. -->
@@ -136,13 +139,14 @@
         <FrameLayout
             android:id="@+id/widget_content"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content"
+            android:minHeight="48dp">
 
             <!-- Habit list -->
             <ListView
                 android:id="@+id/widget_list"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:divider="@null"
                 android:dividerHeight="0dp"
                 android:scrollbars="vertical"

@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -182,7 +183,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     bgHeight,
                     signedOut,
                     View.VISIBLE,
-                    FOUR_BY_TWO_HEIGHT_DP,
+                    bgHeight / context.resources.displayMetrics.density,
                     true
                 )
             }
@@ -262,17 +263,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
-            // Widget background: flat surface with a hairline border (lift, not gradient).
-            val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
-                bgWidth, bgHeight, colorModes.light.background,
-                24f * density, 1f * density, colorModes.light.border
-            )
-            val darkBackground = OrbitWidgetFactory.createRoundedBitmap(
-                bgWidth, bgHeight, colorModes.dark.background,
-                24f * density, 1f * density, colorModes.dark.border
-            )
-            views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
-
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             val lang = cachedLanguage(context)
@@ -291,6 +281,28 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val syncedOnce = ownsRows && prefs.getLong("habits_updated_at", 0L) > 0L
             val refreshing = prefs.getBoolean(CACHE_REFRESHING, false)
             val showSkeleton = !signedOut && (!ownsRows || prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce))
+
+            val rowCount = if (showSkeleton) 5 else if (ownsRows) prefs.getInt("row_count", 0) else 0
+            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount)
+            views.setInt(
+                R.id.widget_content, "setMinimumHeight", (geometry.contentHeightDp * density).toInt()
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                views.setViewLayoutHeight(
+                    R.id.widget_content, geometry.contentHeightDp, TypedValue.COMPLEX_UNIT_DIP
+                )
+            }
+
+            // Widget background: flat surface with a hairline border (lift, not gradient).
+            val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
+                bgWidth, ((HEADER_HEIGHT_DP + geometry.contentHeightDp) * density).toInt(), colorModes.light.background,
+                24f * density, 1f * density, colorModes.light.border
+            )
+            val darkBackground = OrbitWidgetFactory.createRoundedBitmap(
+                bgWidth, ((HEADER_HEIGHT_DP + geometry.contentHeightDp) * density).toInt(), colorModes.dark.background,
+                24f * density, 1f * density, colorModes.dark.border
+            )
+            views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
 
             // Apply dynamic text colors
             // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
