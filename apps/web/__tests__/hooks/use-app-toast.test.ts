@@ -5,6 +5,8 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
 function renderNotice() {
   return render(createElement('div', { 'data-shell-notice': '' }, createElement(AppToastHost)))
 }
@@ -40,13 +42,13 @@ describe('useAppToast', () => {
     expect(shell.container.querySelector('[data-kind="done"]')).toBeNull()
   })
 
-  it('keeps queued feedback until its text action runs', () => {
+  it('runs the queued action before its timeout', () => {
     vi.useFakeTimers()
     const onAction = vi.fn()
     const { result } = renderHook(() => useAppToast())
     const shell = renderNotice()
     act(() => { result.current.showQueued('Deleted', 'Desfazer', onAction) })
-    act(() => { vi.advanceTimersByTime(10000) })
+    act(() => { vi.advanceTimersByTime(4999) })
     expect(shell.container.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'Desfazer' })) })
     expect(onAction).toHaveBeenCalledOnce()
@@ -70,8 +72,9 @@ describe('useAppToast', () => {
     const { result } = renderHook(() => useAppToast())
     renderNotice()
     act(() => { result.current.showPersistentError('Account changed', 'Reload') })
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.close' })).toBeInTheDocument()
   })
 
   it('returns stable store actions', () => {
