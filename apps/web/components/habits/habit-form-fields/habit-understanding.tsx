@@ -1,5 +1,6 @@
 'use client'
 
+import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { useMemo, type Ref } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
@@ -45,7 +46,7 @@ export function HabitUnderstanding({
         <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
           <p
             aria-hidden="true"
-            className="min-h-[92px] w-full whitespace-pre-wrap break-words p-4 text-start text-base leading-[1.45] text-[var(--fg-1)]"
+            className="pointer-events-none min-h-[92px] w-full whitespace-pre-wrap break-words p-4 text-start text-base leading-[1.45] text-transparent"
           >
             {hasValue ? segments.map((segment, index) => segment.consumed ? (
               <span
@@ -55,18 +56,19 @@ export function HabitUnderstanding({
               >
                 {segment.text}
               </span>
-            ) : segment.text) : <span className="text-[var(--fg-3)]">{labels.placeholder}</span>}
+            ) : segment.text) : labels.placeholder}
           </p>
-          <textarea
+          <TypedTextarea
             ref={inputRef}
             id="habit-phrase"
             value={value}
             rows={3}
             maxLength={200}
             spellCheck={false}
+            placeholder={labels.placeholder}
             aria-invalid={!!error}
             aria-describedby={error ? 'habit-phrase-error' : undefined}
-            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-transparent caret-[var(--fg-1)] focus-visible:outline-none"
+            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>

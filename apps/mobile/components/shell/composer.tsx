@@ -1,3 +1,4 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
   hasComposerContent,
@@ -9,7 +10,7 @@ import {
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
+import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, View, useWindowDimensions } from 'react-native'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
@@ -256,7 +257,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   return (
 <View testID="composer-text-slot" style={styles.textSlot}>
-        <TextInput
+        <TypedTextInput
           ref={inputRef}
           accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}

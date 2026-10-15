@@ -1,5 +1,6 @@
 'use client'
 
+import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useContext, useEffect, useId, useRef, useState, type ClipboardEventHandler } from 'react'
@@ -249,7 +250,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         </button>
       ) : null}
 
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <textarea
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <TypedTextarea
           ref={inputRef}
           id={props.inputId}
           rows={1}

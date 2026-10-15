@@ -1,7 +1,8 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type Ref } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, type TextInput, View } from 'react-native'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -58,14 +59,14 @@ export function HabitUnderstanding({
           borderColor: focused ? tokens.primary : tokens.borderControl,
           borderWidth: focused ? 2 : 1,
         }]}>
-          <Text aria-hidden style={styles.inputMirror}>
+          <Text aria-hidden pointerEvents="none" style={styles.inputMirror}>
             {hasValue ? segments.map((segment, index) => (
               <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
                 {segment.text}
               </Text>
-            )) : <Text style={styles.placeholder}>{labels.placeholder}</Text>}
+            )) : labels.placeholder}
           </Text>
-          <TextInput
+          <TypedTextInput
             ref={inputRef}
             value={value}
             multiline
@@ -74,6 +75,8 @@ export function HabitUnderstanding({
             accessibilityLabel={labels.field}
             accessibilityHint={error}
             accessibilityState={{ disabled: false }}
+            placeholder={labels.placeholder}
+            placeholderTextColor={tokens.fg3}
             selectionColor={tokens.primary}
             style={styles.input}
             onChangeText={onValueChange}
@@ -130,7 +133,7 @@ function createStyles(tokens: AppTokens) {
     },
     inputMirror: {
       minHeight: 90,
-      color: tokens.fg1,
+      color: 'transparent',
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
@@ -143,7 +146,6 @@ function createStyles(tokens: AppTokens) {
       bottom: 0,
       left: 0,
       minHeight: 90,
-      color: 'transparent',
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
@@ -155,7 +157,6 @@ function createStyles(tokens: AppTokens) {
       textDecorationLine: 'underline',
       textDecorationColor: tokens.hairlineStrong,
     },
-    placeholder: { color: tokens.fg3 },
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
       gap: 16,
