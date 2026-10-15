@@ -37,8 +37,8 @@ const workflow = (inputs, driver = "docker") => `jobs:
 ${inputs.map((input) => `          ${input}`).join("\n")}
 `
 
-const checkWorkflow = (label, contents, expectation) => {
-  const repository = stageRepository(label, { ".github/workflows/release.yml": contents })
+const checkWorkflow = (label, contents, expectation, files = {}) => {
+  const repository = stageRepository(label, { ...files, ".github/workflows/release.yml": contents })
   check("check-docker-registries.mjs", label, ["--root", repository], expectation, { cwd: root })
 }
 
@@ -67,6 +67,51 @@ export const cases = () => {
           driver: docker-container
 `, { status: 1 })
 
+  const imageArguments = {
+    Dockerfile: "ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nARG WEB_COMMIT_SHA\nFROM ${NODE_IMAGE} AS builder\nARG STAGE_IMAGE\nFROM $NODE_IMAGE AS runner\n",
+    "nested/Dockerfile.worker": "ARG WORKER_IMAGE=ghcr.io/example/worker:latest\nFROM $WORKER_IMAGE\n",
+  }
+  checkWorkflow("accepts explicit image build arguments", workflow([
+    "load: true", "build-args: NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim",
+  ]), { status: 0 }, imageArguments)
+  checkWorkflow("rejects implicit image build arguments", workflow([
+    "load: true", "build-args: NODE_IMAGE=node:22-bookworm-slim",
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*NODE_IMAGE.*explicit registry host/ }, imageArguments)
+  checkWorkflow("ignores build arguments not used as global FROM images", workflow([
+    "load: true", "build-args: |", "  WEB_COMMIT_SHA=abc", "  STAGE_IMAGE=node:22-bookworm-slim",
+  ]), { status: 0 }, imageArguments)
+  checkWorkflow("accepts multiline image build arguments across tracked Dockerfiles", workflow([
+    "push: true", "build-args: |", "  WEB_COMMIT_SHA=abc", "  NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim", "  WORKER_IMAGE=localhost:5000/worker:latest",
+  ], "docker-container"), { status: 0 }, imageArguments)
+  checkWorkflow("rejects implicit image in the middle of a multiline build argument block", `jobs:
+  build:
+    steps:
+      - uses: docker/build-push-action@v7
+        with:
+          load: true
+          build-args: |
+            WEB_COMMIT_SHA=abc
+
+            # Keep the image between other arguments.
+            WORKER_IMAGE=node:22-bookworm-slim
+            NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
+`, { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*WORKER_IMAGE.*explicit registry host/ }, imageArguments)
+  checkWorkflow("rejects implicit image in a block with an indentation indicator", workflow([
+    "load: true", "build-args: |2", "  NODE_IMAGE=node:22-bookworm-slim",
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:12:.*NODE_IMAGE.*explicit registry host/ }, imageArguments)
+  checkWorkflow("accepts explicit image in a block with indentation and chomping indicators", workflow([
+    "load: true", "build-args: |-2", "  NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim",
+  ]), { status: 0 }, imageArguments)
+  checkWorkflow("rejects escaped double-quoted build arguments", workflow([
+    "load: true", String.raw`build-args: "WEB_COMMIT_SHA=abc\nNODE_IMAGE=node:22-bookworm-slim"`,
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*build-args.*cannot read/ }, imageArguments)
+  checkWorkflow("rejects quoted build arguments that continue past their line", workflow([
+    "load: true", "build-args: 'WEB_COMMIT_SHA=abc", "", "  NODE_IMAGE=node:22-bookworm-slim'",
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*build-args.*cannot read/ }, imageArguments)
+  checkWorkflow("accepts a quoted explicit image build argument", workflow([
+    "load: true", `build-args: "NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim"`,
+  ]), { status: 0 }, imageArguments)
+
   checkSources("rejects implicit official image", "FROM node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:1: FROM node:22-bookworm-slim/ })
   checkSources("rejects implicit organization image", "FROM moby/buildkit:buildx-stable-1\n", { status: 1, stderr: /moby\/buildkit/ })
   checkSources("checks every stage", "FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS builder\nRUN true\nFROM node:22-bookworm-slim AS runner\n", { status: 1, stderr: /Dockerfile:3: FROM node/ })
@@ -76,6 +121,11 @@ export const cases = () => {
   checkSources("checks continued instructions across comments", "# FROM node:22-bookworm-slim\nFROM \\\n# platform image\n  node:22-bookworm-slim AS builder\n", { status: 1, stderr: /Dockerfile:2: FROM node/ })
   checkSources("checks alternate escape directive", "# escape=`\nFROM `\n  node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:2: FROM node/ })
   checkSources("rejects unresolved image variables", "ARG IMAGE=node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1, stderr: /explicit registry host/ })
+  checkSources("accepts explicit global image defaults in every stage", "ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${NODE_IMAGE} AS builder\nFROM $NODE_IMAGE AS runner\n", { status: 0 })
+  checkSources("rejects image arguments without defaults", "ARG IMAGE\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("rejects nested image variables", "ARG IMAGE=${REGISTRY}/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("does not resolve stage arguments as global defaults", "FROM scratch AS builder\nARG IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
+  checkSources("keeps global image defaults across stage argument declarations", "ARG IMAGE=node:22-bookworm-slim\nFROM scratch AS builder\nARG IMAGE=public.ecr.aws/docker/library/node:22-bookworm-slim\nFROM ${IMAGE}\n", { status: 1 })
   checkSources("does not treat a tag as a host", "FROM node:22-bookworm-slim\n", { status: 1 })
 
   const nested = stageRepository("tracked inventory", {
