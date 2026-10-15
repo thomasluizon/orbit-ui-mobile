@@ -144,6 +144,7 @@ describe('useCalendarEvents', () => {
       useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return React.createElement(CalendarSyncBoundary, {
+      hasProAccess: true,
         isConnected: isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle'),
         locale: 'en',
         autoSyncState,
@@ -182,7 +183,7 @@ describe('useCalendarEvents', () => {
 
     expect(queryClient.getQueryData(calendarKeys.autoSyncState()))
       .not.toMatchObject({ hasGoogleConnection: true })
-    expect(screen.queryByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    expect(screen.queryByRole('switch', { name: 'calendar.autoSync.automaticImport' }))
       .not.toBeInTheDocument()
     },
   )
@@ -283,6 +284,7 @@ describe('CalendarSyncBoundary account replacement', () => {
       hasGoogleConnection: true,
     }
     render(React.createElement(CalendarSyncBoundary, {
+      hasProAccess: true,
       locale: 'en',
       isConnected: isCalendarSyncConnectionActive(autoSyncState.hasGoogleConnection, autoSyncState.status),
       autoSyncState,
@@ -290,12 +292,12 @@ describe('CalendarSyncBoundary account replacement', () => {
       onSyncNow: async () => {},
     }))
 
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.autoSync.automaticImport' }))
     act(() => advanceAccountGeneration())
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.autoSync.automaticImport' }))
     expect(onAutoSyncChange).toHaveBeenCalledTimes(2)
     await act(async () => { finishA(); await accountARequest })
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.autoSync.automaticImport' }))
 
     expect(onAutoSyncChange).toHaveBeenCalledTimes(2)
   })

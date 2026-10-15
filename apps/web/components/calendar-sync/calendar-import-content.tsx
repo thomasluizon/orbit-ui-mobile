@@ -7,7 +7,6 @@ import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-bounda
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useEffect, useMemo, useImperativeHandle, type ComponentProps, type Ref } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Check,
   Link as LinkIcon,
@@ -50,9 +49,10 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   calendarImportEventsKey,
+  calendarImportVisibleCount,
   getFriendlyErrorMessage,
   isCalendarSyncEventImportable,
-  isCalendarSyncConnectionActive,
+  isCalendarImportConnected,
   resolveCalendarImportConnectionStep,
   resolveCalendarImportEvents,
   resolveCalendarImportSelection,
@@ -79,7 +79,6 @@ type CalendarEvent = CalendarSyncEvent
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const bulkCreateHabits = useBulkCreateHabits()
@@ -88,7 +87,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const accountGeneration = useAccountGeneration()
 
   const isReviewMode = reviewMode
-  const isProUser = Boolean(profile) && hasProAccess
+  const isProUser = hasProAccess
   const weekStartDay = profile?.weekStartDay ?? 1
 
   const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
@@ -108,10 +107,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const setCalendarAutoSync = useSetCalendarAutoSync()
   const runCalendarSyncNow = useRunCalendarSyncNow()
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
-  const googleConnected = (isReviewMode || eventsQuery.data?.status !== 'not-connected') && isCalendarSyncConnectionActive(
-    autoSyncStateQuery.data?.hasGoogleConnection ?? false,
-    autoSyncStateQuery.data?.status ?? 'Idle',
-  )
+  const googleConnected = isCalendarImportConnected(isReviewMode, eventsQuery.data?.status, autoSyncStateQuery.data)
   const suggestionsQuery = useCalendarSyncSuggestions({ enabled: isProUser && isReviewMode })
   const dismissSuggestion = useDismissCalendarSuggestion()
   const suggestions: CalendarSyncSuggestion[] = useMemo(
@@ -128,7 +124,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
-    setVisibleCount(EVENTS_PAGE_SIZE)
+    setVisibleCount(calendarImportVisibleCount(incomingEvents, initialEventId, EVENTS_PAGE_SIZE))
     setSelectedIds(resolveCalendarImportSelection(
       initialEventId, isReviewMode, incomingEvents, weekStartDay, selectedIds, previousEventsKey,
     ))
@@ -166,12 +162,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   const importedCount = importResult?.imported ?? 0
 
-  useEffect(() => {
-    if (profile && !hasProAccess) {
-      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- access gate depends on client-fetched profile (hasProAccess); no server-side signal exists https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      router.replace('/upgrade')
-    }
-  }, [profile, hasProAccess, router])
 
   function toggleAll() {
     if (allSelected) {
@@ -221,7 +211,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   }
 
   function importSelected() {
-    if (!isOnline) return
+    if (!isProUser || !isOnline) return
     if (selectedIds.size === 0) return
     const importAccount = getAccountGeneration()
     setActionError(null)
@@ -288,10 +278,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   useImperativeHandle(actionRef, () => ({ importSelected }))
   useEffect(() => {
-    onActionStateChange(step === 'select' && events.length > 0
+    onActionStateChange(isProUser && step === 'select' && events.length > 0
       ? { count: selectedIds.size, disabled: selectedIds.size === 0 || !isOnline }
       : null)
-  }, [step, events.length, selectedIds.size, isOnline, accountGeneration, onActionStateChange])
+  }, [isProUser, step, events.length, selectedIds.size, isOnline, accountGeneration, onActionStateChange])
   useEffect(() => () => onActionStateChange(null), [onActionStateChange])
 
   function handleRetry() {
@@ -312,14 +302,16 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     return match?.id ?? null
   }
 
+  if (profile && !isProUser) return <p role="status" className="m-0 text-sm text-[var(--fg-2)]">{t('calendar.autoSync.proRequired')}</p>
+
   return (
     <div className="flex flex-col">
-      <div className="flex-1 min-h-0">
-        <CalendarImportSyncBoundary enabled={isProUser} isConnected={googleConnected} locale={locale} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock} autoSyncState={autoSyncStateQuery.data}
+      <div className="flex min-h-0 flex-col gap-6">
+        <CalendarImportSyncBoundary enabled={Boolean(profile)} hasProAccess={isProUser} isConnected={googleConnected} locale={locale} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock} autoSyncState={autoSyncStateQuery.data}
           onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
           onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
         />
-      <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{actionError ?? ''}</p>
+      <p role="alert" hidden={!actionError} className="m-0 text-sm text-[var(--status-bad-text)]">{actionError ?? ''}</p>
       <OpenedCalendarEventTitle eventId={initialEventId} eventsResult={eventsQuery.data} reviewMode={isReviewMode} enabled={isProUser} />
         <CalendarPickerSection enabled={hasProAccess && googleConnected && isOnline} />
         <div>
@@ -399,7 +391,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <>
               <div
                 data-testid="section-heading-row"
-                className="flex items-start gap-2 pt-6 pb-3 font-sans text-[20px] leading-[1.2]"
+                className="flex items-start gap-2 pb-3 font-sans text-[20px] leading-[1.2]"
               >
                 <h2 className="min-w-0 flex-1 font-medium tabular-nums text-balance tracking-[-0.01em] text-[var(--fg-1)]">
                   {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
@@ -423,6 +415,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                     event={event}
                     weekStartDay={weekStartDay}
                     selected={selectedIds.has(event.id)}
+                    initiallyExpanded={initialEventId === event.id}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
                     dismissPending={dismissSuggestion.isPending || !isOnline}
@@ -582,6 +575,6 @@ function CalendarImportSyncBoundary({ enabled, ...props }: Readonly<ComponentPro
 function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled }: Readonly<{ eventId: string | null; eventsResult: CalendarEventsResult | undefined; reviewMode: boolean; enabled: boolean }>) {
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
-  if (!event) return null
+  if (!event?.isImported) return null
   return <div className="flex min-w-0 flex-col gap-2 py-6"><PersonalText expanded className="text-base text-[var(--fg-1)]">{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded className="text-sm text-[var(--fg-3)]">{event.calendarName}</PersonalText> : null}</div>
 }

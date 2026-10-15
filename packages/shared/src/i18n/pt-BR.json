@@ -1149,6 +1149,7 @@
     "showMore": "Mostrar mais",
     "showingCount": "Mostrando {shown} de {total}",
     "calendars": {
+      "readFrom": "Calendários de origem",
       "title": "Calendários",
       "description": "Escolha de quais calendários do Google o Orbit lê os eventos.",
       "loading": "Carregando seus calendários...",
@@ -1159,6 +1160,10 @@
       "saveFailed": "Não foi possível salvar a seleção de calendários. Tente de novo."
     },
     "autoSync": {
+      "syncing": "Buscando eventos.",
+      "automaticImport": "Busca automática",
+      "automaticImportDescription": "Novos eventos aparecem aqui.",
+      "proRequired": "A sincronização automática precisa do Orbit Pro.",
       "title": "Sincronização automática",
       "description": "O Orbit fica de olho em novos eventos do seu Google Agenda e te avisa. Nenhum hábito é criado sem você confirmar.",
       "toggleLabel": "Ativar sincronização automática",

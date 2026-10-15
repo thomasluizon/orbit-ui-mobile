@@ -22,7 +22,7 @@ export function CheckRow({
   disabled = false,
   loading = false,
 }: Readonly<CheckRowProps>) {
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} labelControls={labelControls} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} labelControls={labelControls} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
   return (
     <button
@@ -75,13 +75,13 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
   </div>
 }
 
-function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
+function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   const calendarDay = variant === 'calendar-day'
   const CircleIcon = checked ? CheckCircle : Circle
   return (
-    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: calendarDay ? 0 : 12, gap: 12 }}>
+    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: placement === 'column' ? 0 : 16, paddingBlock: calendarDay ? 0 : 12, gap: 12 }}>
       <button type="button" disabled={disabled} data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
-        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} text-[var(--fg-1)]`}>{label}</PersonalText>
+        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText id={labelControls} expanded={placement === 'column' && labelExpanded} style={{ paddingInline: placement === 'column' ? 0 : undefined }} className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} text-[var(--fg-1)]`}>{label}</PersonalText>
         {error || description ? <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
       </button>

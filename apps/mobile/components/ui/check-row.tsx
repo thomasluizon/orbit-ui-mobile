@@ -27,7 +27,7 @@ export function CheckRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [pressed, setPressed] = useState(false)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
@@ -112,8 +112,12 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
   </PersonalControl>
 }
 
-function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean) {
-  return calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }
+function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement']) {
+  return [styles.personalRow, placement === 'column' ? { paddingHorizontal: 0 } : null, calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }]
+}
+
+function getPersonalLabelFill(calendarDay: boolean) {
+  return calendarDay ? { ...styles.labelFill, ...styles.calendarDayLabelFill } : styles.labelFill
 }
 
 function getPersonalControlFill(calendarDay: boolean) {
@@ -125,12 +129,12 @@ function CalendarDayCircle({ checked, color }: Readonly<{ checked: boolean; colo
   return <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
 }
 
-function PersonalCheckRow({ label, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
   return (
-    <View data-slot="list-row-body" style={[styles.personalRow, getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined))]}>
-      <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={calendarDay ? { ...styles.labelFill, ...styles.calendarDayLabelFill } : styles.labelFill} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
-        <PersonalText style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
+    <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement)}>
+      <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={getPersonalLabelFill(calendarDay)} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
+        <PersonalText expanded={placement === 'column' && labelExpanded} style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, calendarDay ? styles.calendarDayValue : null, { color: tokens.fg2 }]}>{value}</Text> : null}
       </PersonalControl>

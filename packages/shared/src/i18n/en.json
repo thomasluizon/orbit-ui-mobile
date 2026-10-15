@@ -1149,6 +1149,7 @@
     "showMore": "Show more",
     "showingCount": "Showing {shown} of {total}",
     "calendars": {
+      "readFrom": "Calendars to read",
       "title": "Calendars",
       "description": "Choose which Google calendars Orbit reads events from.",
       "loading": "Loading your calendars...",
@@ -1159,6 +1160,10 @@
       "saveFailed": "Could not save your calendar selection. Please try again."
     },
     "autoSync": {
+      "syncing": "Syncing events.",
+      "automaticImport": "Automatic sync",
+      "automaticImportDescription": "New Google events appear here.",
+      "proRequired": "Automatic sync requires Orbit Pro.",
       "title": "Automatic sync",
       "description": "Orbit checks your Google Calendar for new events and notifies you. Habits are never created without your confirmation.",
       "toggleLabel": "Enable automatic sync",

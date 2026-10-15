@@ -315,7 +315,7 @@ function CalendarScreenContent({
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, params.import === '1');
   const importRequested = useAccountBoundRouteRequest(routeRequestKey);
   useClearStaleCalendarImportRoute(routeRequestKey, importRequested);
-  const showImportSheet = shouldOpenCalendarImportSheet(hasProAccess, isImportOpen, importRequested);
+  const showImportSheet = shouldOpenCalendarImportSheet(Boolean(profile), isImportOpen, importRequested);
   const openImport = useCallback((eventId: string | null) => {
     const open = () => {
       setIsDayDetailOpen(false);
@@ -650,8 +650,7 @@ function CalendarScreenContent({
   }, [router]);
 
   const openGoogleCalendar = () => {
-    if (hasProAccess) openImport(null);
-    else router.push('/upgrade');
+    openImport(null);
   };
 
   const calendarHeader = (

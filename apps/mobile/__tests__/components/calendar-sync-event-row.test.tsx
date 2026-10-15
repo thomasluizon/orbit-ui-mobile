@@ -32,6 +32,9 @@ interface RowNode {
     accessibilityState?: { checked: boolean; disabled: boolean }
     accessibilityHint?: string
     disabled?: boolean
+    onPressIn?: () => void
+    onPressOut?: () => void
+    testID?: string
     onPress?: () => void
   }
 }
@@ -85,14 +88,18 @@ describe('calendar import row press contrast', () => {
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: state === 'selected', disabled: blocked })
     if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.ordinalWeekday')
-    const rowStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     for (const pressed of blocked ? [false] : [false, true]) {
-      const flattened = StyleSheet.flatten(rowStyle({ pressed }))
+      const flattened = StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>)
       expect(flattened).not.toHaveProperty('borderBottomWidth')
       expect(flattened).not.toHaveProperty('borderBottomColor')
       expect(flattened.borderRadius).toBe(12)
-      expect(flattened.overflow).toBe('hidden')
-      expect(flattened.backgroundColor).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
+      expect(flattened.overflow).toBeUndefined()
+      void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
+      const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
+      const paint = StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)
+      expect(paint.left).toBe(-16)
+      expect(paint.right).toBe(-16)
+      expect(paint.backgroundColor).toBe(pressed && !blocked ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
     }
   })
 
@@ -117,9 +124,10 @@ describe('calendar import row press contrast', () => {
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: selected, disabled: blocked })
     if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.finiteDateClamp')
-    const rowStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     for (const pressed of blocked ? [false] : [false, true]) {
-      const fill = String(StyleSheet.flatten(rowStyle({ pressed })).backgroundColor)
+      void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
+      const painted = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
+      const fill = String(StyleSheet.flatten(painted.props.style as StyleProp<ViewStyle>).backgroundColor)
       expect(fill).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : selected ? tintFromPrimary(tokens, 0.06) : 'transparent')
       expectTextContrast(tree, row, [tokens.bgSheet, fill], `${mode}, selected: ${selected}, pressed: ${pressed}`)
     }

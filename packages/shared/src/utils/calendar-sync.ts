@@ -915,11 +915,23 @@ export function resolveCalendarImportConnectionStep<T extends string>(
 }
 
 export function shouldOpenCalendarImportSheet(
-  hasProAccess: boolean,
+  profileReady: boolean,
   openedLocally: boolean,
   requestedByRoute: boolean,
 ): boolean {
-  return hasProAccess && (openedLocally || requestedByRoute)
+  return profileReady && (openedLocally || requestedByRoute)
+}
+
+export function isCalendarImportConnected(reviewMode: boolean, eventsStatus: 'connected' | 'not-connected' | undefined, autoSyncState: CalendarAutoSyncState | undefined): boolean {
+  return (reviewMode || eventsStatus !== 'not-connected') && isCalendarSyncConnectionActive(
+    autoSyncState?.hasGoogleConnection ?? false,
+    autoSyncState?.status ?? 'Idle',
+  )
+}
+
+export function calendarImportVisibleCount(events: readonly CalendarSyncEvent[], eventId: string | null, pageSize: number): number {
+  const openedIndex = events.findIndex((event) => event.id === eventId)
+  return Math.max(pageSize, Math.ceil((openedIndex + 1) / pageSize) * pageSize)
 }
 
 export function calendarImportRouteRequestKey(reviewRequested: boolean, importRequested: boolean): '' | 'review' | 'import' {

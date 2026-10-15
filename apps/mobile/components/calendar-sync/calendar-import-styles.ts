@@ -86,13 +86,13 @@ export function createStyles() {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 16,
       paddingVertical: 12,
       borderRadius: 12,
-      overflow: 'hidden',
+      minHeight: TOUCH_TARGET_MIN,
     },
     eventBody: {
       flex: 1,
+      minWidth: 0,
       gap: 4,
     },
     eventTitle: {
@@ -114,10 +114,6 @@ export function createStyles() {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-    },
-    eventDescription: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
     },
     importIssue: {
       fontFamily: 'Geist_400Regular',

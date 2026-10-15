@@ -455,6 +455,7 @@ describe('remaining calendar mutations', () => {
     function Harness() {
       const mutation = useRunCalendarSyncNow()
       return React.createElement(CalendarSyncBoundary, {
+      hasProAccess: true,
         isConnected: isCalendarSyncConnectionActive(connectedState.hasGoogleConnection, connectedState.status),
         locale: 'en',
         autoSyncState: connectedState,

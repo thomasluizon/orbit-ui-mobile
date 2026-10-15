@@ -1,4 +1,3 @@
-import { PersonalText } from '@/components/ui/personal-text'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { useState } from 'react'
@@ -6,7 +5,6 @@ import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
@@ -56,8 +54,9 @@ export function CalendarPickerSection({
   }
 
   return (
-    <View style={{ paddingTop: 24 }}>
-      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText }]}>{saveError ?? ''}</Text>
+    <View>
+      <Text accessibilityRole="header" style={{ paddingBottom: 12, fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, color: tokens.fg1 }}>{t('calendar.calendars.readFrom')}</Text>
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText, display: saveError ? undefined : 'none' }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}
 
@@ -100,7 +99,7 @@ export function CalendarPickerSection({
       {!isLoading && !isError
         ? calendars?.slice(0, visibleCount).map((calendar) => (
             <View key={calendar.id}>
-              <CheckRow
+              <CheckRow placement="column"
                 label={calendar.name}
                 textMode="personal"
                 onOpenLabel={() => setOpenedCalendarId(openedCalendarId === calendar.id ? null : calendar.id)}
@@ -109,7 +108,6 @@ export function CalendarPickerSection({
                 checked={calendar.isSynced}
                 onChange={(checked) => handleToggle(calendar.id, checked)}
               />
-              {openedCalendarId === calendar.id ? <PersonalText expanded style={[styles.pickerStateText, { color: tokens.fg1, paddingHorizontal: 16, paddingBottom: 12 }]}>{calendar.name}</PersonalText> : null}
             </View>
           ))
         : null}
@@ -127,7 +125,6 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
-      <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
     </View>
   )
 }

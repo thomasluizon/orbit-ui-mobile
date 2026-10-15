@@ -677,8 +677,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('month-view'))
     fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
     if (destination === '/upgrade') {
-      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
-      fireEvent.click(within(screen.getByRole('dialog', { name: 'calendar.options' })).getByRole('button', { name: 'calendar.googleCalendar' }))
+      act(() => calendarDayDetailProps.onViewPro?.())
     } else if (destination === '/notifications') fireEvent.click(screen.getByRole('button', { name: 'notifications.bell' }))
     else fireEvent.click(screen.getByRole('button', { name: destination === '/search' ? 'open-search-route' : 'open-habit-route' }))
     expect(routerPush).toHaveBeenCalledWith(destination)
@@ -1164,13 +1163,8 @@ describe('CalendarPage view switcher', () => {
       expect(routerPush).not.toHaveBeenCalled()
       expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
       act(() => sheetTestControls.completeDismissal())
-      if (hasProAccess) {
-        expect(screen.getByTestId('calendar-import-content')).toBeInTheDocument()
-        expect(routerPush).not.toHaveBeenCalled()
-      } else {
-        expect(routerPush).toHaveBeenCalledWith('/upgrade')
-        expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
-      }
+      expect(screen.getByTestId('calendar-import-content')).toBeInTheDocument()
+      expect(routerPush).not.toHaveBeenCalled()
     } finally { sheetTestControls.defer(false) }
   })
 

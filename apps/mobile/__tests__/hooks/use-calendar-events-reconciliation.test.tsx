@@ -124,7 +124,7 @@ describe('mobile calendar events reconciliation', () => {
       useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return (
-        <CalendarSyncBoundary
+        <CalendarSyncBoundary hasProAccess
           isConnected={isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle')}
           autoSyncState={autoSyncState}
           onAutoSyncChange={async () => {}}
@@ -208,7 +208,7 @@ describe('mobile Calendar Sync now control', () => {
 
     function Harness() {
       const mutation = useRunCalendarSyncNow()
-      return <CalendarSyncBoundary
+      return <CalendarSyncBoundary hasProAccess
         isConnected={isCalendarSyncConnectionActive(autoSyncState.hasGoogleConnection, autoSyncState.status)}
         autoSyncState={autoSyncState}
         onAutoSyncChange={() => Promise.resolve()}
@@ -226,25 +226,25 @@ describe('mobile Calendar Sync now control', () => {
       tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>)
       await Promise.resolve()
     })
-    const button = () => (tree.root as unknown as TestNode).findAll((node) => node.type === 'SyncButtonMock')[0]!
+    const button = () => (tree.root as unknown as TestNode).findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow')[0]!
 
-    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
+    await TestRenderer.act(async () => { (button().props.onPress as () => void)(); await Promise.resolve() })
     await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledWith(API.calendar.autoSyncRun, { method: 'POST' }))
     await vi.waitFor(() => expect(reportedErrors).toEqual(['Sync failed']))
-    expect(button().props.loading).toBe(false)
+    expect((button().props.accessibilityState as { busy: boolean }).busy).toBe(false)
 
-    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
-    await vi.waitFor(() => expect(button().props.loading).toBe(true))
+    await TestRenderer.act(async () => { (button().props.onPress as () => void)(); await Promise.resolve() })
+    await vi.waitFor(() => expect((button().props.accessibilityState as { busy: boolean }).busy).toBe(true))
     await TestRenderer.act(async () => { advanceAccountGeneration(); await Promise.resolve() })
-    expect(button().props.loading).toBe(false)
+    expect((button().props.accessibilityState as { busy: boolean }).busy).toBe(false)
 
-    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
+    await TestRenderer.act(async () => { (button().props.onPress as () => void)(); await Promise.resolve() })
     await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(3))
     await TestRenderer.act(async () => {
       failOld(new Error('Old account failure'))
       await Promise.resolve()
     })
-    expect(button().props.loading).toBe(false)
+    expect((button().props.accessibilityState as { busy: boolean }).busy).toBe(false)
     expect(reportedErrors).toEqual(['Sync failed'])
     await TestRenderer.act(async () => {
       (tree as unknown as { unmount: () => void }).unmount()

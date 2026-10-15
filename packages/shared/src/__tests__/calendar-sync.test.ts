@@ -96,7 +96,7 @@ describe('calendar-sync utils', () => {
     expect(resolveCalendarImportConnectionStep('events', false, false, true, true, true)).toBe('events')
   })
 
-  it('opens the import sheet for Pro entry points and gives review routes priority', () => {
+  it('opens the import sheet after the profile is ready and gives review routes priority', () => {
     expect(shouldOpenCalendarImportSheet(true, true, false)).toBe(true)
     expect(shouldOpenCalendarImportSheet(true, false, true)).toBe(true)
     expect(shouldOpenCalendarImportSheet(true, false, false)).toBe(false)

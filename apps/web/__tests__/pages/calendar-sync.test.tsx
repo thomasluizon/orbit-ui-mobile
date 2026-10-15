@@ -388,11 +388,18 @@ describe('CalendarSyncPage', () => {
         const reference = document.createElement('span')
         reference.style.backgroundColor = 'var(--bg-hover)'
         element.append(reference)
-        const fills = { actual: getComputedStyle(element).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
+        const fills = { actual: getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
         reference.remove()
         return fills
       })
       expect(fills.actual).toBe(fills.expected)
+      const clearance = await row.evaluate((element) => {
+        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        const content = element.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
+        return { leading: content.left - fill.left, trailing: fill.right - element.getBoundingClientRect().right }
+      })
+      expect(clearance.leading).toBeGreaterThanOrEqual(8)
+      expect(clearance.trailing).toBeGreaterThanOrEqual(8)
       if (state === 'press') expect(await row.getAttribute('data-contrast-pressed')).toBe('true')
     }
 
@@ -431,6 +438,7 @@ describe('CalendarSyncPage', () => {
               const layers: string[] = []
               for (let surface: HTMLElement | null = field; surface; surface = surface.parentElement) {
                 layers.unshift(getComputedStyle(surface).backgroundColor)
+                if (surface === element) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
               }
               return { text: field.textContent, color: getComputedStyle(field).color, layers }
             }))
@@ -444,7 +452,7 @@ describe('CalendarSyncPage', () => {
     })
 
     it.each([
-      [320, false, false], [412, true, false], [320, true, true], [1440, false, false],
+      [320, false, false], [412, true, false], [320, true, true], [1200, false, false],
     ])('wraps all full values at %ipx, review: %s, blocked: %s', async (width, review, blocked) => {
       provideEvents(review, blocked)
       const { container } = renderPage()
@@ -454,8 +462,8 @@ describe('CalendarSyncPage', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)
         await loadAppFonts(page)
-        for (const value of [longEvent.title, longEvent.calendarName!, longEvent.description!]) {
-          const field = value === longEvent.description ? page.getByText(value, { exact: true }) : page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
+        for (const value of [longEvent.title, longEvent.calendarName!]) {
+          const field = page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
           const geometry = await field.evaluate((element) => {
             const bounds = element.getBoundingClientRect()
             const style = getComputedStyle(element)
@@ -469,8 +477,7 @@ describe('CalendarSyncPage', () => {
             }
           })
           expect(geometry.height, value).toBeGreaterThan(geometry.lineHeight)
-          if (value === longEvent.description) expect(geometry.textInside, value).toBe(true)
-          else expect(await field.getAttribute('data-personal-text')).toBe('')
+          expect(await field.getAttribute('data-personal-text')).toBe('')
           expect(geometry.horizontalOverflow, value).toBe(false)
         }
       } finally { await page.close() }
@@ -502,12 +509,13 @@ describe('CalendarSyncPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('redirects non-Pro users to upgrade', async () => {
+  it('shows the Pro gate without redirecting', async () => {
     mockHasProAccess = false
     mockProfile = { id: 'u1', hasProAccess: false }
     renderPage()
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/upgrade')
+      expect(screen.getByText('calendar.autoSync.proRequired')).toBeVisible()
+      expect(mockReplace).not.toHaveBeenCalled()
     })
   })
 
@@ -648,9 +656,9 @@ describe('CalendarSyncPage', () => {
     expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
 
-    const row = screen.getByText(personalText('Second Monday review')).closest('button')?.parentElement
+    const row = screen.getByText(personalText('Second Monday review')).closest('button')
     expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
-    expect(row).toHaveStyle({ background: 'var(--bg-elev)' })
+    expect(row).toHaveStyle({ '--calendar-event-fill': 'var(--bg-elev)' })
   })
 
   it('enables and imports an alternating weekday suggestion', async () => {

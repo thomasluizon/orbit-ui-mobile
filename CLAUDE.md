@@ -61,6 +61,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
+| `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, deletion confirmation, revision, terminal outcomes and responsive parity. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
