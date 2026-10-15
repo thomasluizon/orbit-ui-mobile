@@ -126,6 +126,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/ui/input.tsx` | 47 | `textarea` | standard | 16 |
 | `apps/web/components/ui/input.tsx` | 48 | `input` | standard | 16 |
 | `apps/web/components/ui/otp-input.tsx` | 38 | `input` | otp | centred |
+| `apps/web/components/ui/picker-list.tsx` | 51 | `input` | standard | 16 |
 | `apps/web/components/ui/time-field.tsx` | 141 | `input` | time | 16 |
 
 ## Typed foreground ownership
@@ -144,6 +145,7 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `habits/create-goal-from-habit-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
 | Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |
 | Profile time-zone search and key name | `profile/preferences-sections.tsx`, `profile/profile-api-keys.tsx` | preferences picker and `profile/profile-api-keys.tsx` | Native `BottomSheetAppTextInput` or `Input`, web explicit `--fg-1` |
+| Virtualized picker search | No additional native producer | `ui/picker-list.tsx` | Web `form-input` resolves to `--fg-1` |
 | Emoji, tag, goal and reminder fields | Habit form field owners listed above | Mirrored habit form field owners | Native `BottomSheetAppTextInput` or `TypedTextInput`, web explicit `--fg-1` |
 | Time entry | `ui/time-field.tsx` | same relative component | Native `TypedTextInput`, web explicit `--fg-1` |
 
