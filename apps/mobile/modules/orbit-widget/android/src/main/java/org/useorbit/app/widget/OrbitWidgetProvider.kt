@@ -358,7 +358,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 }
                 views.setTextViewText(R.id.widget_subtitle, if (syncedOnce) "$completedCount/$habitCount" else "")
                 views.setContentDescription(R.id.widget_subtitle, subtitleText)
-                val streakVisible = if (streak > 0 && streakUnitVisibility == View.VISIBLE) View.VISIBLE else View.GONE
+                val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
                 views.setTextViewText(R.id.widget_streak, "$streak")
                 views.setTextViewText(
                     R.id.widget_streak_unit,

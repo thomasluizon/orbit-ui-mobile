@@ -16,8 +16,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="24" cy="24" r="10" fill="none" stroke="#F4F4F6" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 24 24)"/>
 <text x="44" y="18" fill="#8F8F93" font-size="13" font-weight="500">Today</text>
 <text x="44" y="35" fill="#8F8F93" font-size="12">3/7</text>
-<text x="250" y="28" text-anchor="end" fill="#ED773E" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#8F8F93" font-size="12">days</text>
+<text x="70" y="35" fill="#ED773E" font-size="15" font-weight="500">12</text>
+<text x="90" y="35" fill="#8F8F93" font-size="12">days</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#8F8F93" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#1D1D1F"/>
 <circle cx="22" cy="72" r="10" fill="#F4F4F6"/>
@@ -57,8 +57,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="24" cy="24" r="10" fill="none" stroke="#F4F4F6" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 24 24)"/>
 <text x="44" y="18" fill="#8F8F93" font-size="13" font-weight="500">Hoje</text>
 <text x="44" y="35" fill="#8F8F93" font-size="12">3/7</text>
-<text x="250" y="28" text-anchor="end" fill="#ED773E" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#8F8F93" font-size="12">dias</text>
+<text x="70" y="35" fill="#ED773E" font-size="15" font-weight="500">12</text>
+<text x="90" y="35" fill="#8F8F93" font-size="12">dias</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#8F8F93" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#1D1D1F"/>
 <circle cx="22" cy="72" r="10" fill="#F4F4F6"/>
@@ -98,8 +98,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="24" cy="24" r="10" fill="none" stroke="#1A1A1D" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 24 24)"/>
 <text x="44" y="18" fill="#68686D" font-size="13" font-weight="500">Hoje</text>
 <text x="44" y="35" fill="#68686D" font-size="12">3/7</text>
-<text x="250" y="28" text-anchor="end" fill="#A63A00" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#68686D" font-size="12">dias</text>
+<text x="70" y="35" fill="#A63A00" font-size="15" font-weight="500">12</text>
+<text x="90" y="35" fill="#68686D" font-size="12">dias</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#F1F1F2"/>
 <circle cx="22" cy="72" r="10" fill="#1A1A1D"/>
@@ -139,8 +139,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="24" cy="24" r="10" fill="none" stroke="#1A1A1D" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 24 24)"/>
 <text x="44" y="18" fill="#68686D" font-size="13" font-weight="500">Today</text>
 <text x="44" y="35" fill="#68686D" font-size="12">3/7</text>
-<text x="250" y="28" text-anchor="end" fill="#A63A00" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#68686D" font-size="12">days</text>
+<text x="70" y="35" fill="#A63A00" font-size="15" font-weight="500">12</text>
+<text x="90" y="35" fill="#68686D" font-size="12">days</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#F1F1F2"/>
 <circle cx="22" cy="72" r="10" fill="#1A1A1D"/>

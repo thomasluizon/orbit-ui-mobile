@@ -173,9 +173,9 @@ function previewSvg(
     `${2 * Math.PI * 10}" transform="rotate(-90 24 24)"/>` +
     `<text x="44" y="18" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
     `<text x="44" y="35" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
-    `<text x="250" y="28" text-anchor="end" fill="${streak}" font-size="15" ` +
+    `<text x="70" y="35" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
-    `<text x="253" y="28" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
+    `<text x="90" y="35" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
     `${rows}</g></svg>`

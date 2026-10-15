@@ -313,7 +313,7 @@ describe('Android widget header', () => {
     const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
 
     expect(buildWidgetViews).toContain(
-      'val streakVisible = if (streak > 0 && streakUnitVisibility == View.VISIBLE) View.VISIBLE else View.GONE',
+      'val streakVisible = if (streak > 0) View.VISIBLE else View.GONE',
     )
     expect(buildWidgetViews).toContain(
       'views.setViewVisibility(R.id.widget_streak_group, streakVisible)',
