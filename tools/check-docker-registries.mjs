@@ -11,7 +11,8 @@ const USAGE = `usage: check-docker-registries.mjs [--root <path>]
   Allows scratch, earlier build stages, and global ARG image references whose
   literal defaults include explicit registry hosts. Unresolved variables fail.
   Requires the same explicit hosts in docker/build-push-action build-args
-  overrides of global ARGs referenced by tracked Dockerfile FROM instructions.
+  overrides of global ARGs referenced by tracked Dockerfile FROM instructions,
+  and rejects quoted build-args forms whose decoded value it cannot read.
   Also requires provenance: false on pushing docker/build-push-action steps
   when their steps list sets the docker/setup-buildx-action driver to docker.
   Reads tracked Dockerfiles and .github/workflows YAML as working-tree text,
@@ -116,7 +117,7 @@ const stepProperty = (step, key, input = false) => {
     const { text } = step.lines[index]
     if (input && text.match(/^ */)[0].length < indent) break
     const match = text.match(pattern)
-    if (match) return { value: match[1].replace(/^(["'])(.*)\1$/, "$2"), index }
+    if (match) return { value: match[1].replace(/^(["'])(.*)\1$/, "$2"), raw: match[1], index }
   }
   return undefined
 }
@@ -126,8 +127,13 @@ const stepValue = (step, key, input = false) => stepProperty(step, key, input)?.
 const inspectBuildArguments = (filename, step, imageArguments) => {
   const property = stepProperty(step, "build-args", true)
   if (!property) return []
-  let lines = [{ text: property.value, number: step.lines[property.index].number }]
-  if (/^[|>][+-]?$/.test(property.value)) {
+  const number = step.lines[property.index].number
+  const quote = property.raw[0]
+  if ((quote === '"' || quote === "'") && (property.raw.length < 2 || !property.raw.endsWith(quote) || (quote === '"' && property.raw.includes("\\")))) {
+    return [`${filename}:${number}: build-args uses a quoted YAML form this guard cannot read; write it as a plain value or a literal block`]
+  }
+  let lines = [{ text: property.value, number }]
+  if (/^[|>](?:[1-9][+-]?|[+-][1-9]?)?$/.test(property.value)) {
     lines = step.lines.slice(property.index + 1)
     const end = lines.findIndex(({ text }) => text.match(/^ */)[0].length <= step.indent + 4)
     if (end !== -1) lines = lines.slice(0, end)

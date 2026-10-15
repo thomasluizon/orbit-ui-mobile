@@ -96,6 +96,21 @@ export const cases = () => {
             WORKER_IMAGE=node:22-bookworm-slim
             NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
 `, { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*WORKER_IMAGE.*explicit registry host/ }, imageArguments)
+  checkWorkflow("rejects implicit image in a block with an indentation indicator", workflow([
+    "load: true", "build-args: |2", "  NODE_IMAGE=node:22-bookworm-slim",
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:12:.*NODE_IMAGE.*explicit registry host/ }, imageArguments)
+  checkWorkflow("accepts explicit image in a block with indentation and chomping indicators", workflow([
+    "load: true", "build-args: |-2", "  NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim",
+  ]), { status: 0 }, imageArguments)
+  checkWorkflow("rejects escaped double-quoted build arguments", workflow([
+    "load: true", String.raw`build-args: "WEB_COMMIT_SHA=abc\nNODE_IMAGE=node:22-bookworm-slim"`,
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*build-args.*cannot read/ }, imageArguments)
+  checkWorkflow("rejects quoted build arguments that continue past their line", workflow([
+    "load: true", "build-args: 'WEB_COMMIT_SHA=abc", "", "  NODE_IMAGE=node:22-bookworm-slim'",
+  ]), { status: 1, stderr: /\.github\/workflows\/release\.yml:11:.*build-args.*cannot read/ }, imageArguments)
+  checkWorkflow("accepts a quoted explicit image build argument", workflow([
+    "load: true", `build-args: "NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim"`,
+  ]), { status: 0 }, imageArguments)
 
   checkSources("rejects implicit official image", "FROM node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:1: FROM node:22-bookworm-slim/ })
   checkSources("rejects implicit organization image", "FROM moby/buildkit:buildx-stable-1\n", { status: 1, stderr: /moby\/buildkit/ })
