@@ -215,7 +215,7 @@ function findByType(root: TestNode, type: string) {
 }
 
 describe('UpgradeScreen', () => {
-  it.each([600, 840, 1352].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
     'uses the drawn $plan card width at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
@@ -224,9 +224,9 @@ describe('UpgradeScreen', () => {
       const tree = await renderScreen()
       try {
         const rendered = tree.toJSON()
-        const host: Parameters<typeof measureProfileRow>[0] = Array.isArray(rendered)
-          ? { type: 'View', props: {}, children: rendered }
-          : rendered
+        const host: Parameters<typeof measureProfileRow>[0] = {
+          type: 'View', props: {}, children: Array.isArray(rendered) ? rendered : [rendered],
+        }
         let count = 0
         function markCards(element: typeof host) {
           const declared = element.props.style
@@ -237,10 +237,9 @@ describe('UpgradeScreen', () => {
         markCards(host)
         const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
         expect(cards.length).toBeGreaterThan(0)
-        const cap = plan === 'free' ? 652 : 560
         for (const card of [cards[0]!, cards.at(-1)!]) {
-          expect(card.left).toBe(16)
-          expect(card.width).toBe(width < 1024 ? width - 32 : cap)
+          expect(card.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+          expect(card.width).toBe(Math.min(width, 740) - 32)
         }
       } finally { TestRenderer.act(() => tree.unmount()) }
     },
