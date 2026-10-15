@@ -9,16 +9,12 @@ import {
   dismissFailedNotificationDelete,
   FAILED_DELETE_NOTICE_LIFE_MS,
   getFailedNotificationDeleteIdsSnapshot,
-  getPendingNotificationDeleteIdsSnapshot,
+  getVisiblePendingNotificationDeleteIdsSnapshot,
+  dismissPendingNotificationDeleteNotice,
   retryFailedNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
 
-/**
- * One failed delete, with its own component so the toast reads one stable pair of callbacks. The
- * toast restarts its life whenever `onDone` changes identity, so a callback rebuilt inside a map
- * would leave the notice on screen for as long as the tab runs.
- */
 function FailedDeleteToast({ notificationId }: Readonly<{ notificationId: string }>) {
   const t = useTranslations()
   const retry = useCallback(() => {
@@ -39,8 +35,8 @@ export function NotificationDeleteNotice() {
   const t = useTranslations()
   const pendingIds = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
-    getPendingNotificationDeleteIdsSnapshot,
-    getPendingNotificationDeleteIdsSnapshot,
+    getVisiblePendingNotificationDeleteIdsSnapshot,
+    getVisiblePendingNotificationDeleteIdsSnapshot,
   )
   const failedIds = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
@@ -50,7 +46,7 @@ export function NotificationDeleteNotice() {
   return <>{pendingIds.map((id) => (
     <Toast key={id} kind="neutral" icon={<Trash2 size={20} aria-hidden="true" />} message={t('notifications.deleteQueued')}
       actionLabel={t('notifications.deleteUndo')}
-      onAction={() => cancelPendingNotificationDelete(id)} />
+      onAction={() => cancelPendingNotificationDelete(id)} onDismiss={() => dismissPendingNotificationDeleteNotice(id)} />
   ))}{failedIds.map((id) => (
     <FailedDeleteToast key={`failed-${id}`} notificationId={id} />
   ))}</>

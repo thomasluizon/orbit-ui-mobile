@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import {
   createAppNavigationEntry,
   type AppNavigationAction,
@@ -10,6 +11,7 @@ import {
 
 export function NavigationHistoryTracker() {
   const pathname = usePathname()
+  useAppToastNavigation(pathname)
   const searchParams = useSearchParams()
   const pendingActionRef = useRef<AppNavigationAction | null>(null)
 

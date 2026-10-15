@@ -5,6 +5,7 @@ import { createInstance } from 'i18next'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import HabitCreateRoute from '@/app/habits/new'
+import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { OfflineNotice } from '@/components/offline-notice'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Toast } from '@/components/ui/app-toast'
@@ -20,6 +21,7 @@ interface RenderTree {
   update: (element: React.ReactNode) => void
   unmount: () => void
   root: {
+    findAllByProps: (props: Record<string, unknown>) => { props: Record<string, unknown> }[]
     findByType: (type: unknown) => { props: Record<string, unknown> }
     findAllByType: (type: unknown) => { props: Record<string, unknown> }[]
   }
@@ -138,7 +140,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     update({ pendingCount: 1 })
     TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop(droppedLog) })
     expect(toast()).toMatchObject({ kind: 'lost', message: language.t('common.syncDropped', { item: 'Walk' }), detail: language.t('common.syncDroppedPending') })
-    TestRenderer.act(() => vi.advanceTimersByTime(60_000))
+    TestRenderer.act(() => vi.advanceTimersByTime(4_999))
     expect(toast().kind).toBe('lost')
     update({ pendingCount: 0 })
     expect(toast().detail).toBe(language.t('common.syncDroppedDetail'))
@@ -147,7 +149,26 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(useOfflineSyncStore.getState().drops).toEqual([])
   })
 
-  it('keeps timezone recovery visible while an onboarding habit depends on it', async () => {
+  it('expires rendered dropped feedback and advances its owning queue without recovery', () => {
+    update({ pendingCount: 1 })
+    const second = { ...droppedLog, id: 'second-drop', itemName: 'Read' }
+    TestRenderer.act(() => {
+      useOfflineSyncStore.getState().addDrop(droppedLog)
+      useOfflineSyncStore.getState().addDrop(second)
+    })
+    expect(tree.root.findAllByProps({ testID: 'toast-lost' }).length).toBeGreaterThan(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    expect(useOfflineSyncStore.getState().hiddenDropIds).toEqual(['lost-log'])
+    expect(tree.root.findAllByProps({ testID: 'toast-lost' }).length).toBeGreaterThan(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    expect(useOfflineSyncStore.getState().hiddenDropIds).toEqual(['lost-log', 'second-drop'])
+    expect(useOfflineSyncStore.getState().drops).toHaveLength(2)
+    expect(tree.root.findAllByProps({ testID: 'toast-lost' })).toHaveLength(0)
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(toast().kind).toBe('neutral')
+  })
+
+  it('retries timezone recovery with its dependency identity', async () => {
     const timezoneMutation = buildQueuedMutation({
       type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone',
       method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
@@ -166,7 +187,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     })
 
     expect(toast().actionLabel).toBe(language.t('common.syncRetryAction'))
-    expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === language.t('common.dismiss'))).toBe(false)
+    expect(tree.root.findAllByType(Pressable).filter((node) => node.props.accessibilityLabel === language.t('common.close'))).toHaveLength(1)
     TestRenderer.act(() => (toast().onAction as () => void)())
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', id: timezoneMutation.id }))
   })
@@ -184,6 +205,26 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     TestRenderer.act(() => vi.advanceTimersByTime(5_000))
     expect(tree.root.findAllByType(Toast)).toHaveLength(0)
     expect(tree.root.findAllByType('View')).toHaveLength(0)
+  })
+
+  it('hides the notice on recovery navigation while retaining the destination context', () => {
+    function RecoveryRoot({ pathname }: Readonly<{ pathname: string }>) {
+      useAppToastNavigation(pathname)
+      return <><OfflineNotice />{pathname === '/habits/new' ? <HabitCreateRoute /> : null}</>
+    }
+    const orphan = { ...droppedLog, id: 'orphan-navigation', mutation: { ...droppedLog.mutation, targetEntityId: 'offline-habit-orphan' } }
+    TestRenderer.act(() => {
+      useOfflineSyncStore.getState().addDrop(orphan)
+      tree.update(<RecoveryRoot pathname="/" />)
+    })
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    const href = mocks.push.mock.calls.at(-1)?.[0]
+    if (typeof href !== 'string') throw new Error('Expected a recovery destination')
+    mocks.params = Object.fromEntries(new URL(href, 'https://orbit.test').searchParams)
+    TestRenderer.act(() => tree.update(<RecoveryRoot pathname="/habits/new" />))
+    expect(tree.root.findAllByProps({ testID: 'toast-lost' })).toHaveLength(0)
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toContain('orphan-navigation')
+    expect(tree.root.findByType(CreateHabitModal).props.recoveryMessage).toBe(language.t('common.syncOrphaned', { date: '2026-09-05' }))
   })
 
   it('retains orphan recovery when creation closes without success', () => {

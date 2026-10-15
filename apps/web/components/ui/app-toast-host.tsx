@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback } from 'react'
-import { usePathname } from 'next/navigation'
-import { useToastDestination } from '@/hooks/use-toast-lifecycle'
 import { Toast } from '@/components/ui/toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -11,10 +9,8 @@ export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placeme
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
-  const dismissAllToasts = useAppToastStore((state) => state.dismissAllToasts)
   const toastId = currentToast?.id
   const dismiss = useCallback(() => { if (toastId !== undefined) dismissToast(toastId) }, [dismissToast, toastId])
-  useToastDestination(usePathname(), dismissAllToasts)
   const activeModalId = useUIStore((state) => [...state.openOverlayIds].reverse().find((id) => id.startsWith('modal:')))
   if (placement === 'modal') {
     if (!modalId || activeModalId !== modalId) return null

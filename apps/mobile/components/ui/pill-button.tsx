@@ -23,6 +23,8 @@ export function Button({
   variant = 'primary',
   size: requestedSize = 'sm',
   onClick,
+  onFocus,
+  onBlur,
   disabled = false,
   loading = false,
   children,
@@ -34,13 +36,14 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean }>) {
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
@@ -83,6 +86,8 @@ export function Button({
     <Pressable
       hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onClick}
+      onFocus={() => { setFocused(true); onFocus?.() }}
+      onBlur={() => { setFocused(false); onBlur?.() }}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       disabled={disabled || loading}
@@ -97,6 +102,7 @@ export function Button({
           ? { height: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: 0, gap: 0 }
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
+        focused ? { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 } : null,
         disabled && !loading ? styles.disabled : null,
         pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}

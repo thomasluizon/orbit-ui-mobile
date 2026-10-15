@@ -3,7 +3,6 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useCallback, useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
@@ -34,12 +33,11 @@ function DoneMark() {
 
 /** Stable live-region feedback. It owns no portal, position, scrim, focus, or z-index. */
 export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
-  const pathname = usePathname()
   const t = useTranslations()
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, pathname, props.onDismiss)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setAnnouncedMessage(props.message), 0)

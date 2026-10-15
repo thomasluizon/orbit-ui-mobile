@@ -34,3 +34,14 @@ export class ToastLifetime {
     return true
   }
 }
+
+const navigationListeners = new Set<() => void>()
+
+export function subscribeToastNavigation(listener: () => void): () => void {
+  navigationListeners.add(listener)
+  return () => { navigationListeners.delete(listener) }
+}
+
+export function notifyToastNavigation(): void {
+  for (const listener of [...navigationListeners]) listener()
+}

@@ -1,24 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
-import { getToastDuration, ToastLifetime } from '@orbit/shared/hooks'
+import { useCallback, useEffect, useEffectEvent, useState } from 'react'
+import { getToastDuration, subscribeToastNavigation, ToastLifetime } from '@orbit/shared/hooks'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-
-export function useToastDestination(pathname: string | null, onLeave: () => void) {
-  const previousPathname = useRef(pathname)
-  const leave = useEffectEvent(onLeave)
-  useEffect(() => {
-    if (previousPathname.current !== pathname) {
-      previousPathname.current = pathname
-      leave()
-    }
-  }, [pathname])
-}
 
 export function useToastLifecycle(
   props: ToastProps,
   paused: boolean,
-  pathname: string | null,
   onDismiss?: () => void,
 ) {
   const { kind, message } = props
@@ -45,6 +33,6 @@ export function useToastLifecycle(
     return () => lifetime.pause()
   }, [lifetime, paused, timed])
 
-  useToastDestination(pathname, () => { if (hasAction) dismiss() })
+  useEffect(() => subscribeToastNavigation(() => { if (hasAction) finish() }), [hasAction])
   return { dismissed: dismissedLifetime === lifetime, dismiss }
 }

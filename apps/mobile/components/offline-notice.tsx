@@ -1,19 +1,19 @@
 import { useCallback, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
+import { zLayers } from '@orbit/shared/theme'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { useOffline } from '@/hooks/use-offline'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast, Toast } from '@/components/ui/app-toast'
-import { AlertTriangle, RefreshCw, WifiOff, X } from '@/components/ui/icons'
+import { AlertTriangle, RefreshCw, WifiOff } from '@/components/ui/icons'
 import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { enqueue, getAll } from '@/lib/offline-queue'
-import { accountTimezoneDependency, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { enqueue } from '@/lib/offline-queue'
+import { buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
 import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
 function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
@@ -22,10 +22,10 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const dismissDrop = useOfflineSyncStore((state) => state.dismissDrop)
+  const hideDrop = useOfflineSyncStore((state) => state.hideDrop)
   const mutation = drop.mutation
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
-  const timezoneRecoveryRequired = mutation.type === 'setTimeZone' && getAll().some((queued) => queued.dependsOn?.includes(accountTimezoneDependency(mutation.id)))
   const scope = mutation.scope ?? getMutationScope(mutation.type) ?? 'profile'
   const date = getRecoveryDate(mutation)
   const item = drop.itemName ?? getDroppedItemName(mutation) ?? t(`common.syncEntity.${scope}`)
@@ -49,17 +49,10 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   }
 
   return (
-    <View style={styles.dropped}>
-      <Toast kind="lost" message={message}
-        detail={t(needsCreation ? 'common.syncOrphanedDetail' : remaining > 0 ? 'common.syncDroppedPending' : mutation.type === 'logHabit' ? 'common.syncDroppedDetail' : 'common.syncChangeDroppedDetail')}
-        icon={<AlertTriangle size={20} color={tokens.statusBad} />}
-        actionLabel={actionLabel} onAction={recover} />
-      {!timezoneRecoveryRequired ? <Pressable accessibilityRole="button" accessibilityLabel={t('common.dismiss')}
-        onPress={() => dismissDrop(drop.id)} style={styles.dismiss}>
-        <X size={20} color={tokens.fg2} />
-      </Pressable> : null}
-
-    </View>
+    <Toast kind="lost" message={message}
+      detail={t(needsCreation ? 'common.syncOrphanedDetail' : remaining > 0 ? 'common.syncDroppedPending' : mutation.type === 'logHabit' ? 'common.syncDroppedDetail' : 'common.syncChangeDroppedDetail')}
+      icon={<AlertTriangle size={20} color={tokens.statusBad} />}
+      actionLabel={actionLabel} onAction={recover} onDismiss={() => hideDrop(drop.id)} />
   )
 }
 
@@ -68,7 +61,7 @@ export function useOfflineNoticeContent() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { isOnline, pendingCount, isFlushing, hasFailed } = useOffline()
-  const drop = useOfflineSyncStore((state) => state.drops[0])
+  const drop = useOfflineSyncStore((state) => state.drops.find((entry) => !state.hiddenDropIds.includes(entry.id)))
   const currentToast = useAppToastStore((state) => state.currentToast)
   const [sawPending, setSawPending] = useState(false)
   const clearSynced = useCallback(() => setSawPending(false), [])
@@ -93,6 +86,4 @@ export function OfflineNotice() {
 
 const styles = StyleSheet.create({
   host: { paddingVertical: 16, gap: 12, zIndex: zLayers.toast },
-  dropped: { gap: 4 },
-  dismiss: { alignSelf: 'flex-end', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' },
 })

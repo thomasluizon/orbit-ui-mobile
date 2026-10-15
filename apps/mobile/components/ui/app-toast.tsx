@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { useToastDestination, useToastLifecycle } from '@/hooks/use-toast-lifecycle'
+import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -62,7 +61,6 @@ function useToastSwipe(hasAction: boolean, dismiss: () => void) {
 
 /** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
 export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
-  const pathname = usePathname()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -78,7 +76,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, pathname, props.onDismiss)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
   const swipe = useToastSwipe(Boolean(props.actionLabel), dismiss)
 
   useEffect(() => {
@@ -156,7 +154,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         </Pressable>
       ) : null}
       {props.actionLabel ? (
-        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+        <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
           <X size={20} color={tokens.fg2} />
         </PillButton>
       ) : null}
@@ -172,10 +170,8 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
-  const dismissAllToasts = useAppToastStore((state) => state.dismissAllToasts)
   const toastId = currentToast?.id
   const dismiss = useCallback(() => { if (toastId !== undefined) dismissToast(toastId) }, [dismissToast, toastId])
-  useToastDestination(usePathname(), dismissAllToasts)
   const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
 
   if (placement === 'sheet') {
