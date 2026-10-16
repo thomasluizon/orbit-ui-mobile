@@ -1,4 +1,4 @@
-import { Calendar, Eye, FileText, MessageCircle } from '@/components/ui/icons'
+import { ProBenefits } from './pro-benefits'
 import { useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import Animated, {
@@ -26,13 +26,6 @@ import {
   type Tokens,
   type UpgradeTextFn,
 } from './types'
-
-const OUTCOMES = [
-  { key: 'astra', Icon: MessageCircle },
-  { key: 'calendar', Icon: Calendar },
-  { key: 'retrospective', Icon: FileText },
-  { key: 'noticing', Icon: Eye },
-] as const
 
 interface Tier {
   interval: SubscriptionInterval
@@ -344,14 +337,7 @@ function TierCard({
       {tier.heroLine ? <Text style={[styles.tierHero, { color: tokens.fg2 }]}>{tier.heroLine}</Text> : null}
       {tier.secondLine ? <Text style={[styles.tierSecond, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{tier.secondLine}</Text> : null}
       {tier.couponLine ? <Text style={[styles.tierCoupon, { color: tokens.fg2 }]}>{tier.couponLine}</Text> : null}
-      <View accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
-        {OUTCOMES.map(({ key, Icon }) => <View key={key} style={styles.outcomeRow}>
-          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Icon size={20} strokeWidth={1.5} color={tokens.fg3} />
-          </View>
-          <Text style={[styles.outcomeBody, { color: tokens.fg2 }]}>{t(`upgrade.outcomes.${key}`)}</Text>
-        </View>)}
-      </View>
+      <ProBenefits t={t} tokens={tokens} />
       <View style={styles.tierAction}>
         <PillButton
           variant={selected ? 'primary' : 'ghost'}

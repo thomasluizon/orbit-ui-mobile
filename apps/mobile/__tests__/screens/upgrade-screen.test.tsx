@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
   isOnline: true,
   renderComposition: false,
   locale: 'en',
+  mode: 'dark',
   from: undefined as string | undefined,
   hasProAccess: false,
   trialDaysLeft: 5,
@@ -172,14 +173,9 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showSuccess: mocks.showSuccess }),
 }))
 
-const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: mocks.mode }),
 }))
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>()
-  return { ...actual, createTokensV2: () => tokensProxy }
-})
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
@@ -214,9 +210,82 @@ function findByType(root: TestNode, type: string) {
   return root.findAll((node) => node.type === type)[0]!
 }
 
+type SubscriptionRenderCase = { width: number; locale: 'en' | 'pt-BR'; mode: 'light' | 'dark'; state: string }
+
+async function configureSubscription({ width, locale, mode, state }: SubscriptionRenderCase) {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  mocks.renderComposition = true
+  mocks.locale = locale
+  mocks.mode = mode
+  await testI18n.changeLanguage(locale)
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  mocks.hasProAccess = state !== 'free' && !expired
+  mocks.profile = createMockProfile({ isTrialActive: state === 'trial', isLifetimePro: state === 'lifetime',
+    subscriptionSource: play ? 'play' : 'stripe', subscriptionInterval: state.endsWith('yearly') ? 'yearly' : 'monthly',
+    planExpiresAt: '2027-01-20T00:00:00Z', trialEndsAt: state === 'trial' ? '2027-01-20T00:00:00Z' : null,
+    aiMessagesLimit: mocks.hasProAccess ? 50 : 5,
+  })
+  mocks.lapseReason = expired ? 'expired' : null
+  mocks.subscriptionEndedAtUtc = expired ? '2026-09-01T00:00:00Z' : null
+  mocks.billing = { status: state === 'past-due' ? 'past_due' : 'active', cancelAtPeriodEnd: state === 'canceled',
+    interval: mocks.profile.subscriptionInterval, currentPeriodEnd: '2027-01-20T00:00:00Z',
+    amountPerPeriod: 999, currency: 'usd', paymentMethod: null, recentInvoices: [] }
+}
+
+function assertSubscriptionContent(tree: Awaited<ReturnType<typeof renderScreen>>, { locale, state }: SubscriptionRenderCase) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+  const resourceLists = tree.root.findAll((node) => node.type === 'View'
+    && node.props.accessibilityLabel === (pitch ? messages.upgrade.outcomes.label : messages.upgrade.included))
+  expect(resourceLists).toHaveLength(pitch ? 2 : 1)
+  const text = JSON.stringify(tree.toJSON())
+  for (const outcome of Object.values(messages.upgrade.outcomes).slice(1)) expect(text).toContain(outcome)
+  const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
+    : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage
+  if (state === 'lifetime') {
+    expect(text).toContain(messages.upgrade.billing.plan.lifetimeHint)
+    expect(text).not.toContain(messages.upgrade.billing.actions.manage)
+  } else expect(text).toContain(action)
+  assertSubscriptionDates(text, locale, state)
+}
+
+function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', state: string) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const date = (iso: string) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+  if (state === 'trial') expect(text).toContain(messages.upgrade.billing.plan.trialHint.replace('{date}', date('2027-01-20T00:00:00Z')))
+  if (expired) expect(text).toContain(messages.upgrade.billing.lapsed.ended.replace('{date}', date('2026-09-01T00:00:00Z')))
+  if (!pitch && !expired && state !== 'lifetime') expect(text).toContain(
+    (state === 'canceled' ? messages.upgrade.billing.plan.canceledHint : messages.upgrade.billing.plan.renewsOn).replace('{date}', date('2027-01-20T00:00:00Z')))
+}
+
+
 describe('UpgradeScreen', () => {
+  const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
+    .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
+      ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
+        .map((state) => ({ width, locale, mode, state })))))
+
+  it.each(subscriptionCases)('renders the $state subscription at $width in $locale and $mode', async (example) => {
+    await configureSubscription(example)
+    const tree = await renderScreen()
+    try {
+      assertSubscriptionContent(tree, example)
+      const measured = measureProfileRow(tree.toJSON(), example.width, 1)
+      for (const heading of tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')) {
+        const geometry = measured.texts.find((entry) => entry.label === heading.props.children)
+        if (geometry) { expect(geometry.clipped).toBe(false); expect(geometry.lines).toBe(1) }
+      }
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([600, 840, 1352].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
-    'uses the drawn $plan card width at $width', async ({ width, plan }) => {
+    'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
       mocks.hasProAccess = plan !== 'free'
@@ -227,21 +296,18 @@ describe('UpgradeScreen', () => {
         const host: Parameters<typeof measureProfileRow>[0] = Array.isArray(rendered)
           ? { type: 'View', props: {}, children: rendered }
           : rendered
-        let count = 0
-        function markCards(element: typeof host) {
+        function markFrame(element: typeof host) {
           const declared = element.props.style
           const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
-          if (style.borderRadius === 20) element.props.testID = `content-card-${count++}`
-          for (const child of element.children ?? []) if (typeof child !== 'string') markCards(child)
+          if (style.width === '100%' && style.paddingHorizontal === 16 && style.minWidth === 0) element.props.testID = 'subscription-content-frame'
+          for (const child of element.children ?? []) if (typeof child !== 'string') markFrame(child)
         }
-        markCards(host)
-        const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
-        expect(cards.length).toBeGreaterThan(0)
+        markFrame(host)
+        const frame = measureProfileRow(host, width, 1).boxes.find((box) => box.testID === 'subscription-content-frame')!
+        expect(frame).toBeDefined()
         const cap = plan === 'free' ? 652 : 560
-        for (const card of [cards[0]!, cards.at(-1)!]) {
-          expect(card.left).toBe(16)
-          expect(card.width).toBe(width < 1024 ? width - 32 : cap)
-        }
+        expect(frame.left).toBe(0)
+        expect(frame.width).toBe(width < 1024 ? width : cap + 32)
       } finally { TestRenderer.act(() => tree.unmount()) }
     },
   )
@@ -255,6 +321,7 @@ describe('UpgradeScreen', () => {
     mocks.isOnline = true
     mocks.renderComposition = false
     mocks.locale = 'en'
+    mocks.mode = 'dark'
     vi.stubEnv('ORBIT_APP_VARIANT', 'production')
     mocks.expoConfig = createConfig()
     mocks.realNavigation = false

@@ -2642,6 +2642,7 @@
     }
   },
   "upgrade": {
+    "included": "Incluído no Pro",
     "purchaseSuccess": "O Orbit Pro está ativo.",
     "title": "Assinatura",
     "pitchTitle": "Orbit Pro",
@@ -2772,7 +2773,7 @@
       "portalReturned": "Detalhes da assinatura atualizados",
       "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
       "lapsed": {
-        "title": "Sua assinatura Pro terminou",
+        "title": "Seu Pro terminou",
         "canceled": "Sua assinatura foi cancelada em {date}.",
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
         "expired": "Sua assinatura expirou em {date}.",

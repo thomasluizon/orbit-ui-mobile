@@ -1,3 +1,5 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import { subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
@@ -14,7 +16,7 @@ import { formatPrice } from '@/hooks/use-subscription-plans'
 import { UsageStats } from './usage-stats'
 import { ProviderHandoff } from './provider-handoff'
 import { Icon } from '@/components/ui/icon'
-import { cardSurface, formatBillingDate } from './styles'
+import { formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 
@@ -59,9 +61,10 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   const summary = subscriptionSummary(status, billing)
   const price = !status.isLifetimePro && billing ? planPrice(billing, t) : null
   return (
-    <section className="flex flex-col gap-3 rounded-[var(--r-card)] p-6" style={cardSurface}>
+    <section className="flex flex-col gap-4 py-4">
+      <AstraGlyph size={96} color="var(--fg-1)" />
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h2>
+        <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
       </div>
       <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
@@ -172,6 +175,7 @@ export function BillingDashboard({
       <PlanSummary state={state} status={status} billing={billing} locale={locale} t={t} />
       {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onOpenPortal} t={t} /> : null}
       <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
+      <ProBenefits heading t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
       <InvoiceHistory invoices={status.isLifetimePro ? undefined : billing?.recentInvoices} locale={locale} state={state} t={t} />
       {!status.isLifetimePro ? <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p> : null}
