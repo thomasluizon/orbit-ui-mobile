@@ -16,6 +16,9 @@ Tool progress replaces the dots and shares that work announcement.
 The empty state becomes the thread when send appends the person's message. Existing messages
 stay in place, and each later send uses the same pending slot after its new user turn. The pulse
 pauses when the person scrolls the pending line out of view, and ends after the existing
-skeleton pulse count while the dots stay visible.
+skeleton pulse count while the dots stay visible. Pausing never hides the dots: feed clipping
+owns visibility, including when keyboard dismissal or a window resize exposes the pending
+line without a scroll event. Layout-only reveal checks cover both widths and motion preferences
+without reattaching follow-latest or rendering the native conversation on scroll.
 
 These hermetic checks do not prove native text rasterization or screen-reader speech on a device.

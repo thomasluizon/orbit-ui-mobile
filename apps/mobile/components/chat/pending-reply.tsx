@@ -1,5 +1,5 @@
-import { useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
-import { Animated as NativeAnimated, StyleSheet, View } from 'react-native'
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
+import { StyleSheet, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { motionDurations, motionEasings, skeletonPulseIterations } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -16,7 +16,6 @@ export function PendingReply({ ref }: Readonly<{ ref: Ref<PendingReplyHandle> }>
   const reducedMotion = usePrefersReducedMotion()
   const remainingPulseTime = useRef(motionDurations.slow * 4 * skeletonPulseIterations)
   const visible = useRef(true)
-  const visibility = useMemo(() => new NativeAnimated.Value(1), [])
   const updatePulseRef = useRef<(visible: boolean) => void>(() => {})
   const opacity = useSharedValue(1)
   const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
@@ -24,10 +23,9 @@ export function PendingReply({ ref }: Readonly<{ ref: Ref<PendingReplyHandle> }>
     setVisible(nextVisible) {
       if (visible.current === nextVisible) return
       visible.current = nextVisible
-      visibility.setValue(nextVisible ? 1 : 0)
       updatePulseRef.current(nextVisible)
     },
-  }), [visibility])
+  }), [])
   useEffect(() => {
     let settle: ReturnType<typeof setTimeout> | undefined
     let started: number | null = null
@@ -61,9 +59,7 @@ export function PendingReply({ ref }: Readonly<{ ref: Ref<PendingReplyHandle> }>
   }, [opacity, reducedMotion])
   const dots = [0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)
   return <View testID="astra-pending" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.row}>
-    <NativeAnimated.View style={{ opacity: visibility }}>
-      {reducedMotion ? <View style={styles.dots}>{dots}</View> : <Animated.View style={[styles.dots, pulseStyle]}>{dots}</Animated.View>}
-    </NativeAnimated.View>
+    {reducedMotion ? <View style={styles.dots}>{dots}</View> : <Animated.View style={[styles.dots, pulseStyle]}>{dots}</Animated.View>}
   </View>
 }
 

@@ -1,11 +1,13 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React, { Profiler } from 'react'
-import { Animated, FlatList, Text, View, type FlatListProps } from 'react-native'
+import { Animated, FlatList, StyleSheet, Text, View, type FlatListProps, type ViewStyle } from 'react-native'
+import * as Reanimated from 'react-native-reanimated'
 import { act, create } from 'react-test-renderer'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { MessageBubble } from '@/components/message-bubble'
+import * as motion from '@/lib/motion'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
 
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
@@ -45,6 +47,49 @@ await vi.hoisted(async () => {
 })
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+afterEach(() => vi.restoreAllMocks())
+
+function expectPendingDotsVisible(tree: GeometryTree) {
+  const pending = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-pending')[0]!
+  const hosts = pending.findAll(node => typeof node.type === 'string')
+  expect(hosts.filter(node => StyleSheet.flatten<ViewStyle>(node.props.style ?? {}).width === 4)).toHaveLength(3)
+  for (const host of hosts) {
+    const opacity = StyleSheet.flatten<ViewStyle>(host.props.style ?? {}).opacity
+    if (opacity instanceof Animated.Value) {
+      const observed = vi.fn()
+      opacity.stopAnimation(observed)
+      expect(observed).toHaveBeenCalledWith(1)
+    } else if (opacity !== undefined) expect(opacity).toBe(1)
+  }
+}
+
+it.each([412, 1352].flatMap(width => [false, true].map(reduced => ({ width, reduced }))))('keeps pending dots visible after a layout-only reveal at $width, reduced motion $reduced', async ({ width, reduced }) => {
+  vi.spyOn(motion, 'usePrefersReducedMotion').mockReturnValue(reduced)
+  const chat = {
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null },
+    messages: [{ id: 'question', role: 'user', content: 'Plan my morning', timestamp: new Date() }],
+    activeSteps: [], canShowFollowUps: false, isTyping: true, streamingMessageId: null,
+    showSuggestions: false, sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
+  } as unknown as ChatController
+  const onRender = vi.fn()
+  let tree!: GeometryTree
+  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><AstraConversation chat={chat} /></Profiler>) as GeometryTree })
+  try {
+    const list = tree.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+    for (const offset of [900, 600]) await act(() => list.onScroll?.({ nativeEvent: {
+      contentOffset: { x: 0, y: offset }, contentSize: { width, height: 1400 },
+      layoutMeasurement: { width, height: 500 },
+    } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onScroll']>>[0]))
+    expect(chat.threadScroll.isFollowing()).toBe(false)
+    onRender.mockClear()
+    await act(() => list.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width, height: 780 } } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onLayout']>>[0]))
+    expectPendingDotsVisible(tree)
+    expect(chat.threadScroll.isFollowing()).toBe(false)
+    expect(chat.scrollToBottom).not.toHaveBeenCalled()
+    expect(onRender).not.toHaveBeenCalled()
+  } finally { await act(() => tree.unmount()) }
+})
+
 it('does not render the conversation while scrolling across the pending visibility boundary', async () => {
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null },
@@ -56,16 +101,14 @@ it('does not render the conversation while scrolling across the pending visibili
   let tree!: GeometryTree
   await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><AstraConversation chat={chat} /></Profiler>) as GeometryTree })
   try {
-    const pending = tree.root.findAll(node => node.type === Animated.View)[0]!
-    const opacity = (pending.props.style as { opacity: Animated.Value }).opacity
-    const expectOpacity = (value: number) => {
-      const observed = vi.fn()
-      opacity.stopAnimation(observed)
-      expect(observed).toHaveBeenCalledWith(value)
-    }
-    expectOpacity(1)
+    const cancel = vi.spyOn(Reanimated, 'cancelAnimation')
+    const repeat = vi.spyOn(Reanimated, 'withRepeat')
+    let previouslyVisible = true
+    expectPendingDotsVisible(tree)
     onRender.mockClear()
     for (const offset of [900, 100, 101, 860, 861, 899, 900]) {
+      cancel.mockClear()
+      repeat.mockClear()
       await act(() => {
         const list = tree.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
         list.onScroll?.({ nativeEvent: {
@@ -74,7 +117,11 @@ it('does not render the conversation while scrolling across the pending visibili
         } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onScroll']>>[0])
       })
       expect(onRender).not.toHaveBeenCalled()
-      expectOpacity(900 - offset < 40 ? 1 : 0)
+      expectPendingDotsVisible(tree)
+      const visible = 900 - offset < 40
+      expect(cancel).toHaveBeenCalledTimes(visible === previouslyVisible ? 0 : 1)
+      expect(repeat).toHaveBeenCalledTimes(visible && !previouslyVisible ? 1 : 0)
+      previouslyVisible = visible
     }
     expect(chat.threadScroll.isFollowing()).toBe(true)
   } finally { await act(() => tree.unmount()) }

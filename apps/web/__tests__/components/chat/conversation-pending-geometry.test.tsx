@@ -2,7 +2,7 @@ import { skeletonPulseIterations } from '@orbit/shared/theme'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -39,6 +39,51 @@ describe('Astra pending reply geometry in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap(width => [false, true].map(reduced => ({ width, reduced }))))('keeps paused dots visible after a layout-only reveal at $width, reduced motion $reduced', async ({ width, reduced }) => {
+    const chat = createChat()
+    const { container, getByRole } = render(<NextIntlClientProvider locale="en" messages={en}><AstraConversation chat={chat} /></NextIntlClientProvider>)
+    const feed = getByRole('feed')
+    Object.defineProperties(feed, { scrollHeight: { value: 1400 }, clientHeight: { value: 500 } })
+    await act(async () => {
+      for (const offset of [900, 600]) {
+        feed.scrollTop = offset
+        fireEvent.scroll(feed)
+      }
+    })
+    expect(chat.threadScroll.isFollowing()).toBe(false)
+    expect(container.querySelector<HTMLElement>('.astra-pending-pulse')!.style.animationPlayState).toBe('paused')
+    const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: reduced ? 'reduce' : 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark" style="height:1000px;max-width:740px;margin-inline:auto">${container.innerHTML}</div>`)
+      await page.evaluate(() => {
+        const feed = document.querySelector<HTMLElement>('[role="feed"]')!
+        feed.style.transitionProperty = 'none'
+        feed.style.flex = 'none'
+        feed.style.height = '500px'
+        feed.style.overflowAnchor = 'none'
+        const content = feed.firstElementChild as HTMLElement
+        content.style.minHeight = '1368px'
+        content.style.justifyContent = 'flex-end'
+        feed.scrollTop = 600
+      })
+      const before = await page.locator('[data-working-mark]').boundingBox()
+      const collapsed = await page.locator('[role="feed"]').boundingBox()
+      expect(before!.y).toBeGreaterThan(collapsed!.y + collapsed!.height)
+      const revealed = await page.locator('[role="feed"]').evaluate(element => {
+        const feed = element as HTMLElement
+        feed.style.height = '780px'
+        const dots = feed.querySelector<HTMLElement>('[data-working-mark]')!
+        const mark = dots.parentElement!
+        const line = dots.getBoundingClientRect()
+        const viewport = feed.getBoundingClientRect()
+        return { scrollTop: feed.scrollTop, inside: line.top >= viewport.top && line.bottom <= viewport.bottom, opacity: getComputedStyle(mark).opacity, playState: mark.style.animationPlayState }
+      })
+      expect(revealed).toEqual({ scrollTop: 600, inside: true, opacity: '1', playState: 'paused' })
+      expect(chat.threadScroll.isFollowing()).toBe(false)
+      expect(chat.scrollToBottom).not.toHaveBeenCalled()
+    } finally { await page.close() }
+  })
 
   it.each([412, 1352].flatMap(width => ['light', 'dark'].flatMap(theme => [false, true].map(reduced => ({ width, theme, reduced })))))('reserves the reply start at $width in $theme, reduced motion $reduced', async ({ width, theme, reduced }) => {
     const chat = createChat()
