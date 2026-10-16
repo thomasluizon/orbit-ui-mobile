@@ -28,6 +28,7 @@ import {
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
 import {
   HabitListEmptyState,
+  HabitListFrequencyEmptyState,
   HabitListAllDone,
   HabitListNothingOpen,
   HabitListSkeleton,
@@ -1383,6 +1384,7 @@ export function HabitList({
     }
 
     if (habits.length === 0) {
+      if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
       if (showAllDone) return null
       return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
         <HabitListEmptyState

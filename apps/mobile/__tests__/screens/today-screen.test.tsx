@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   focusCallbacks: [] as (() => void | (() => void))[],
   onboardingComplete: true,
   profileReady: true,
+  habitsFailed: false,
+  habitsFetching: false,
   plan: 'trial',
   habitFilters: [] as HabitsFilter[],
   date: {
@@ -114,7 +116,9 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: (filters: HabitsFilter) => {
     mocks.habitFilters.push(filters)
     return {
-      data: { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      isFetching: mocks.habitsFetching,
+      isError: mocks.habitsFailed,
     }
   },
 }))
@@ -249,6 +253,8 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.habitsFailed = false
+    mocks.habitsFetching = false
     mocks.onboardingComplete = true
     mocks.focusCallbacks.length = 0
     mocks.plan = 'trial'
@@ -286,6 +292,21 @@ describe('Hoje date boundaries', () => {
     await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
     const frequencies = todayMenu(tree)
     expect(frequencies.items?.find((item) => item.id === 'none')?.checked).toBe(true)
+    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
+    await TestRenderer.act(() => { tree.update(<></>) })
+  })
+
+  it.each([false, true])('allows clearing the filter after a query error with fetching=%s', async (isFetching) => {
+    mocks.habitsFailed = true
+    mocks.habitsFetching = isFetching
+    useUIStore.getState().setFilters({ frequencyUnit: 'Week' })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(todayMenu(tree).items?.find((item) => item.id === 'refresh')?.disabled).toBe(isFetching)
+    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    const frequencies = todayMenu(tree)
+    expect(frequencies.items?.every((item) => !item.disabled)).toBe(true)
     await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
     expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
     await TestRenderer.act(() => { tree.update(<></>) })

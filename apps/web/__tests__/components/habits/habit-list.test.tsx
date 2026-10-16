@@ -35,6 +35,7 @@ const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
+const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
 const skipFlow = vi.hoisted(() => ({
   active: false,
@@ -215,7 +216,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 
 vi.mock('@/stores/ui-store', () => ({
   setUIAccountScope: vi.fn(),
-  useUIStore: () => null,
+  useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters }) }),
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -1125,6 +1126,14 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
     expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
     expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
+  })
+
+  it('names an empty frequency view and offers all frequencies', () => {
+    accountHabitCount.count = 3
+    renderWithProviders(<HabitList filters={{ ...defaultFilters, frequencyUnit: 'Week' }} />)
+    expect(screen.getByText('habits.filter.weekly')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.all' }))
+    expect(setFrequencyFilters).toHaveBeenCalledWith({ frequencyUnit: undefined })
   })
 
   it('keeps the plain line visible if the account count cannot load', () => {

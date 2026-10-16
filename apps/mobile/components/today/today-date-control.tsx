@@ -71,7 +71,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
     </View>
     <Menu key={frequencyMenu ? 'frequency' : 'options'} open={menu.visible} anchorRef={menu.anchorRef}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
-      shortTitle={frequencyMenu ? t('habits.frequencyFilter') : props.menuHeading}
+      shortTitle={frequencyMenu ? t('common.options') : props.menuHeading}
       items={frequencyMenu ? HABIT_FREQUENCY_FILTER_OPTIONS.map((option) => ({
         id: option.id, label: t(option.labelKey), checked: frequencyUnit === option.value,
       })) : [

@@ -51,6 +51,7 @@ const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
+const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
 const skipFlow = vi.hoisted(() => ({ active: false }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '22222222-2222-4222-8222-222222222222' }))
@@ -399,6 +400,7 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
 vi.mock('@/stores/ui-store', () => {
   const getState = () => ({
+      setFilters: setFrequencyFilters,
       toggleSelectMode,
       toggleSelectionCascade,
       ...replaySelection,
@@ -1094,6 +1096,18 @@ describe('HabitList', () => {
     })
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
+  })
+
+  it('names an empty frequency view and offers all frequencies', () => {
+    seedHabits([])
+    let tree: ReturnType<typeof createTestTree>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{ frequencyUnit: 'Week' }} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(flattenRenderedText(tree!.toJSON())).toContain('habits.filter.weekly')
+    const button = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.all').length > 0)[0]!
+    TestRenderer.act(() => button.props.onPress())
+    expect(setFrequencyFilters).toHaveBeenCalledWith({ frequencyUnit: undefined })
   })
 
   it('keeps the plain line visible if the account count cannot load', () => {
