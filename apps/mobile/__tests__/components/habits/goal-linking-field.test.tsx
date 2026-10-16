@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 import { FlatList, StyleSheet } from 'react-native'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -10,8 +11,8 @@ const TestRenderer = require('react-test-renderer')
 
 let queryGoals: Record<string, unknown>[] = []
 
-vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
-  CreateGoalFromHabitSheet: 'CreateGoalFromHabitSheet',
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: 'CreateGoalSheet',
 }))
 
 vi.mock('react-i18next', () => ({
@@ -32,13 +33,14 @@ vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'default', currentTheme: 'light' }),
 }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => new Proxy({}, { get: () => '#000000' }),
 }))
-function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }) {
+function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }, label = 'habits.form.createGoal') {
   return root.findAll((node) =>
     node.props.accessibilityRole === 'button' &&
-    node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.createGoal').length > 0,
+    node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
   )[0]!
 }
 
@@ -63,16 +65,31 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
 
     expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
-    expect(tree.root.findByType('CreateGoalFromHabitSheet').props.open).toBe(true)
+    expect(tree.root.findByType('CreateGoalSheet').props.open).toBe(true)
 
     await TestRenderer.act(() => {
-      tree.root.findByType('CreateGoalFromHabitSheet').props.onClose()
+      tree.root.findByType('CreateGoalSheet').props.onClose()
     })
     await TestRenderer.act(() => {
       (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
     })
     expect(tree.root.findAllByType('Sheet')).toHaveLength(1)
   })
+})
+
+it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s without overriding saved associations', async (habitId) => {
+  queryGoals = [createMockGoal({ id: 'existing-goal', title: 'Existing goal' })]
+  const onToggleGoal = vi.fn()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />) })
+  await TestRenderer.act(() => tree.root.findByType('ListRow').props.onClick())
+  await TestRenderer.act(() => createGoalButton(tree.root, 'goals.create').props.onPress())
+  const creator = tree.root.findByType('CreateGoalSheet')
+  expect(creator.props.initialHabitIds).toEqual(habitId ? [habitId] : [])
+  await TestRenderer.act(() => { creator.props.onCreated?.('created-goal'); creator.props.onClose() })
+  if (habitId) expect(onToggleGoal).not.toHaveBeenCalled()
+  else expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  await TestRenderer.act(() => tree.unmount())
 })
 
 it('selects a goal below the first viewport while the search keyboard is open', async () => {

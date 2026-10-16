@@ -8,7 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
-import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
 import { resolve } from 'node:path'
@@ -18,6 +18,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -162,7 +164,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
   const element = surface === 'calendar' ? <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-01" previousMonthLabel={messages.common.previousMonth} nextMonthLabel={messages.common.nextMonth}
     onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens}
     viewSelector={<SegmentedControl fullWidth label={messages.calendar.view.switchLabel} value={choices[0].value} options={choices} onChange={vi.fn()} />} />
-    : surface === 'goal' ? <CreateGoalFromHabitSheet open onClose={vi.fn()} />
+    : surface === 'goal' ? <CreateGoalSheet open onClose={vi.fn()} />
     : <PlanSelection plans={null} isLoading isError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly" checkoutLoading={null} checkoutError="" checkoutDisabled={false}
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
   let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }

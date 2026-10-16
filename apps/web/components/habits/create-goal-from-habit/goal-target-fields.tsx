@@ -36,6 +36,7 @@ export function GoalTargetFields({
         inputRef={targetRef}
         type="number"
         mono
+        required
         value={targetValue}
         placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
         error={fieldErrors.targetValue}
@@ -47,6 +48,7 @@ export function GoalTargetFields({
           id="create-goal-unit"
           inputRef={unitRef}
           type="text"
+          required
           value={unit}
           placeholder={t('goals.form.unitPlaceholder')}
           maxLength={MAX_GOAL_UNIT_LENGTH}

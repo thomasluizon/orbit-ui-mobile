@@ -19,7 +19,7 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
-import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -421,7 +421,7 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it.each([320, 360, 384, 412].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('fits the goal type sheet container in $locale at $width', async ({ width, locale, messages }) => {
-    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalFromHabitSheet open onClose={vi.fn()} /></NextIntlClientProvider>)
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider>)
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

@@ -6,9 +6,9 @@ import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal } from '@orbit/shared/types/goal'
 import React from 'react'
 
-vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
-  CreateGoalFromHabitSheet: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
-    open ? <button type="button" onClick={onClose}>contextual-goal-creator</button> : null,
+vi.mock('@/components/goals/create-goal-sheet', () => ({
+  CreateGoalSheet: ({ open, initialHabitIds, onCreated, onClose }: { open: boolean; initialHabitIds: string[]; onCreated?: (id: string) => void; onClose: () => void }) =>
+    open ? <div><output aria-label="Initial linked habits">{initialHabitIds.join(',')}</output><button type="button" onClick={() => { onCreated?.('created-goal'); onClose() }}>Save created goal</button><button type="button" onClick={onClose}>contextual-goal-creator</button></div> : null,
 }))
 
 vi.mock('next-intl', () => ({
@@ -136,6 +136,26 @@ describe('GoalLinkingField', () => {
     fireEvent.click(screen.getByRole('button', { name: 'contextual-goal-creator' }))
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     expect(await screen.findByText('habits.form.noGoals')).toBeInTheDocument()
+  })
+
+  it.each([undefined, 'habit-reading'])('creates from a populated picker with habit context %s without overriding saved associations', async (habitId) => {
+    const onToggleGoal = vi.fn()
+    mockFetchJson.mockResolvedValue([createMockGoal({ id: 'existing-goal', title: 'Existing goal' })])
+    render(<GoalLinkingField habitId={habitId} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    await screen.findByRole('button', { name: /Existing goal/, pressed: false })
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    expect(await screen.findByLabelText('Initial linked habits')).toHaveTextContent(habitId ?? '')
+    fireEvent.click(screen.getByRole('button', { name: 'Save created goal' }))
+    if (habitId) expect(onToggleGoal).not.toHaveBeenCalled()
+    else expect(onToggleGoal).toHaveBeenCalledWith('created-goal')
+  })
+
+  it('disables creation at the habit goal limit', async () => {
+    mockFetchJson.mockResolvedValue([createMockGoal()])
+    render(<GoalLinkingField selectedGoalIds={[]} atGoalLimit onToggleGoal={vi.fn()} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    expect(await screen.findByRole('button', { name: 'goals.create' })).toBeDisabled()
   })
 
   it('windows a large goal collection and keeps search above the scrolling list', async () => {

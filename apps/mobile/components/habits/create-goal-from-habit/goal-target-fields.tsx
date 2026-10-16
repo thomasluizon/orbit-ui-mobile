@@ -41,7 +41,7 @@ export function GoalTargetFields({
         </Text>
         <BottomSheetAppTextInput
           ref={targetRef}
-          accessibilityHint={fieldErrors.targetValue}
+          accessibilityHint={fieldErrors.targetValue ?? t('common.required')}
           value={targetValue}
           onChangeText={onChangeTarget}
           keyboardType="decimal-pad"
@@ -64,7 +64,7 @@ export function GoalTargetFields({
           <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
           <BottomSheetAppTextInput
             ref={unitRef}
-            accessibilityHint={fieldErrors.unit}
+            accessibilityHint={fieldErrors.unit ?? t('common.required')}
             value={unit}
             onChangeText={onChangeUnit}
             placeholder={t('goals.form.unitPlaceholder')}

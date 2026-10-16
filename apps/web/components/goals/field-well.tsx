@@ -46,6 +46,9 @@ export function FieldWell({
       <input
         ref={inputRef}
         id={id}
+        name={id}
+        autoComplete="off"
+        inputMode={type === 'number' ? 'decimal' : 'text'}
         type={type}
         value={value}
         placeholder={placeholder}
@@ -56,7 +59,7 @@ export function FieldWell({
         required={required}
         onChange={(e) => onChange(e.target.value)}
         data-focus-perimeter=""
-        className="orbit-field-hover w-full appearance-none rounded-2xl border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
+        className="orbit-field-hover w-full appearance-none rounded-[12px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
         style={{
           minHeight: 54,
           padding: '0 16px',

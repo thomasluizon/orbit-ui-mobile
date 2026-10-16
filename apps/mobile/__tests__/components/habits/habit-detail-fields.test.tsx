@@ -34,7 +34,8 @@ vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => nu
 
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: ({ habitId }: { habitId: string }) => <Text accessibilityLabel="Goal habit context">{habitId}</Text> }))
+vi.mock('@/components/habits/habit-detail-tags', () => ({ HabitDetailTags: () => null }))
 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
 
@@ -132,6 +133,16 @@ describe('HabitDetailSchedule schedule chips', () => {
 
 
 describe('HabitDetailFields disclosure labels', () => {
+  it('passes the owning habit to goal creation from habit detail', () => {
+    const habit = makeHabitDetailScopedChild('2026-09-29')
+    let tree!: TestTree
+    renderer.act(() => {
+      tree = renderer.create(<HabitDetailFields habit={habit} hasProAccess relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} />)
+    })
+    renderer.act(() => { tree.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick() })
+    expect(tree.root.findAllByType(Text).find((node) => node.props.accessibilityLabel === 'Goal habit context')?.props.children).toBe(habit.id)
+  })
+
   it.each(['field', 'picker'])('normalizes the stored exact time in the %s', async (surface) => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 7, 28, 9, 15))
