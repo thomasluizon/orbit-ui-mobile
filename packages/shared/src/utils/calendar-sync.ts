@@ -76,19 +76,9 @@ export interface CalendarSyncParsedRecurrence {
   intervalWeeks?: number
 }
 
-export type CalendarSyncImportIssue =
-  | 'ordinal-weekday'
-  | 'unsupported-weekday-recurrence'
-  | 'finite-date-clamp'
-  | 'finite-date-range'
-  | 'utc-until-offset-shift'
+export type CalendarSyncImportIssue = 'utc-until-offset-shift'
 
-export type CalendarSyncImportIssueMessageKey =
-  | 'calendar.importIssue.ordinalWeekday'
-  | 'calendar.importIssue.unsupportedWeekdayRecurrence'
-  | 'calendar.importIssue.finiteDateClamp'
-  | 'calendar.importIssue.finiteDateRange'
-  | 'calendar.importIssue.utcUntilOffsetShift'
+export type CalendarSyncImportIssueMessageKey = 'calendar.importIssue.utcUntilOffsetShift'
 
 export interface CalendarSyncTranslationAdapter {
   translate: (key: string, values?: Record<string, unknown>) => string
@@ -127,11 +117,6 @@ function parseRuleParts(rule: string): Record<string, string> {
   )
 }
 
-function parseRecurrenceInterval(rule: string): number {
-  const intervalMatch = /INTERVAL=(\d+)/.exec(rule)
-  return intervalMatch?.[1] ? Number.parseInt(intervalMatch[1], 10) : 1
-}
-
 function formatIntervalRecurrence(
   interval: number,
   singularKey: string,
@@ -157,31 +142,6 @@ function resolveRecurrenceQuantity(
   return 1
 }
 
-function resolveRecurrenceType(rule: string): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
-  if (rule.includes('FREQ=DAILY')) return 'daily'
-  if (rule.includes('FREQ=WEEKLY')) return 'weekly'
-  if (rule.includes('FREQ=MONTHLY')) return 'monthly'
-  if (rule.includes('FREQ=YEARLY')) return 'yearly'
-  return null
-}
-
-function formatWeeklyRecurrence(
-  rule: string,
-  interval: number,
-  { translate, pluralize }: CalendarSyncTranslationAdapter,
-): string {
-  const dayMatch = /BYDAY=([A-Z,]+)/.exec(rule)
-  const days = dayMatch ? dayMatch[1] : ''
-
-  if (interval > 1) {
-    const base = pluralize(translate('calendar.recurrenceEveryNWeeks', { n: interval }), interval)
-    return days ? `${base} (${days})` : base
-  }
-
-  if (days) return translate('calendar.recurrenceWeeklyDays', { days })
-  return translate('calendar.recurrenceWeekly')
-}
-
 export function parseCalendarSyncRecurrence(
   rule: string | null,
 ): CalendarSyncParsedRecurrence {
@@ -191,7 +151,6 @@ export function parseCalendarSyncRecurrence(
 interface CalendarSyncRuleResolution {
   parts: Record<string, string>
   recurrence: CalendarSyncParsedRecurrence
-  weekdayTokens: string[]
   weekdayIndexes: number[]
   hasWeekdays: boolean
 }
@@ -208,7 +167,7 @@ function assignRecurrenceInterval(
   const parsed = Number.parseInt(parts.INTERVAL, 10)
   if (!Number.isFinite(parsed) || parsed < 1) return
 
-  if (parts.FREQ === 'WEEKLY' && parts.BYDAY) {
+  if (parts.FREQ === 'WEEKLY' && recurrence.days) {
     recurrence.frequencyQuantity = 1
     recurrence.intervalWeeks = parsed
   } else {
@@ -221,7 +180,6 @@ function resolveCalendarSyncRule(rule: string | null): CalendarSyncRuleResolutio
     return {
       parts: {},
       recurrence: {},
-      weekdayTokens: [],
       weekdayIndexes: [],
       hasWeekdays: false,
     }
@@ -234,21 +192,22 @@ function resolveCalendarSyncRule(rule: string | null): CalendarSyncRuleResolutio
     result.frequencyUnit = FREQUENCY_UNIT_MAP[parts.FREQ]
   }
 
-  assignRecurrenceInterval(parts, result)
-
   const weekdayTokens = parts.BYDAY?.split(',').map((day) => day.trim()) ?? []
-  if (weekdayTokens.length > 0) {
+  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
+  const hasPositionalSelection = !!parts.BYSETPOS
+    || weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))
+  const canKeepWeekdays = !hasPositionalSelection && (interval === 1
+    || (parts.FREQ === 'WEEKLY' && interval <= MAX_HABIT_INTERVAL_WEEKS))
+  if (canKeepWeekdays) {
     const days = weekdayTokens
       .map((day) => WEEKDAY_DEFINITION[day]?.name)
       .filter((day): day is string => !!day)
-
-    if (days.length > 0) {
-      result.days = days
-    }
+    if (days.length > 0) result.days = days
   }
+  assignRecurrenceInterval(parts, result)
 
   const weekdayIndexes = [...new Set(
-    weekdayTokens
+    (result.days ? weekdayTokens : [])
       .map((token) => WEEKDAY_DEFINITION[token]?.index)
       .filter((weekday): weekday is number => weekday !== undefined),
   )].sort((left, right) => left - right)
@@ -256,7 +215,6 @@ function resolveCalendarSyncRule(rule: string | null): CalendarSyncRuleResolutio
   return {
     parts,
     recurrence: result,
-    weekdayTokens,
     weekdayIndexes,
     hasWeekdays: result.days !== undefined && result.days.length > 0,
   }
@@ -281,53 +239,30 @@ function parsePositiveInteger(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : null
 }
 
-interface FiniteDateWalkResult {
-  endDate: string
-  skippedCandidate: boolean
-}
-
-function walkMonthlyOrYearlyDates(
+function resolveMonthlyOrYearlyCountEndDate(
   parts: Record<string, string>,
   start: Date,
-  count: number | null,
-  inclusiveEnd: Date | null = null,
-): FiniteDateWalkResult {
+  count: number,
+): string {
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
-  const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth()
-  const startDay = start.getUTCDate()
-  const monthStep = parts.FREQ === 'MONTHLY' ? interval : interval * 12
-  let endDate = start
-  let seen = 1
-  let skippedCandidate = false
-  let monthNumber = startMonth
-
-  while ((count === null || seen < count) && monthNumber <= MAX_CALENDAR_SYNC_MONTH - monthStep) {
-    monthNumber += monthStep
-    const year = Math.floor(monthNumber / 12)
-    const month = monthNumber % 12
-    const candidate = new Date(Date.UTC(year, month, startDay))
-    const isValid = candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month
-    const comparisonDate = isValid ? candidate : new Date(Date.UTC(year, month + 1, 0))
-    if (inclusiveEnd && comparisonDate > inclusiveEnd) break
-
-    if (!isValid) {
-      skippedCandidate = true
-      continue
-    }
-
-    endDate = candidate
-    seen += 1
-  }
-
-  return { endDate: formatUtcDate(endDate), skippedCandidate }
+  const frequencyMonths = parts.FREQ === 'MONTHLY' ? 1 : 12
+  const monthNumber = start.getUTCFullYear() * 12 + start.getUTCMonth() + (count - 1) * interval * frequencyMonths
+  const year = Math.floor(monthNumber / 12)
+  const month = monthNumber % 12
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return formatUtcDate(new Date(Date.UTC(year, month, Math.min(start.getUTCDate(), lastDay))))
 }
 
 function resolveWeekdayCountOffset(
-  startWeekday: number,
-  weekdays: number[],
+  calendarStartWeekday: number,
+  calendarWeekdays: number[],
   count: number,
   intervalWeeks = 1,
+  weekStartDay: 0 | 1 = 1,
 ): number {
+  const startWeekday = (calendarStartWeekday - weekStartDay + DAYS_IN_WEEK) % DAYS_IN_WEEK
+  const weekdays = calendarWeekdays.map((day) => (day - weekStartDay + DAYS_IN_WEEK) % DAYS_IN_WEEK)
+    .sort((left, right) => left - right)
   const firstWeekOffsets = weekdays
     .filter((weekday) => weekday >= startWeekday)
     .map((weekday) => weekday - startWeekday)
@@ -347,6 +282,7 @@ function isUntilBeyondCalendarSyncRange(until: string): boolean {
 function hasFiniteDateRangeIssue(
   resolution: CalendarSyncRuleResolution,
   startDate: string | null,
+  weekStartDay: 0 | 1,
 ): boolean {
   const { parts, weekdayIndexes, hasWeekdays } = resolution
   if (parts.UNTIL && isUntilBeyondCalendarSyncRange(parts.UNTIL)) return true
@@ -360,7 +296,7 @@ function hasFiniteDateRangeIssue(
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
   if (hasWeekdays) {
     const offsetDays = resolveWeekdayCountOffset(
-      start.getUTCDay(), weekdayIndexes, count, parts.FREQ === 'WEEKLY' ? interval : 1,
+      start.getUTCDay(), weekdayIndexes, count, parts.FREQ === 'WEEKLY' ? interval : 1, weekStartDay,
     )
     const remainingDays = Math.floor((MAX_CALENDAR_SYNC_DATE - start.getTime()) / MILLISECONDS_PER_DAY)
     return !Number.isFinite(offsetDays) || offsetDays > remainingDays
@@ -382,16 +318,16 @@ function resolveUnfilteredCountEndDate(
   parts: Record<string, string>,
   start: Date,
   count: number,
-): FiniteDateWalkResult {
+): string {
   if (parts.FREQ === 'MONTHLY' || parts.FREQ === 'YEARLY') {
-    return walkMonthlyOrYearlyDates(parts, start, count)
+    return resolveMonthlyOrYearlyCountEndDate(parts, start, count)
   }
 
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
   const cursor = new Date(start)
   const frequencyDays = parts.FREQ === 'WEEKLY' ? DAYS_IN_WEEK : 1
   cursor.setUTCDate(cursor.getUTCDate() + (count - 1) * interval * frequencyDays)
-  return { endDate: formatUtcDate(cursor), skippedCandidate: false }
+  return formatUtcDate(cursor)
 }
 
 function parseUtcUntil(value: string): Date | null {
@@ -496,16 +432,13 @@ function resolveUtcUntilDate(
   return formatUtcDate(localBound)
 }
 
-/**
- * The last date a finite RRULE still fires, as an ISO date, or null when the rule never
- * ends. UNTIL is already that date.
- */
 export function resolveCalendarSyncEndDate(
   rule: string | null,
   startDate: string | null,
   startTime: string | null = null,
   startUtc?: string | null,
   recurrenceTimeZone?: string | null,
+  weekStartDay: 0 | 1 = 1,
 ): string | null {
   if (!rule) return null
 
@@ -515,6 +448,7 @@ export function resolveCalendarSyncEndDate(
     startTime,
     startUtc,
     recurrenceTimeZone,
+    weekStartDay,
   )
 }
 
@@ -524,8 +458,10 @@ function resolveCalendarSyncEndDateFromResolution(
   startTime: string | null,
   startUtc: string | null | undefined,
   recurrenceTimeZone: string | null | undefined,
+  weekStartDay: 0 | 1,
 ): string | null {
   const { parts, weekdayIndexes } = resolution
+  if (hasFiniteDateRangeIssue(resolution, startDate, weekStartDay)) return '9999-12-31'
 
   if (parts.UNTIL) {
     return resolveUtcUntilDate(parts.UNTIL, startDate, startTime, startUtc, recurrenceTimeZone)
@@ -539,43 +475,14 @@ function resolveCalendarSyncEndDateFromResolution(
   if (Number.isNaN(start.getTime())) return null
 
   if (weekdayIndexes.length === 0) {
-    return resolveUnfilteredCountEndDate(parts, start, count).endDate
+    return resolveUnfilteredCountEndDate(parts, start, count)
   }
 
   const intervalWeeks = parts.FREQ === 'WEEKLY' ? parsePositiveInteger(parts.INTERVAL) ?? 1 : 1
-  const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count, intervalWeeks)
+  const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count, intervalWeeks, weekStartDay)
   const end = new Date(start)
   end.setUTCDate(end.getUTCDate() + offsetDays)
   return formatUtcDate(end)
-}
-
-function didFiniteDateWalkSkip(
-  resolution: CalendarSyncRuleResolution,
-  startDate: string | null,
-  startTime: string | null,
-  startUtc: string | null | undefined,
-  recurrenceTimeZone: string | null | undefined,
-): boolean {
-  const { parts, hasWeekdays } = resolution
-  if ((!parts.COUNT && !parts.UNTIL) || !startDate) return false
-  if (hasWeekdays) return false
-  if (parts.FREQ !== 'MONTHLY' && parts.FREQ !== 'YEARLY') return false
-
-  const start = new Date(`${startDate.slice(0, ISO_DATE_LENGTH)}T00:00:00Z`)
-  if (Number.isNaN(start.getTime())) return false
-
-  if (parts.UNTIL) {
-    const endDate = resolveUtcUntilDate(parts.UNTIL, startDate, startTime, startUtc, recurrenceTimeZone)
-    if (!endDate) return false
-    const inclusiveEnd = new Date(`${endDate}T00:00:00Z`)
-    if (Number.isNaN(inclusiveEnd.getTime())) return false
-    return walkMonthlyOrYearlyDates(parts, start, null, inclusiveEnd).skippedCandidate
-  }
-
-  const count = parsePositiveInteger(parts.COUNT)
-  return count
-    ? resolveUnfilteredCountEndDate(parts, start, count).skippedCandidate
-    : false
 }
 
 function hasUncertainUtcUntilDate(
@@ -602,7 +509,7 @@ export function getCalendarSyncImportIssue(
   startTime: string | null = null,
   startUtc?: string | null,
   recurrenceTimeZone?: string | null,
-  weekStartDay: 0 | 1 = 1,
+  _weekStartDay: 0 | 1 = 1,
 ): CalendarSyncImportIssue | null {
   if (!rule) return null
 
@@ -612,27 +519,7 @@ export function getCalendarSyncImportIssue(
     startTime,
     startUtc,
     recurrenceTimeZone,
-    weekStartDay,
   )
-}
-
-function hasDifferentActiveWeekPartition(
-  resolution: CalendarSyncRuleResolution,
-  startDate: string | null,
-  weekStartDay: 0 | 1,
-): boolean {
-  const { parts, weekdayIndexes } = resolution
-  const ruleWeekStart = WEEKDAY_DEFINITION[parts.WKST ?? 'MO']?.index
-  if (ruleWeekStart === weekStartDay) return false
-  const anchorWeekday = startDate ? new Date(`${startDate}T00:00:00Z`).getUTCDay() : Number.NaN
-  if (ruleWeekStart === undefined || Number.isNaN(anchorWeekday)) return true
-
-  return weekdayIndexes.some((weekday) => {
-    const daysAfterAnchor = (weekday - anchorWeekday + 7) % 7
-    const ruleWeekOffset = Math.floor(((anchorWeekday - ruleWeekStart + 7) % 7 + daysAfterAnchor) / 7)
-    const accountWeekOffset = Math.floor(((anchorWeekday - weekStartDay + 7) % 7 + daysAfterAnchor) / 7)
-    return ruleWeekOffset !== accountWeekOffset
-  })
 }
 
 function getCalendarSyncImportIssueFromResolution(
@@ -641,32 +528,8 @@ function getCalendarSyncImportIssueFromResolution(
   startTime: string | null,
   startUtc: string | null | undefined,
   recurrenceTimeZone: string | null | undefined,
-  weekStartDay: 0 | 1,
 ): CalendarSyncImportIssue | null {
-  const { parts, weekdayTokens, hasWeekdays } = resolution
-  const hasOrdinalPrefix = weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))
-  const hasPositionalSelection = weekdayTokens.length > 0 && !!parts.BYSETPOS
-  if (hasOrdinalPrefix || hasPositionalSelection) {
-    return 'ordinal-weekday'
-  }
-
-  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
-  if (hasWeekdays && interval > 1 && (
-    parts.FREQ !== 'WEEKLY'
-    || interval > MAX_HABIT_INTERVAL_WEEKS
-    || hasDifferentActiveWeekPartition(resolution, startDate, weekStartDay)
-  )) {
-    return 'unsupported-weekday-recurrence'
-  }
-
-  if (hasFiniteDateRangeIssue(resolution, startDate)) {
-    return 'finite-date-range'
-  }
-
-  if (didFiniteDateWalkSkip(resolution, startDate, startTime, startUtc, recurrenceTimeZone)) {
-    return 'finite-date-clamp'
-  }
-
+  const { parts } = resolution
   if (!recurrenceTimeZone && hasUncertainUtcUntilDate(parts, startDate, startTime, startUtc)) {
     return 'utc-until-offset-shift'
   }
@@ -689,10 +552,6 @@ export function getCalendarSyncImportIssueMessageKey(
   issue: CalendarSyncImportIssue,
 ): CalendarSyncImportIssueMessageKey {
   const keys: Record<CalendarSyncImportIssue, CalendarSyncImportIssueMessageKey> = {
-    'ordinal-weekday': 'calendar.importIssue.ordinalWeekday',
-    'unsupported-weekday-recurrence': 'calendar.importIssue.unsupportedWeekdayRecurrence',
-    'finite-date-clamp': 'calendar.importIssue.finiteDateClamp',
-    'finite-date-range': 'calendar.importIssue.finiteDateRange',
     'utc-until-offset-shift': 'calendar.importIssue.utcUntilOffsetShift',
   }
   return keys[issue]
@@ -704,34 +563,25 @@ export function formatCalendarSyncRecurrenceLabel(
 ): string {
   if (!rule) return ''
 
-  const upper = rule.toUpperCase()
-  const interval = parseRecurrenceInterval(upper)
-  const recurrenceType = resolveRecurrenceType(upper)
-
-  switch (recurrenceType) {
-    case 'daily':
-      return formatIntervalRecurrence(
-        interval,
-        'calendar.recurrenceDaily',
-        'calendar.recurrenceEveryNDays',
-        translations.translate,
-        translations.pluralize,
-      )
-    case 'weekly':
-      return formatWeeklyRecurrence(upper, interval, translations)
-    case 'monthly':
-      return formatIntervalRecurrence(
-        interval,
-        'calendar.recurrenceMonthly',
-        'calendar.recurrenceEveryNMonths',
-        translations.translate,
-        translations.pluralize,
-      )
-    case 'yearly':
-      return translations.translate('calendar.recurrenceYearly')
-    default:
-      return ''
+  const recurrence = parseCalendarSyncRecurrence(rule.toUpperCase())
+  const interval = recurrence.intervalWeeks ?? recurrence.frequencyQuantity ?? 1
+  const { translate, pluralize } = translations
+  if (recurrence.days) {
+    const days = recurrence.days.map((day) => Object.keys(WEEKDAY_DEFINITION)
+      .find((token) => WEEKDAY_DEFINITION[token]?.name === day)).join(',')
+    if (interval > 1) {
+      return `${pluralize(translate('calendar.recurrenceEveryNWeeks', { n: interval }), interval)} (${days})`
+    }
+    return translate('calendar.recurrenceWeeklyDays', { days })
   }
+  const keys: Record<FrequencyUnit, [string, string]> = {
+    Day: ['calendar.recurrenceDaily', 'calendar.recurrenceEveryNDays'],
+    Week: ['calendar.recurrenceWeekly', 'calendar.recurrenceEveryNWeeks'],
+    Month: ['calendar.recurrenceMonthly', 'calendar.recurrenceEveryNMonths'],
+    Year: ['calendar.recurrenceYearly', 'calendar.recurrenceEveryNYears'],
+  }
+  if (!recurrence.frequencyUnit) return ''
+  return formatIntervalRecurrence(interval, ...keys[recurrence.frequencyUnit], translate, pluralize)
 }
 
 export function isCalendarSyncNotConnectedMessage(message: string): boolean {
@@ -759,7 +609,6 @@ export function buildCalendarSyncImportRequest(
         event.startTime,
         event.startUtc,
         event.recurrenceTimeZone,
-        weekStartDay,
       )
       if (importIssue) {
         throw new Error(`Unsupported calendar recurrence: ${importIssue}`)
@@ -787,6 +636,7 @@ export function buildCalendarSyncImportRequest(
           event.startTime,
           event.startUtc,
           event.recurrenceTimeZone,
+          weekStartDay,
         ),
         reminderEnabled: event.reminders.length > 0,
         reminderTimes,

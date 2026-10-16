@@ -77,7 +77,7 @@ describe('calendar import row press contrast', () => {
     let tree!: RowTree
     void act(() => {
       tree = create(<CalendarSyncEventRow
-        event={blocked ? { ...event, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' } : event}
+        event={blocked ? { ...event, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : event}
         weekStartDay={1} selected={state === 'selected'} isReviewMode={false} suggestionId={null}
         dismissPending={false} styles={createStyles()} tokens={tokens}
         t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()}
@@ -87,7 +87,7 @@ describe('calendar import row press contrast', () => {
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: state === 'selected', disabled: blocked })
-    if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.ordinalWeekday')
+    if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift')
     for (const pressed of blocked ? [false] : [false, true]) {
       const flattened = StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>)
       expect(flattened).not.toHaveProperty('borderBottomWidth')
@@ -113,7 +113,7 @@ describe('calendar import row press contrast', () => {
     let tree!: RowTree
     void act(() => {
       tree = create(<CalendarSyncEventRow
-        event={blocked ? { ...event, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : event}
+        event={blocked ? { ...event, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : event}
         weekStartDay={1} selected={selected} isReviewMode suggestionId="suggestion"
         dismissPending={false} styles={createStyles()} tokens={tokens}
         t={((key: string) => key) as TFunction} onToggle={onToggle} onDismiss={onDismiss}
@@ -123,7 +123,7 @@ describe('calendar import row press contrast', () => {
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: selected, disabled: blocked })
-    if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.finiteDateClamp')
+    if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift')
     for (const pressed of blocked ? [false] : [false, true]) {
       void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
       const painted = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!

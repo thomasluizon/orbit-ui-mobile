@@ -372,7 +372,7 @@ describe('CalendarSyncPage', () => {
     })
 
     function provideEvents(review: boolean, blocked: boolean, rowEvent: CalendarSyncEvent = longEvent) {
-      const event = blocked ? { ...rowEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : rowEvent
+      const event = blocked ? { ...rowEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : rowEvent
       const events = [event, { ...longEvent, id: 'short-event', title: 'Short event', calendarName: null, description: null }]
       if (review) {
         mockSearchParams.set('mode', 'review')
@@ -485,7 +485,7 @@ describe('CalendarSyncPage', () => {
       expect(row).toHaveAttribute('aria-pressed', blocked ? 'false' : 'true')
       if (blocked) {
         expect(row).toBeDisabled()
-        expect(row).toHaveAccessibleDescription('calendar.importIssue.finiteDateClamp')
+        expect(row).toHaveAccessibleDescription('calendar.importIssue.utcUntilOffsetShift')
       } else {
         row.focus()
         expect(row).toHaveFocus()
@@ -626,7 +626,7 @@ describe('CalendarSyncPage', () => {
     expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
   })
 
-  it('explains and disables an ordinal weekday suggestion before import', async () => {
+  it('adapts and imports a second Monday suggestion as a monthly habit', async () => {
     mockSearchParams.set('mode', 'review')
     mockSuggestions = {
       data: [
@@ -650,15 +650,16 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const issue = await screen.findByText('calendar.importIssue.ordinalWeekday')
-    expect(screen.getByText(personalText('Second Monday review')).closest('button')).toBeDisabled()
-    expect(issue).toBeVisible()
-    expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
-    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
-
-    const row = screen.getByText(personalText('Second Monday review')).closest('button')
-    expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
-    expect(row).toHaveStyle({ '--calendar-event-fill': 'var(--bg-elev)' })
+    const row = (await screen.findByText(personalText('Second Monday review'))).closest('button')
+    expect(row).not.toBeDisabled()
+    expect(screen.getByText('calendar.recurrenceMonthly')).toBeVisible()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ dueDate: '2026-09-14', frequencyUnit: 'Month', frequencyQuantity: 1, days: null })],
+    }), expect.anything())
   })
 
   it('enables and imports an alternating weekday suggestion', async () => {
@@ -701,7 +702,7 @@ describe('CalendarSyncPage', () => {
     ['a monthly weekday interval', 'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO', '2026-09-21', 1],
     ['a weekday interval above the API bound', 'RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO', '2026-09-21', 1],
     ['a different active-week partition', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO', '2026-09-27', 0],
-  ])('disables %s in review', async (_name, recurrenceRule, startDate, weekStartDay) => {
+  ])('adapts %s in review', async (_name, recurrenceRule, startDate, weekStartDay) => {
     mockProfile = { id: 'u1', hasProAccess: true, weekStartDay }
     mockSearchParams.set('mode', 'review')
     mockSuggestions = { data: [{
@@ -712,13 +713,20 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Unsupported training'))).closest('button')).toBeDisabled()
-    expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
-    expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
-    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
+    expect((await screen.findByText(personalText('Unsupported training'))).closest('button')).not.toBeDisabled()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    const expected = recurrenceRule.includes('MONTHLY')
+      ? { frequencyUnit: 'Month', frequencyQuantity: 2, days: null }
+      : recurrenceRule.includes('53')
+        ? { frequencyUnit: 'Week', frequencyQuantity: 53, days: null }
+        : { frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Sunday', 'Monday'], intervalWeeks: 2 }
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({ habits: [expect.objectContaining(expected)] }), expect.anything())
   })
 
-  it('explains and disables a finite month-end suggestion before import', async () => {
+  it('adapts and imports a finite month-end suggestion', async () => {
     mockSearchParams.set('mode', 'review')
     mockSuggestions = {
       data: [
@@ -742,8 +750,12 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText('calendar.importIssue.finiteDateClamp')).toBeVisible()
-    expect(screen.getByText(personalText('Month end close')).closest('button')).toBeDisabled()
+    expect((await screen.findByText(personalText('Month end close'))).closest('button')).not.toBeDisabled()
+    expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
+    fireEvent.click((await screen.findByText(/calendar.importButton/)).closest('button')!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ frequencyUnit: 'Month', frequencyQuantity: 1, endDate: '2026-03-31' })],
+    }), expect.anything())
   })
 
   it('keeps the actionable hover treatment on a row that can still be imported', async () => {
