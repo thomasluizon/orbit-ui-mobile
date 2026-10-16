@@ -14,6 +14,13 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
+  it('identifies Astra and shows Pro resources without dash markers', () => {
+    const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
+    expect(container.querySelector('[data-asset="astra-mark"]')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'upgrade.included' })).toBeInTheDocument()
+    expect(container.querySelector('[data-icon="minus"]')).not.toBeInTheDocument()
+  })
+
   it.each([0, 4, 5])('omits usage and capacity notices at %i of 5 messages', (aiMessagesUsed) => {
     render(<SubscriptionNotice status={{ ...status, aiMessagesUsed, aiMessagesLimit: 5 }} locale="en" t={t} />)
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
@@ -25,7 +32,7 @@ describe('lapsed subscription notice', () => {
 
   it('lists each lost entitlement separately with the current message allowance', () => {
     render(<SubscriptionNotice status={status} locale="en" t={t} />)
-    const rows = within(screen.getByRole('list')).getAllByRole('listitem')
+    const rows = within(screen.getByText('upgrade.billing.lapsed.title').closest('section')!).getAllByRole('listitem')
     expect(rows).toHaveLength(3)
     expect(rows[0]).toHaveTextContent('upgrade.billing.lapsed.lostMessages:{"limit":7}')
     expect(rows[1]).toHaveTextContent('upgrade.billing.lapsed.lostCalendar')

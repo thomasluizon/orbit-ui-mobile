@@ -30,6 +30,13 @@ function noticeText(nextStatus: SubscriptionStatus) {
 }
 
 describe('lapsed subscription notice (mobile)', () => {
+  it('identifies Astra and shows Pro resources without dash markers', () => {
+    const text = noticeText(status)
+    expect(text).toContain('astra-mark')
+    expect(text).toContain('upgrade.included')
+    expect(text).not.toContain('\"name\":\"minus\"')
+  })
+
   it.each([0, 4, 5])('never renders UsageCard at %i of 5 messages', (aiMessagesUsed) => {
     vi.mocked(UsageCard).mockClear()
     const text = noticeText({ ...status, aiMessagesUsed, aiMessagesLimit: 5 })

@@ -1,5 +1,7 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import type { ReactNode } from 'react'
-import { Text, View } from 'react-native'
+import { Text, View, useWindowDimensions } from 'react-native'
+import { responsiveTypeStyle } from '@/lib/theme'
 import { styles } from './styles'
 import type { Tokens } from './types'
 
@@ -16,10 +18,12 @@ export function PlanSummaryCard({
   badges?: ReactNode
   tokens: Tokens
 }>) {
+  const { width } = useWindowDimensions()
   return (
-    <View style={[styles.billingCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View style={{ gap: 16, paddingVertical: 16 }}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><AstraGlyph size={96} color={tokens.fg1} /></View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <Text accessibilityRole="header" style={[styles.billingHeading, { color: tokens.fg1, lineHeight: 26.4 }]}>{planLabel}</Text>
+        <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{planLabel}</Text>
         {badges}
       </View>
       {body ? <Text style={[styles.billingBody, { color: tokens.fg2 }]}>{body}</Text> : null}

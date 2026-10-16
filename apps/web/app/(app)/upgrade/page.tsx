@@ -1,5 +1,7 @@
 'use client'
 
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 
 import { useCallback, useEffect, useMemo } from 'react'
@@ -195,6 +197,7 @@ export default function UpgradePage() {
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
+        <AstraGlyph size={96} color="var(--fg-1)" />
         <PricingSection
           focusOnMount={showPitch}
           profile={status}
@@ -255,7 +258,7 @@ export default function UpgradePage() {
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className="orbit-content-frame flex-1 pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="orbit-content-frame mx-auto flex-1 pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>

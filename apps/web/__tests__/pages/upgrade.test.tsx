@@ -184,6 +184,53 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 import UpgradePage from '@/app/(app)/upgrade/page'
 import { holdAccount } from '@/__tests__/support/account-change'
 
+type SubscriptionRenderCase = { width: number; locale: 'en' | 'pt-BR'; mode: 'light' | 'dark'; state: string }
+
+function configureSubscription({ locale, state }: SubscriptionRenderCase) {
+  mockLocale.value = locale
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  const interval = state.endsWith('yearly') ? 'yearly' : 'monthly'
+  mockHasProAccess = state !== 'free' && !expired
+  mockProfile = createMockProfile({ isTrialActive: state === 'trial', isLifetimePro: state === 'lifetime',
+    subscriptionInterval: interval, subscriptionSource: play ? 'play' : 'stripe',
+    planExpiresAt: '2027-01-20T00:00:00Z', trialEndsAt: state === 'trial' ? '2027-01-20T00:00:00Z' : null,
+    aiMessagesLimit: mockHasProAccess ? 50 : 5,
+  })
+  if (expired) mockProfile = { ...mockProfile, lapseReason: 'expired', subscriptionEndedAt: '2026-09-01T00:00:00Z' }
+  mockBilling = { status: state === 'past-due' ? 'past_due' : 'active', cancelAtPeriodEnd: state === 'canceled',
+    interval, currentPeriodEnd: '2027-01-20T00:00:00Z', amountPerPeriod: 999, currency: 'usd', paymentMethod: null, recentInvoices: [] }
+  mockPlans = { monthly: { unitAmount: 999 }, yearly: { unitAmount: 6999 }, currency: 'usd', savingsPercent: 42, couponPercentOff: null }
+}
+
+function assertSubscriptionContent(container: HTMLElement, { locale, state }: SubscriptionRenderCase) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  const play = state.startsWith('play')
+  expect(container.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(1)
+  const resources = screen.getAllByRole('list', { name: pitch ? messages.upgrade.outcomes.label : messages.upgrade.included })
+  for (const resourcesList of resources) expect(resourcesList.children).toHaveLength(4)
+  const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
+    : play ? messages.upgrade.billing.actions.managePlay : messages.upgrade.billing.actions.manage
+  if (state === 'lifetime') {
+    expect(screen.queryByRole('button', { name: messages.upgrade.billing.actions.manage })).not.toBeInTheDocument()
+    expect(container.textContent).toContain(messages.upgrade.billing.plan.lifetimeHint)
+  } else expect(screen.getAllByRole('button', { name: new RegExp(action) }).length).toBeGreaterThan(0)
+  assertSubscriptionDates(container.textContent, locale, state)
+}
+
+function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', state: string) {
+  const messages = locale === 'en' ? en : ptBR
+  const pitch = state === 'free' || state === 'trial'
+  const expired = state === 'expired'
+  if (state === 'trial') expect(text).toContain(messages.upgrade.billing.plan.trialHint.replace('{date}', new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date('2027-01-20T00:00:00Z'))))
+  if (expired) expect(text).toContain(messages.upgrade.billing.lapsed.ended.replace('{date}', '2026-09-01T00:00:00Z'))
+  if (!pitch && !expired && state !== 'lifetime') expect(text).toContain(
+    (state === 'canceled' ? messages.upgrade.billing.plan.canceledHint : messages.upgrade.billing.plan.renewsOn).replace('{date}', '2027-01-20T00:00:00Z'))
+}
+
+
 describe('UpgradePage', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('back destination in $locale', ({ locale, messages }) => {
     it.each([
@@ -234,6 +281,41 @@ describe('UpgradePage', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
+      .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
+        ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
+          .map((state) => ({ width, locale, mode, state })))))
+
+    it.each(subscriptionCases)('renders the $state subscription at $width in $locale and $mode', async (example) => {
+      const { width, mode, state } = example
+      const pitch = state === 'free' || state === 'trial'
+      configureSubscription(example)
+      const { container } = render(<UpgradePage />)
+      if (pitch) await waitFor(() => expect(container.querySelectorAll('[data-tier]')).toHaveLength(2))
+      assertSubscriptionContent(container, example)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div class="${mode}" data-mode="${mode}" style="background:var(--bg);color:var(--fg-1)">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        const geometry = await page.locator('[data-upgrade-screen]').evaluate((element) => {
+          const frame = element.getBoundingClientRect()
+          const headings = [...element.querySelectorAll('h2')].map((heading) => {
+            const range = document.createRange()
+            range.selectNodeContents(heading)
+            const bounds = heading.getBoundingClientRect()
+            return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size,
+              fits: range.getBoundingClientRect().width <= bounds.width + 1 }
+          })
+          return { left: frame.left, width: frame.width, overflow: element.scrollWidth > element.clientWidth, headings }
+        })
+        const frameWidth = width < 1024 ? width : (pitch ? 652 : 560) + 32
+        expect(geometry.width).toBe(frameWidth)
+        expect(geometry.left).toBe((width - frameWidth) / 2)
+        expect(geometry.overflow).toBe(false)
+        for (const heading of geometry.headings) expect(heading).toEqual({ lines: 1, fits: true })
+      } finally { await page.close() }
+    })
 
     const cases = [320, 360, 384, 412, 600, 640, 840, 1352, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
       .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))

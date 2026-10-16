@@ -63,6 +63,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/field-inset-inventory.md` | Text control owners, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, deletion confirmation, revision, terminal outcomes and responsive parity. |
+| `design/subscription-surfaces.md` | Assinatura presentation inventory, shared purchase consumers, retained billing transitions and platform verification owners. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
