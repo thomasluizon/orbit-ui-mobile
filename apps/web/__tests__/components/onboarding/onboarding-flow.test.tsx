@@ -491,9 +491,30 @@ describe('OnboardingFlow state model', () => {
 
   it('dismisses the overlay directly with Escape', async () => {
     mount(true)
+    const dialog = screen.getByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+      expect(dialog).not.toBeInTheDocument()
+    })
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the overlay until Escape completion settles', async () => {
+    let finish!: () => void
+    mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    mount(true)
+    const dialog = screen.getByRole('dialog')
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
-    expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('sentence')).toBeInTheDocument()
+    expect(dialog).toBeInTheDocument()
+    await act(async () => { finish() })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+      expect(dialog).not.toBeInTheDocument()
+    })
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
   })
 
   it('shows the flushed final step once and clears only its account flag', async () => {

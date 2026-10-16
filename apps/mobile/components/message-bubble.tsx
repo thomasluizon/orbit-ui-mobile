@@ -1,11 +1,10 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
-import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
-import { TOUCH_TARGET_MIN, BUTTON_SIZES } from "@orbit/shared/theme";
+import { ArrowUpRight } from "@/components/ui/icons";
+import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
@@ -33,44 +32,8 @@ import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
-import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
-
-function MessageCopyControl({ sourceText }: Readonly<{
-  sourceText: string;
-}>) {
-  const { t } = useTranslation();
-  const { currentScheme, currentTheme } = useAppTheme();
-  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme]);
-  const [copied, setCopied] = useState(false);
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-  }, []);
-
-  async function copySourceText() {
-    await Clipboard.setStringAsync(sourceText);
-    setCopied(true);
-    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
-  }
-
-  return (
-    <PillButton
-      variant="ghost"
-      size="sm"
-      accessibleName={copied ? t("chat.copied") : t("chat.copy")}
-      onClick={() => void copySourceText()}
-      leadingIcon={copied
-        ? <Check size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />
-        : <Copy size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />}
-    >
-      {copied ? t("chat.copied") : t("chat.copy")}
-    </PillButton>
-  );
-}
 
 function MessageProse({ message, sourceText, styles }: Readonly<{
   message: MessageBubbleProps['message'];
@@ -81,26 +44,23 @@ function MessageProse({ message, sourceText, styles }: Readonly<{
   const isUser = message.role === "user";
   if (!isUser && !hasChatProse(sourceText) && !message.imageUrl) return null;
   return (
-    <View style={[styles.proseStack, isUser ? styles.userProseStack : null]}>
-      <View
-        style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
-      >
-        {message.imageUrl && (
-          <Image
-            source={{ uri: message.imageUrl }}
-            accessibilityLabel={t("chat.attachmentPreview")}
-            style={styles.imageAttachment}
-            resizeMode="cover"
-            resizeMethod="resize"
-          />
-        )}
+    <View
+      testID="message-prose"
+      style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
+    >
+      {message.imageUrl && (
+        <Image
+          source={{ uri: message.imageUrl }}
+          accessibilityLabel={t("chat.attachmentPreview")}
+          style={styles.imageAttachment}
+          resizeMode="cover"
+          resizeMethod="resize"
+        />
+      )}
 
-        <Markdown tone="thread">
-          {isUser ? message.content : sourceText}
-        </Markdown>
-      </View>
-
-      {!isUser && hasChatProse(sourceText) ? <MessageCopyControl sourceText={sourceText} /> : null}
+      <Markdown tone="thread">
+        {isUser ? message.content : sourceText}
+      </Markdown>
     </View>
   );
 }
@@ -352,16 +312,6 @@ function createStyles(tokens: AppTokens) {
       minWidth: 0,
       flexDirection: "column",
       gap: 16,
-    },
-
-    proseStack: {
-      maxWidth: "100%",
-      flexDirection: "column",
-      alignItems: "flex-start",
-      gap: 8,
-    },
-    userProseStack: {
-      alignItems: "flex-end",
     },
 
     bubble: {

@@ -3,6 +3,8 @@ import { isValidElement, type ReactElement } from 'react'
 import { Text } from 'react-native'
 import { Tokenizer } from 'marked'
 import type { useMarkdownHookOptions } from 'react-native-marked'
+import { MessageBubble } from '@/components/message-bubble'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { Markdown } from '@/components/ui/markdown'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -31,6 +33,7 @@ vi.mock('react-native-marked/src/components/MDList', () => ({
 }))
 vi.mock('react-native-marked/src/components/MDTable', () => ({ default: 'Table' }))
 
+const renderSelection = vi.hoisted(() => ({ current: false }))
 const markedProps: { current: Record<string, unknown> | null } = { current: null }
 vi.mock('react-native-marked', async () => {
   const { default: Renderer } = await vi.importActual<{ default: typeof import('react-native-marked').Renderer }>('react-native-marked/src/lib/Renderer')
@@ -38,7 +41,7 @@ vi.mock('react-native-marked', async () => {
     __esModule: true,
     default: (props: Record<string, unknown>) => {
       markedProps.current = props
-      return null
+      return renderSelection.current ? <ParsedMarkdown content={props.value as string} options={props} /> : null
     },
     Renderer,
     MarkedTokenizer: Tokenizer,
@@ -89,6 +92,33 @@ function renderParsedMarkdown(content: string, tone?: Parameters<typeof Markdown
   TestRenderer.act(() => { tree = TestRenderer.create(<ParsedMarkdown content={content} options={props} />) })
   return tree
 }
+
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
+  useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+
+it.each(['ai', 'user'] as const)('keeps %s message text selectable through the native renderer', role => {
+  const content = 'A paragraph with **emphasis**, *italics*, `code` and a [link](https://example.com).'
+  let tree: ReturnType<typeof TestRenderer.create>
+  renderSelection.current = true
+  try {
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role, content, pendingOperations: [] })} />)
+    })
+    expect(tree!.root.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')).toHaveLength(0)
+    const texts = tree!.root.findAllByType('Text')
+    expect(texts.length).toBeGreaterThan(4)
+    for (const text of texts) expect(text.props.selectable).toBe(true)
+  } finally {
+    renderSelection.current = false
+    TestRenderer.act(() => { tree?.unmount() })
+  }
+})
 
 describe('mobile Markdown wrapper', () => {
   describe.each([false, true])('list image labels with linked=%s', (linked) => {
