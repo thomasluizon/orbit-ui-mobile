@@ -328,7 +328,7 @@ describe('useLoginFlow verify-code success', () => {
       await result.current.verifyCode('123456')
     })
 
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
   })
 
   it.each(['%2F%2Fevil.example', 'https%3A%2F%2Fevil.example', '%2Fsocial%2Fx'])(

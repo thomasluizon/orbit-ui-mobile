@@ -31,3 +31,22 @@ Verification owners are the web `progress.test.tsx`, `progress-layout-fixtures.t
 route-context tests; Android `progress-screen.test.tsx`, achievement geometry and protected-route
 tests; and the Progresso cases in `apps/web/e2e/layout/`. Hermetic Chromium overview cases cover
 412px, 840px and 1352px in both locales. The layout workflow owns the end-to-end cases.
+
+## Existing entry points
+
+Saved `/streak`, `/goals` and `/achievements` links open their matching Progresso details.
+Android system intents preserve the incoming query and fragment. Web redirects keep the query
+through the framework redirect table and leave fragment handling with the browser.
+Streak notifications carrying `/progress` retain their production meaning and open Sequência;
+Wrapped notifications retain their separate period-aware route. Notifications carrying the new
+detail routes are accepted directly. Other retired insights and retrospective notifications open
+the overview, preserving their query and fragment.
+
+Streak badges and the Astra streak card open Sequência. The Astra goal-list action opens Metas;
+the gamification feature-explanation link opens Conquistas. Root navigation and general progress
+summaries continue to open the overview.
+
+The achievement grid geometry belongs to Conquistas. Its readable 260px minimum, uniform tracks,
+wrapping earned chip, first-render columns, live resizing and enlarged Android text follow
+`design/progress-grid-surfaces.md`. Goal widths are measured on Metas, and window stat rows on
+the overview, so each geometry case mounts the composition that actually owns it.

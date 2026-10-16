@@ -112,14 +112,19 @@ describe('NotificationDetailModal', () => {
   it('navigates and closes when view button clicked', () => {
     render(<NotificationDetailModal {...defaultProps} />)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
-    expect(mockPush).toHaveBeenCalledWith('/progress')
+    expect(mockPush).toHaveBeenCalledWith('/progress/achievements')
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('opens a progress notification on the Progresso screen', () => {
-    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url: '/progress' }} />)
+  it.each([
+    ['/progress', '/progress/streak'],
+    ['/streak?source=inbox#freezes', '/progress/streak?source=inbox#freezes'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('opens notification %s in its owning detail', (url, destination) => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url }} />)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
-    expect(mockPush).toHaveBeenCalledWith('/progress')
+    expect(mockPush).toHaveBeenCalledWith(destination)
   })
 
   it('preserves the closed month when opening a Wrapped notification', () => {

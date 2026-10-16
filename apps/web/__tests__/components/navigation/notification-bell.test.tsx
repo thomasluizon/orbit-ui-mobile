@@ -436,7 +436,7 @@ describe('alerts', () => {
     expect(row.querySelector('svg')!.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
     fireEvent.click(row)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in Progress' }))
-    expect(state.push).toHaveBeenCalledWith('/progress')
+    expect(state.push).toHaveBeenCalledWith('/progress/streak')
   })
 
   it.each([

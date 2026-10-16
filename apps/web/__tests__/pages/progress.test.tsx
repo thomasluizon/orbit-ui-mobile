@@ -1757,6 +1757,7 @@ describe('Progress overview hermetic geometry', () => {
           const column = root.getBoundingClientRect()
           return { left: column.left, right: column.right, width: column.width, overflow: document.documentElement.scrollWidth > window.innerWidth,
             figures: root.querySelectorAll('section [data-state="default"]').length,
+            statRows: [...root.querySelectorAll('section [data-state="default"]')].map((tile) => tile.getBoundingClientRect().top),
             labels: [...root.querySelectorAll('[data-slot="list-row-title"], [data-slot="list-row-description"]')].map((label) => {
               const range = document.createRange(); range.selectNodeContents(label)
               const text = range.getBoundingClientRect(); const box = label.getBoundingClientRect()
@@ -1769,6 +1770,7 @@ describe('Progress overview hermetic geometry', () => {
         expect(geometry.left).toBe((width - geometry.width) / 2)
         expect(geometry.overflow).toBe(false)
         expect(geometry.figures).toBe(3)
+        expect(new Set(geometry.statRows).size).toBeLessThan(3)
         expect(geometry.links).toHaveLength(3)
         for (const link of geometry.links) { expect(link.left).toBeGreaterThanOrEqual(geometry.left); expect(link.right).toBeLessThanOrEqual(geometry.right); expect(link.height).toBeGreaterThanOrEqual(48) }
         for (const label of geometry.labels) { expect(label.lines).toBe(1); expect(label.inside).toBe(true) }

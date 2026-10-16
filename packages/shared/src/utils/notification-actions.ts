@@ -51,18 +51,18 @@ export function isViewableNotificationUrl(
   const resolvedUrl = resolveNotificationUrl(url)
   if (!resolvedUrl) return false
   const pathname = resolvedUrl.split(/[?#]/, 1)[0] ?? resolvedUrl
-  return ['/', '/calendar', '/progress', '/profile'].includes(pathname) ||
+  return ['/', '/calendar', '/progress', '/progress/streak', '/progress/goals', '/progress/achievements', '/profile'].includes(pathname) ||
     pathname === '/wrapped' ||
     /^\/habits\/[^/\\.%]+$/.test(pathname)
 }
 
-const ABSORBED_PROGRESS_ROUTES = [
-  '/goals',
-  '/streak',
-  '/achievements',
-  '/insights',
-  '/retrospective',
-] as const
+const LEGACY_PROGRESS_DESTINATIONS: Readonly<Record<string, string>> = {
+  '/streak': '/progress/streak',
+  '/goals': '/progress/goals',
+  '/achievements': '/progress/achievements',
+  '/insights': '/progress',
+  '/retrospective': '/progress',
+}
 
 export function resolveNotificationUrl(url: string): string | null {
   const pathname = url.split(/[?#]/, 1)[0] ?? url
@@ -88,10 +88,12 @@ export function resolveNotificationUrl(url: string): string | null {
       return `/wrapped?${destinationParams.toString()}`
     }
   }
-  const isAbsorbedRoute = ABSORBED_PROGRESS_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  const suffix = url.slice(pathname.length)
+  if (pathname === '/progress') return `/progress/streak${suffix}`
+  const retired = Object.entries(LEGACY_PROGRESS_DESTINATIONS).find(
+    ([route]) => pathname === route || pathname.startsWith(`${route}/`),
   )
-  return isAbsorbedRoute ? '/progress' : url
+  return retired ? `${retired[1]}${suffix}` : url
 }
 
 export function getNotificationDetailActionVisibility(
@@ -122,7 +124,10 @@ export function getNotificationTargetKey(url: string | null, habitId: string | n
   switch (pathname) {
     case '/': return 'nav.today'
     case '/calendar': return 'nav.calendar'
-    case '/progress': return 'nav.progress'
+    case '/progress':
+    case '/progress/streak':
+    case '/progress/goals':
+    case '/progress/achievements': return 'nav.progress'
     case '/profile': return 'nav.profile'
     case '/wrapped': return 'profile.wrappedTitle'
     default: return 'notifications.habit'

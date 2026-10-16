@@ -17,11 +17,23 @@ const notificationUrls = [
 const routes = readdirSync(resolve(__dirname, '../app'), { recursive: true, encoding: 'utf8' })
   .filter((file) => file.endsWith('.tsx'))
   .map((file) => file.replace(/(^|\/)\([^/]+\)\//g, '$1'))
-  .filter((file) => file === 'index.tsx' || file.endsWith('/index.tsx') || !file.includes('/'))
   .map((file) => file.replace(/(^|\/)index\.tsx$/, '').replace(/\.tsx$/, '') || '/')
   .map((file) => file.startsWith('/') ? file : `/${file}`)
 
 describe('notification destinations', () => {
+  it.each([
+    ['/progress', '/progress/streak'],
+    ['/progress?source=notification#freezes', '/progress/streak?source=notification#freezes'],
+    ['/streak?source=notification#freezes', '/progress/streak?source=notification#freezes'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/progress/streak', '/progress/streak'],
+  ])('opens notification %s in its owning detail', (url, expected) => {
+    const destination = getNotificationDestination(url)
+    expect(destination).toEqual({ url: expected, opensAstra: false })
+    expect(routes).toContain(expected.split(/[?#]/)[0])
+  })
+
   it.each(notificationUrls)('%s resolves to an Android screen', (url) => {
     const destination = getNotificationDestination(url)
     expect(destination).not.toBeNull()

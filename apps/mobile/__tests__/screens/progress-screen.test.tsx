@@ -1142,7 +1142,7 @@ describe('mobile ProgressContent', () => {
     dimensions.mockReturnValue({ width: 412, height: 892, scale: 1, fontScale: 1 })
     const compactTree = await renderProgress(undefined, 'achievements')
     const compactTile = compactTree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
-    expect(StyleSheet.flatten(compactTile.props.style as ViewStyle).width).toBe('100%')
+    expect(StyleSheet.flatten(compactTile.props.style as ViewStyle).width).toBe(380)
     dimensions.mockRestore()
   })
 

@@ -572,11 +572,11 @@ describe('mobile alerts', () => {
     expect(rows[0]!.findAll((node) => node.type === 'Text' && node.props.children === en.nav.progress)).toHaveLength(1)
     press(tree, `${title}. unread. Progress`)
     press(tree, 'Open in Progress')
-    expect(state.push).toHaveBeenCalledWith('/progress')
+    expect(state.push).toHaveBeenCalledWith('/progress/streak')
   })
 
   it.each([
-    ['/streak', '/progress', en.nav.progress], ['/', '/', en.nav.today],
+    ['/streak', '/progress/streak', en.nav.progress], ['/', '/', en.nav.today],
     ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
     ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
     ['/calendar-sync?mode=review', '/calendar?mode=review', en.nav.calendar],

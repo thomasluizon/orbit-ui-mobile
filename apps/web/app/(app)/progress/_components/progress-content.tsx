@@ -524,14 +524,14 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <div className="only:col-span-full flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
-      <div className="flex items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
+      <div className="flex flex-wrap items-center gap-3">
         <AchievementMark achievement={achievement} name={name} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className={`text-[14px] font-medium leading-[19px] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
+        <div className="flex min-w-0 flex-[1_1_120px] flex-col gap-1">
+          <p className={`text-[14px] font-medium leading-[1.4] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
           <p className="text-pretty text-[12px] leading-[17px] text-[var(--fg-3)]">{t(`gamification.achievements.${achievement.id}.description`)}</p>
         </div>
-        {achievement.isEarned ? <Badge>{t('progressScreen.achievements.earnedLabel')}</Badge> : null}
+        {achievement.isEarned ? <div className="shrink-0"><Badge>{t('progressScreen.achievements.earnedLabel')}</Badge></div> : null}
       </div>
       {hasProgress ? (
         <div className="flex flex-col gap-1">
@@ -576,7 +576,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
       <Section title={t('progressScreen.sections.achievements')}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
   )
