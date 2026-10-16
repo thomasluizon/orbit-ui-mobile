@@ -1217,6 +1217,24 @@ describe('HabitList', () => {
     }
   })
 
+  it.each([false, true])('does not announce whole-day completion from a monthly subset, showCompleted=%s', (showCompleted) => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 2
+    const daily = createMockHabit({ id: 'daily-pending', frequencyUnit: 'Day', scheduledDates: [TODAY] })
+    const monthly = createMockHabit({ id: 'monthly-done', frequencyUnit: 'Month', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById = new Map([[daily.id, daily], [monthly.id, monthly]])
+    mockHabitsData.topLevelHabits = [daily, monthly]
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} showCompleted={showCompleted} />)
+    expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
+    mockHabitsData.habitsById = new Map([[monthly.id, monthly]])
+    mockHabitsData.topLevelHabits = [monthly]
+    rendered.rerenderWithProviders(<HabitList filters={{ ...defaultFilters, frequencyUnit: 'Month' }} showCompleted={showCompleted} />)
+    expect(screen.queryByText('habits.allDoneHint')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={showCompleted} />)
+    expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
+  })
+
   it('renders the all-done upcoming action only when it can navigate', () => {
     useActualHabitVisibility = true
     accountHabitCount.count = 1

@@ -1750,7 +1750,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+    const showAllDone = !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
       selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     const activeListHeader = renderAllDoneListHeader(

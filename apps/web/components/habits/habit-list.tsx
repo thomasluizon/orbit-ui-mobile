@@ -1338,7 +1338,7 @@ export function HabitList({
     )
   }
 
-  const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+  const showAllDone = !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 

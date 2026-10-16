@@ -1146,6 +1146,24 @@ describe('HabitList', () => {
     expect(text).not.toContain('habits.allDoneToday')
   })
 
+  it.each([false, true])('does not announce whole-day completion from a monthly subset, showCompleted=%s', (showCompleted) => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 2
+    const daily = createMockHabit({ id: 'daily-pending', frequencyUnit: 'Day', scheduledDates: [TODAY] })
+    const monthly = createMockHabit({ id: 'monthly-done', frequencyUnit: 'Month', scheduledDates: [TODAY], isLoggedInRange: true })
+    seedHabits([daily, monthly])
+    let tree: import('react-test-renderer').ReactTestRenderer
+    const list = (frequencyUnit?: 'Month') => <HabitList view="today" filters={{ frequencyUnit }} showCompleted={showCompleted} onCreatePress={vi.fn()} />
+    TestRenderer.act(() => { tree = createTestTree(list()) })
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
+    seedHabits([monthly])
+    TestRenderer.act(() => { tree!.update(list('Month')) })
+    expect(tree!.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.allDoneHint')).toHaveLength(0)
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
+    TestRenderer.act(() => { tree!.update(list()) })
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
+  })
+
   it('renders the all-done upcoming action only when it can navigate', () => {
     useActualHabitVisibility = true
     seedHabits([createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })])
