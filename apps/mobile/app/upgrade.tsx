@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
@@ -254,7 +255,8 @@ export default function UpgradeScreen() {
   const pitchContent = lapsedNoticeStatus ? (
     <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
-    <>
+    <View style={{ gap: 24 }}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><AstraGlyph size={96} color={tokens.fg1} /></View>
       <PricingSection
         inset={false}
         focusOnMount={showPitch}
@@ -282,7 +284,7 @@ export default function UpgradeScreen() {
         t={t}
         tokens={tokens}
       />
-    </>
+    </View>
   )
 
   return (

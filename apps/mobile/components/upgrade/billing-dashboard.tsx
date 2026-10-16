@@ -1,3 +1,4 @@
+import { ProBenefits } from './pro-benefits'
 import { useState } from 'react'
 import { Linking, Text, View } from 'react-native'
 import { subscriptionSummary } from '@orbit/shared/utils'
@@ -181,6 +182,7 @@ export function BillingDashboard({
       <PlanDetails state={state} status={status} data={data} locale={locale} t={t} tokens={tokens} />
       {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onPortal} t={t} tokens={tokens} /> : null}
       <PaymentMethodSection method={status.isLifetimePro ? null : data?.paymentMethod} state={state} onPortal={onPortal} t={t} tokens={tokens} />
+      <ProBenefits heading t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}

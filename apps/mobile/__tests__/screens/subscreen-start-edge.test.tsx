@@ -142,7 +142,7 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
   })
 
   it.each(['free', 'offline', 'lapsed', 'stripe', 'play', 'loading', 'load-failed'] as const)
-    ('starts the %s upgrade body at 16 with the matching cap', async (state) => {
+    ('starts the %s upgrade body at the shared start edge', async (state) => {
       mocks.loading = state === 'loading'
       mocks.failed = state === 'load-failed'
       mocks.online = state !== 'offline'
@@ -157,10 +157,11 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
         const root = firstView(scroll)
         const content = root.findAll((node) => node.type === View)[1]!
         const [box, body] = layout(width, [styleOf(root), styleOf(content)])
+        const frameWidth = width < 1024 ? width : (pitch ? 652 : 560) + 32
         expect.soft(body!.left).toBe(16)
         expect.soft(box!.left).toBe(0)
-        expect.soft(box!.width).toBe(width < 1024 ? width : (pitch ? 652 : 560) + 32)
-        expect.soft(body!.width).toBe(width < 1024 ? width - 32 : pitch ? 652 : 560)
+        expect.soft(box!.width).toBe(frameWidth)
+        expect.soft(body!.width).toBe(frameWidth - 32)
       } finally { await TestRenderer.act(() => tree.update(<></>)) }
     })
 })

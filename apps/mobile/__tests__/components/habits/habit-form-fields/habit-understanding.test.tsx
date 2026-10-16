@@ -197,7 +197,7 @@ describe("HabitUnderstanding mobile", () => {
     expect(unconsumedPrefix.props.style).toBeNull();
     expect(consumedMonday.props.style).toMatchObject({
       backgroundColor: tokens.bgWell,
-      textDecorationColor: tokens.hairlineStrong,
+      color: tokens.hairlineStrong,
       textDecorationLine: "underline",
     });
 

@@ -1,3 +1,4 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import {
   forwardRef,
   useCallback,
@@ -6,7 +7,7 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { StyleSheet, Text, TextInput } from 'react-native'
+import { StyleSheet, Text, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
@@ -69,7 +70,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
 
     return (
       <>
-        <TextInput
+        <TypedTextInput
           ref={assignRef}
           placeholderTextColor={placeholderTextColor ?? tokens.fg3}
           {...props}

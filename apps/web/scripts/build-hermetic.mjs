@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process"
 import { createRequire } from "node:module"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { LAYOUT_ORIGIN } from "../e2e/support/env.ts"
 
 const require = createRequire(import.meta.url)
 const webDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -9,6 +10,7 @@ const environment = {
   ...process.env,
   API_BASE: "http://127.0.0.1:5099",
   NEXT_PUBLIC_EVENT_API_BASE: "http://127.0.0.1:5099",
+  NEXT_PUBLIC_SITE_URL: LAYOUT_ORIGIN,
 }
 
 function run(argumentsList) {

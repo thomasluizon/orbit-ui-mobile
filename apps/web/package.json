@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build --webpack",
-    "build:hermetic": "node scripts/build-hermetic.mjs",
+    "build:hermetic": "tsx scripts/build-hermetic.mjs",
     "start": "next start",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
