@@ -9,6 +9,7 @@ import {
 
 const visibleManagementOperations = new Set<StepUpOperation>()
 let apiKeyCreationGrantAvailable = false
+let apiKeyExpiryDraft = ''
 let accountId: string | null = null
 
 export function bindStepUpStateToAccount(nextAccountId: string): void {
@@ -20,7 +21,16 @@ export function bindStepUpStateToAccount(nextAccountId: string): void {
 export function clearStepUpState(): void {
   visibleManagementOperations.clear()
   apiKeyCreationGrantAvailable = false
+  apiKeyExpiryDraft = ''
   accountId = null
+}
+
+export function readApiKeyExpiryDraft(): string {
+  return apiKeyExpiryDraft
+}
+
+export function retainApiKeyExpiryDraft(expiresAt: string): void {
+  if (accountId !== null) apiKeyExpiryDraft = expiresAt
 }
 
 export function markStepUpVerified(operation: StepUpOperation): void {

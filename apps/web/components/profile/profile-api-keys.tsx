@@ -24,7 +24,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
@@ -315,7 +315,7 @@ function ApiKeyCreateControls({
   )
 }
 
-function useApiKeyStepUp() {
+function useApiKeyStepUp(expiresAt: string) {
   const router = useRouter()
   const t = useTranslations()
   const accountId = useHeldAccountId()
@@ -337,6 +337,7 @@ function useApiKeyStepUp() {
         return
       }
       beginStepUpChallenge('keys', accountId)
+      retainApiKeyExpiryDraft(expiresAt)
       router.push('/step-up?operation=keys')
     } catch (error) {
       setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
@@ -369,11 +370,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
-  const [expiresAt, setExpiresAt] = useAccountScopedState('')
+  const [expiresAt, setExpiresAt] = useAccountScopedState(readApiKeyExpiryDraft)
   const [expiryError, setExpiryError] = useAccountScopedState(false)
   const [expiryFocusRequest, setExpiryFocusRequest] = useAccountScopedState(0)
   const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp()
+  const stepUp = useApiKeyStepUp(expiresAt)
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
@@ -405,7 +406,9 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       const result = await management.handleCreateKey({
         ...request, expiresAtUtc: parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null,
       }, onCreateGrantRequired)
-      return getAccountGeneration() === creationAccount ? result : null
+      if (getAccountGeneration() !== creationAccount) return null
+      if (result) retainApiKeyExpiryDraft('')
+      return result
     } finally {
       if (getAccountGeneration() === creationAccount) setCreating(false)
     }

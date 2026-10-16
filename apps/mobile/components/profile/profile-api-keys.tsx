@@ -23,12 +23,13 @@ import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { apiClient } from '@/lib/api-client'
 import { API_BASE } from '@/lib/api-base'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
@@ -321,7 +322,7 @@ function ApiKeyCreateControls({
   )
 }
 
-function useApiKeyStepUp() {
+function useApiKeyStepUp(expiresAt: string) {
   const router = useRouter()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const [busy, setBusy] = useState(false)
@@ -342,6 +343,7 @@ function useApiKeyStepUp() {
       if (!ownsAccount()) return
       await beginStepUpChallenge('keys', accountId)
       if (!ownsAccount()) return
+      retainApiKeyExpiryDraft(expiresAt)
       router.push('/step-up?operation=keys')
     } catch {
       if (!ownsAccount()) return
@@ -376,11 +378,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [expiresAt, setExpiresAt] = useState('')
+  const [expiresAt, setExpiresAt] = useAccountScopedState(readApiKeyExpiryDraft)
   const [expiryError, setExpiryError] = useState(false)
   const [expiryFocusRequest, setExpiryFocusRequest] = useState(0)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp()
+  const stepUp = useApiKeyStepUp(expiresAt)
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
@@ -407,13 +409,17 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       onInvalidExpiry?.()
       return null
     }
+    const creationAccount = getAccountGeneration()
     setCreating(true)
     try {
-      return await management.handleCreateKey({
+      const result = await management.handleCreateKey({
         ...request, expiresAtUtc: parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null,
       }, onCreateGrantRequired)
+      if (getAccountGeneration() !== creationAccount) return null
+      if (result) retainApiKeyExpiryDraft('')
+      return result
     } finally {
-      setCreating(false)
+      if (getAccountGeneration() === creationAccount) setCreating(false)
     }
   }
 

@@ -12,6 +12,8 @@ import {
   markStepUpExhausted,
   markStepUpVerified,
   readStepUpTiming,
+  readApiKeyExpiryDraft,
+  retainApiKeyExpiryDraft,
 } from '@/lib/step-up-storage'
 
 const values = new Map<string, string>()
@@ -82,13 +84,36 @@ describe('mobile step up timing storage', () => {
     expect(isStepUpVerified('keys')).toBe(true)
   })
 
-  it('clears visibility and the create grant when the account changes', () => {
+  it('clears visibility, the create grant and the expiry draft when the account changes', () => {
     bindStepUpStateToAccount('account-a')
     markStepUpVerified('keys')
+    retainApiKeyExpiryDraft('2099-12-31T23:59')
 
     bindStepUpStateToAccount('account-b')
 
     expect(isStepUpVerified('keys')).toBe(false)
     expect(hasApiKeyCreationGrant()).toBe(false)
+    expect(readApiKeyExpiryDraft()).toBe('')
+    bindStepUpStateToAccount('account-a')
+    expect(readApiKeyExpiryDraft()).toBe('')
+  })
+
+  it('keeps the expiry through grant renewal for the same account', () => {
+    bindStepUpStateToAccount(ACCOUNT)
+    retainApiKeyExpiryDraft('2099-12-31T23:59')
+    consumeApiKeyCreationGrant()
+    bindStepUpStateToAccount(ACCOUNT)
+    markStepUpVerified('keys')
+
+    expect(readApiKeyExpiryDraft()).toBe('2099-12-31T23:59')
+  })
+
+  it('forgets expiry drafts on sign out and ignores typing without an account', () => {
+    bindStepUpStateToAccount(ACCOUNT)
+    retainApiKeyExpiryDraft('2099-12-31T23:59')
+    clearStepUpState()
+    retainApiKeyExpiryDraft('2099-12-31T23:59')
+
+    expect(readApiKeyExpiryDraft()).toBe('')
   })
 })
