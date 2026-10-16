@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -116,8 +116,9 @@ passes no bottom content. Transient notices keep the separate `notice` slot.
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces
 the destination's header, scroller and bottom chrome in the centred column, capped at 740, from
 its top inset to the viewport bottom. Its header, thread, chips and composer have the same layout
-at every width. The header is NavHeader: minimum height 56, start-aligned mono 12/500 title
-`Astra`, and a 48 close control with a 20 X. The composer has a top hairline and 16 padding,
+at every width. The header is NavHeader: minimum height 56, a start-aligned 16 Astra glyph
+at the 16 header inset, centred vertically with a 48 close control carrying a 20 X. The glyph
+replaces the visible title; the header heading keeps the accessible name `Astra` once. The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 Every conversation entry, including the proactive line, the no-habits action and habit detail's

@@ -51,6 +51,18 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
           await expect(page.locator('[data-shell-conversation="panel"]')).toHaveCount(0)
+          const header = conversation.getByRole('banner')
+          const heading = header.getByRole('heading', { name: words.chat.title, exact: true })
+          await expect(heading).toHaveText('')
+          const mark = heading.locator('[data-asset="astra-mark-16"]')
+          await expect(mark).toHaveAttribute('aria-hidden', 'true')
+          const markBox = (await mark.boundingBox())!
+          const closeBox = (await header.getByRole('button', { name: words.common.closeConversation }).boundingBox())!
+          const headerBox = (await header.boundingBox())!
+          expect(markBox.x - headerBox.x).toBe(16)
+          expect(markBox.width).toBe(16)
+          expect(markBox.height).toBe(16)
+          expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)
           const feed = conversation.getByRole('feed', { name: words.chat.title, exact: true })
           if (scrolling) {
             await conversation.locator('[data-composer-input]').fill('Como posso revisar a rotina?')

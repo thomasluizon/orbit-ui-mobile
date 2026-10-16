@@ -1,14 +1,15 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StyleSheet } from 'react-native'
+import { AccessibilityInfo, StyleSheet } from 'react-native'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { AstraConversation } from '@/components/chat/conversation'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'pt-BR' } }),
+  useTranslation: () => ({ t: (key: string) => key === 'chat.title' ? 'Astra' : key, i18n: { language: 'pt-BR' } }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -113,6 +114,21 @@ describe('AstraConversation header (mobile)', () => {
     })
 
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it('shows one named heading containing a decorative Astra mark and receives opening focus', () => {
+    const focus = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
+    const tree = render()
+    try {
+      const header = tree.root.findByProps({ testID: 'nav-header-plain' })
+      expect(header.findAllByType(AstraGlyph)).toHaveLength(1)
+      const headings = hosts(tree).filter((node: any) => node.props.accessibilityRole === 'header')
+      expect(headings).toHaveLength(1)
+      expect(headings[0].props.accessibilityLabel).toBe('Astra')
+      expect(header.findAll((node: any) => typeof node.type === 'string' && node.props.children === 'Astra')).toHaveLength(0)
+      expect(header.findByProps({ testID: 'astra-mark-16' }).props.accessible).toBe(false)
+      expect(focus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: headings[0].props.__nativeTag }), 'focus')
+    } finally { focus.mockRestore(); TestRenderer.act(() => tree.unmount()) }
   })
 
   it('still closes the conversation on the Android back button', () => {
