@@ -54,7 +54,7 @@
                     android:maxLines="1"
                     android:text="@string/widget_today"
                     android:textColor="@color/widget_fg_3"
-                    android:textSize="@dimen/widget_label_text_size" />
+                    android:textSize="@dimen/widget_day_text_size" />
                 <TextView
                     android:id="@+id/widget_subtitle"
                     android:layout_width="wrap_content"

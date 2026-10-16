@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { resolve, relative } from 'node:path'
+import { resolve, relative, dirname } from 'node:path'
 import libCoverage from 'istanbul-lib-coverage'
 import libReport from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
@@ -21,9 +21,9 @@ const exceptions = [
   { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 13, element: '@+id/widget_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
   { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 15, element: '@+id/widget_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
   { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 15, element: '@+id/widget_empty_text', drawing: widgetDrawing, drawingElement: 't.allClear' },
-  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 13, element: 'text[5]', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
-  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'text[3]', drawing: widgetDrawing, drawingElement: 'r.name' },
-  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'text[7]', drawing: widgetDrawing, drawingElement: 'o.streak' },
+  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 13, element: 'widget_preview_header', drawing: widgetDrawing, drawingElement: 'o.title || t.today' },
+  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'widget_preview_habit', drawing: widgetDrawing, drawingElement: 'r.name' },
+  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, element: 'widget_preview_streak', drawing: widgetDrawing, drawingElement: 'o.streak' },
 ]
 
 type AuthoredSize = { size: number; element: string }
@@ -84,22 +84,38 @@ function declarationIdentity(node: ts.Node, syntax: ts.SourceFile): string {
   return parts.join('.')
 }
 
-function markupSizes(source: string): AuthoredSize[] {
+function androidFontSize(path: string, name: string): number {
+  const directory = resolve(dirname(resolve(root, path)), '../values')
+  const dimensions = readdirSync(directory).filter((file) => file.endsWith('.xml')).flatMap((file) => {
+    const source = readFileSync(resolve(directory, file), 'utf8')
+    return [...source.matchAll(/<dimen name="([^"]+)">([\d.]+)sp<\/dimen>/g)]
+  })
+  const value = dimensions.find((dimension) => dimension[1] === name)?.[2]
+  if (value === undefined) throw new Error(`Unresolved font dimension ${name} in ${path}`)
+  return Number(value)
+}
+
+function markupSizes(source: string, path: string): AuthoredSize[] {
   const counts = new Map<string, number>()
   return [...source.matchAll(/<([\w:-]+)\b([^>]*?)>/g)].flatMap((tag) => {
     const ordinal = (counts.get(tag[1]!) ?? 0) + 1
     counts.set(tag[1]!, ordinal)
     const element = tag[2]!.match(/(?:android:id|id)=["']([^"']+)["']/)?.[1] ?? `${tag[1]!}[${ordinal}]`
-    return [...tag[2]!.matchAll(/(?:font-size|android:textSize)=["']([\d.]+)(?:sp|px)?["']/g)].map((match) => ({ size: Number(match[1]), element }))
+    return [...tag[2]!.matchAll(/(?:font-size|android:textSize)=["']([^"']+)["']/g)].flatMap((match) => {
+      const literal = match[1]!.match(/^([\d.]+)(?:sp|px)?$/)?.[1]
+      if (literal !== undefined) return [{ size: Number(literal), element }]
+      const dimension = match[1]!.match(/^@dimen\/(\w+)$/)?.[1]
+      return dimension ? [{ size: androidFontSize(path, dimension), element }] : []
+    })
   })
 }
 
 function authoredSizes(source: string, path: string): AuthoredSize[] {
-  if (/\.(?:xml|svg)$/.test(path)) return markupSizes(source)
+  if (/\.(?:xml|svg)$/.test(path)) return markupSizes(source, path)
   if (/\.css$/.test(path)) {
     return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap((rule) => [...rule[2]!.matchAll(/font-size:\s*([\d.]+)(px|rem)/g)].map((match) => ({ size: Number(match[1]) * (match[2] === 'rem' ? 16 : 1), element: rule[1]!.trim() })))
   }
-  const values = markupSizes(source)
+  const values = markupSizes(source, path)
   const syntax = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   function visit(node: ts.Node) {
     if (ts.isPropertyAssignment(node) && node.name.getText(syntax).replaceAll(/['"]/g, '') === 'fontSize') {
@@ -114,8 +130,15 @@ function authoredSizes(source: string, path: string): AuthoredSize[] {
   return values
 }
 
+function widgetExceptionPath(path: string, element: string): string {
+  const canonical = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'
+  const variants = ['compact', 'narrow', 'expanded'].map((variant) => canonical.replace('.xml', `_${variant}.xml`))
+  const hasDrawnRole = exceptions.some((entry) => entry.path === canonical && entry.element === element)
+  return variants.includes(path) && hasDrawnRole ? canonical : path
+}
+
 function violations(source: string, path: string): AuthoredSize[] {
-  return authoredSizes(source, path).filter(({ size, element }) => !scale.has(size) && !exceptions.some((entry) => entry.path === path && entry.size === size && entry.element === element))
+  return authoredSizes(source, path).filter(({ size, element }) => !scale.has(size) && !exceptions.some((entry) => entry.path === widgetExceptionPath(path, element) && entry.size === size && entry.element === element))
 }
 
 function drawingSizes(source: string): AuthoredSize[] {
@@ -171,13 +194,33 @@ describe('authored app typography', () => {
     }
   })
 
+  it('reads named Android font dimensions from the shipped widget resources', () => {
+    const path = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml'
+    const source = readFileSync(resolve(root, path), 'utf8')
+    expect(authoredSizes(source, path)).toContainEqual({ size: 15, element: '@+id/item_title' })
+    expect(authoredSizes(source, path)).toContainEqual({ size: 12, element: '@+id/item_children_badge' })
+  })
+
   it('rejects a widget children badge at the habit title exception size', () => {
     const path = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml'
     const source = readFileSync(resolve(root, path), 'utf8')
-    const mutated = source.replace(/(android:id="@\+id\/item_children_badge"[\s\S]*?android:textSize=")12sp"/, (_match, prefix: string) => `${prefix}15sp"`)
+    const mutated = source.replace(/(android:id="@\+id\/item_children_badge"[\s\S]*?android:textSize=")@dimen\/widget_label_text_size"/, (_match, prefix: string) => `${prefix}15sp"`)
     expect(mutated).not.toBe(source)
     expect(violations(mutated, path)).toEqual([{ size: 15, element: '@+id/item_children_badge' }])
     expect(authoredSizes(mutated, path)).toContainEqual({ size: 15, element: '@+id/item_title' })
+  })
+
+  it('retains element boundaries for resource fonts in each widget layout variant', () => {
+    const canonical = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'
+    for (const variant of ['compact', 'narrow', 'expanded']) {
+      const path = canonical.replace('.xml', `_${variant}.xml`)
+      const source = readFileSync(resolve(root, path), 'utf8')
+      expect(violations(source, path)).toEqual([])
+      const mutated = source.replace(/(android:id="@\+id\/widget_subtitle"[\s\S]*?android:textSize=")@dimen\/widget_label_text_size"/,
+        (_match, prefix: string) => `${prefix}@dimen/widget_title_text_size"`)
+      expect(mutated).not.toBe(source)
+      expect(violations(mutated, path)).toEqual([{ size: 15, element: '@+id/widget_subtitle' }])
+    }
   })
 
   it('rejects a secondary share figure at the primary figure exception size', () => {

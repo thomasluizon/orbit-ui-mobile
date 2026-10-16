@@ -14,9 +14,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="179" rx="23.5" fill="none" stroke="#2B2B2D" stroke-width="1"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#8B8B8E" stroke-width="2"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#F4F4F6" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 36 48)"/>
-<text x="56" y="42" fill="#8F8F93" font-size="12" font-weight="500">Today</text>
+<text id="widget_preview_header" x="56" y="42" fill="#8F8F93" font-size="13" font-weight="500">Today</text>
 <text x="56" y="59" fill="#8F8F93" font-size="12">3/7</text>
-<text x="84" y="59" fill="#ED773E" font-size="15" font-weight="500">12</text>
+<text id="widget_preview_streak" x="84" y="59" fill="#ED773E" font-size="15" font-weight="500">12</text>
 <text x="106" y="59" fill="#8F8F93" font-size="12">days</text>
 <path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" stroke="#8F8F93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="24.5" y="88.5" width="287" height="67" rx="16" fill="#1D1D1F"/>
@@ -24,7 +24,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="22" cy="122" r="10" fill="#F4F4F6"/>
 <path d="M16.2 122.1l3.9 3.9 7.7-7.7" fill="none" stroke="#1D1D1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="68" y="116" fill="#8F8F93" font-size="15">Morning water</text>
+<text id="widget_preview_habit" x="68" y="116" fill="#8F8F93" font-size="15">Morning water</text>
 <text x="68" y="134" fill="#8F8F93" font-size="12" letter-spacing="0.22">08:00</text>
 </g>
 </svg>"
@@ -44,9 +44,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="179" rx="23.5" fill="none" stroke="#2B2B2D" stroke-width="1"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#8B8B8E" stroke-width="2"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#F4F4F6" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 36 48)"/>
-<text x="56" y="42" fill="#8F8F93" font-size="12" font-weight="500">Hoje</text>
+<text id="widget_preview_header" x="56" y="42" fill="#8F8F93" font-size="13" font-weight="500">Hoje</text>
 <text x="56" y="59" fill="#8F8F93" font-size="12">3/7</text>
-<text x="84" y="59" fill="#ED773E" font-size="15" font-weight="500">12</text>
+<text id="widget_preview_streak" x="84" y="59" fill="#ED773E" font-size="15" font-weight="500">12</text>
 <text x="106" y="59" fill="#8F8F93" font-size="12">dias</text>
 <path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" stroke="#8F8F93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="24.5" y="88.5" width="287" height="67" rx="16" fill="#1D1D1F"/>
@@ -54,7 +54,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="22" cy="122" r="10" fill="#F4F4F6"/>
 <path d="M16.2 122.1l3.9 3.9 7.7-7.7" fill="none" stroke="#1D1D1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="68" y="116" fill="#8F8F93" font-size="15">Água da manhã</text>
+<text id="widget_preview_habit" x="68" y="116" fill="#8F8F93" font-size="15">Água da manhã</text>
 <text x="68" y="134" fill="#8F8F93" font-size="12" letter-spacing="0.22">08:00</text>
 </g>
 </svg>"
@@ -74,9 +74,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="179" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#7E7E82" stroke-width="2"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#1A1A1D" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 36 48)"/>
-<text x="56" y="42" fill="#68686D" font-size="12" font-weight="500">Hoje</text>
+<text id="widget_preview_header" x="56" y="42" fill="#68686D" font-size="13" font-weight="500">Hoje</text>
 <text x="56" y="59" fill="#68686D" font-size="12">3/7</text>
-<text x="84" y="59" fill="#A63A00" font-size="15" font-weight="500">12</text>
+<text id="widget_preview_streak" x="84" y="59" fill="#A63A00" font-size="15" font-weight="500">12</text>
 <text x="106" y="59" fill="#68686D" font-size="12">dias</text>
 <path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" stroke="#68686D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="24.5" y="88.5" width="287" height="67" rx="16" fill="#F1F1F2"/>
@@ -84,7 +84,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="22" cy="122" r="10" fill="#1A1A1D"/>
 <path d="M16.2 122.1l3.9 3.9 7.7-7.7" fill="none" stroke="#F1F1F2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="68" y="116" fill="#68686D" font-size="15">Água da manhã</text>
+<text id="widget_preview_habit" x="68" y="116" fill="#68686D" font-size="15">Água da manhã</text>
 <text x="68" y="134" fill="#68686D" font-size="12" letter-spacing="0.22">08:00</text>
 </g>
 </svg>"
@@ -104,9 +104,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="179" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#7E7E82" stroke-width="2"/>
 <circle cx="36" cy="48" r="10" fill="none" stroke="#1A1A1D" stroke-width="2" stroke-linecap="round" stroke-dasharray="26.92793703076965 62.83185307179586" transform="rotate(-90 36 48)"/>
-<text x="56" y="42" fill="#68686D" font-size="12" font-weight="500">Today</text>
+<text id="widget_preview_header" x="56" y="42" fill="#68686D" font-size="13" font-weight="500">Today</text>
 <text x="56" y="59" fill="#68686D" font-size="12">3/7</text>
-<text x="84" y="59" fill="#A63A00" font-size="15" font-weight="500">12</text>
+<text id="widget_preview_streak" x="84" y="59" fill="#A63A00" font-size="15" font-weight="500">12</text>
 <text x="106" y="59" fill="#68686D" font-size="12">days</text>
 <path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" stroke="#68686D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="24.5" y="88.5" width="287" height="67" rx="16" fill="#F1F1F2"/>
@@ -114,7 +114,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <circle cx="22" cy="122" r="10" fill="#1A1A1D"/>
 <path d="M16.2 122.1l3.9 3.9 7.7-7.7" fill="none" stroke="#F1F1F2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="68" y="116" fill="#68686D" font-size="15">Morning water</text>
+<text id="widget_preview_habit" x="68" y="116" fill="#68686D" font-size="15">Morning water</text>
 <text x="68" y="134" fill="#68686D" font-size="12" letter-spacing="0.22">08:00</text>
 </g>
 </svg>"

@@ -162,7 +162,7 @@ function previewSvg(
       `height="${rowHeight - 1}" rx="16" fill="${well}"${rowBorder}/>`
     return rowBackground + `<g transform="translate(${inset + 4} 0)">` +
       statusMark(row.status, centerY, colors) + '</g>' +
-      `<text x="${inset + 44}" y="${rowTop + 28}" fill="${titleColor}" font-size="15">` +
+      `<text id="widget_preview_habit" x="${inset + 44}" y="${rowTop + 28}" fill="${titleColor}" font-size="15">` +
       `${escaped(requiredResource(strings, row.nameKey))}</text>` +
       `<text x="${inset + 44}" y="${rowTop + 46}" fill="${timeColor}" font-size="12" ` +
       `letter-spacing="0.22">${row.time}</text>`
@@ -181,9 +181,9 @@ function previewSvg(
     `<circle cx="36" cy="48" r="10" fill="none" stroke="${fg1}" stroke-width="2" ` +
     `stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 10 * fixture.completed / fixture.total} ` +
     `${2 * Math.PI * 10}" transform="rotate(-90 36 48)"/>` +
-    `<text x="56" y="42" fill="${fg3}" font-size="12" font-weight="500">${escaped(today)}</text>` +
+    `<text id="widget_preview_header" x="56" y="42" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
     `<text x="56" y="59" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
-    `<text x="84" y="59" fill="${streak}" font-size="15" ` +
+    `<text id="widget_preview_streak" x="84" y="59" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
     `<text x="106" y="59" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
     `<path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" ` +

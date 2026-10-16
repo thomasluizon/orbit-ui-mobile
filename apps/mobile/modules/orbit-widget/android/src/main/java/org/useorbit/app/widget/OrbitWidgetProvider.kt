@@ -296,12 +296,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val density = resources.displayMetrics.density
             fun dimension(resource: Int) = resources.getDimension(resource)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                textSize = dimension(R.dimen.widget_label_text_size)
+                textSize = dimension(R.dimen.widget_day_text_size)
             }
             val gap = dimension(R.dimen.widget_inline_gap)
             paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             val labelWidth = paint.measureText(label)
             paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            paint.textSize = dimension(R.dimen.widget_label_text_size)
             val headerWidth = labelWidth + paint.measureText(count) + gap * 3
             val unitWidth = if (streak > 0 && showUnit) {
                 paint.measureText(OrbitWidgetFactory.streakUnit(context, lang, streak)) +
@@ -309,9 +310,11 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } else 0f
             paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             paint.textSize = dimension(R.dimen.widget_streak_text_size)
+            paint.fontFeatureSettings = "tnum"
             val streakWidth = if (streak > 0) paint.measureText("$streak") + gap + unitWidth else 0f
             paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             paint.textSize = dimension(R.dimen.widget_label_text_size)
+            paint.fontFeatureSettings = null
             val availableWidth = (widthDp - 2 * spacing.insetDp) * density -
                 dimension(R.dimen.widget_ring_size) - gap - dimension(R.dimen.widget_touch_target) -
                 headerWidth - streakWidth

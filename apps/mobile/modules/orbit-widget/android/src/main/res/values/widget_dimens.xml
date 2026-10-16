@@ -31,6 +31,7 @@
   <dimen name="widget_header_min_width">136dp</dimen>
   <dimen name="widget_compact_height">96dp</dimen>
   <dimen name="widget_title_text_size">15sp</dimen>
+  <dimen name="widget_day_text_size">13sp</dimen>
   <dimen name="widget_label_text_size">12sp</dimen>
   <dimen name="widget_streak_text_size">15sp</dimen>
 </resources>

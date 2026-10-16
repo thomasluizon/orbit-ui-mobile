@@ -338,7 +338,7 @@ describe('Android widget header', () => {
     expect(views.get('widget_header')).toMatchObject({
       'android:textAllCaps': 'false',
       'android:textColor': '@color/widget_fg_3',
-      'android:textSize': '12sp',
+      'android:textSize': '13sp',
     })
     expect(views.get('widget_subtitle')).toMatchObject({
       'android:ellipsize': 'end',
