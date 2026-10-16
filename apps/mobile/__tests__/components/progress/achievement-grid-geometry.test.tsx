@@ -36,19 +36,18 @@ vi.mock('@/components/ui/menu', () => ({ Menu: () => null }))
 
 type TestNode = {
   type: unknown
-  props: { testID?: string; style?: ViewStyle; onLayout?: (event: unknown) => void }
+  props: { testID?: string; style?: ViewStyle }
   parent: TestNode | null
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
-type TestTree = { root: TestNode; unmount: () => void }
+type TestTree = { root: TestNode; update: (element: React.ReactElement) => void; unmount: () => void }
 
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
-async function measureGrid(tree: TestTree, rowWidth: number) {
+function measureGrid(tree: TestTree, rowWidth: number) {
   const tiles = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID?.startsWith('achievement-tile-') === true)
   let grid = tiles()[0]!.parent!
   while (typeof grid.type !== 'string') grid = grid.parent!
-  await TestRenderer.act(() => grid.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: rowWidth, height: 0 } } }))
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const row = Yoga.Node.createWithConfig(config)
@@ -63,7 +62,7 @@ async function measureGrid(tree: TestTree, rowWidth: number) {
     if (typeof tileStyle.width === 'number') node.setWidth(tileStyle.width)
     else if (typeof tileStyle.width === 'string' && tileStyle.width.endsWith('%')) node.setWidthPercent(Number.parseFloat(tileStyle.width))
     node.setMinWidth(typeof tileStyle.minWidth === 'number' ? tileStyle.minWidth : undefined)
-    node.setHeight(100)
+    node.setMinHeight(index === 0 ? 140 : 100)
     row.insertChild(node, index)
     return node
   })
@@ -73,18 +72,19 @@ async function measureGrid(tree: TestTree, rowWidth: number) {
   } finally { row.freeRecursive(); config.free() }
 }
 
-it.each([412, 840, 1200, 1600])('aligns three achievement tiles to the content edges at %ipx', async (width) => {
+it.each([412, 600, 840, 1352, 1600])('aligns three achievement tiles to the content edges at %ipx', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   let tree!: TestTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
   try {
     const rowWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32
-    const tiles = await measureGrid(tree, rowWidth)
+    const tiles = measureGrid(tree, rowWidth)
     expect(tiles).toHaveLength(3)
     expect(tiles[0]!.left).toBe(0)
     for (const tile of tiles) expect(Math.abs(tile.width - tiles[0]!.width)).toBeLessThanOrEqual(0.5)
-    if (width >= 768) {
+    if (width >= 600) {
       expect(tiles[1]!.top).toBe(tiles[0]!.top)
+      expect(tiles[1]!.height).toBe(tiles[0]!.height)
       expect(tiles[1]!.left - tiles[0]!.left - tiles[0]!.width).toBe(12)
       expect(Math.abs(tiles[1]!.left + tiles[1]!.width - rowWidth), 'the full row must end on the content edge').toBeLessThanOrEqual(0.5)
       expect(tiles[2]!.left).toBe(0)
@@ -99,15 +99,18 @@ it.each([412, 840, 1200, 1600])('aligns three achievement tiles to the content e
   } finally { await TestRenderer.act(() => tree.unmount()) }
 })
 
-it('recalculates both columns when the measured Android row resizes', async () => {
-  __setWindowDimensions({ width: 840, height: 915, scale: 1, fontScale: 1 })
+it('recalculates columns when the Android window resizes', async () => {
   let tree!: TestTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
   try {
-    for (const rowWidth of [708, 600, 708]) {
-      const tiles = await measureGrid(tree, rowWidth)
-      for (const tile of tiles) expect(Math.abs(tile.width - (rowWidth - 12) / 2)).toBeLessThanOrEqual(0.5)
-      expect(Math.abs(tiles[1]!.left + tiles[1]!.width - rowWidth)).toBeLessThanOrEqual(0.5)
+    for (const width of [840, 412, 600, 1352]) {
+      await TestRenderer.act(() => {
+        __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+        tree.update(<ProgressContent />)
+      })
+      const rowWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32
+      const tiles = measureGrid(tree, rowWidth)
+      expect(new Set(tiles.map((tile) => tile.left)).size).toBe(width === 412 ? 1 : 2)
     }
   } finally { await TestRenderer.act(() => tree.unmount()) }
 })
@@ -122,17 +125,38 @@ it.each([412, 1200, 1600])('uses the whole column for the progress summary at %i
   } finally { await TestRenderer.act(() => tree.unmount()) }
 })
 
-it.each([1200, 1600])('fills a category containing one achievement at %ipx', async (width) => {
+it.each([1200, 1600])('keeps a single achievement at the grid track width at %ipx', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   profile.achievements = achievements.slice(0, 1)
   let tree!: TestTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
   try {
     const rowWidth = SHELL_CONTENT_MAX_WIDTH - 32
-    const tiles = await measureGrid(tree, rowWidth)
-    expect(tiles[0]!.width).toBe(rowWidth)
+    const tiles = measureGrid(tree, rowWidth)
+    expect(tiles[0]!.width).toBe((rowWidth - 12) / 2)
   } finally {
     profile.achievements = achievements
     await TestRenderer.act(() => tree.unmount())
   }
+})
+
+it.each([412, 840, 1352])('renders the achievement columns before layout events at %ipx', async (width) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  let tree!: TestTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  try {
+    const tiles = measureGrid(tree, Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32)
+    expect(new Set(tiles.map((tile) => tile.left)).size).toBe(width === 412 ? 1 : 2)
+  } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
+it.each([412, 840, 1352])('uses one readable achievement track at 200 percent text at %ipx', async (width) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 2 })
+  let tree!: TestTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  try {
+    const tiles = measureGrid(tree, Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32)
+    expect(new Set(tiles.map((tile) => tile.left)).size).toBe(1)
+    expect(tiles[0]!.width).toBe(Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32)
+  } finally { await TestRenderer.act(() => tree.unmount()) }
 })
