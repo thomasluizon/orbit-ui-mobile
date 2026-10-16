@@ -1,4 +1,4 @@
-import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,10 +12,11 @@ import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
+let isPending = false
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
@@ -53,6 +54,7 @@ function press(tree: any, label: string) {
 }
 
 beforeEach(() => {
+  isPending = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
@@ -180,4 +182,118 @@ describe('BreakdownSuggestion (mobile)', () => {
     await act(() => tree.update(<></>))
   })
 
+})
+
+
+type NameInput = ReactTestInstance & {
+  props: { autoFocus: boolean; value: string; onChangeText: (title: string) => void; onBlur: () => void; onFocus: () => void }
+}
+
+function nameInputs(tree: ReactTestRenderer): NameInput[] {
+  return tree.root.findAll(node => typeof node.type === 'string' && typeof node.props.onChangeText === 'function') as NameInput[]
+}
+
+async function approveBreakdown(tree: ReactTestRenderer) {
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => {
+    const confirm = tree.root.findAll(node => String(node.type) === 'ConfirmSheet')[0]!.props.onConfirm as () => void
+    confirm()
+  })
+}
+
+it('adds an editable one-time row and approves its edited cadence in the same batch', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+  const tree: ReactTestRenderer = renderBreakdown()
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  const input = nameInputs(tree)[0]!
+  expect(input.props.autoFocus).toBe(true)
+  expect(input.props.value).toBe('')
+  const cadence = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith('chat.breakdown.frequency')).at(-1)!
+  expect(renderedText(cadence.props.children)).toContain('habits.filter.oneTime')
+  await act(() => input.props.onChangeText('  Sweep  '))
+  await act(() => (cadence.props.onPress as () => void)())
+  await act(() => (cadence.props.onPress as () => void)())
+  await act(() => input.props.onBlur())
+  const addedRow = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).startsWith('block-frame-item-breakdown-'))[0]!
+  expect(addedRow.props.testID).not.toMatch(/-proposed$/)
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-item-proposal-0-pending-proposed')).toHaveLength(1)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await approveBreakdown(tree)
+  expect(bulkCreate).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[0]?.[0]).toMatchObject({ habits: [
+    { title: 'Dishes', frequencyUnit: 'Day' },
+    { title: 'Laundry', frequencyUnit: 'Week' },
+    { title: 'Sweep', frequencyUnit: 'Week', frequencyQuantity: 1 },
+  ] })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(press(tree, 'habits.breakdown.addHabit')).toBeUndefined()
+})
+
+it('keeps multiple added drafts distinct and retries the failed named row after a blank', async () => {
+  bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Failed']))
+    .mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  const tree: ReactTestRenderer = renderBreakdown()
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  await act(() => nameInputs(tree)[0]!.props.onChangeText('   '))
+  await act(() => nameInputs(tree)[0]!.props.onBlur())
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  expect(nameInputs(tree)).toHaveLength(2)
+  await act(() => nameInputs(tree)[1]!.props.onChangeText('Sweep'))
+  await act(() => nameInputs(tree)[1]!.props.onBlur())
+  await approveBreakdown(tree)
+  const failed = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).endsWith('-failed'))
+  expect(failed).toHaveLength(1)
+  expect(renderedText(failed[0]!.props.children)).toContain('Sweep')
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(press(tree, 'habits.breakdown.addHabit')).toBeUndefined()
+  await act(() => { press(tree, 'chat.batch.retry').props.onPress() })
+  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Sweep' }] })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+})
+
+it('keeps added rows after a limit rejection and retries without blank drafts', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('habit limit'))
+    .mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+  const tree: ReactTestRenderer = renderBreakdown()
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  await act(() => nameInputs(tree)[0]!.props.onChangeText('Sweep'))
+  await act(() => nameInputs(tree)[0]!.props.onBlur())
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  await approveBreakdown(tree)
+  expect(tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).endsWith('-failed'))).toHaveLength(3)
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  await act(() => { press(tree, 'chat.batch.retry').props.onPress() })
+  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Dishes' }, { title: 'Laundry' }, { title: 'Sweep' }] })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+})
+
+it('disables adding while the batch is pending', () => {
+  isPending = true
+  const tree: ReactTestRenderer = renderBreakdown()
+  expect(press(tree, 'habits.breakdown.addHabit').props.disabled).toBe(true)
+  expect(press(tree, 'habits.breakdown.addHabit').props.accessibilityState.disabled).toBe(true)
+  expect(nameInputs(tree)).toHaveLength(0)
+  expect(bulkCreate).not.toHaveBeenCalled()
+})
+
+it('does not send blank-only drafts and can add to an empty proposal', async () => {
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<BreakdownSuggestion {...defaultProps} subHabits={[]} />) })
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  await act(() => nameInputs(tree)[0]!.props.onChangeText('   '))
+  await approveBreakdown(tree)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+})
+
+
+it('keeps a blank added row editable when it is focused again', async () => {
+  const tree: ReactTestRenderer = renderBreakdown()
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  const input = nameInputs(tree)[0]!
+  await act(() => input.props.onBlur())
+  await act(() => input.props.onFocus())
+  await act(() => input.props.onChangeText('Sweep'))
+  expect(nameInputs(tree)[0]!.props.value).toBe('Sweep')
 })

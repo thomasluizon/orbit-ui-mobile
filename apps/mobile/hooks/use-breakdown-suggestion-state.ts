@@ -1,13 +1,16 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import { createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, getFailedBreakdownIds, selectBreakdownHabits, failBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
+import { createBreakdownDraft, createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, getFailedBreakdownIds, selectBreakdownHabits, failBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import {
   buildBreakdownCreateRequest,
+  createClientId,
   filterValidBreakdownHabits,
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
+  addHabit: () => void
+  hasSubmitted: boolean
   confirmOpen: boolean
   editingId: string | null
   failedIds: string[]
@@ -43,6 +46,14 @@ export function useBreakdownSuggestionState({
   const [results, setResults] = useState<Record<string, BreakdownItemResult>>({})
   const failedIds = getFailedBreakdownIds(habits, results)
 
+  const hasSubmitted = Object.keys(results).length > 0
+
+  const addHabit = () => {
+    const habit = createBreakdownDraft(createClientId('breakdown'))
+    setHabits((current) => [...current, habit])
+    setEditingId(habit.id)
+  }
+
   const editTitle = useCallback((id: string, title: string) => {
     setHabits((current) => editBreakdownTitle(current, id, title))
   }, [])
@@ -55,18 +66,22 @@ export function useBreakdownSuggestionState({
     const selected = selectBreakdownHabits(habits, onlyIds)
     const valid = filterValidBreakdownHabits(selected)
     if (valid.length === 0) return
+    setEditingId(null)
+    setHabits((current) => filterValidBreakdownHabits(current))
 
     try {
       const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, false))
-      const nextResults = mergeBreakdownResults(results, selected, response)
+      const nextResults = mergeBreakdownResults(results, valid, response)
       setResults(nextResults)
       if (response.results.every((result) => result.status === 'Success')) onConfirmed()
     } catch {
-      setResults((current) => failBreakdownResults(current, selected))
+      setResults((current) => failBreakdownResults(current, valid))
     }
   }, [habits, onBulkCreate, onConfirmed, parentName, results])
 
   return {
+    addHabit,
+    hasSubmitted,
     confirmOpen,
     editingId,
     failedIds,

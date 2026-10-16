@@ -18,10 +18,11 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     open ? <button type="button" onClick={onConfirm}>confirm-breakdown</button> : null,
 }))
 
+let isPending = false
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
 const defaultProps = {
@@ -32,6 +33,7 @@ const defaultProps = {
 }
 
 beforeEach(() => {
+  isPending = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
@@ -149,4 +151,106 @@ it('keeps complete successful proposal names reachable without editing', async (
   expect(disclosure.parentElement).toHaveTextContent(title)
 
 
+})
+
+
+it('adds and focuses an editable one-time row, then approves it in the same batch', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  const input = screen.getByRole('textbox')
+  expect(input).toHaveFocus()
+  expect(input).toHaveValue('')
+  const cadence = screen.getAllByRole('button', { name: /chat\.breakdown\.frequency/ }).at(-1)!
+  expect(cadence).toHaveTextContent('habits.filter.oneTime')
+  fireEvent.change(input, { target: { value: '  Sweep  ' } })
+  fireEvent.click(cadence)
+  fireEvent.click(cadence)
+  fireEvent.blur(input)
+  expect(screen.getByRole('button', { name: 'Sweep' }).closest('[data-proposed]')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Dishes' }).closest('[data-proposed]')).not.toBeNull()
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[0]?.[0]).toMatchObject({ habits: [
+    { title: 'Dishes', frequencyUnit: 'Day' },
+    { title: 'Laundry', frequencyUnit: 'Week' },
+    { title: 'Sweep', frequencyUnit: 'Week', frequencyQuantity: 1 },
+  ] })
+  expect(screen.queryByRole('button', { name: 'habits.breakdown.addHabit' })).not.toBeInTheDocument()
+})
+
+it('keeps multiple added drafts distinct and ignores blanks when mapping failures and retries', async () => {
+  bulkCreate
+    .mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Failed']))
+    .mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } })
+  fireEvent.blur(screen.getByRole('textbox'))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  const inputs = screen.getAllByRole('textbox')
+  expect(inputs).toHaveLength(2)
+  fireEvent.change(inputs[1]!, { target: { value: 'Sweep' } })
+  fireEvent.blur(inputs[1]!)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
+  expect(screen.getByRole('button', { name: 'Sweep' }).closest('[data-status]')).toHaveAttribute('data-status', 'failed')
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: 'habits.breakdown.addHabit' })).not.toBeInTheDocument()
+  fireEvent.click(retry)
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Sweep' }] })
+})
+
+it('keeps an added row after a rejected batch and retries it without blank drafts', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('habit limit')).mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Sweep' } })
+  fireEvent.blur(screen.getByRole('textbox'))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
+  expect(document.querySelectorAll('[data-status=failed]')).toHaveLength(3)
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  fireEvent.click(retry)
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Dishes' }, { title: 'Laundry' }, { title: 'Sweep' }] })
+})
+
+it('disables adding while the batch is pending', () => {
+  isPending = true
+  render(<BreakdownSuggestion {...defaultProps} />)
+  const add = screen.getByRole('button', { name: 'habits.breakdown.addHabit' })
+  expect(add).toBeDisabled()
+  fireEvent.click(add)
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+})
+
+it('does not send blank-only drafts and can add to an empty proposal', async () => {
+  render(<BreakdownSuggestion {...defaultProps} subHabits={[]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } })
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(bulkCreate).not.toHaveBeenCalled())
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+})
+
+
+it('keeps a blank added row editable when it is focused again', () => {
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  const input = screen.getByRole('textbox')
+  fireEvent.blur(input)
+  fireEvent.focus(input)
+  fireEvent.change(input, { target: { value: 'Sweep' } })
+  expect(screen.getByRole('textbox')).toHaveValue('Sweep')
 })

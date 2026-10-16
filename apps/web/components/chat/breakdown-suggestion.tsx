@@ -12,7 +12,7 @@ import { getBreakdownCadenceKey } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
-import { AlertTriangle } from '@/components/ui/icons'
+import { AlertTriangle, Plus } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
@@ -34,15 +34,15 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const rows = card.habits.map((habit) => ({
     id: habit.id,
     wrapLabel: true,
-    label: card.editingId === habit.id ? (
-      <input autoFocus data-focus-perimeter="" aria-label={t('chat.preview.editName', { name: habit.title })} className="min-h-[var(--touch-min)] w-full rounded-[8px] border-0 bg-[var(--bg-field)] px-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] sm:text-sm" value={habit.title} onBlur={() => card.setEditingId(null)} onChange={(event) => card.editTitle(habit.id, event.target.value)} />
-    ) : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    label: card.editingId === habit.id || habit.title.trim() === '' ? (
+      <input autoFocus={card.editingId === habit.id} disabled={bulkCreate.isPending || card.hasSubmitted} placeholder={t('habits.form.newHabit')} data-focus-perimeter="" aria-label={t('chat.preview.editName', { name: habit.title.trim() || t('habits.form.newHabit') })} className="min-h-[var(--touch-min)] w-full rounded-[8px] border-0 bg-[var(--bg-field)] px-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] sm:text-sm" value={habit.title} onFocus={() => card.setEditingId(habit.id)} onBlur={() => card.setEditingId(null)} onChange={(event) => card.editTitle(habit.id, event.target.value)} />
+    ) : <PersonalTextDetails outset proposed={habit.proposed && card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],
-    proposed: card.results[habit.id] == null,
+    proposed: habit.proposed && card.results[habit.id] == null,
     irreversible: card.results[habit.id] == null,
     control: card.results[habit.id] == null ? (
-      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-[var(--touch-min)] rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={() => card.cycleCadence(habit.id)}>
+      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-[var(--touch-min)] rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" disabled={bulkCreate.isPending || card.hasSubmitted} onClick={() => card.cycleCadence(habit.id)}>
         {t(getBreakdownCadenceKey(habit.frequencyUnit))}
       </button>
     ) : undefined,
@@ -54,8 +54,9 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
       <>
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
         {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-        {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
+        {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : card.hasSubmitted ? null : (
           <>
+            <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={bulkCreate.isPending || card.confirmOpen} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
             <Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button>
             <Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button>
             <Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
