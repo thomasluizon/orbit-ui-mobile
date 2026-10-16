@@ -1889,6 +1889,23 @@ describe('mobile useChatComposer', () => {
     appendFormPart.mockRestore()
   })
 
+  it.each(['/progress', '/'])('sends the selected goal suggestion from %s without replacing the saved draft', async pathname => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    const composer = await renderComposer({ pathname })
+    expect(composer.current.composerProps.suggestions[0]?.id).toBe('goal-detail:reading')
+    TestRenderer.act(() => { composer.current.composerProps.suggestions[0]?.onSelect() })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me with my reading goal')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
   it('keeps a Progress goal request available beside an existing draft', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {

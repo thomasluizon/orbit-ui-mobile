@@ -77,7 +77,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     if (!goal || !draftHydrated) return
     const request = {
       id: `goal-detail:${goal.id}`,
-      label: t('goals.detail.askAstraDefault'),
+      label: t('nav.astra'),
       prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
     }
     const openConversation = () => {

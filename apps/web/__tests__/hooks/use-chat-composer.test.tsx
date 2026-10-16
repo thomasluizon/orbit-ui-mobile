@@ -1793,6 +1793,23 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody.get('message')).toBe(`shell.composer.prompts.${surface}.${action}:${JSON.stringify({ title })}`)
   })
 
+  it.each(['/progress', '/'])('sends the selected goal suggestion from %s without replacing the saved draft', async pathname => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer({ pathname }))
+    expect(result.current.composerProps.suggestions[0]?.id).toBe('goal-detail:reading')
+    act(() => { result.current.composerProps.suggestions[0]?.onSelect() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('Help me with my reading goal')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
   it('keeps a Progress goal request available beside an existing draft', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {
