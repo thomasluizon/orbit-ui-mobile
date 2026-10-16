@@ -47,7 +47,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
       <><button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-[var(--touch-min)] rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" disabled={bulkCreate.isPending || card.hasSubmitted} onClick={() => card.cycleCadence(habit.id)}>
         {t(getBreakdownCadenceKey(habit.frequencyUnit))}
       </button>
-      {!card.hasSubmitted ? <button type="button" aria-label={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('habits.form.newHabit') })} disabled={bulkCreate.isPending} className="flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-none" onClick={() => card.removeHabit(habit.id)}><X aria-hidden="true" size={20} strokeWidth={1.5} /></button> : null}</>
+      {!card.hasSubmitted ? <button type="button" aria-label={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('habits.form.newHabit') })} disabled={bulkCreate.isPending} className="flex size-[var(--touch-min)] items-center justify-center overflow-hidden rounded-full p-3 text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-none" onClick={() => card.removeHabit(habit.id)}><X aria-hidden="true" size={20} strokeWidth={1.5} /></button> : null}</>
     ) : undefined,
   }))
 
