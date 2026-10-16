@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -45,7 +45,7 @@ function tree(root, ref) {
   const paths = new Set(git(ref ? ['ls-tree', '-r', '--name-only', ref] : ['ls-files']).trim().split('\n'))
   const cache = new Map()
   if (ref) {
-    const requested = [...paths].filter((path) => /^(?:apps\/(?:web|mobile)\/|packages\/shared\/src\/)/.test(path) && /\.(?:[jt]sx?|json)$/.test(path) && !/(?:__tests__|test-support|\.test\.|\.spec\.)/.test(path))
+    const requested = [...paths].filter((path) => /^(?:apps\/(?:web|mobile)\/|packages\/shared\/src\/)/.test(path) && /\.(?:[jt]sx?|json|kt|xml)$/.test(path) && !/(?:__tests__|test-support|\.test\.|\.spec\.)/.test(path))
     const contents = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input: requested.map((path) => `${ref}:${path}\n`).join(''), maxBuffer: 64 * 1024 * 1024 })
     let offset = 0
     for (const path of requested) {
@@ -74,6 +74,49 @@ function flatten(catalog, prefix = '', result = {}) {
   return result
 }
 
+function parseModule(source, resolveSpecifier) {
+const module = { declarations: new Map(), imports: new Map(), exports: new Map(), stars: [], sideEffects: [], active: new Set(), requested: new Set() }
+for (const statement of source.statements) {
+  if (ts.isImportDeclaration(statement)) {
+    const target = resolveSpecifier(statement.moduleSpecifier.text)
+    if (!target || statement.importClause?.isTypeOnly) continue
+    const clause = statement.importClause
+    if (!clause) module.sideEffects.push(target)
+    if (clause?.name) module.imports.set(clause.name.text, { target, name: 'default' })
+    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const item of clause.namedBindings.elements) {
+        if (!item.isTypeOnly) module.imports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
+      }
+    } else if (clause?.namedBindings) module.imports.set(clause.namedBindings.name.text, { target, name: '*' })
+  } else if (ts.isExportDeclaration(statement)) {
+    if (statement.isTypeOnly) continue
+    const target = statement.moduleSpecifier ? resolveSpecifier(statement.moduleSpecifier.text) : null
+    if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+      for (const item of statement.exportClause.elements) {
+        if (!item.isTypeOnly) module.exports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
+      }
+    } else if (target) module.stars.push(target)
+  } else if (ts.isExportAssignment(statement)) {
+    module.exports.set('default', { node: statement.expression })
+  } else {
+    const exported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+    const isDefault = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+    const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations : [statement]
+    for (const declaration of declarations) {
+      if (ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration)) continue
+      const names = declaration.name ? [...declaration.name.getText(source).matchAll(/[A-Za-z_$][\w$]*/g)].map((match) => match[0]) : []
+      for (const name of names) {
+        module.declarations.set(name, declaration)
+        if (exported) module.exports.set(name, { node: declaration })
+      }
+      if (isDefault) module.exports.set('default', { node: declaration })
+      if (ts.isExpressionStatement(declaration)) module.active.add(declaration)
+    }
+  }
+}
+return module
+}
+
 function sourceTree(snapshot, platform) {
   const prefix = `apps/${platform}/`
   const sources = new Map()
@@ -92,35 +135,81 @@ function sourceTree(snapshot, platform) {
     if (/\/(?:_layout|\+not-found)\.tsx$/.test(path)) return true
     return /\bexport\s+default\b/.test(snapshot.read(path))
   })
+  if (platform === 'mobile' && sources.has('apps/mobile/index.js')) roots.push('apps/mobile/index.js')
   const reachable = new Set()
-  function visit(path) {
-    if (reachable.has(path)) return
-    reachable.add(path)
-    function edge(node) {
-      let specifier
-      if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) specifier = node.moduleSpecifier.text
-      if (ts.isExportDeclaration(node) && node.moduleSpecifier) specifier = node.moduleSpecifier.text
-      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) specifier = node.arguments[0].text
-      if (specifier) {
-        let target
-        if (specifier.startsWith('.')) target = posix.join(posix.dirname(path), specifier)
-        else if (specifier.startsWith('@/')) target = `${prefix}${specifier.slice(2)}`
-        else if (specifier.startsWith('@orbit/shared/')) target = `packages/shared/src/${specifier.slice('@orbit/shared/'.length)}`
-        if (target) {
-          const resolved = [target, ...['.tsx', '.ts', '.js', '/index.tsx', '/index.ts'].map((ending) => target + ending)].find((candidate) => sources.has(candidate))
-          if (resolved) visit(resolved)
-        }
-      }
-      ts.forEachChild(node, edge)
-    }
-    edge(parse(path))
+  const modules = new Map()
+  function resolveImport(path, specifier) {
+    let target
+    if (specifier.startsWith('.')) target = posix.join(posix.dirname(path), specifier)
+    else if (specifier.startsWith('@/')) target = `${prefix}${specifier.slice(2)}`
+    else if (specifier.startsWith('@orbit/shared/')) target = `packages/shared/src/${specifier.slice('@orbit/shared/'.length)}`
+    if (!target) return null
+    return [target, ...['.tsx', '.ts', '.js', '/index.tsx', '/index.ts'].map((ending) => target + ending)].find((candidate) => sources.has(candidate))
   }
-  roots.forEach(visit)
-  return { roots, reachable, parse }
+  function moduleFor(path) {
+    if (modules.has(path)) return modules.get(path)
+    const module = parseModule(parse(path), (specifier) => resolveImport(path, specifier))
+    modules.set(path, module)
+    return module
+  }
+  function hasExport(path, name, seen = new Set()) {
+    if (seen.has(path)) return false
+    seen.add(path)
+    const module = moduleFor(path)
+    return module.exports.has(name) || module.stars.some((target) => hasExport(target, name, seen))
+  }
+  function visit(path, names) {
+    const module = moduleFor(path)
+    const first = !reachable.has(path)
+    reachable.add(path)
+    function include(node) {
+      if (module.active.has(node)) return
+      module.active.add(node)
+      function references(child) {
+        if (ts.isTypeNode(child)) return
+        if (ts.isIdentifier(child)) {
+          if (module.declarations.has(child.text)) include(module.declarations.get(child.text))
+          const imported = module.imports.get(child.text)
+          if (imported) visit(imported.target, [imported.name])
+        }
+        if (ts.isCallExpression(child) && child.expression.kind === ts.SyntaxKind.ImportKeyword && child.arguments[0] && ts.isStringLiteral(child.arguments[0])) {
+          const target = resolveImport(path, child.arguments[0].text)
+          if (target) visit(target, ['*'])
+        }
+        ts.forEachChild(child, references)
+      }
+      references(node)
+    }
+    if (first) {
+      module.sideEffects.forEach((target) => visit(target, ['*']))
+      for (const node of [...module.active]) { module.active.delete(node); include(node) }
+    }
+    for (const name of names) {
+      if (module.requested.has(name)) continue
+      module.requested.add(name)
+      if (name === '*') {
+        visit(path, [...module.exports.keys()])
+        module.stars.forEach((target) => visit(target, ['*']))
+        continue
+      }
+      const exported = module.exports.get(name)
+      if (exported?.node) include(exported.node)
+      else if (exported?.target) visit(exported.target, [exported.name])
+      else if (exported && module.declarations.has(exported.name)) include(module.declarations.get(exported.name))
+      else if (exported && module.imports.has(exported.name)) {
+        const imported = module.imports.get(exported.name)
+        visit(imported.target, [imported.name])
+      } else {
+        for (const target of module.stars) if (hasExport(target, name)) visit(target, [name])
+      }
+    }
+  }
+  roots.forEach((path) => visit(path, ['default']))
+  return { roots, reachable, parse, nodes: (path) => moduleFor(path).active }
 }
 
 function translationsIn(source) {
-  const namespaces = new Map([['t', '']])
+  const namespaces = new Map([['t', ''], ['translate', '']])
   function visit(node) {
     if (ts.isVariableDeclaration(node) && node.initializer && ts.isCallExpression(node.initializer)) {
       const call = node.initializer
@@ -147,9 +236,11 @@ function interaction(node) {
     if (ts.isJsxElement(owner) || ts.isJsxSelfClosingElement(owner)) {
       const opening = ts.isJsxElement(owner) ? owner.openingElement : owner
       const attributes = opening.attributes.properties.map((item) => item.name?.getText() ?? '')
-      if (attributes.some((name) => /^(?:onClick|onPress|onSelect|onCheckedChange|onValueChange|onChange|onChangeText|onSubmit|onToggle|toggle|href)$/.test(name))) return true
+      if (attributes.some((name) => /^(?:on(?!Close$|OpenChange$|Dismiss$|Cancel$|RequestClose$|Layout$|ContentSizeChange$)[A-Z]|toggle$|href$)/.test(name))) return true
     }
     if (ts.isPropertyAssignment(owner) && /^(?:label|labelKey|textKey|ariaLabel)$/.test(owner.name.getText())) return true
+    if (ts.isBinaryExpression(owner) && /(?:label|Label)$/.test(owner.left.getText())) return true
+    if (ts.isVariableDeclaration(owner) && /^(?:label|ariaLabel)$/.test(owner.name.getText())) return true
     if (ts.isFunctionDeclaration(owner) || ts.isArrowFunction(owner)) break
   }
   return false
@@ -165,7 +256,7 @@ export function scan(snapshot, platform) {
     const record = entries.get(id)
     if (!record.evidence.some((item) => item.file === location.file && item.line === location.line)) record.evidence.push(location)
   }
-  for (const path of graph.roots) {
+  for (const path of graph.roots.filter((path) => path.startsWith(`apps/${platform}/app/`))) {
     if (/(?:layout|error|not-found)\.tsx$/.test(path)) continue
     let route = path.slice(`apps/${platform}/app`.length).replace(/\/(?:\([^/]+\)|_components)(?=\/)/g, '').replace(/\/(?:page|index)\.tsx$|\.tsx$/g, '') || '/'
     add('route', route, { file: path, line: 1 })
@@ -180,8 +271,15 @@ export function scan(snapshot, platform) {
         const key = namespace ? `${namespace}.${literal}` : literal
         if (catalog[key]) add(interaction(node) ? 'control' : 'content', key, evidence(source, node))
       }
-      if (ts.isStringLiteral(node) && catalog[node.text] && ts.isPropertyAssignment(node.parent) && /^(?:labelKey|label|textKey)$/.test(node.parent.name.getText(source))) {
-        add('control', node.text, evidence(source, node))
+      if (ts.isStringLiteral(node) && catalog[node.text] && ts.isPropertyAssignment(node.parent) && /(?:Key|^label)$/.test(node.parent.name.getText(source))) {
+        add(/^(?:labelKey|label|textKey)$/.test(node.parent.name.getText(source)) ? 'control' : 'content', node.text, evidence(source, node))
+      }
+      if (ts.isStringLiteral(node)) {
+        const prefixes = ['', ...new Set(namespaces.values())].filter((value, index, all) => all.indexOf(value) === index)
+        for (const prefix of prefixes) {
+          const key = prefix ? `${prefix}.${node.text}` : node.text
+          if (catalog[key]) add('content', key, evidence(source, node))
+        }
       }
       if (/keyboard-shortcuts/.test(path)) {
         if (ts.isCaseClause(node) && ts.isStringLiteral(node.expression)) add('shortcut', `g ${node.expression.text}`, evidence(source, node))
@@ -189,9 +287,57 @@ export function scan(snapshot, platform) {
       }
       ts.forEachChild(node, visit)
     }
-    visit(source)
+    for (const node of graph.nodes(path)) visit(node)
   }
+  if (platform === 'mobile') scanWidget(snapshot, add)
   return [...entries.values()].sort((left, right) => left.id.localeCompare(right.id))
+}
+
+function scanWidget(snapshot, add) {
+  const module = 'apps/mobile/modules/orbit-widget/android/src/main/'
+  const manifest = `${module}AndroidManifest.xml`
+  if (!snapshot.paths.has(manifest)) return
+  if (!snapshot.read(manifest).includes('.OrbitWidgetProvider')) return
+  for (const file of [...snapshot.paths].filter((path) => path.startsWith(module) && path.endsWith('.kt')).sort()) {
+    const source = snapshot.read(file)
+    const location = (offset) => ({ file, line: source.slice(0, offset).split('\n').length })
+    const calls = /\.set(?:OnClickPendingIntent|OnClickFillInIntent|PendingIntentTemplate|TextViewText)\(\s*R\.id\.(\w+)/g
+    for (const match of source.matchAll(calls)) {
+      add(match[0].includes('TextViewText') ? 'native-display' : 'native-control', `widget.${match[1]}`, location(match.index))
+    }
+    if (/setOnClickPendingIntent\(target,/.test(source)) {
+      const targets = /(?:val|var)\s+OPEN_APP_TARGETS\s*=\s*(?:intArrayOf|listOf)\(([\s\S]*?)\)/.exec(source)
+      if (targets) for (const match of targets[1].matchAll(/R\.id\.(\w+)/g)) add('native-control', `widget.${match[1]}`, location(targets.index + targets[0].indexOf(targets[1]) + match.index))
+    }
+  }
+}
+
+export function validateRules(capabilities, rules, read) {
+  const ids = new Set(capabilities.map((entry) => entry.id))
+  for (const section of Object.keys(rules)) {
+    if (!['mappings', 'removals', 'tickets'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+  }
+  for (const section of ['mappings', 'removals', 'tickets']) {
+    for (const [id, rule] of Object.entries(rules[section] ?? {})) {
+      if (!ids.has(id)) throw new Error(`${section}: no production capability ${id}`)
+      if (section === 'tickets') {
+        if (!/^#[1-9]\d*$/.test(rule)) throw new Error(`${id}: expected a ticket reference`)
+        continue
+      }
+      if (typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${id}: missing rule rationale`)
+      if (section === 'mappings') {
+        if (!Array.isArray(rule.targets) || rule.targets.length === 0 || rule.targets.some((target) => typeof target !== 'string' || !target.startsWith(`${id.split(':')[0]}:`))) throw new Error(`${id}: mapping targets must stay on the same platform`)
+      } else {
+        if (rules.mappings?.[id] || rules.tickets?.[id]) throw new Error(`${id}: a removal cannot also be mapped or ticketed`)
+        if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(rule.citation) || typeof rule.rule !== 'string' || !rule.rule.trim() || !read(rule.citation).includes(rule.rule)) throw new Error(`${id}: removal requires a verifiable owner rule citation`)
+      }
+    }
+  }
+}
+
+export function newLosses(entries, baseEntries) {
+  const debt = new Set(baseEntries.filter((entry) => entry.disposition === 'missing' && entry.ticket).map((entry) => entry.id))
+  return entries.filter((entry) => entry.disposition === 'missing' && !debt.has(entry.id))
 }
 
 export function compare(production, redesign, rules) {
@@ -216,17 +362,22 @@ function run(options) {
   const observations = ['web', 'mobile'].flatMap((platform) => scan(production, platform))
   const capabilities = observations.filter((entry) => entry.kind !== 'content')
   const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform))
+  validateRules(capabilities, rules, current.read)
   const entries = compare(capabilities, redesign, rules)
-  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable routes, rendered translation calls, translated option labels and keyboard handlers. Control and content evidence are separate. Source presence does not prove runtime permissions or API behavior.', entries }
-  if (options.write) writeFileSync(resolve(options.root, INVENTORY), `${JSON.stringify(inventory, null, 2)}\n`)
+  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Noninteractive translation references are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
+  if (options.write) {
+    const { entries: rows, translationUses, ...header } = inventory
+    const serialize = (entry) => JSON.stringify(entry, (key, value) => key === 'label' ? undefined : value)
+    writeFileSync(resolve(options.root, INVENTORY), `${JSON.stringify(header, null, 2).slice(0, -2)},\n  "translationUses": [\n${translationUses.map((entry) => `    ${serialize(entry)}`).join(',\n')}\n  ],\n  "entries": [\n${rows.map((entry) => `    ${serialize(entry)}`).join(',\n')}\n  ]\n}\n`)
+  }
   const missing = entries.filter((entry) => entry.disposition === 'missing')
   console.log(`Feature parity: ${entries.length} capabilities; ${entries.filter((entry) => entry.disposition === 'retained').length} retained; ${entries.filter((entry) => entry.disposition === 'approved-removal').length} approved removals; ${missing.length} missing.`)
+  console.log(`Outstanding tickets: ${[...new Set(missing.map((entry) => entry.ticket ?? 'ticket required'))].sort().join(', ') || 'none'}`)
   for (const entry of missing) console.log(`${entry.id} | ${entry.evidence.map((item) => `${item.file}:${item.line}`).join(', ')} | ${entry.ticket ?? 'ticket required'}`)
   if (options.ci) {
     const base = tree(options.root, options.base)
     const baseEntries = compare(capabilities, ['web', 'mobile'].flatMap((platform) => scan(base, platform)), rules)
-    const existingDebt = new Set(baseEntries.filter((entry) => entry.disposition === 'missing' && entry.ticket).map((entry) => entry.id))
-    const losses = missing.filter((entry) => !existingDebt.has(entry.id))
+    const losses = newLosses(entries, baseEntries)
     console.log(`Feature parity CI: ${missing.length - losses.length} ticketed base gaps advisory; ${losses.length} new or unticketed losses blocking.`)
     return losses.length ? 1 : 0
   }
