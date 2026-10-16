@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -64,6 +65,14 @@ export function CalendarSyncEventRow({
     : null
   const importIssueId = importIssue ? `calendar-import-issue-${event.id}` : undefined
 
+  const dateLabel = event.startDate ? displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' }) : ''
+  const timeLabel = event.startTime ? `${displayTime(event.startTime)}${event.endTime ? ` - ${displayTime(event.endTime)}` : ''}` : ''
+  const recurrenceLabel = event.isRecurring ? formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
+    translate: (key, values) => t(key as never, values as never),
+    pluralize: plural,
+  }) || t('calendar.recurring') : ''
+  const accessibleLabel = [event.title, dateLabel, timeLabel, recurrenceLabel, event.reminders.length ? String(event.reminders.length) : '', event.calendarName, importIssueLabel].filter(Boolean).join(' ')
+
   return (
     <div
       className="orbit-list-row-column flex flex-wrap items-start gap-x-4"
@@ -72,16 +81,15 @@ export function CalendarSyncEventRow({
         borderRadius: 12,
       }}
     >
-      <button
+      <PersonalTextAction className="flex-1" label={accessibleLabel} contentClassName="flex items-start" contentStyle={{ gap: 12, paddingBlock: 12, minHeight: TOUCH_TARGET_MIN }} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset overflow-hidden bg-[var(--calendar-event-fill)]" />} control={<button
         type="button"
         onClick={() => onToggle(event.id)}
         disabled={importIssue !== null}
         aria-pressed={selected}
         aria-describedby={importIssueId}
-        className="orbit-list-row-body relative flex-1 min-w-0 text-start flex items-start appearance-none border-0 bg-transparent cursor-pointer rounded-[12px] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed"
+        className="orbit-list-row-body flex-1 min-w-0 text-start flex items-start appearance-none border-0 bg-transparent cursor-pointer rounded-[12px] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed"
         style={{ gap: 12, paddingBlock: 12, '--calendar-event-fill': importIssue ? 'var(--bg-elev)' : selected ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent' } as CSSProperties}
       >
-        <span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset overflow-hidden bg-[var(--calendar-event-fill)]" />
         <span data-slot="list-row-content" id={`${titleId}-details`} data-calendar-event-disclosure="" className="flex-1 min-w-0 block">
           <PersonalText id={titleId}
             style={{
@@ -105,7 +113,7 @@ export function CalendarSyncEventRow({
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' })}
+                {dateLabel}
               </span>
             )}
             {event.startTime && (
@@ -117,15 +125,12 @@ export function CalendarSyncEventRow({
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {displayTime(event.startTime)}{event.endTime ? ` - ${displayTime(event.endTime)}` : ''}
+                {timeLabel}
               </span>
             )}
             {event.isRecurring && (
               <Badge >
-                {formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
-                  translate: (key, values) => t(key as never, values as never),
-                  pluralize: plural,
-                }) || t('calendar.recurring')}
+                {recurrenceLabel}
               </Badge>
             )}
             {event.reminders.length > 0 && (
@@ -177,7 +182,7 @@ export function CalendarSyncEventRow({
         >
           <RadioGlyph selected={selected} size={24} />
         </span>
-      </button>
+      </button>} />
 
       <button type="button" aria-label={t('contextMenu.viewDetails')} aria-describedby={descriptionIds} aria-expanded={expanded} aria-controls={`${titleId}-details`} onClick={() => setExpanded(!expanded)} className="icon-btn touch-target shrink-0" style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></button>
       {isReviewMode && suggestionId && (

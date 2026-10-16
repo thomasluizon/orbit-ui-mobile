@@ -98,7 +98,7 @@ describe('day card compact geometry', () => {
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         const rows = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('section [data-personal-text]')].map((title) => {
-          const button = title.closest('button')!
+          const button = title.closest('button') ?? title.closest('[data-personal-text-action]')!.querySelector('button')!
           const row = button.closest('[data-slot="list-row-body"]') ?? button
           const metadata = title.nextElementSibling as HTMLElement | null
           const titleBox = title.getBoundingClientRect()
@@ -184,7 +184,7 @@ describe('day card compact geometry', () => {
             groupGaps: groups.slice(1).map((group, index) => group.getBoundingClientRect().top - groups[index]!.getBoundingClientRect().bottom),
             bottomInset: cardBox.bottom - groups.at(-1)!.getBoundingClientRect().bottom,
             rowInsets: [...card.querySelectorAll<HTMLElement>('button:not([role="checkbox"]), a')].map((target) => {
-              const fill = target.parentElement?.parentElement === groups[1] ? target.parentElement! : target
+              const fill = target.closest('[data-slot="list-row-body"]') ?? target
               const box = fill.getBoundingClientRect()
               return [box.left - cardBox.left, cardBox.right - box.right]
             }),
@@ -197,9 +197,12 @@ describe('day card compact geometry', () => {
             eventLines: new Set([...titleRange.getClientRects()].map((box) => Math.round(box.top))).size,
             labels,
             targets: [...document.querySelectorAll<HTMLElement>('button, a')].map((target) => {
+              const content = target.parentElement?.hasAttribute('data-personal-text-action')
+                ? target.parentElement.querySelector('[data-personal-text-content]')!
+                : target
               const box = (target.querySelector('[data-press-fill]') ?? target).getBoundingClientRect()
               const style = getComputedStyle(target)
-              return { personalTitle: target.querySelector('[data-personal-text]')?.getAttribute('aria-label'), label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...target.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
+              return { personalTitle: content.querySelector('[data-personal-text]')?.getAttribute('aria-label'), label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...content.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
           }
         })

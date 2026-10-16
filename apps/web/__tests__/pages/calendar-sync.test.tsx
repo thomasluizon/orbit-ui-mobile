@@ -400,7 +400,7 @@ describe('CalendarSyncPage', () => {
       expect(fills.actual).toBe(fills.expected)
       const clearance = await row.evaluate((element) => {
         const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
-        const content = element.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
+        const content = element.parentElement!.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
         return { leading: content.left - fill.left, trailing: fill.right - element.getBoundingClientRect().right }
       })
       expect(clearance.leading).toBeGreaterThanOrEqual(8)
@@ -437,16 +437,19 @@ describe('CalendarSyncPage', () => {
             await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
           })
           await expectInteractivePaint(paintedRow, state, blocked)
-          const pairs = await paintedRow.evaluate((element) => Array.from(element.querySelectorAll('span'))
+          const pairs = await paintedRow.evaluate((element) => {
+            const content = element.parentElement!.querySelector('[data-personal-text-content]')!
+            return Array.from(content.querySelectorAll('span'))
             .filter((field) => Array.from(field.childNodes).some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim()))
             .map((field) => {
               const layers: string[] = []
               for (let surface: HTMLElement | null = field; surface; surface = surface.parentElement) {
                 layers.unshift(getComputedStyle(surface).backgroundColor)
-                if (surface === element) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
+                if (surface === element.parentElement) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
               }
               return { text: field.textContent, color: getComputedStyle(field).color, layers }
-            }))
+            })
+          })
           expect(pairs.length).toBeGreaterThanOrEqual(7)
           for (const pair of pairs) {
             expect.soft(contrastOnSurface(pair.color, pair.layers), `${mode}, selected: ${selected}, blocked: ${blocked}, state: ${state}, ${pair.text.slice(0, 80)}, ${pair.color} on ${pair.layers.join(' over ')}`).toBeGreaterThanOrEqual(4.5)
@@ -662,7 +665,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const row = (await screen.findByText(personalText('Second Monday review'))).closest('button')
+    const row = await screen.findByRole('button', { name: /Second Monday review/ })
     expect(row).not.toBeDisabled()
     expect(screen.getByText('calendar.recurrenceMonthly')).toBeVisible()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
@@ -696,7 +699,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Alternate week training'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Alternate week training/ })).not.toBeDisabled()
     const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
     fireEvent.click(importButton!)
@@ -725,7 +728,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Unsupported training'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Unsupported training/ })).not.toBeDisabled()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
     const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
@@ -762,7 +765,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Month end close'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Month end close/ })).not.toBeDisabled()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
     fireEvent.click((await screen.findByText(/calendar.importButton/)).closest('button')!)
     expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
@@ -794,12 +797,11 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const button = await screen.findByText(personalText('Weekly review'))
-    const hitArea = button.closest('button')
+    const hitArea = await screen.findByRole('button', { name: /Weekly review/ })
     expect(hitArea).not.toBeDisabled()
-    expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
-    expect(hitArea?.className).toContain('rounded-[12px]')
-    expect(hitArea?.parentElement?.className).not.toContain('hover:bg-')
+    expect(hitArea.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
+    expect(hitArea.className).toContain('rounded-[12px]')
+    expect(hitArea.parentElement?.className).not.toContain('hover:bg-')
   })
 
   it('shows select all / deselect all toggle', async () => {

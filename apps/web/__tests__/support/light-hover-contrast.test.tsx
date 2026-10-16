@@ -36,6 +36,15 @@ const cases = [
   { name: 'settings group value', element: <SettingsGroup>{[{ label: 'Preferences', value: 'Value', onClick: () => {} }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup> },
 ]
 
+function readTextColors(button: Element) {
+  const content = button.parentElement?.hasAttribute('data-personal-text-action')
+    ? button.parentElement.querySelector('[data-personal-text-content]')!
+    : button
+  return [...content.querySelectorAll<HTMLElement>('*'), content]
+    .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+    .map((element) => getComputedStyle(element).color)
+}
+
 describe('rendered light hover contrast', () => {
   let browser: Browser
   let browserLaunch: BrowserLaunch | undefined
@@ -287,14 +296,10 @@ describe('rendered light hover contrast', () => {
         await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${'selector' in scenario ? document.body.innerHTML : container.innerHTML}</body></html>`)
         const selector = scenario.selector ?? 'button'
         const control = page.locator(selector).first()
-        const resting = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
-          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
-          .map((element) => getComputedStyle(element).color))
+        const resting = await control.evaluate(readTextColors)
         await control.hover()
         await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!.querySelector('[data-press-fill]') ?? document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
-        const colors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
-          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
-          .map((element) => getComputedStyle(element).color))
+        const colors = await control.evaluate(readTextColors)
         const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
         const expected = resting.map((color) => color === rgb(neutralColors.light.fg3)
           ? rgb(neutralColors.light.fg2)
@@ -302,22 +307,21 @@ describe('rendered light hover contrast', () => {
             ? rgb(resolveWebThemeVariables('orange', 'light')['--primary-text']!) : color)
         expect(colors).toEqual(expected)
         await page.mouse.down()
-        const pressedColors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
-          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
-          .map((element) => getComputedStyle(element).color))
+        const pressedColors = await control.evaluate(readTextColors)
         expect(pressedColors).toEqual(expected)
         await page.mouse.move(0, 0)
         const expectedPressOnly = resting.map((color) => color === rgb(neutralColors.light.fg3) ? rgb(neutralColors.light.fg2) : color)
         await page.waitForFunction(({ selector, colors }) => {
           const button = document.querySelector(selector)!
-          const painted = [...button.querySelectorAll<HTMLElement>('*'), button]
+          const content = button.parentElement?.hasAttribute('data-personal-text-action')
+            ? button.parentElement.querySelector('[data-personal-text-content]')!
+            : button
+          const painted = [...content.querySelectorAll<HTMLElement>('*'), content]
             .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
             .map((element) => getComputedStyle(element).color)
           return !button.matches(':hover') && painted.length === colors.length && painted.every((color, index) => color === colors[index])
         }, { selector, colors: expectedPressOnly })
-        const pressOnly = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
-          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
-          .map((element) => getComputedStyle(element).color))
+        const pressOnly = await control.evaluate(readTextColors)
         expect(pressOnly).toEqual(expectedPressOnly)
         const pressedBackground = await control.evaluate((button) => getComputedStyle(button.querySelector('[data-press-fill]') ?? button).backgroundColor)
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {

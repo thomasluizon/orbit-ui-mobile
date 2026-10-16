@@ -38,6 +38,12 @@ function eventAccessibleLabel(event: CalendarSyncEvent, displayDate: ReturnType<
   return [event.title, event.startDate ? displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' }) : '', timeLabel, recurrenceLabel, event.reminders.length ? String(event.reminders.length) : '', event.calendarName, importIssueLabel].filter(Boolean).join(', ')
 }
 
+function eventContentProps(expanded: boolean) {
+  return expanded
+    ? { pointerEvents: 'box-none' as const, importantForAccessibility: 'auto' as const }
+    : { pointerEvents: 'none' as const, importantForAccessibility: 'no-hide-descendants' as const }
+}
+
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
   weekStartDay: 0 | 1
@@ -102,6 +108,7 @@ export function CalendarSyncEventRow({
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
       <Pressable
         hitSlop={{ left: 16, right: 16 }}
         onPressIn={() => setPressed(true)}
@@ -116,31 +123,33 @@ export function CalendarSyncEventRow({
         accessibilityLabel={accessibleLabel}
         accessibilityState={{ checked: selected, disabled: importIssue !== null }}
         accessibilityHint={importIssueLabel ?? undefined}
-        style={[styles.eventRow, { flex: 1 }]}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 }}
       >
         <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
-        <View style={styles.eventBody}>
+      </Pressable>
+      <View {...eventContentProps(expanded)} style={styles.eventRow}>
+        <View pointerEvents="box-none" style={styles.eventBody}>
           <PersonalText
             style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
             expanded={expanded}>{event.title}</PersonalText>
-          <View style={styles.eventMetaRow}>
+          <View pointerEvents="box-none" style={styles.eventMetaRow}>
             {event.startDate ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Text>
+              </Text></View>
             ) : null}
             {timeLabel ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {timeLabel}
-              </Text>
+              </Text></View>
             ) : null}
             {event.isRecurring ? (
-              <Badge >
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Badge >
                 {recurrenceLabel || t('calendar.recurring')}
-              </Badge>
+              </Badge></View>
             ) : null}
             {event.reminders.length > 0 ? (
-              <View style={styles.eventReminders}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={styles.eventReminders}>
                 <Bell size={16} color={tokens.fg2} />
                 <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                   {event.reminders.length}
@@ -154,15 +163,16 @@ export function CalendarSyncEventRow({
             ) : null}
           </View>
           {importIssueLabel ? (
-            <Text data-slot="calendar-import-issue" style={[styles.importIssue, { color: tokens.statusBadText }]}>
+            <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text data-slot="calendar-import-issue" style={[styles.importIssue, { color: tokens.statusBadText }]}>
               {importIssueLabel}
-            </Text>
+            </Text></View>
           ) : null}
         </View>
-        <View style={{ opacity: issueVisuals.selectorOpacity }}>
+        <View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={{ opacity: issueVisuals.selectorOpacity }}>
           <RadioGlyph selected={selected} size={24} tokens={tokens} />
         </View>
-      </Pressable>
+      </View>
+      </View>
       {isReviewMode && suggestionId ? (
         <Pressable
           onPress={() => onDismiss(suggestionId)}

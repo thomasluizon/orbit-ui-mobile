@@ -576,7 +576,8 @@ describe("CalendarSyncScreen", () => {
       expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === value && node.props.expanded === true)).toHaveLength(1);
     }
     for (const value of [event.title, event.calendarName]) {
-      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
+      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(0);
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
     }
     if (blocked) {
       expect(row.props.disabled).toBe(true);

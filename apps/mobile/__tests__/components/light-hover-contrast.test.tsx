@@ -76,24 +76,27 @@ describe('light hover text on Android', () => {
     } finally { await act(() => { tree.update(<></>) }) }
   })
 
-  it.each(cases)('keeps every text on $name above the floor', async ({ element, role }) => {
+  it.each(cases)('keeps every text on $name above the floor', async ({ element, role, name }) => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(element) })
     try {
       let control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === role)[0]!
       expect(control).toBeDefined()
-      const restingColors = control.findAll((node) => String(node.type) === 'Text')
+      const textOwner = () => name === 'personal row error'
+        ? tree.root.findAll((node) => String(node.type) === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
+        : control
+      const restingColors = textOwner().findAll((node) => String(node.type) === 'Text')
         .map((label) => StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color)
       await act(() => { (control.props.onPressIn as (() => void) | undefined)?.() })
       control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === role)[0]!
-      const pressedColors = control.findAll((node) => String(node.type) === 'Text')
+      const pressedColors = textOwner().findAll((node) => String(node.type) === 'Text')
         .map((label) => StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color)
       expect(pressedColors).toEqual(restingColors.map((color) => color === neutralColors.light.fg3 ? neutralColors.light.fg2 : color))
       const fill = pressedFill(control)
       expect(fill).toBe(neutralColors.light.bgHover)
       for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
         expect(contrastOnSurface(surface, [surface, fill])).toBeGreaterThanOrEqual(1.25)
-        const text = control.findAll((node) => String(node.type) === 'Text')
+        const text = textOwner().findAll((node) => String(node.type) === 'Text')
         expect(text.length).toBeGreaterThan(0)
         for (const label of text) {
           const color = StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color as string

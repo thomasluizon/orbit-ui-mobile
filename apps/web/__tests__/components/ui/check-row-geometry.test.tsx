@@ -72,7 +72,7 @@ describe('personal checkbox interaction fills in Chromium', () => {
       const insets = await label.evaluate((element) => {
         const row = element.closest('[data-slot="list-row-body"]')!.getBoundingClientRect()
         const label = element.getBoundingClientRect()
-        const graphic = element.parentElement!.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
+        const graphic = element.closest('[data-slot="list-row-body"]')!.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
         return { start: label.left - row.left, end: row.right - graphic.right }
       })
       expect(insets).toEqual({ start: 16, end: 16 })

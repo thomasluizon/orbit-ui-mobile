@@ -6,6 +6,7 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { RadioGlyph } from '@/components/ui/select-check'
 import { PersonalText } from '@/components/ui/personal-text'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 
@@ -26,6 +27,7 @@ interface RowNode {
   type: unknown
   parent: RowNode | null
   props: {
+    pointerEvents?: string
     importantForAccessibility?: string
     children?: unknown
     style?: StyleProp<TextStyle & ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
@@ -121,6 +123,29 @@ describe('calendar import row press contrast', () => {
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(titles()).toHaveLength(1)
     expect(titles()[0]!.props.expanded).toBe(true)
+    const scrollers = tree.root.findAll((node) => node.type === 'ScrollView')
+    expect(scrollers).toHaveLength(2)
+    const staticContent = tree.root.findAll((node) => {
+      if (node.type === RadioGlyph) return true
+      if (node.type !== 'Text') return false
+      for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.type === PersonalText) return false
+      }
+      return true
+    })
+    expect(staticContent.length).toBeGreaterThanOrEqual(4)
+    for (const content of staticContent) {
+      let pointerTransparent = false
+      for (let ancestor = content.parent; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.props.pointerEvents === 'none') pointerTransparent = true
+      }
+      expect(pointerTransparent).toBe(true)
+    }
+    for (const scroller of scrollers) {
+      for (let ancestor = scroller.parent; ancestor; ancestor = ancestor.parent) {
+        expect(ancestor.type).not.toBe('Pressable')
+      }
+    }
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0)
     void act(() => { disclosure.props.onPress!() })
     expect(titles()[0]!.props.expanded).toBe(false)

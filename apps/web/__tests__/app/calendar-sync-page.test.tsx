@@ -169,7 +169,7 @@ describe('CalendarSyncPage pagination', () => {
     expect(buttons[2]).toBeDisabled()
     expect(buttons[2]).toHaveAccessibleDescription('calendar.importIssue.utcUntilOffsetShift')
     for (const button of buttons) {
-      const row = button.parentElement!
+      const row = button.closest<HTMLElement>('[data-focus-inset]')!
       expect(row.style.borderBottom).toBe('')
       expect(row.style.boxShadow).toBe('')
       expect(row.style.borderRadius).toBe('12px')
