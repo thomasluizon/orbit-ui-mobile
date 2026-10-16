@@ -190,13 +190,13 @@ it('runs out the delayed delete failure and holds it while a pointer rests on it
   expect(tree?.root.findAll((node) => node.type === 'Pressable'
     && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Reminder. unread'))).toHaveLength(1)
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
-  const notice = (tree as unknown as { root: { findByProps: (props: Record<string, unknown>) => { props: { onHoverIn: () => void; onHoverOut: () => void } } } }).root.findByProps({ testID: 'toast-neutral' })
+  const notice = (tree as unknown as { root: { findByProps: (props: Record<string, unknown>) => { props: { onPointerEnter: () => void; onPointerLeave: () => void } } } }).root.findByProps({ testID: 'toast-neutral' })
 
-  TestRenderer.act(() => notice.props.onHoverIn())
+  TestRenderer.act(() => notice.props.onPointerEnter())
   await advance(30000)
   expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
 
-  TestRenderer.act(() => notice.props.onHoverOut())
+  TestRenderer.act(() => notice.props.onPointerLeave())
   await advance(10000)
 
   expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])

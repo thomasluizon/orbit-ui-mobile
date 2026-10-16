@@ -87,7 +87,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   if (dismissed) return null
 
   return (
-    <Pressable
+    <View
       {...swipe.panHandlers}
       accessible={!props.actionLabel}
       accessibilityLiveRegion={props.kind === 'lost' ? 'assertive' : 'polite'}
@@ -98,8 +98,8 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
           : announcedMessage
       }
       focusable={false}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       style={[
@@ -158,7 +158,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
           </PillButton>
         </View>
       ) : null}
-    </Pressable>
+    </View>
   )
 }
 

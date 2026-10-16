@@ -1,5 +1,5 @@
 import React from 'react'
-import { PanResponder, StyleSheet, type PanResponderCallbacks } from 'react-native'
+import { PanResponder, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToast, Toast } from '@/components/ui/app-toast'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
@@ -20,15 +20,31 @@ function NavigationOwner({ children }: Readonly<{ children?: React.ReactNode }>)
 
 describe('Android action toast dismissal', () => {
   let tree: ReturnType<typeof create>
-  let gesture: PanResponderCallbacks
   beforeEach(() => {
     vi.useFakeTimers()
     resetPendingNotificationDeletesForTests()
     route.pathname = '/calendar'
     useAppToastStore.setState({ currentToast: null, queue: [] })
     vi.spyOn(PanResponder, 'create').mockImplementation((callbacks) => {
-      gesture = callbacks
-      return { panHandlers: {}, getInteractionHandle: () => null }
+      const movement = { stateID: 1, moveX: 0, moveY: 0, x0: 0, y0: 0, dx: 0, dy: 0, vx: 0, vy: 0, numberActiveTouches: 1, _accountsForMovesUpTo: 0 }
+      return {
+        panHandlers: {
+          onMoveShouldSetResponder: (event) => callbacks.onMoveShouldSetPanResponder?.(event, movement) ?? false,
+          onResponderGrant: (event) => {
+            movement.dx = 0
+            movement.dy = 0
+            callbacks.onPanResponderGrant?.(event, movement)
+            return true
+          },
+          onResponderMove: (event) => {
+            movement.dx = event.nativeEvent.pageX
+            movement.dy = event.nativeEvent.pageY
+            callbacks.onPanResponderMove?.(event, movement)
+          },
+          onResponderRelease: (event) => callbacks.onPanResponderRelease?.(event, movement),
+        },
+        getInteractionHandle: () => null,
+      }
     })
   })
   afterEach(() => {
@@ -60,21 +76,61 @@ describe('Android action toast dismissal', () => {
     expect(undo).not.toHaveBeenCalled()
   })
 
-  it('dismisses a horizontal swipe but keeps taps and vertical movement', () => {
+  it('dismisses a horizontal swipe through a plain host without invoking undo', () => {
     const undo = vi.fn()
     useAppToastStore.getState().showQueued('Habit skipped', 'Undo', undo)
     mount()
-    const event = {} as Parameters<NonNullable<PanResponderCallbacks['onPanResponderRelease']>>[0]
-    const movement = { stateID: 1, moveX: 0, moveY: 0, x0: 0, y0: 0, dx: 2, dy: 0, vx: 0, vy: 0, numberActiveTouches: 1, _accountsForMovesUpTo: 0 }
-    expect(gesture.onMoveShouldSetPanResponder?.(event, movement)).toBe(false)
-    expect(gesture.onMoveShouldSetPanResponder?.(event, { ...movement, dx: 8, dy: 80 })).toBe(false)
-    expect(gesture.onMoveShouldSetPanResponder?.(event, { ...movement, dx: 80 })).toBe(true)
-    act(() => gesture.onPanResponderRelease?.(event, { ...movement, dx: 20 }))
+    const host = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      typeof node.type === 'string' && node.props.testID === 'toast-neutral')[0]
+    expect(host.type).toBe('View')
+    const event = (dx: number, dy = 0) => ({ nativeEvent: { pageX: dx, pageY: dy } })
+    expect(host.props.onMoveShouldSetResponder(event(0))).toBe(false)
+    act(() => host.props.onResponderGrant(event(0)))
+    act(() => host.props.onResponderMove(event(2)))
+    expect(host.props.onMoveShouldSetResponder(event(2))).toBe(false)
+    act(() => host.props.onResponderMove(event(8, 80)))
+    expect(host.props.onMoveShouldSetResponder(event(8, 80))).toBe(false)
+    act(() => host.props.onResponderRelease(event(8, 80)))
     expect(visibleToasts()).not.toHaveLength(0)
-    act(() => gesture.onPanResponderRelease?.(event, { ...movement, dx: -80 }))
+    act(() => host.props.onResponderGrant(event(0)))
+    act(() => host.props.onResponderMove(event(20)))
+    expect(host.props.onMoveShouldSetResponder(event(20))).toBe(true)
+    act(() => host.props.onResponderRelease(event(20)))
+    expect(visibleToasts()).not.toHaveLength(0)
+    act(() => host.props.onResponderGrant(event(0)))
+    act(() => host.props.onResponderMove(event(-80)))
+    expect(host.props.onMoveShouldSetResponder(event(-80))).toBe(true)
+    act(() => host.props.onResponderRelease(event(-80)))
     expect(visibleToasts()).toHaveLength(0)
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(undo).not.toHaveBeenCalled()
+  })
+
+  it('runs undo only when its nested action is tapped', () => {
+    const undo = vi.fn()
+    useAppToastStore.getState().showQueued('Habit skipped', 'Undo', undo)
+    mount()
+    const action = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      node.type === 'Pressable' && node.props.testID === 'toast-action')[0]
+    act(() => action.props.onPress())
+    expect(undo).toHaveBeenCalledOnce()
+    expect(visibleToasts()).toHaveLength(0)
+  })
+
+  it('pauses on host hover and resumes the remaining lifetime on pointer leave', () => {
+    useAppToastStore.getState().showQueued('Habit skipped', 'Undo', vi.fn())
+    mount()
+    act(() => { vi.advanceTimersByTime(2000) })
+    const host = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+      typeof node.type === 'string' && node.props.testID === 'toast-neutral')[0]
+    act(() => host.props.onPointerEnter())
+    act(() => { vi.advanceTimersByTime(30000) })
+    expect(visibleToasts()).not.toHaveLength(0)
+    act(() => host.props.onPointerLeave())
+    act(() => { vi.advanceTimersByTime(2999) })
+    expect(visibleToasts()).not.toHaveLength(0)
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(visibleToasts()).toHaveLength(0)
   })
 
   it('clears visible and queued undos when the destination changes', () => {

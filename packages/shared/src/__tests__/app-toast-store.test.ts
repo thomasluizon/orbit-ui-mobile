@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { notifyToastNavigation, subscribeToastNavigation } from '../hooks/toast-lifecycle-core'
 import { createAppToastStoreState, type AppToastStore } from '../stores/app-toast-store'
 
 function createQueue() {
@@ -69,5 +70,69 @@ describe('shared toast queue', () => {
     get().showQueued('New undo', 'Undo', vi.fn())
     expect(discarded).toHaveBeenCalledOnce()
     expect(get().queue.map((item) => item.toast.message)).toEqual(['New undo'])
+  })
+})
+
+describe('shared action toast dismissal', () => {
+  it('clears visible and queued actions on navigation and completes their dismissals once', () => {
+    const { get } = createQueue()
+    const undo = vi.fn()
+    const dismissed = vi.fn()
+    get().showQueued('Skipped', 'Undo', undo, dismissed)
+    get().showQueued('Archived', 'Undo', undo, dismissed)
+    const unsubscribe = subscribeToastNavigation(() => get().dismissAllToasts())
+    try {
+      notifyToastNavigation()
+      expect(get().currentToast).toBeNull()
+      expect(get().queue).toEqual([])
+      expect(dismissed).toHaveBeenCalledTimes(2)
+      expect(undo).not.toHaveBeenCalled()
+      notifyToastNavigation()
+      expect(dismissed).toHaveBeenCalledTimes(2)
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it('dismisses a queued action by id without dismissing the visible action', () => {
+    const { get } = createQueue()
+    const dismissed = vi.fn()
+    const undo = vi.fn()
+    const visibleId = get().showQueued('Skipped', 'Undo', undo)
+    const queuedId = get().showQueued('Deleted', 'Undo', undo, dismissed)
+    get().dismissToast(queuedId)
+    expect(get().currentToast?.id).toBe(visibleId)
+    expect(get().queue).toEqual([])
+    expect(dismissed).toHaveBeenCalledOnce()
+    get().dismissToast(queuedId)
+    expect(dismissed).toHaveBeenCalledOnce()
+    expect(undo).not.toHaveBeenCalled()
+  })
+
+  it('advances from a completed success to a dismissible error', () => {
+    const { get } = createQueue()
+    get().showSuccess('Saved')
+    get().showError('Unavailable', 'Dismiss')
+    const toast = get().currentToast?.toast
+    if (toast?.kind !== 'done') throw new Error('Expected success toast')
+    toast.onDone()
+    expect(get().currentToast?.toast.message).toBe('Unavailable')
+    get().triggerAction()
+    expect(get().currentToast).toBeNull()
+    get().dismissToast()
+    get().triggerAction()
+  })
+
+  it('rejects blank notices and preserves directly supplied toast actions', () => {
+    const { get } = createQueue()
+    expect(get().showError('   ')).toBeUndefined()
+    get().showError('Unavailable')
+    get().showToast({ kind: 'lost', message: ' Connection lost ', detail: 'Try again', actionLabel: 'Retry', onAction: () => get().dismissAllToasts() })
+    expect(get().currentToast?.toast.message).toBe('Connection lost')
+    get().showSuccess('Saved')
+    expect(get().queue).toHaveLength(1)
+    get().triggerAction()
+    expect(get().currentToast).toBeNull()
+    expect(get().queue).toEqual([])
   })
 })
