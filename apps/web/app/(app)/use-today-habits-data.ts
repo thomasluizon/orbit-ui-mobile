@@ -5,6 +5,7 @@ import { hashKey, useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import type { ActiveView } from '@orbit/shared/stores'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   EMPTY_CHILDREN_BY_PARENT,
@@ -28,6 +29,8 @@ function getShowGeneralServerSnapshot() {
 }
 
 interface TodayHabitsDataParams {
+  activeView: ActiveView
+  searchQuery?: string
   dateStr: string
   isTodayDate: boolean
   initialHabits: TodayInitialHabits | null
@@ -51,6 +54,8 @@ export interface TodayHabitsData {
  * the load/refetch flags and day-progress summary. Pure extraction of TodayPage.
  */
 export function useTodayHabitsData({
+  activeView,
+  searchQuery = '',
   dateStr,
   isTodayDate,
   initialHabits,
@@ -64,17 +69,18 @@ export function useTodayHabitsData({
   const filters = useMemo<HabitsFilter>(
     () =>
       buildTodayFilters({
+        view: activeView,
         dateStr,
         isTodayDate,
-        searchQuery: '',
+        searchQuery,
         selectedFrequency: null,
         selectedTagIds: [],
         showGeneralOnToday,
       }),
-    [dateStr, isTodayDate, showGeneralOnToday],
+    [activeView, dateStr, isTodayDate, showGeneralOnToday, searchQuery],
   )
 
-  const queryKey = habitKeys.list(habitListQueryFilters(filters, true))
+  const queryKey = habitKeys.list(habitListQueryFilters(filters, activeView === 'today'))
   const queryClient = useQueryClient()
   /**
    * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the
@@ -96,7 +102,7 @@ export function useTodayHabitsData({
       queryClient.setQueryData(habitKeys.listTotalCount(filters), initialTotalCount)
     }
   }, [filters, initialTotalCount, queryClient])
-  const habitsQuery = useHabits(filters, initialItems, { completeDay: true })
+  const habitsQuery = useHabits(filters, initialItems, { completeDay: activeView === 'today' })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size

@@ -12,6 +12,7 @@ import {
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { Icon } from '@/components/ui/icon'
 import type { TodayView } from '@/app/(app)/use-today-page'
+import type { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
@@ -180,6 +181,9 @@ function createMotionView(
   isRefetching = isFetching,
 ): TodayView {
   return {
+    activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+    changeView: vi.fn(),
     data: { filters: {}, isFetching, isRefetching },
     habitListRef: { current: null },
     isSelectMode: false,
@@ -215,6 +219,19 @@ function getAnimationForStyleValue(styleValue: unknown) {
 }
 
 describe('Hoje date control', () => {
+  it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', (activeView) => {
+    const view = { ...createMotionView('2026-04-08'), activeView, changeView: vi.fn() }
+    view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
+    view.nav.today = '2026-04-08'
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><TodayHeaderRegion view={view} /></NextIntlClientProvider>)
+    const selected = screen.getByRole('radio', { name: activeView === 'all' ? 'Todos' : 'Geral' })
+    expect(selected).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('button', { name: 'Previous day' })).toBeNull()
+    expect(screen.getByRole('button', { name: ptBr.habits.listOptions })).toBeVisible()
+    fireEvent.click(screen.getByRole('radio', { name: 'Hoje' }))
+    expect(view.changeView).toHaveBeenCalledWith('today')
+  })
+
   beforeEach(() => {
     motionTestState.animations.length = 0
     motionTestState.completeAnimations = true
@@ -310,6 +327,9 @@ describe('Hoje date control', () => {
   it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', (plan) => {
     planTestState.plan = plan
     const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
       data: { isFetching: false, refetch: vi.fn() },
       habitListAllCollapsed: false,
       habitListRef: { current: null },
@@ -333,6 +353,9 @@ describe('Hoje date control', () => {
 
   it('renders the resolved read-only boundary notice', () => {
     const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
       data: { isFetching: false, refetch: vi.fn() },
       habitListAllCollapsed: false,
       habitListRef: { current: null },
@@ -368,6 +391,9 @@ describe('Hoje date control', () => {
     await useUIStore.persist.rehydrate()
 
     const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
       data: { filters: {} },
       habitListRef: { current: null },
       isSelectMode: false,
@@ -416,6 +442,9 @@ describe('Hoje date control', () => {
   it('omits the all-done upcoming action at the instance horizon', () => {
     const goToNextDay = vi.fn()
     const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
       data: { filters: {} },
       habitListRef: { current: null },
       isSelectMode: false,
@@ -442,6 +471,9 @@ describe('Hoje date control', () => {
   it('keeps the all-done upcoming action active below the instance horizon', () => {
     const goToNextDay = vi.fn()
     const view = {
+      activeView: 'today',
+    search: { open: false, toggle: vi.fn(), query: '' } as unknown as ReturnType<typeof useHabitViewSearch>,
+      changeView: vi.fn(),
       data: { filters: {} },
       habitListRef: { current: null },
       isSelectMode: false,

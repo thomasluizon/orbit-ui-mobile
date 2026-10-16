@@ -29,6 +29,19 @@ export interface HabitVisibilityHelpers {
   getVisibleChildren: (parentId: string, view: HabitVisibilityView) => NormalizedHabit[]
 }
 
+export function filterHabitViewRoots(
+  habits: NormalizedHabit[],
+  view: HabitVisibilityView,
+  showCompleted: boolean,
+  recentlyCompletedIds: ReadonlySet<string>,
+  visibility: HabitVisibilityHelpers,
+): NormalizedHabit[] {
+  if (view === 'all') return habits.filter((habit) => isHabitVisibleInAllView(habit, showCompleted))
+  if (view === 'general') return habits.filter((habit) => habit.isGeneral &&
+    (showCompleted || !habit.isCompleted || recentlyCompletedIds.has(habit.id)))
+  return habits.filter((habit) => visibility.hasVisibleContent(habit))
+}
+
 /** A completed non-recurring (one-time) habit: it is done and has no future
  *  occurrence, so it drops out of the All view and out of destination pickers. */
 export function isCompletedOneTimeHabit(

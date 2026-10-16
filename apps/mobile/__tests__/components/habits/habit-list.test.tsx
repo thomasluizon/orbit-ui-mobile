@@ -1,3 +1,4 @@
+import { createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
@@ -29,7 +30,13 @@ vi.mock('react-native', async (importOriginal) => {
     ...actual,
     FlatList: React.forwardRef((props: React.ComponentProps<typeof actual.FlatList>, ref) => {
       React.useImperativeHandle(ref, () => ({ scrollToOffset: rootListScroll.scrollToOffset }))
-      return React.createElement(actual.FlatList, props)
+      const renderSlot = (slot: unknown) => typeof slot === 'function' ? React.createElement(slot as React.ComponentType) : slot as React.ReactNode
+      const children = props.testID === 'habit-list-all' ? <>
+        {renderSlot(props.ListHeaderComponent)}
+        {Array.from(props.data ?? []).map((item, index) => <React.Fragment key={index}>{props.renderItem?.({ item, index, separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} } })}</React.Fragment>)}
+        {!props.data?.length ? renderSlot(props.ListEmptyComponent) : null}
+      </> : props.children
+      return React.createElement(actual.FlatList, props, children)
     }),
   }
 })
@@ -124,6 +131,7 @@ const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const habitListRefetch = vi.fn()
 const deleteMutateAsync = vi.fn()
+const duplicateMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 const bulkDeleteMutateAsync = vi.fn()
 const bulkLogMutateAsync = vi.fn()
@@ -340,7 +348,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
     useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
     useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
-    useDuplicateHabit: () => ({ mutate: vi.fn() }),
+    useDuplicateHabit: () => ({ mutateAsync: duplicateMutateAsync }),
     useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
     useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
   })
@@ -590,6 +598,45 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    const id = view === 'all' ? 'overdue' : 'general'
+    const edit = vi.fn()
+    const detail = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{}} selectedDate={new Date('2000-01-01T12:00:00')} showCompleted onCreatePress={vi.fn()} onEditHabit={edit} onDetailHabit={detail} />) })
+    const row = () => tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    await TestRenderer.act(async () => { row().props.actions.onLog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'log' })
+    await TestRenderer.act(async () => { row().props.actions.onUnlog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'unlog' })
+    TestRenderer.act(() => { row().props.actions.onToggleSelection(); row().props.actions.onEdit(); row().props.actions.onDetail() })
+    expect(toggleSelectionCascade).toHaveBeenCalledWith(id, expect.any(Function))
+    expect(edit).toHaveBeenCalledWith(expect.objectContaining({ id }), undefined)
+    expect(detail).toHaveBeenCalledWith(expect.objectContaining({ id }))
+    await TestRenderer.act(async () => { row().props.actions.onDuplicate(); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.duplicateConfirm'); await Promise.resolve() })
+    expect(duplicateMutateAsync).toHaveBeenCalledWith(id)
+    if (view === 'all') {
+      await confirmRowSkip(tree, id)
+      expect(skipMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: id }))
+    }
+    await TestRenderer.act(async () => { row().props.actions.onDelete(); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.deleteHabit'); await Promise.resolve() })
+    expect(deleteMutateAsync).toHaveBeenCalledWith(id)
+  })
+
+  it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(HABIT_VIEW_ROW_ORDER[view])
+  })
+
   beforeEach(() => {
     listQueryState.isLoading = false
     listQueryState.isError = false

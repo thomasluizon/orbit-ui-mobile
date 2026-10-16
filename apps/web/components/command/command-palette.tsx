@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import type { ActiveView } from '@orbit/shared/stores'
 import type { ShellDestinationId } from '@orbit/shared/utils'
 import type { IconProps } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -25,7 +26,7 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 import { CommandMenu } from './command-menu'
 
 export interface CommandNavigationItem {
-  id: ShellDestinationId
+  id: ShellDestinationId | ActiveView
   label: string
   icon: ComponentType<IconProps>
   onSelect: () => void

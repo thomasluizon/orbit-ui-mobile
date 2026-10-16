@@ -567,6 +567,8 @@
     "viewsLabel": "Visualizações de hábitos",
     "viewToday": "Hoje",
     "viewAll": "Todos",
+    "viewGeneral": "Geral",
+    "emptyGeneral": "Nenhum hábito geral",
     "sectionLabel": "Hábitos",
     "frequencyFilter": "Filtrar por frequência",
     "closeSearch": "Fechar busca",

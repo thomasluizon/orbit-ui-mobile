@@ -1,3 +1,4 @@
+import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
@@ -30,6 +31,8 @@ const mockFormGetValues = vi.fn()
 const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
 const mockSetFlexible = vi.fn()
+const mockSetGeneral = vi.fn()
+const mockView = vi.hoisted(() => ({ value: 'today' as ActiveView }))
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
@@ -136,7 +139,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
     setFlexible: mockSetFlexible,
-    setGeneral: vi.fn(),
+    setGeneral: mockSetGeneral,
     toggleDay: vi.fn(),
     formatTimeInput: vi.fn((v: string) => v),
     formatEndTimeInput: vi.fn((v: string) => v),
@@ -166,7 +169,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   return {
     ...original,
     setUIAccountScope: vi.fn(),
-    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+    useUIStore: Object.assign(() => mockView.value, { getState: original.useUIStore.getState }),
   }
 })
 
@@ -303,6 +306,13 @@ async function traverseHistory(direction: 'back' | 'forward') {
 
 
 describe('CreateHabitModal', () => {
+  it.each(['today', 'all', 'general'] as const)('uses the production create default in %s', async (view) => {
+    mockView.value = view
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    await act(async () => { await Promise.resolve() })
+    expect(mockSetGeneral).toHaveBeenCalledTimes(view === 'general' ? 1 : 0)
+  })
+
   let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
   afterEach(() => { nextHistory.restore(); sheetTestControls.defer(false) })
   beforeEach(() => {
@@ -310,6 +320,7 @@ describe('CreateHabitModal', () => {
     vi.stubGlobal('Notification', { permission: 'default' })
     Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
+    mockView.value = 'today'
     mockFormStatus.dirty = false
     mockShell.wide = false
     resetRouteTransitionIntent()

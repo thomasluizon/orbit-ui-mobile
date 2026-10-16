@@ -14,6 +14,7 @@ import { collectSegmentCallSites, segmentTranslation } from '../../../../../pack
 import { resolve } from 'node:path'
 import { createTokensV2, createSurfaces } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
@@ -184,6 +185,31 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
       expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(group.node.getComputedWidth())
+      expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
+      expect(labels[index]!.host.props.numberOfLines).toBe(1)
+    }
+  } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 600, 768, 840, 1352].map((width) => ({ locale, width }))))('keeps the Hoje view switch on one line in $locale at $width', async ({ locale, width }) => {
+  await i18n.changeLanguage(locale)
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ width: '100%', maxWidth: 740, paddingHorizontal: 16 }}><HabitViewSwitch value="today" onChange={vi.fn()} /></View>) as typeof tree })
+  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
+  const radios: YogaNode[] = []
+  const groups: { node: YogaNode; radios: YogaNode[] }[] = []
+  const layout = buildLayout(tree.toJSON(), 1, labels, radios, groups)
+  try {
+    layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+    expect(groups).toHaveLength(1)
+    expect(radios).toHaveLength(3)
+    expect(new Set(radios.map((node) => node.getComputedTop())).size).toBe(1)
+    for (const [index, radio] of radios.entries()) {
+      expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
+      expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
+      expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(groups[0]!.node.getComputedWidth())
       expect(labels[index]!.node.getComputedWidth()).toBeGreaterThanOrEqual(labels[index]!.intrinsic)
       expect(labels[index]!.host.props.numberOfLines).toBe(1)
     }

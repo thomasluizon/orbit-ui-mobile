@@ -1,3 +1,4 @@
+import { createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
@@ -442,6 +443,53 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
+    dragLocale.english = true
+    const clearSearch = vi.fn()
+    renderWithProviders(<HabitList view={view} filters={{}} searchQuery="missing routine" onClearSearch={clearSearch} />)
+    expect(screen.getByText('Nothing found for', { exact: false })).toHaveTextContent('missing routine')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(clearSearch).toHaveBeenCalledOnce()
+    expect(screen.queryByText('No habits yet')).not.toBeInTheDocument()
+  })
+
+  it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    const id = view === 'all' ? 'overdue' : 'general'
+    const select = vi.fn()
+    renderWithProviders(<HabitList view={view} filters={{}} selectedDate={new Date('2000-01-01T12:00:00')} showCompleted isSelectMode onToggleSelection={select} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`log-${id}`)) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'log' })
+    await act(async () => { fireEvent.click(screen.getByTestId(`unlog-${id}`)) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'unlog' })
+    fireEvent.click(screen.getByTestId(`select-${id}`))
+    expect(select).toHaveBeenCalledWith(id)
+    fireEvent.click(screen.getByTestId(`detail-${id}`))
+    expect(routerPush).toHaveBeenCalledWith(`/habits/${id}?date=${TODAY}&from=today`)
+    fireEvent.click(screen.getByTestId(`edit-${id}`))
+    expect(await screen.findByTestId('edit-habit-modal-title')).toHaveTextContent(view === 'all' ? 'Overdue' : 'Any day')
+    fireEvent.click(screen.getByTestId(`duplicate-${id}`))
+    await confirmVisibleSheet('habits.duplicateConfirmTitle', 'habits.duplicateConfirm')
+    expect(duplicateHabitMutateAsync).toHaveBeenCalledWith(id)
+    if (view === 'all') {
+      await act(async () => { fireEvent.click(screen.getByTestId(`skip-${id}`)) })
+      expect(skipHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: id }))
+    }
+    fireEvent.click(screen.getByTestId(`add-sub-${id}`))
+    expect(await screen.findByRole('dialog', { name: 'Create habit' })).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId(`delete-${id}`))
+    await confirmVisibleSheet('habits.deleteConfirmTitle', 'habits.deleteHabit')
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith(id)
+  })
+
+  it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    render(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+    expect(screen.getAllByTestId(/^habit-card-/).map((row) => row.getAttribute('data-testid')?.replace('habit-card-', ''))).toEqual(HABIT_VIEW_ROW_ORDER[view])
+  })
+
   it.each([
     { code: 'RATE_LIMITED', status: 429, failures: 1, retryAfter: '60', deadline: 60_000 },
     { code: 'UPSTREAM_STARTING', status: 503, failures: 2, retryAfter: '5', deadline: 15_000 },

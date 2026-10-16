@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
@@ -9,6 +10,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayDateControlProps {
+  showDate?: boolean
+  beforeDate?: ReactNode
   menuHeading?: string
   shortDayName?: string
   headerActive?: boolean
@@ -44,7 +47,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
   return <DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
-    {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
+    {props.showDate !== false && !props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <View style={styles.spacer} />
     <View style={styles.actions}>
@@ -86,7 +89,8 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   const dayName = width / fontScale < 240 ? props.shortDayName ?? props.dayName : props.dayName
   return <>
     {!hosted ? header : null}
-    <View testID="today-date-row" style={styles.row}>
+    {props.beforeDate}
+    {props.showDate !== false ? <View testID="today-date-row" style={styles.row}>
       <Pressable accessibilityRole="button" accessibilityLabel={props.previousLabel} onPress={props.onGoToPreviousDay}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
@@ -100,7 +104,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         style={({ pressed }) => [styles.iconButton, pressed && !props.nextDisabled && { backgroundColor: tokens.bgHover }, props.nextDisabled && styles.disabled]}>
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-    </View>
+    </View> : null}
   </>
 }
 

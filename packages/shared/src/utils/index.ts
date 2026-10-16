@@ -789,3 +789,11 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
+
+export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
+
+export { filterHabitViewRoots } from './habit-visibility'
+
+export { formatHabitDateBucketLabel } from './habit-list-progress'

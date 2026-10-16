@@ -1,3 +1,4 @@
+import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
 import React from 'react'
 import { StyleSheet } from 'react-native'
@@ -24,6 +25,8 @@ const mockSuggestMutateAsync = vi.fn()
 const mockSetValue = vi.fn()
 const mockGetValues = vi.fn((..._args: unknown[]): unknown => ({}))
 const mockSetFlexible = vi.fn()
+const mockSetGeneral = vi.fn()
+const mockView = vi.hoisted((): { value: ActiveView } => ({ value: 'today' }))
 const mockCreateMutateAsync = vi.fn()
 const mockCreateSubMutateAsync = vi.fn()
 const mockShowError = vi.fn()
@@ -104,7 +107,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/stores/ui-store')>()
   return {
     ...original,
-    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+    useUIStore: Object.assign(() => mockView.value, { getState: original.useUIStore.getState }),
   }
 })
 
@@ -130,7 +133,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
     setFlexible: mockSetFlexible,
-    setGeneral: vi.fn(),
+    setGeneral: mockSetGeneral,
     toggleDay: vi.fn(),
     formatTimeInput: (value: string) => value,
     formatEndTimeInput: (value: string) => value,
@@ -235,6 +238,14 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 }
 
 describe('CreateHabitModal (mobile)', () => {
+  it.each(['today', 'all', 'general'] as const)('uses the production create default in %s', async (view) => {
+    mockView.value = view
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    expect(mockSetGeneral).toHaveBeenCalledTimes(view === 'general' ? 1 : 0)
+    tree.unmount()
+  })
+
   it('renders the pushed creation header and back control', () => {
     const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')).toHaveLength(1)
@@ -263,6 +274,7 @@ describe('CreateHabitModal (mobile)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockView.value = 'today'
     mockFocus.value = true
     mockFormStatus.dirty = false
     mockProfileState.hasProAccess = true

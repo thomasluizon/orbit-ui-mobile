@@ -14,6 +14,7 @@ interface TodaySelectionParams {
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
   habitsCount: number
+  allLoadedIds?: Set<string> | null
   habitListRef: React.RefObject<HabitListHandle | null>
 }
 
@@ -28,9 +29,12 @@ export function useTodaySelection({
   habitsById,
   childrenByParent,
   habitsCount,
+  allLoadedIds,
   habitListRef,
 }: TodaySelectionParams) {
   const { profile } = useProfile()
+  const activeView = useUIStore((s) => s.activeView)
+  const previousActiveViewRef = useRef(activeView)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
@@ -55,7 +59,7 @@ export function useTodaySelection({
     [toggleSelectionCascade, getDescendantIds],
   )
 
-  const allSelected = habitsCount > 0 && selectedHabitIds.size === habitsCount
+  const allSelected = allLoadedIds ? allLoadedIds.size > 0 && Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id)) : habitsCount > 0 && selectedHabitIds.size === habitsCount
 
   const selectAll = useCallback(() => {
     const loaded = habitListRef.current?.allLoadedIds
@@ -81,11 +85,13 @@ export function useTodaySelection({
 
   useEffect(() => {
     const dateChanged = previousSelectedDateRef.current !== selectedDateStr
+    const viewChanged = previousActiveViewRef.current !== activeView
+    previousActiveViewRef.current = activeView
     previousSelectedDateRef.current = selectedDateStr
-    if (!dateChanged) return
+    if (!dateChanged && !viewChanged) return
     setShowBulkDeleteConfirm(false)
     clearSelection()
-  }, [clearSelection, selectedDateStr, setShowBulkDeleteConfirm])
+  }, [activeView, clearSelection, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,

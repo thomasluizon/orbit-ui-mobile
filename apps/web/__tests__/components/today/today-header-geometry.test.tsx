@@ -12,6 +12,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { TodayAstra } from '@/components/today/today-astra'
 import { HabitRow } from '@/components/habits/habit-row'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -85,6 +86,36 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 360, 384, 412, 600, 768, 840, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))(
+    'keeps all three habit views on one line in $locale at $width', async ({ width, locale }) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const words = locale === 'en' ? en : ptBr
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${renderToString(<NextIntlClientProvider locale={locale} messages={words}><div className="mx-auto w-full max-w-[740px]"><HabitViewSwitch value="today" onChange={noop} /></div></NextIntlClientProvider>)}`)
+        await page.evaluate(() => document.fonts.ready)
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"]')).map((radio) => {
+          const span = radio.querySelector('span')!
+          const range = document.createRange()
+          range.selectNodeContents(span)
+          const bounds = radio.getBoundingClientRect()
+          const label = range.getBoundingClientRect()
+          return { top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
+        }))
+        expect(geometry).toHaveLength(3)
+        expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
+        for (const radio of geometry) {
+          expect(radio.width).toBeGreaterThanOrEqual(48)
+          expect(radio.height).toBeGreaterThanOrEqual(48)
+          expect(radio.lines).toBe(1)
+          expect(radio.labelLeft - radio.left).toBeGreaterThanOrEqual(8)
+          expect(radio.right - radio.labelRight).toBeGreaterThanOrEqual(8)
+          expect(radio.left).toBeGreaterThanOrEqual(16)
+          expect(radio.right).toBeLessThanOrEqual(width - 16)
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each([320, 412, 1352].flatMap((width) => ['today', 'calendar'].map((destination) => ({ width, destination }))))(
     'keeps the server-rendered $destination header and content in place through hydration at $width', async ({ width, destination }) => {
