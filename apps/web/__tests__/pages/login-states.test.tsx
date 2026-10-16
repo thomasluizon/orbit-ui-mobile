@@ -140,7 +140,22 @@ it('lets a callback failure yield to the next email validation result', () => {
 
 function assertEmailState(state: Parameters<typeof setFixture>[0], fixture: ReturnType<typeof setFixture>) {
   const { t } = fixture
-        expect(screen.getByRole('button', { name: t('auth.signInWithGoogle') })).toBeInTheDocument()
+        const googleButton = screen.getByRole('button', { name: t('auth.signInWithGoogle') })
+        expect(googleButton).toHaveAccessibleName(t('auth.signInWithGoogle'))
+        const mark = googleButton.querySelector('[data-asset="google-mark"]')
+        if (fixture.isGoogleLoading) {
+          expect(googleButton).toHaveAttribute('aria-busy', 'true')
+          expect(mark).not.toBeInTheDocument()
+        } else {
+          expect(mark).toBeInTheDocument()
+          expect(mark).toHaveAttribute('aria-hidden', 'true')
+          expect(mark).toHaveAttribute('focusable', 'false')
+          expect(mark).not.toHaveAccessibleName()
+          expect(mark).toHaveAttribute('width', '20')
+          expect(mark).toHaveAttribute('height', '20')
+          expect(mark?.querySelectorAll('path')).toHaveLength(4)
+          expect(googleButton.style).toMatchObject({ paddingInlineStart: '12px', paddingInlineEnd: '12px', gap: '10px' })
+        }
         const submit = screen.getByRole('button', { name: t(fixture.fromOnboarding ? 'auth.onboarding.continue' : 'auth.sendCode') })
         if (['sending', 'google', 'offline', 'email'].includes(state)) expect(submit).toBeDisabled()
         expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/about', '/about'])

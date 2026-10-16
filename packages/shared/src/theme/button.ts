@@ -28,3 +28,5 @@ export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   sm: { height: 40, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
 }
+
+export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, gap: 10 } as const
