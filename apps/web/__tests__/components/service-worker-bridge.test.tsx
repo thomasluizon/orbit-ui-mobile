@@ -103,12 +103,15 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/?astra=open'], ['/progress/streak']])
+    expect(mockPush.mock.calls).toEqual([['/?astra=open'], ['/progress']])
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each([
     ['/streak?source=push#freezes', '/progress/streak?source=push#freezes'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
     ['/goals?status=Active', '/progress/goals?status=Active'],
     ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
   ])('routes the section push %s with its carried state', (url, destination) => {

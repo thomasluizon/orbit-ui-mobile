@@ -89,7 +89,6 @@ export function resolveNotificationUrl(url: string): string | null {
     }
   }
   const suffix = url.slice(pathname.length)
-  if (pathname === '/progress') return `/progress/streak${suffix}`
   const retired = Object.entries(LEGACY_PROGRESS_DESTINATIONS).find(
     ([route]) => pathname === route || pathname.startsWith(`${route}/`),
   )

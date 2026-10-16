@@ -117,11 +117,14 @@ describe('NotificationDetailModal', () => {
   })
 
   it.each([
-    ['/progress', '/progress/streak'],
+    ['/progress', '/progress'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
     ['/streak?source=inbox#freezes', '/progress/streak?source=inbox#freezes'],
     ['/goals?status=Active', '/progress/goals?status=Active'],
     ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
-  ])('opens notification %s in its owning detail', (url, destination) => {
+  ])('opens notification %s in its owning screen', (url, destination) => {
     render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url }} />)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
     expect(mockPush).toHaveBeenCalledWith(destination)

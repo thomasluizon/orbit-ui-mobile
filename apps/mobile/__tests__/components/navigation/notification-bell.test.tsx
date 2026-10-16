@@ -560,6 +560,10 @@ describe('mobile alerts', () => {
   })
 
   it.each([
+    ['goal deadline in English', 'Read 10 books', "Your goal is due tomorrow - you're at 3/10 books"],
+    ['goal deadline in Portuguese', 'Ler 10 livros', 'Sua meta termina amanhã. Progresso: 3/10 livros'],
+    ['streak freeze in English', 'Streak protected', 'We used a freeze to keep your 7-day streak alive after a day with no check-ins.'],
+    ['streak freeze in Portuguese', 'Sequência protegida', 'Usamos um congelamento para manter sua sequência de 7 dias depois de um dia sem registro.'],
     ['achievement', 'New achievement: First Orbit', 'Create your first habit (+25 XP)'],
     ['level up', 'You reached level 3', 'Keep the streak going.'],
   ])('leads the %s row to Progress and opens it from the sheet', (_kind, title, body) => {
@@ -572,7 +576,7 @@ describe('mobile alerts', () => {
     expect(rows[0]!.findAll((node) => node.type === 'Text' && node.props.children === en.nav.progress)).toHaveLength(1)
     press(tree, `${title}. unread. Progress`)
     press(tree, 'Open in Progress')
-    expect(state.push).toHaveBeenCalledWith('/progress/streak')
+    expect(state.push).toHaveBeenCalledWith('/progress')
   })
 
   it.each([
