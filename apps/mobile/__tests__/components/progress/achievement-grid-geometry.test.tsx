@@ -76,7 +76,7 @@ async function measureGrid(tree: TestTree, rowWidth: number) {
 it.each([412, 840, 1200, 1600])('aligns three achievement tiles to the content edges at %ipx', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   let tree!: TestTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent screen="achievements" />) })
   try {
     const rowWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH) - 32
     const tiles = await measureGrid(tree, rowWidth)
@@ -102,7 +102,7 @@ it.each([412, 840, 1200, 1600])('aligns three achievement tiles to the content e
 it('recalculates both columns when the measured Android row resizes', async () => {
   __setWindowDimensions({ width: 840, height: 915, scale: 1, fontScale: 1 })
   let tree!: TestTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent screen="achievements" />) })
   try {
     for (const rowWidth of [708, 600, 708]) {
       const tiles = await measureGrid(tree, rowWidth)
@@ -114,7 +114,7 @@ it('recalculates both columns when the measured Android row resizes', async () =
 
 it.each([412, 1200, 1600])('uses the whole column for the progress summary at %ipx', async (width) => {
   let tree!: GeometryTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) as GeometryTree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent screen="achievements" />) as GeometryTree })
   try {
     const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width: columnWidth, height: 915 })
@@ -126,7 +126,7 @@ it.each([1200, 1600])('fills a category containing one achievement at %ipx', asy
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   profile.achievements = achievements.slice(0, 1)
   let tree!: TestTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent screen="achievements" />) })
   try {
     const rowWidth = SHELL_CONTENT_MAX_WIDTH - 32
     const tiles = await measureGrid(tree, rowWidth)

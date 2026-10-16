@@ -3081,6 +3081,7 @@
       "lockedAction": "Ver o Orbit Pro"
     },
     "achievements": {
+      "emptyAction": "Ver hábitos",
       "destination": "Nível e XP",
       "empty": "Registre para conquistar",
       "xp": "{current} / {next} XP",

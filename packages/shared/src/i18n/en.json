@@ -3081,6 +3081,7 @@
       "lockedAction": "See Orbit Pro"
     },
     "achievements": {
+      "emptyAction": "View habits",
       "destination": "Level and XP",
       "empty": "Log habits to earn them",
       "xp": "{current} / {next} XP",

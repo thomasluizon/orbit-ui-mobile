@@ -9,7 +9,7 @@ import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export function ProgressSubscreen({ screen, children }: Readonly<{ screen: ProgressSubmenuId; children: ReactNode }>) {
+export function ProgressSubscreen({ screen, children, hideHeader = false }: Readonly<{ screen: ProgressSubmenuId; children: ReactNode; hideHeader?: boolean }>) {
   const router = useRouter()
   const { t } = useTranslation()
   const pageEnd = useShellPageEnd()
@@ -17,7 +17,7 @@ export function ProgressSubscreen({ screen, children }: Readonly<{ screen: Progr
   const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
   return <SafeAreaView edges={pageEnd.safeAreaEdges} style={[styles.root, { backgroundColor: tokens.bg }]}>
     <View style={styles.column} testID={`progress-screen-${screen}`}>
-      <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.dismissTo('/progress')} />
+      {!hideHeader ? <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.dismissTo('/progress')} /> : null}
       {children}
     </View>
   </SafeAreaView>

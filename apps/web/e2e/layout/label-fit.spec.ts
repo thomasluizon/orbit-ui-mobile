@@ -96,16 +96,15 @@ async function checkSurfaceLabels(page: Page, surface: Page | Locator = page, re
 }
 
 async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
-  await expect(page.locator(`[data-goal-id="${goals.items[0]!.id}"]`).getByText(userFields.goalTitle, { exact: true })).toBeVisible()
-  await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
   await expect(page.locator('[data-personal-text-action]').filter({ has: page.getByTestId('progress-top-habit') }).getByText(userFields.habitTitle)).toBeVisible()
   for (const caption of [
     words.progressScreen.window.completionRate, words.progressScreen.window.activeDays,
     words.progressScreen.window.bestWeekday, words.progressScreen.window.topHabit,
-    words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
-    words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
   ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
-  await checkSurfaceLabels(page, page, [userFields.goalTitle, userFields.habitTitle])
+  await checkSurfaceLabels(page, page, [userFields.habitTitle])
+  await page.locator('a[href="/progress/goals"]').click()
+  await expect(page.locator(`[data-goal-id="${goals.items[0]!.id}"]`).getByText(userFields.goalTitle, { exact: true })).toBeVisible()
+  await checkSurfaceLabels(page, page, [userFields.goalTitle])
 }
 
 async function checkCalendarLabels(page: Page, words: typeof en | typeof ptBR) {
@@ -167,8 +166,13 @@ for (const width of [320, 360, 384, 412]) {
       })
 
       test('Progress legend remains whole', async ({ page }) => {
-        await page.goto('/progress')
-        await checkProgressLabels(page, words)
+        await page.goto('/progress/streak')
+        await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
+        for (const caption of [
+          words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
+          words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
+        ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
+        await checkSurfaceLabels(page)
         await page.getByRole('button', { name: words.progressScreen.streak.legend, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: words.progressScreen.streak.legend, exact: true })
         await markRequiredLabels(sheet.getByRole('heading', { name: words.progressScreen.streak.legend, exact: true }))

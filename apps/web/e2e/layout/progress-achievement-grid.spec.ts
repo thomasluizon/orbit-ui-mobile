@@ -29,7 +29,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test(`aligns two columns and the last tile at ${width}px`, async ({ page, context }) => {
         await page.setViewportSize({ width, height: 915 })
         await context.route(`${LAYOUT_ORIGIN}${API.gamification.profile}`, (route) => route.fulfill({ json: gamification }))
-        await page.goto('/progress')
+        await page.goto('/progress/achievements')
         const section = page.getByRole('region', { name: words.progressScreen.sections.achievements })
         const tiles = section.locator('[data-achievement-id]')
         await expect(tiles).toHaveCount(3)

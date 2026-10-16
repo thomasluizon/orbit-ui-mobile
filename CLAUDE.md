@@ -66,6 +66,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, deletion confirmation, revision, terminal outcomes and responsive parity. |
+| `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
