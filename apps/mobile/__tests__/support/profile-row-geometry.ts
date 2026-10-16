@@ -65,6 +65,7 @@ function applyDimensions(node: YogaNode, style: ViewStyle) {
 
 function applyAlignment(node: YogaNode, style: ViewStyle) {
   if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
+  if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)

@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildHabitUnderstandingLabels, buildHabitUnderstandingSentence, readHabitPhrase } from '@orbit/shared/utils'
+import { Input } from '@/components/ui/input'
+import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -30,6 +32,38 @@ describe('habit understanding geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+
+  it.each(['light', 'dark'] as const)('paints typed habit text with the foreground token in %s', async (mode) => {
+    const value = 'Run Monday'
+    const parsed = readHabitPhrase(value, 'en')
+    const view = render(<><Input label="Single line" value={value} onChange={vi.fn()} /><Input label="Multiline" value={value} onChange={vi.fn()} multiline /><TypedTextarea aria-label="Primitive" value={value} onChange={vi.fn()} style={{ color: 'transparent' }} /><HabitUnderstanding value={value} emoji="" days={parsed.days} dayOptions={[]}
+      quantity={1} mode="fixed" sentence={null} consumed={parsed.consumed} labels={buildHabitUnderstandingLabels((key) => key)}
+      onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 800 } })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, token]) => `${key}:${token}`).join(';')
+      await page.setContent(`<style>${stylesheet}:root{${theme}}</style><main>${view.container.innerHTML}</main>`)
+      await page.locator('#habit-phrase').focus()
+      const paints = await page.locator('input, textarea').evaluateAll((controls) => controls.map((element) => {
+        const control = element as HTMLInputElement | HTMLTextAreaElement
+        const expected = document.createElement('span')
+        expected.style.color = 'var(--fg-1)'
+        document.body.append(expected)
+        const foreground = getComputedStyle(expected).color
+        expected.remove()
+        const style = getComputedStyle(control)
+        return { foreground, color: style.color, fill: style.webkitTextFillColor, value: control.value }
+      }))
+      expect(paints).toHaveLength(4)
+      for (const paint of paints) {
+        expect(paint.value).toBe(value)
+        expect(paint.color).toBe(paint.foreground)
+        expect(paint.fill).toBe(paint.foreground)
+      }
+      expect(await page.locator('[data-consumed]').count()).toBeGreaterThan(0)
+    } finally { await page.close(); view.unmount() }
+  })
 
   it.each(cases)('fits $cadence corrections in $locale at $width', async ({ width, locale, cadence }) => {
     const messages = locale === 'en' ? en : ptBR

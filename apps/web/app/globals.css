@@ -2324,7 +2324,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .orbit-content-frame[data-content-cap="pitch"] {
-    --orbit-content-cap: 652px;
+    --orbit-content-cap: 620px;
   }
 }
 

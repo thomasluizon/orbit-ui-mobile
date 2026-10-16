@@ -65,7 +65,7 @@ function contentFrameWidth(state: typeof cases[number], width: number, available
   if (state.startsWith('support')) return width < 768 ? available : Math.min(available, 620)
   if (width < 1024) return available
   if (state === 'about') return Math.min(available, 652)
-  return Math.min(available, (state === 'free' || state === 'offline' ? 652 : 560) + 32)
+  return Math.min(available, (state === 'free' || state === 'offline' ? 620 : 560) + 32)
 }
 
 function supportFormWidth(width: number, available: number) {

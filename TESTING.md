@@ -9,7 +9,7 @@
 > - The compact label guard covers app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales. Native Android label geometry remains an open risk; its only instrumented host belongs to the widget module.
 > - Ten suites: web / mobile / shared unit, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs both harness suites on every PR to `main` and `redesign/main`, including producer-only changes. Also run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` locally after changing `tools/**` or `.claude/**`.
-> - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it. Hermetic builds set both API bases to the mock and check client output for production or staging API hosts.
+> - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it. Hermetic builds set both API bases to the mock and check client output for production or staging API hosts. Local layout runs use `LAYOUT_PORT` to select a free port, defaulting to 3000.
 > - The authed-Today Lighthouse job (`perf.yml`) uses a hermetic mock-api + fake-JWT harness on the signed-in Today surface at PR time (web-only, no prod, no secrets). It enforces median TBT and script-bundle-size budgets and reports LCP without gating because runner noise obscures regressions at that size. Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
 > - Read the whole doc before adding a suite, a CI test job, or an e2e spec.
@@ -57,6 +57,16 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 ### Compact label and interaction fill guard
 
 Build locally with `npm run build:hermetic -w apps/web` before running the layout project. The helper sets `API_BASE` and `NEXT_PUBLIC_EVENT_API_BASE` to `http://127.0.0.1:5099` before `next build`, overriding `.env.production` for the account event stream and wake ping. It then runs `node tools/check-hermetic-web-build.mjs`, which rejects client output containing production or staging API hosts and refuses missing or empty output. `npm run test:layout -w apps/web` repeats the check before starting servers, so a later release build cannot silently replace the hermetic build. Both layout and perf workflows set these build inputs and check the output before running. Release builds retain their environment-specific inputs.
+
+When 3000 is taken, set `LAYOUT_PORT` to a free port before both the build and the layout run. From the repository root in Bash:
+
+```bash
+export LAYOUT_PORT=3100
+npm run build:hermetic -w apps/web
+npm run test:layout -w apps/web
+```
+
+In PowerShell, use `$env:LAYOUT_PORT = '3100'` before the same npm commands. With `LAYOUT_PORT` unset, local runs and CI use 3000. The shared `LAYOUT_ORIGIN` drives the server port, readiness URL, spec origins and generated storage state. The hermetic build and layout server also set `NEXT_PUBLIC_SITE_URL` to that origin so auth redirects stay on the selected port. Rebuild when changing ports because Next.js inlines public environment variables.
 
 `apps/web/e2e/layout/label-fit.spec.ts` runs in the hermetic layout project through `.github/workflows/layout.yml`. It covers Hoje, Calendário, Progresso and Perfil at 320, 360, 384 and 412px, in en and pt-BR, at the default text scale. It checks captions, tabs, selectors, buttons, row titles, headings and menu titles using rendered text fragments and clipping bounds. A label fails when its text occupies more than one line or extends outside its visible bounds, including an ellipsis or line clamp. Required captions, selectors and legends must render before measurement, so a loading surface cannot pass as an empty inventory. Legend groups must fit one row or move behind disclosure; a screen ticket that moves a legend must update the guard to open its owning disclosure and measure the labels there.
 

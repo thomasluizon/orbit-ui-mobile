@@ -1,4 +1,4 @@
-import { Calendar, Eye, FileText, MessageCircle } from '@/components/ui/icons'
+import { ProBenefits } from './pro-benefits'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
@@ -29,13 +29,6 @@ interface PlanSelectionProps {
   onRetry: () => void
   t: ReturnType<typeof useTranslations>
 }
-
-const OUTCOMES = [
-  { key: 'astra', Icon: MessageCircle },
-  { key: 'calendar', Icon: Calendar },
-  { key: 'retrospective', Icon: FileText },
-  { key: 'noticing', Icon: Eye },
-] as const
 
 interface Tier {
   interval: SubscriptionInterval
@@ -305,12 +298,7 @@ function TierCard({
         {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.secondLine}</p> : null}
         {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
       </div>
-      <ul aria-label={t('upgrade.outcomes.label')} className="flex flex-col gap-3 py-2">
-        {OUTCOMES.map(({ key, Icon }) => <li key={key} className="flex items-start gap-3">
-          <span aria-hidden="true" className="text-[var(--fg-3)]"><Icon size={20} strokeWidth={1.5} /></span>
-          <p translate={key === 'astra' || key === 'noticing' ? 'no' : undefined} className="min-w-0 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{t(`upgrade.outcomes.${key}`)}</p>
-        </li>)}
-      </ul>
+      <ProBenefits t={t} />
       <div className="pt-2">
         <PillButton
           variant={selected ? 'primary' : 'ghost'}

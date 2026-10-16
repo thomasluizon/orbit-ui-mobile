@@ -2642,6 +2642,7 @@
     }
   },
   "upgrade": {
+    "included": "Included with Pro",
     "purchaseSuccess": "Orbit Pro is on.",
     "title": "Subscription",
     "pitchTitle": "Orbit Pro",
@@ -2772,7 +2773,7 @@
       "portalReturned": "Subscription details refreshed",
       "offline": "You are offline. Reconnect to manage billing.",
       "lapsed": {
-        "title": "Your Pro subscription ended",
+        "title": "Your Pro has ended",
         "canceled": "Your subscription was canceled on {date}.",
         "payment_failed": "Your subscription ended after a payment problem on {date}.",
         "expired": "Your subscription expired on {date}.",

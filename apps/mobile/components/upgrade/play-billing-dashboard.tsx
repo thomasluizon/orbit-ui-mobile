@@ -1,3 +1,4 @@
+import { ProBenefits } from './pro-benefits'
 import { Text, View } from 'react-native'
 import { subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
@@ -68,6 +69,7 @@ export function PlayBillingDashboard({
         tokens={tokens}
       />
       <ProviderHandoff provider="play" state={handoffState(isOnline, portalState)} onManage={onManagePlay} t={t} tokens={tokens} />
+      <ProBenefits heading t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}

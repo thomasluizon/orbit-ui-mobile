@@ -1,7 +1,8 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useCallback } from 'react'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
@@ -31,7 +32,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const rows = card.habits.map((habit) => ({
     id: habit.id,
     wrapLabel: true,
-    label: card.editingId === habit.id ? <TextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    label: card.editingId === habit.id ? <TypedTextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],
     proposed: card.results[habit.id] == null,
