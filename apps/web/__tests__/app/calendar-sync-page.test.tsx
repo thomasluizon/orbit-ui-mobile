@@ -138,7 +138,7 @@ describe('CalendarSyncPage pagination', () => {
 
   it('keeps plain, selected and blocked event rows rounded without separators in the sheet', () => {
     const events = buildEvents(3)
-    events[2] = { ...events[2]!, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' }
+    events[2] = { ...events[2]!, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null }
     useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events }, isLoading: false, isError: false })
     renderPage(true)
     const buttons = events.map((event) => screen.getByRole('button', { name: new RegExp(event.title) }))
@@ -146,7 +146,7 @@ describe('CalendarSyncPage pagination', () => {
     expect(buttons[0]).toHaveAttribute('aria-pressed', 'false')
     expect(buttons[1]).toHaveAttribute('aria-pressed', 'true')
     expect(buttons[2]).toBeDisabled()
-    expect(buttons[2]).toHaveAccessibleDescription('calendar.importIssue.ordinalWeekday')
+    expect(buttons[2]).toHaveAccessibleDescription('calendar.importIssue.utcUntilOffsetShift')
     for (const button of buttons) {
       const row = button.parentElement!
       expect(row.style.borderBottom).toBe('')

@@ -1124,10 +1124,6 @@
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "importIssue": {
-      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month. Change it to repeat weekly, then import it again.",
-      "unsupportedWeekdayRecurrence": "Orbit cannot keep this weekday schedule on the same dates. Change the event to repeat every week, then import it again.",
-      "finiteDateClamp": "Some months or years do not include this start date. Change it to day 28 or earlier, then import it again.",
-      "finiteDateRange": "Orbit cannot import a schedule that continues past year 9999. Shorten the schedule, then import it again.",
       "utcUntilOffsetShift": "Orbit cannot place the final occurrence after a clock change. Remove the event's end date, then import it again."
     },
     "goToHabits": "Open habits",
@@ -1144,6 +1140,7 @@
     "recurrenceEveryNWeeks": "Every {n} week | Every {n} weeks",
     "recurrenceEveryNMonths": "Every {n} month | Every {n} months",
     "recurrenceYearly": "Yearly",
+    "recurrenceEveryNYears": "Every {n} year | Every {n} years",
     "notConnectedTitle": "Connect Google Account",
     "notConnectedDesc": "Sign in with Google to import your calendar events as habits.",
     "showMore": "Show more",

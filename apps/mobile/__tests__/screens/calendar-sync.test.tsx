@@ -410,7 +410,7 @@ describe("CalendarSyncScreen", () => {
   });
 
   it.each([false, true])('omits select all when every event has an import issue, review: %s', async (review) => {
-    const events = buildEvents(2).map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' }));
+    const events = buildEvents(2).map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null }));
     mocks.eventsQuery.data = { status: 'connected', events };
     if (review) {
       mocks.searchParams = { mode: 'review' };
@@ -420,7 +420,7 @@ describe("CalendarSyncScreen", () => {
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
     const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
     expect(row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(0);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.importIssue.ordinalWeekday')).toHaveLength(2);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.importIssue.utcUntilOffsetShift')).toHaveLength(2);
   });
 
   it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {
@@ -482,7 +482,7 @@ describe("CalendarSyncScreen", () => {
   it.each([[false, false], [true, false], [true, true]])('exposes all long event text before import, review: %s, blocked: %s', async (review, blocked) => {
     const event = {
       ...buildEvents(1)[0]!,
-      ...(blocked ? { isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : {}),
+      ...(blocked ? { isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null } : {}),
       title: `Planning the weekly training schedule ${'UnbrokenTitle'.repeat(20)}`,
       calendarName: `The shared calendar for family routines ${'UnbrokenCalendar'.repeat(20)}`,
       description: `Review the complete agenda. ${'Include every preparation step and follow-up commitment. '.repeat(30)}`,
@@ -516,7 +516,7 @@ describe("CalendarSyncScreen", () => {
     }
     if (blocked) {
       expect(row.props.disabled).toBe(true);
-      expect(row.props.accessibilityHint).toBe('calendar.importIssue.finiteDateClamp');
+      expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift');
     } else {
       TestRenderer.act(() => { (row.props.onPress as () => void)(); });
       expect(row.props.accessibilityState).toEqual({ checked: false, disabled: false });
@@ -1064,7 +1064,7 @@ describe("CalendarSyncScreen", () => {
     ["a monthly weekday interval", "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO", "2026-09-21", 1],
     ["a weekday interval above the API bound", "RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO", "2026-09-21", 1],
     ["a different active-week partition", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO", "2026-09-27", 0],
-  ])("disables %s in review", async (_name, recurrenceRule, startDate, weekStartDay) => {
+  ])("adapts %s in review", async (_name, recurrenceRule, startDate, weekStartDay) => {
     mocks.profile = createMockProfile({ hasProAccess: true, weekStartDay: weekStartDay as 0 | 1 });
     mocks.searchParams = { mode: "review" };
     mocks.suggestions = [{ id: "sug-unsupported", event: {
@@ -1079,45 +1079,42 @@ describe("CalendarSyncScreen", () => {
     });
 
     const eventRow = tree.root.find((node: TestNode) => node.props.accessibilityRole === "checkbox");
-    expect(eventRow.props.disabled).toBe(true);
-    expect(eventRow.props.accessibilityHint).toBe("calendar.importIssue.unsupportedWeekdayRecurrence");
+    expect(eventRow.props.disabled).toBe(false);
+    expect(eventRow.props.accessibilityHint).toBeUndefined();
     const importPill = tree.root.find((node: TestNode) =>
       typeof node.props.onClick === "function" &&
       typeof node.props.children === "string" &&
       node.props.children.includes("calendar.importButton"),
     );
-    expect(importPill.props.disabled).toBe(true);
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => { (importPill.props.onClick as () => void)(); await Promise.resolve(); });
+    const expected = recurrenceRule.includes('MONTHLY')
+      ? { frequencyUnit: 'Month', frequencyQuantity: 2, days: null }
+      : recurrenceRule.includes('53')
+        ? { frequencyUnit: 'Week', frequencyQuantity: 53, days: null }
+        : { frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Sunday', 'Monday'], intervalWeeks: 2 };
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habits: [expect.objectContaining(expected)] }));
   });
 
-  it("explains and disables a finite month-end suggestion before import", async () => {
-    const event = {
-      ...buildEvents(1)[0]!,
-      title: "Month end close",
-      startDate: "2026-01-31",
-      startTime: null,
-      isRecurring: true,
-      recurrenceRule: "RRULE:FREQ=MONTHLY;COUNT=3",
-    };
-    mocks.searchParams = { mode: "review" };
-    mocks.suggestions = [{ id: "sug-month-end", event }];
-
-    let tree: any;
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const eventRow = tree.root.find(
-      (node: TestNode) =>
-        node.props.accessibilityRole === "checkbox" &&
-        node.props.accessibilityHint === "calendar.importIssue.finiteDateClamp",
-    );
-    expect(eventRow.props.disabled).toBe(true);
-    expect(eventRow.props.accessibilityState).toEqual({
-      checked: false,
-      disabled: true,
-    });
+  it.each([
+    ['second Monday', 'RRULE:FREQ=MONTHLY;BYDAY=2MO', '2026-09-14', null],
+    ['finite month end', 'RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-31', '2026-03-31'],
+  ])('adapts and imports a %s suggestion as a monthly habit', async (_name, recurrenceRule, startDate, endDate) => {
+    const event = { ...buildEvents(1)[0]!, startDate, startTime: null, isRecurring: true, recurrenceRule };
+    mocks.searchParams = { mode: 'review' };
+    mocks.suggestions = [{ id: 'sug-monthly', event }];
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox');
+    expect(row.props.accessibilityState).toEqual({ checked: true, disabled: false });
+    expect(row.props.accessibilityHint).toBeUndefined();
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.recurrenceMonthly')).toHaveLength(1);
+    const importPill = tree.root.find((node) => typeof node.props.onClick === 'function' && typeof node.props.children === 'string' && node.props.children.includes('calendar.importButton'));
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => { (importPill.props.onClick as () => void)(); await Promise.resolve(); });
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({ frequencyUnit: 'Month', frequencyQuantity: 1, dueDate: startDate, days: null, endDate })],
+    }));
   });
 
   it("lists imported habits and keeps partial failures visible", async () => {

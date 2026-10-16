@@ -1124,10 +1124,6 @@
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
     "importIssue": {
-      "ordinalWeekday": "O Orbit não consegue importar repetições como a segunda segunda-feira de cada mês. Altere para repetição semanal e importe novamente.",
-      "unsupportedWeekdayRecurrence": "O Orbit não consegue manter esta repetição por dia da semana nas mesmas datas. Altere o evento para repetir toda semana e importe novamente.",
-      "finiteDateClamp": "Alguns meses ou anos não incluem esta data inicial. Altere para o dia 28 ou anterior e importe novamente.",
-      "finiteDateRange": "O Orbit não consegue importar uma repetição que vai além do ano 9999. Defina uma data final antes disso e importe novamente.",
       "utcUntilOffsetShift": "O Orbit não consegue definir a última ocorrência após uma mudança de horário. Remova a data final do evento e importe novamente."
     },
     "goToHabits": "Abrir hábitos",
@@ -1144,6 +1140,7 @@
     "recurrenceEveryNWeeks": "A cada {n} semana | A cada {n} semanas",
     "recurrenceEveryNMonths": "A cada {n} mês | A cada {n} meses",
     "recurrenceYearly": "Anual",
+    "recurrenceEveryNYears": "A cada {n} ano | A cada {n} anos",
     "notConnectedTitle": "Conectar conta Google",
     "notConnectedDesc": "Entre com o Google para importar os eventos do seu calendário como hábitos.",
     "showMore": "Mostrar mais",
