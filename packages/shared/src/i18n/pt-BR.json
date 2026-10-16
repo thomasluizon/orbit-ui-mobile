@@ -978,6 +978,9 @@
     },
     "breakdown": {
       "breakInto": "Dividir {name} em:",
+      "limit": "Limite de {limit} hábitos. Remova um para adicionar outro.",
+      "retryError": "Não foi possível criar os hábitos restantes. Tente de novo.",
+      "createError": "Não foi possível criar os hábitos. Edite a proposta e tente de novo.",
       "addHabit": "Adicionar hábito",
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",

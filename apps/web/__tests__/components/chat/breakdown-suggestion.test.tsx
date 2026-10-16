@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { BulkCreateResponse } from '@orbit/shared/types/habit'
+import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import type { ConflictWarning } from '@orbit/shared/types/chat'
 import {
   breakdownSubHabits as subHabits,
@@ -19,7 +19,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
 }))
 
 let isPending = false
-const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
+const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
@@ -207,21 +207,93 @@ it('keeps multiple added drafts distinct and ignores blanks when mapping failure
   expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Sweep' }] })
 })
 
-it('keeps an added row after a rejected batch and retries it without blank drafts', async () => {
-  bulkCreate.mockRejectedValueOnce(new Error('habit limit')).mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+it('keeps a rejected batch editable until it fits a persistent capacity constraint', async () => {
+  bulkCreate.mockImplementation((request) => {
+    if (request.habits.length > 2) return Promise.reject(new Error('habit capacity'))
+    return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
+  })
   render(<BreakdownSuggestion {...defaultProps} />)
   fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Sweep' } })
   fireEvent.blur(screen.getByRole('textbox'))
-  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+    await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(attempt))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
+    expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /chat\.batch\.retry/ })).not.toBeInTheDocument()
+    expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  }
+  fireEvent.click(screen.getAllByRole('button', { name: 'chat.preview.editItem' })[0]!)
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Kitchen dishes' } })
+  fireEvent.blur(screen.getByRole('textbox'))
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Sweep/ }))
+  fireEvent.click(screen.getByRole('button', { name: /chat\.breakdown\.frequency.*Kitchen dishes/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[2]?.[0].habits).toMatchObject([
+    { title: 'Kitchen dishes', frequencyUnit: 'Week' }, { title: 'Laundry' },
+  ])
+})
+
+it('stops adding at 100 rows and allows adding again after removal', () => {
+  render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 99 }, (_, index) => ({ title: `Habit ${index}` }))} />)
+  const add = screen.getByRole('button', { name: 'habits.breakdown.addHabit' })
+  fireEvent.click(add)
+  expect(add).toBeDisabled()
+  expect(screen.getByText(/habits\.breakdown\.limit/)).toHaveAttribute('role', 'status')
+  fireEvent.click(add)
+  expect(screen.getAllByRole('textbox')).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Habit 0/ }))
+  expect(add).toBeEnabled()
+  expect(screen.queryByText(/habits\.breakdown\.limit/)).not.toBeInTheDocument()
+})
+
+it('never submits an oversized incoming proposal until it is reduced', async () => {
+  bulkCreate.mockImplementation((request) => {
+    if (request.habits.length > 100) return Promise.reject(new Error('batch size'))
+    return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
+  })
+  render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 101 }, (_, index) => ({ title: `Habit ${index}` }))} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Habit 0/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
+})
+
+it('keeps an all-failed response editable and rejectable', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Failed', 'Failed']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.reject' }))
+  expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
+})
+
+it('preserves successful rows when retry requests keep failing', async () => {
+  bulkCreate.mockImplementation((request) => request.habits.length === 2
+    ? Promise.resolve(makeBulkCreateResponse(['Success', 'Failed']))
+    : Promise.reject(new Error('unavailable')))
+  render(<BreakdownSuggestion {...defaultProps} />)
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
   fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
   const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
-  expect(document.querySelectorAll('[data-status=failed]')).toHaveLength(3)
+  for (let attempt = 2; attempt <= 3; attempt++) {
+    fireEvent.click(retry)
+    await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(attempt))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.retryError'))
+    expect(screen.getByRole('button', { name: 'Dishes' }).closest('[data-status]')).toHaveAttribute('data-status', 'done')
+    expect(bulkCreate.mock.calls[attempt - 1]?.[0].habits).toMatchObject([{ title: 'Laundry' }])
+  }
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
-  fireEvent.click(retry)
-  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
-  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Dishes' }, { title: 'Laundry' }, { title: 'Sweep' }] })
+  expect(screen.queryByRole('button', { name: 'chat.preview.reject' })).not.toBeInTheDocument()
 })
 
 it('disables adding while the batch is pending', () => {

@@ -2,7 +2,7 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BulkCreateResponse } from '@orbit/shared/types/habit'
+import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import type { ConflictWarning } from '@orbit/shared/types/chat'
 import {
   breakdownSubHabits as subHabits,
@@ -13,7 +13,7 @@ import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
 let isPending = false
-const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
+const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
@@ -252,20 +252,94 @@ it('keeps multiple added drafts distinct and retries the failed named row after 
   expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
 })
 
-it('keeps added rows after a limit rejection and retries without blank drafts', async () => {
-  bulkCreate.mockRejectedValueOnce(new Error('habit limit'))
-    .mockResolvedValueOnce(makeBulkCreateResponse(['Success', 'Success', 'Success']))
+it('keeps a rejected batch editable until it fits a persistent capacity constraint', async () => {
+  bulkCreate.mockImplementation((request) => {
+    if (request.habits.length > 2) return Promise.reject(new Error('habit capacity'))
+    return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
+  })
   const tree: ReactTestRenderer = renderBreakdown()
   await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
   await act(() => nameInputs(tree)[0]!.props.onChangeText('Sweep'))
   await act(() => nameInputs(tree)[0]!.props.onBlur())
-  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
-  await approveBreakdown(tree)
-  expect(tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).endsWith('-failed'))).toHaveLength(3)
-  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
-  await act(() => { press(tree, 'chat.batch.retry').props.onPress() })
-  expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Dishes' }, { title: 'Laundry' }, { title: 'Sweep' }] })
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await act(() => press(tree, 'chat.preview.approve').props.onPress())
+    await act(() => (tree.root.findAll(node => String(node.type) === 'ConfirmSheet')[0]!.props.onConfirm as () => void)())
+    expect(bulkCreate).toHaveBeenCalledTimes(attempt)
+    expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.createError')
+    expect(press(tree, 'chat.preview.reject').props.disabled).toBe(false)
+    expect(press(tree, 'chat.batch.retry')).toBeUndefined()
+    expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  }
+  const edit = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'chat.preview.editItem')[0]!
+  await act(() => (edit.props.onPress as () => void)())
+  await act(() => nameInputs(tree)[0]!.props.onChangeText('Kitchen dishes'))
+  await act(() => nameInputs(tree)[0]!.props.onBlur())
+  const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Sweep'))[0]!
+  await act(() => (remove.props.onPress as () => void)())
+  const cadence = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('chat.breakdown.frequency') && String(node.props.accessibilityLabel).includes('Kitchen dishes'))[0]!
+  await act(() => (cadence.props.onPress as () => void)())
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  await act(() => (tree.root.findAll(node => String(node.type) === 'ConfirmSheet')[0]!.props.onConfirm as () => void)())
   expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[2]?.[0].habits).toMatchObject([
+    { title: 'Kitchen dishes', frequencyUnit: 'Week' }, { title: 'Laundry' },
+  ])
+})
+
+it('stops adding at 100 rows and allows adding again after removal', async () => {
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 99 }, (_, index) => ({ title: `Habit ${index}` }))} />) })
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  expect(press(tree, 'habits.breakdown.addHabit').props.disabled).toBe(true)
+  expect(press(tree, 'habits.breakdown.addHabit').props.accessibilityState.disabled).toBe(true)
+  expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.limit')
+  expect(nameInputs(tree)).toHaveLength(1)
+  const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Habit 0'))[0]!
+  await act(() => (remove.props.onPress as () => void)())
+  expect(press(tree, 'habits.breakdown.addHabit').props.disabled).toBe(false)
+  expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).not.toContain('habits.breakdown.limit')
+})
+
+it('never submits an oversized incoming proposal until it is reduced', async () => {
+  bulkCreate.mockImplementation((request) => {
+    if (request.habits.length > 100) return Promise.reject(new Error('batch size'))
+    return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
+  })
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 101 }, (_, index) => ({ title: `Habit ${index}` }))} />) })
+  await approveBreakdown(tree)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Habit 0'))[0]!
+  await act(() => (remove.props.onPress as () => void)())
+  await approveBreakdown(tree)
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
+})
+
+it('keeps an all-failed response editable and rejectable', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Failed', 'Failed']))
+  const tree: ReactTestRenderer = renderBreakdown()
+  await approveBreakdown(tree)
+  expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.createError')
+  await act(() => press(tree, 'chat.preview.reject').props.onPress())
+  expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('chat.preview.rejected')
+})
+
+it('preserves successful rows when retry requests keep failing', async () => {
+  bulkCreate.mockImplementation((request) => request.habits.length === 2
+    ? Promise.resolve(makeBulkCreateResponse(['Success', 'Failed']))
+    : Promise.reject(new Error('unavailable')))
+  const tree: ReactTestRenderer = renderBreakdown()
+  await approveBreakdown(tree)
+  for (let attempt = 2; attempt <= 3; attempt++) {
+    await act(() => press(tree, 'chat.batch.retry').props.onPress())
+    expect(bulkCreate).toHaveBeenCalledTimes(attempt)
+    expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.retryError')
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-item-proposal-0-done')).toHaveLength(1)
+    expect(bulkCreate.mock.calls[attempt - 1]?.[0].habits).toMatchObject([{ title: 'Laundry' }])
+  }
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(press(tree, 'chat.preview.reject')).toBeUndefined()
 })
 
 it('disables adding while the batch is pending', () => {
