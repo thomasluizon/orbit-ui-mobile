@@ -93,7 +93,8 @@ function renderParsedMarkdown(content: string, tone?: Parameters<typeof Markdown
   return tree
 }
 
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
+const setString = vi.hoisted(() => vi.fn())
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString } }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -399,5 +400,54 @@ describe('mobile Markdown wrapper', () => {
     expect(styles.h2.fontSize).toBe(22)
     expect(styles.h3).toMatchObject({ fontSize: 17, fontFamily: 'Geist_400Regular' })
     expect(flatListProps.style?.minWidth).toBe(0)
+  })
+})
+
+
+describe('Astra block copying', () => {
+  it.each([
+    ['```sh\nprintf "<tag> & café"  \n  next\n```', ['printf "<tag> & café"  \n  next']],
+    ['```\nfirst\n```\n\n    second', ['first', 'second']],
+    ['A paragraph and `inline code`.', []],
+  ])('copies only reply blocks in %s and confirms each independently', (content, blocks) => {
+    vi.useFakeTimers()
+    setString.mockClear()
+    renderSelection.current = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content, pendingOperations: [] })} />) })
+      const buttons = () => tree!.root.findAllByType('Pressable').filter((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')
+      expect(buttons()).toHaveLength(blocks.length)
+      for (const [index, text] of blocks.entries()) {
+        TestRenderer.act(() => { buttons()[index].props.onPress() })
+        expect(setString).toHaveBeenLastCalledWith(text)
+        expect(buttons()[index].props.accessibilityLabel).toBe('chat.blockCopy.copied')
+        const liveRegions = tree!.root.findAllByType('Text').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
+        expect(liveRegions[index].props.children).toBe('chat.blockCopy.copied')
+        for (const other of buttons().filter((_: unknown, otherIndex: number) => otherIndex !== index)) expect(other.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+        TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
+        expect(buttons()[index].props.accessibilityLabel).toBe('chat.blockCopy.copy')
+        expect(liveRegions[index].props.children).toBe('')
+      }
+      const texts = tree!.root.findAllByType('Text')
+      for (const text of blocks) expect(texts.some((node: { props: { children: unknown; selectable?: boolean } }) => node.props.children === text && node.props.selectable)).toBe(true)
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+      vi.useRealTimers()
+    }
+  })
+
+  it('never gives user code blocks a control', () => {
+    renderSelection.current = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'user', content: '```\nprivate\n```', pendingOperations: [] })} />) })
+      expect(tree!.root.findAllByType('Pressable')).toHaveLength(0)
+      expect(tree!.root.findAllByType('Text').some((node: { props: { children: unknown; selectable?: boolean } }) => node.props.children === 'private' && node.props.selectable)).toBe(true)
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+    }
   })
 })

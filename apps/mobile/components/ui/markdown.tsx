@@ -9,6 +9,7 @@ import RNMarkdown, {
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { getMarkdownImageLabel } from '@orbit/shared/utils'
+import { BlockCopyControl } from './block-copy-control'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -17,6 +18,7 @@ type MarkdownTone = "default" | "muted" | "thread"
 interface MarkdownProps {
   children: string
   tone?: MarkdownTone
+  copyableBlocks?: boolean
 }
 
 interface ProseColors {
@@ -92,8 +94,15 @@ class ImageLabelTokenizer extends MarkedTokenizer {
 }
 
 class SafeLinkRenderer extends Renderer implements RendererInterface {
-  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
+  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle, private readonly copyableBlocks = false) {
     super()
+  }
+
+  override code(text: string, language?: string, containerStyle?: ViewStyle, textStyle?: TextStyle): ReactNode {
+    const code = super.code(text, language, containerStyle, textStyle)
+    return this.copyableBlocks
+      ? <View key={this.getKey()} style={{ minWidth: 0, gap: 8 }}><BlockCopyControl key={text} text={text} />{code}</View>
+      : code
   }
 
   override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
@@ -218,7 +227,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
  * react-native-marked (same `marked` engine as web for parsing parity), themes it with the
  * current theme tokens, and never opens unsafe link schemes.
  */
-export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>) {
+export function Markdown({ children, tone = "default", copyableBlocks = false }: Readonly<MarkdownProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -229,7 +238,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createMarkedStyles(tokens, colors, tone),
     [tokens, colors, tone],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
+  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text, copyableBlocks), [colors, styles.text, copyableBlocks])
   const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
 
   return (
