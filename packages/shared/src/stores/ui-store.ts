@@ -1,4 +1,4 @@
-import type { HabitsFilter, NormalizedHabit } from "../types/habit";
+import type { HabitsFilter, NormalizedHabit, LogHabitResponse } from "../types/habit";
 import type { ShellDestinationId } from "../utils/shell-destinations";
 import { formatAPIDate } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
@@ -48,6 +48,7 @@ function isActiveView(value: unknown): value is ActiveView {
 }
 
 export interface PersistedUIState {
+  dailyStreakMomentDate: string;
   activeFilters: HabitsFilter;
   activeView: ActiveView;
   calendarShowRecurring: boolean;
@@ -62,6 +63,7 @@ export function migratePersistedUIState(
     : {};
   delete activeFilters.search;
   return {
+    dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
@@ -88,6 +90,12 @@ export interface UIStoreState {
   completeActiveCelebration: (id?: string) => void;
   hasCelebrationInFlight: () => boolean;
 
+  dailyStreakMomentDate: string;
+  showDailyStreakMoment: (
+    response: Pick<LogHabitResponse, "currentStreak" | "isFirstCompletionToday">,
+    previousStreak: number | undefined,
+    log: { date?: string; intent: "log" | "unlog"; countsTowardStreak: boolean },
+  ) => void;
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
   allDoneCelebratedDate: string;
@@ -146,6 +154,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   const activeFilters = { ...state.activeFilters };
   delete activeFilters.search;
   return {
+    dailyStreakMomentDate: state.dailyStreakMomentDate,
     activeFilters,
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
@@ -204,6 +213,20 @@ export function createUIStoreState(
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
 
+    dailyStreakMomentDate: "",
+    showDailyStreakMoment: (response, previousStreak, log) => {
+      const today = formatAPIDate(new Date());
+      if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
+      if (!response.isFirstCompletionToday || previousStreak === undefined || response.currentStreak !== previousStreak + 1) return;
+      set((state) => {
+        if (state.dailyStreakMomentDate === today) return {};
+        const moment = isStreakCelebrationMilestone(response.currentStreak) ? {} : enqueueCelebrationItem(
+          state,
+          createCelebrationItem("daily-streak", { streak: response.currentStreak }, nextCelebrationSequence()),
+        );
+        return { ...moment, dailyStreakMomentDate: today };
+      });
+    },
     activeCelebration: null,
     queuedCelebrations: [],
     streakCelebration: null,

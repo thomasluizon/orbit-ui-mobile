@@ -263,6 +263,7 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: {
     getState: () => mocks.useRealUIStore ? actual.useUIStore.getState() : ({
       activeFilters: {},
+      showDailyStreakMoment: actual.useUIStore.getState().showDailyStreakMoment,
       checkAllDoneCelebration: mocks.checkAllDoneCelebration,
       setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
@@ -3090,4 +3091,35 @@ describe('mobile habit hooks', () => {
   expect(client.getQueryData(key)).toBeUndefined()
   expect(client.isFetching()).toBe(0)
   client.clear()
+})
+
+
+describe('daily streak moment after confirmed logging', () => {
+  it.each([
+    { name: 'second completion', first: false, streak: 5 },
+    { name: 'repeated first response', first: true, streak: 6 },
+    { name: 'past-day log', first: true, streak: 6, date: '2000-01-01' },
+    { name: 'slip', first: true, streak: 6, bad: true },
+    { name: 'unchanged streak', first: true, streak: 5 },
+    { name: 'unlog', first: true, streak: 6, intent: 'unlog' as const },
+    { name: 'milestone', first: true, streak: 7 },
+  ])('shows the first extension once and excludes $name', async (scenario) => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 }, { habitId: 'habit-1', intent: 'log' }, undefined)
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    store.getState().completeActiveCelebration()
+    if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1', isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak }, { habitId: 'habit-1', date: scenario.date, intent: scenario.intent ?? 'log' }, undefined)
+    expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
+    expect(store.getState().queuedCelebrations).toEqual([])
+    mocks.useRealUIStore = false
+  })
 })

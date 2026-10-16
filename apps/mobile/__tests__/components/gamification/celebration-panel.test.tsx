@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet, View } from 'react-native'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -82,5 +82,26 @@ describe('CelebrationPanel mobile', () => {
     expect(JSON.stringify(tree!.toJSON())).toContain(
       'celebration.goal.lineWithoutUnit:{\\"name\\":\\"Untitled target\\",\\"count\\":1}',
     )
+  })
+})
+
+
+describe('daily streak presentation', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('shows the new number statically with reduced motion and dismisses itself', () => {
+    vi.useFakeTimers()
+    motion.reduced = true
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+    const moment = tree!.root.findByProps({ testID: 'daily-streak-moment' })
+    expect(moment.props['data-motion']).toBe('static')
+    expect(tree!.root.findByProps({ testID: 'daily-streak-number' }).props.children).toBe(5)
+    expect(tree!.root.findAllByProps({ testID: 'daily-streak-previous' })).toHaveLength(0)
+    TestRenderer.act(() => vi.advanceTimersByTime(2500))
+    expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
+    TestRenderer.act(() => tree!.unmount())
   })
 })

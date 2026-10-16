@@ -2365,3 +2365,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-day-target:hover .orbit-day-well { background: transparent; }
   .orbit-day-target:hover [data-press-fill] { opacity: 1; }
 }
+
+
+@keyframes daily-streak-previous {
+  to { transform: translateY(-12px); opacity: 0; }
+}
+@keyframes daily-streak-number {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
+  .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
+}

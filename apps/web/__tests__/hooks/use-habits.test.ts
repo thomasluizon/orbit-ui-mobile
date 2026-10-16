@@ -109,6 +109,7 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: Object.assign(
     () => ({
       activeFilters: {},
+      showDailyStreakMoment: actual.useUIStore.getState().showDailyStreakMoment,
       setStreakCelebration: mockSetStreakCelebration,
       checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
       setLastCreatedHabitId: vi.fn(),
@@ -116,6 +117,7 @@ vi.mock('@/stores/ui-store', async () => {
     {
       getState: () => ({
         activeFilters: {},
+        showDailyStreakMoment: actual.useUIStore.getState().showDailyStreakMoment,
         setStreakCelebration: mockSetStreakCelebration,
         checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
         setLastCreatedHabitId: vi.fn(),
@@ -2441,4 +2443,40 @@ it('loads only the requested search page and preserves its totals', async () => 
   expect(result.current.data?.topLevelHabits.map((habit) => habit.id)).toEqual(['last'])
   expect(mockFetch).toHaveBeenCalledTimes(1)
   expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=walk&page=2&pageSize=20')
+})
+
+
+describe('daily streak moment after confirmed logging', () => {
+  it.each([
+    { name: 'second completion', first: false, streak: 5 },
+    { name: 'repeated first response', first: true, streak: 6 },
+    { name: 'past-day log', first: true, streak: 6, date: '2000-01-01' },
+    { name: 'slip', first: true, streak: 6, bad: true },
+    { name: 'unchanged streak', first: true, streak: 5 },
+    { name: 'unlog', first: true, streak: 6, intent: 'unlog' as const },
+    { name: 'milestone', first: true, streak: 7 },
+  ])('shows the first extension once and excludes $name', async (scenario) => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    mockSetStreakCelebration.mockClear()
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    store.getState().completeActiveCelebration()
+    if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: scenario.intent ?? 'log' }))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().queuedCelebrations).toEqual([])
+    expect(mockSetStreakCelebration.mock.calls).toEqual(scenario.name === 'milestone' ? [[{ streak: 7 }]] : [])
+    unmount()
+    queryClient.clear()
+  })
 })

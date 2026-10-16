@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -97,5 +97,24 @@ describe('CelebrationPanel', () => {
     expect(promotedPanel).toHaveStyle({
       animation: 'celebration-rise 280ms var(--ease-out) both',
     })
+  })
+})
+
+
+describe('daily streak presentation', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('shows the new number statically with reduced motion and dismisses itself', async () => {
+    vi.useFakeTimers()
+    motion.reduced = true
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+    const { container } = render(<CelebrationPanel />)
+    const moment = container.querySelector('[data-daily-streak-moment]')
+    expect(moment).toHaveTextContent('5')
+    expect(moment).toHaveAttribute('data-motion', 'static')
+    expect(moment?.querySelector('[data-previous-streak]')).toBeNull()
+    await act(() => vi.advanceTimersByTime(2500))
+    expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
   })
 })

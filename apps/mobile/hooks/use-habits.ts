@@ -127,6 +127,7 @@ type CreateSubHabitMutationInput = {
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 type LogHabitSnapshot = {
+  previousStreak?: number
   previousLists: HabitListSnapshots
   previousLogs: HabitLog[] | undefined
   previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
@@ -279,7 +280,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const { showInfo, showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
+  const { setStreakCelebration, showDailyStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     LogHabitResponse | QueuedMarker,
@@ -302,6 +303,7 @@ export function useLogHabit() {
     },
 
     onMutate: ({ habitId, date, intent }) => {
+      const previousStreak = queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -364,7 +366,7 @@ export function useLogHabit() {
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null }
+      return { previousStreak, previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null }
     },
 
     onError: (error, variables, context) => {
@@ -440,6 +442,11 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
+      showDailyStreakMoment(
+        response,
+        context?.previousStreak ?? queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak,
+        { ...variables, countsTowardStreak },
+      )
       const startsStreak = startsPositiveStreak(countsTowardStreak, response)
       if (shouldCelebrateStreak(startsStreak, response.currentStreak)) {
         setStreakCelebration({ streak: response.currentStreak })

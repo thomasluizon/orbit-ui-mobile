@@ -165,7 +165,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const { showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
+  const { setStreakCelebration, showDailyStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: ({
@@ -178,6 +178,7 @@ export function useLogHabit() {
     }, intendedAccountId) => logHabitAction(habitId, date ? { date } : undefined, intendedAccountId),
 
     onMutate: ({ habitId, date, intent }) => {
+      const previousStreak = queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -214,7 +215,7 @@ export function useLogHabit() {
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
+      return { previousStreak, previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
     },
 
     onError: (error, variables, context) => {
@@ -245,7 +246,7 @@ export function useLogHabit() {
       showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
     },
 
-    onSuccess: (response, variables, context: { hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
+    onSuccess: (response, variables, context: { previousStreak?: number; hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
       captureHabitLogged()
       const loggedHabit = findHabitInList(
         queryClient
@@ -260,6 +261,11 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
+      showDailyStreakMoment(
+        response,
+        context?.previousStreak ?? queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak,
+        { ...variables, countsTowardStreak },
+      )
       const startsStreak = countsTowardStreak
         && response.isFirstCompletionToday
         && response.currentStreak > 0
