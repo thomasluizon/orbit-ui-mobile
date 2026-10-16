@@ -1,12 +1,12 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
 export type Tokens = ReturnType<typeof createTokensV2>
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  player: { flex: 1 },
+  safeArea: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
+  player: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -25,6 +25,9 @@ export const styles = StyleSheet.create({
   closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
     flex: 1,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -65,6 +68,9 @@ export const styles = StyleSheet.create({
   nextZone: { flex: 2 },
   shareSlide: {
     flex: 1,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -80,6 +86,9 @@ export const styles = StyleSheet.create({
   coverScroller: { flex: 1 },
   cover: {
     flexGrow: 1,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -101,7 +110,7 @@ export const styles = StyleSheet.create({
   },
   coverSubtitle: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  coverBody: { width: '100%', alignItems: 'stretch', gap: 16 },
+  coverBody: { width: '100%', maxWidth: 360, alignItems: 'flex-start', gap: 16 },
   stateText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, maxWidth: 300 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyIcon: {

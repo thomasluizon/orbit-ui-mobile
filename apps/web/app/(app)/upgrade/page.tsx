@@ -251,14 +251,14 @@ export default function UpgradePage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-1 flex-col">
       <PageHeader
         backLabel={backLabel}
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className="orbit-content-frame flex-1 pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>

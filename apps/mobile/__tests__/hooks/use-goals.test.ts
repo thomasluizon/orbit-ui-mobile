@@ -6,6 +6,7 @@ import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
+import type { queueOrExecute } from '@/lib/offline-mutations'
 import {
   useCreateGoal,
   useDeleteGoal,
@@ -326,11 +327,13 @@ describe('mobile goal hooks', () => {
       title: 'Workout',
       targetValue: 4,
       unit: 'sessions',
+      habitIds: ['habit-1'],
     }
 
     mocks.queueOrExecute.mockResolvedValue({ id: 'goal-2' })
 
     const context = await mutation.onMutate?.(request)
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
     const result = await mutation.mutationFn(request)
     mutation.onSuccess?.(result, request, context)
     mutation.onSettled?.(result, null, request, context)
@@ -339,7 +342,36 @@ describe('mobile goal hooks', () => {
       'goal-1',
       'goal-2',
     ])
+    expect(mocks.state.lists[0]?.value.at(-1)?.linkedHabits).toEqual([{ id: 'habit-1', title: 'Workout' }])
+    expect(mocks.state.lists[0]?.value.at(-1)?.isProgressDerived).toBe(true)
     expect(mocks.invalidateGoalQueries).toHaveBeenCalledTimes(1)
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(mocks.queryClient, { includeHabits: true })
+  })
+
+  it('posts resolved habit ids when a selected offline habit syncs before goal creation', async () => {
+    const mutation = useCreateGoal() as unknown as MutationConfig<
+      { id: string }, CreateGoalRequest, unknown
+    >
+    const request: CreateGoalRequest = {
+      title: 'Workout',
+      targetValue: 4,
+      unit: 'sessions',
+      habitIds: ['offline-habit-1'],
+    }
+    const serverHabitId = '12345678-1234-4234-8234-123456789abc'
+    mocks.queueOrExecute.mockImplementationOnce(
+      async ({ mutation: queuedMutation, execute }: Parameters<typeof queueOrExecute>[0]) =>
+        execute({ ...queuedMutation, payload: { ...request, habitIds: [serverHabitId] } }),
+    )
+    vi.mocked(apiClient).mockResolvedValueOnce({ id: 'goal-2' })
+
+    await expect(mutation.mutationFn(request)).resolves.toEqual({ id: 'goal-2' })
+
+    expect(apiClient).toHaveBeenLastCalledWith(API.goals.create, {
+      method: 'POST',
+      body: JSON.stringify({ ...request, habitIds: [serverHabitId] }),
+    })
+    expect(request.habitIds).toEqual(['offline-habit-1'])
   })
 
   it('restores optimistic goal progress updates when the mutation fails', async () => {
@@ -738,7 +770,7 @@ describe('mobile goal hooks online execute closures', () => {
   beforeEach(() => {
     mocks.queueOrExecute.mockReset()
     mocks.queueOrExecute.mockImplementation(
-      async ({ execute }: { execute: () => Promise<unknown> }) => execute(),
+      async ({ mutation, execute }: Parameters<typeof queueOrExecute>[0]) => execute(mutation),
     )
     vi.mocked(apiClient).mockReset().mockResolvedValue(undefined)
   })

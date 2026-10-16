@@ -5,8 +5,10 @@ import {
   isGoalDeadlinePast,
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
-import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -58,11 +60,11 @@ describe('create goal from habit helpers', () => {
   })
 })
 
-describe('CreateGoalFromHabitSheet (mobile)', () => {
+describe('CreateGoalSheet (mobile)', () => {
   it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CreateGoalFromHabitSheet open onClose={vi.fn()} />)
+      tree = TestRenderer.create(<CreateGoalSheet open onClose={vi.fn()} />)
     })
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'goals.create'])

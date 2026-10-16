@@ -2882,10 +2882,13 @@
   },
   "goals": {
     "empty": "Nenhuma meta ainda",
-    "create": "Nova meta",
+    "create": "Criar meta",
     "dragItem": "item arrastável",
     "reorderHint": "Segure para reordenar",
     "form": {
+      "createError": "Não foi possível criar a meta. Tente de novo.",
+      "title": "Título",
+      "searchHabits": "Buscar hábitos",
       "description": "Descrição",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",
       "streakDescriptionPlaceholder": "ex: Dias na academia",
@@ -2913,6 +2916,7 @@
       "typeStreakHintBad": "Vincule um mau hábito: a sequência cresce a cada dia que você resistir. Se registrar uma recaída, ela volta a zero.",
       "streakTarget": "Meta de dias",
       "streakTargetPlaceholder": "ex: 30, 60, 90",
+      "habitsError": "Não foi possível carregar os hábitos. Tente de novo.",
       "streakUnit": "dias seguidos",
       "target": "Meta"
     },

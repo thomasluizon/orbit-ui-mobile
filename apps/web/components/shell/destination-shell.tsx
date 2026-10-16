@@ -311,7 +311,7 @@ function DestinationShellContent({
           ) : undefined
         }
       >
-        <div id="orbit-main" className="has-[[data-page-viewport]]:h-full">{children}</div>
+        <div id="orbit-main" className="flex min-h-full flex-col has-[[data-page-viewport]]:h-full">{children}</div>
       </ShellWide>
       {!chrome.flow || wide ? palette : null}
     </>

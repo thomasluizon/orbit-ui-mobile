@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
@@ -82,9 +83,9 @@ function UpgradeContent({
   )
 }
 
-function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 652 {
+function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 620 {
   const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
-  return isPitch ? 652 : 560
+  return isPitch ? 620 : 560
 }
 
 export default function UpgradeScreen() {
@@ -319,9 +320,11 @@ export default function UpgradeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
   container: { flex: 1 },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingTop: 16,
     paddingBottom: 32,
   },

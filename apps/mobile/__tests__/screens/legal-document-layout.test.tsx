@@ -132,7 +132,7 @@ describe.each([
     const closingNote = nodeByTestId(tree!.root, 'legal-document-closing')
 
     expect(ReactNative.StyleSheet.flatten(layout.props.style)).toMatchObject({
-      maxWidth: 620,
+      maxWidth: 740,
       minWidth: 0,
       paddingHorizontal: 16,
       paddingTop: 16,

@@ -155,7 +155,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
       </section> : null}
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
       {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
-      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
+      {relationshipControlsAvailable ? <><ListRow placement="column" title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField habitId={habit.id} selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
       <section className="flex flex-col gap-2">
         <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
         <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />

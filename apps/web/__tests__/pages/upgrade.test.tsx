@@ -313,7 +313,7 @@ describe('UpgradePage', () => {
             backgroundToken: getComputedStyle(element).getPropertyValue('--bg').trim(),
             foregroundToken: getComputedStyle(element).getPropertyValue('--fg-1').trim() }
         })
-        const frameWidth = width < 1024 ? width : (pitch ? 652 : 560) + 32
+        const frameWidth = width < 1024 ? width : (pitch ? 620 : 560) + 32
         const tokens = resolveWebThemeVariables('orange', mode)
         expect(geometry.backgroundToken).toBe(tokens['--bg'])
         expect(geometry.foregroundToken).toBe(tokens['--fg-1'])
@@ -371,7 +371,7 @@ describe('UpgradePage', () => {
         expect(geometry.fontWeight).toBe('500')
         expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
         expect(geometry.scrollerMeasure).toBe(width - 4)
-        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 652)
+        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 620)
       } finally { await page.close() }
     })
   })

@@ -1,3 +1,6 @@
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { ActionRow } from '@/components/ui/action-row'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PersonalText } from '@/components/ui/personal-text'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -12,7 +15,6 @@ import {
 } from 'react-native-draggable-flatlist'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
-import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
 import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
@@ -61,8 +63,6 @@ import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hook
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
-import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler'
@@ -328,28 +328,17 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
   )
 }
 
-function GoalsEmptyState({ tokens, inSection = false }: Readonly<{ tokens: AppTokensV2; inSection?: boolean }>) {
+function GoalsEmptyState({ tokens, inSection = false, onCreate }: Readonly<{ tokens: AppTokensV2; inSection?: boolean; onCreate: () => void }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
-  useEffect(() => () => {
-    clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
-  }, [])
-  const askAstraForGoal = () => {
-    prepareChatRequest(useChatStore.getState(), {
-      id: 'progress-create-goal',
-      label: t('progressScreen.goals.createAction'),
-      prompt: t('progressScreen.goals.request'),
-    })
-    useUIStore.getState().setAstraConversationOpen(true)
-  }
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
-  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton></View>
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton></View>
 }
 
-function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
+function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
   const { t } = useTranslation()
+  const { width } = useWindowDimensions()
   const reorder = useReorderGoals()
-  const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const announceReorderResult = (message: string) => {
     AccessibilityInfo.announceForAccessibility(message)
@@ -387,12 +376,12 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <>
-        <View style={styles.actionStart}><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton></View>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
       </> : null}
-      {goals.length === 0 ? <GoalsEmptyState tokens={tokens} inSection /> : null}
+      {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} tokens={tokens} inSection /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} />) : null}
@@ -520,7 +509,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={achievements.filter((item) => item.category === category).length === 1 ? '100%' : tileWidth} />)}</View></View>)}
       </Section>
     </>
   )
@@ -555,6 +544,10 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
 }
 
 export function ProgressContent() {
+  const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
+  const [creating, setCreating] = useAccountScopedState(false)
+  const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
+  const openCreateGoal = () => { setCreatedGoalId(null); setCreating(true) }
   const scrollRef = useRef<GestureScrollView>(null)
   const detailScrollRef = useRef<ScrollView>(null)
   const clearance = useShellScrollerClearance()
@@ -604,8 +597,14 @@ export function ProgressContent() {
       openingGoalIdRef.current = null
     }
   }, [detailGoalId])
+  useEffect(() => {
+    if (creating || !createdGoalId) return
+    const destination = goalCardRefs.current.get(createdGoalId) ?? pageHeadingRef.current
+    if (destination) AccessibilityInfo.sendAccessibilityEvent(destination, 'focus')
+  }, [creating, createdGoalId])
   return (
     <>
+      {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <ScrollView ref={detailScrollRef} style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer ref={scrollRef} style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
       <RootNotificationHeader />
@@ -613,8 +612,8 @@ export function ProgressContent() {
         <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
         {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
         {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
-        {empty ? <View style={styles.empty}><GoalsEmptyState tokens={tokens} /></View> : null}
-        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+        {empty ? <View style={styles.empty}><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></View> : null}
+        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
       </View>
     </NestableScrollContainer>
     </>
@@ -624,11 +623,11 @@ export function ProgressContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32 }, sections: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%' },
   loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
-  error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
+  error: { width: '100%' }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
-  streakSection: { width: '100%', maxWidth: 560, gap: 16 },
+  streakSection: { width: '100%', gap: 16 },
   hidden: { opacity: 0 },
   streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
@@ -643,7 +642,7 @@ const styles = StyleSheet.create({
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
-  windowGrid: { gap: 16 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
+  windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
@@ -652,5 +651,5 @@ const styles = StyleSheet.create({
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
-  xpSummary: { gap: 12, maxWidth: 560, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
+  xpSummary: { gap: 12, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
 })

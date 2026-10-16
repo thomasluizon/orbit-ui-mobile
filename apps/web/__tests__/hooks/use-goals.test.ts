@@ -206,6 +206,34 @@ describe('useCreateGoal', () => {
     mockFetch.mockReset()
   })
 
+  it('resolves creation only after the active Metas list includes the saved goal', async () => {
+    const { createGoal } = await import('@/lib/actions/goals')
+    const created = createMockGoal({ id: 'created-goal', title: 'Read every day' })
+    vi.mocked(createGoal).mockResolvedValue({ id: created.id })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    client.setQueryData(goalKeys.list({}), [])
+    const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(QueryClientProvider, { client }, children)
+    let finishRefresh!: (response: Response) => void
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => { finishRefresh = resolve }))
+    const { result } = renderHook(() => ({ goals: useGoals(), create: useCreateGoal() }), { wrapper })
+    expect(result.current.goals.data?.allGoals).toEqual([])
+    let finished = false
+    let saving!: Promise<unknown>
+    await act(async () => {
+      saving = result.current.create.mutateAsync({ title: created.title, targetValue: 12, unit: 'books', habitIds: ['habit-reading'] }).then(() => { finished = true })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(finished).toBe(false)
+    await act(async () => {
+      finishRefresh(new Response(JSON.stringify(makePaginatedGoalResponse([created])), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      await saving
+    })
+    await waitFor(() => expect(result.current.goals.data?.allGoals.map((goal) => goal.id)).toContain(created.id))
+    expect(finished).toBe(true)
+    client.clear()
+  })
+
   it('calls createGoal action', async () => {
     const { createGoal } = await import('@/lib/actions/goals')
     const mockedCreateGoal = vi.mocked(createGoal)

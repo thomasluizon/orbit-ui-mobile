@@ -538,7 +538,7 @@ export function CanvasIcon(){return <View style={styles.canvas}><X color={tokens
   const deadlineField = "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
   const deadlinePaths = [
     deadlineField,
-    "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+    "apps/mobile/components/goals/create-goal-sheet.tsx",
     "apps/mobile/components/ui/sheet.tsx",
   ]
   const deadlineViolation = { path: deadlineField, before: "<X size={16} color={tokens.fg3} strokeWidth={1.8} />", after: "<X size={16} color={tokens.fg4} strokeWidth={1.8} />" }

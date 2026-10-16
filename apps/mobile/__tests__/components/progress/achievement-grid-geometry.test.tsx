@@ -5,6 +5,7 @@ import Yoga from 'yoga-layout'
 import { createMockAchievement, createMockGamificationProfile, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { ProgressContent } from '@/components/progress/progress-content'
+import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
@@ -72,7 +73,7 @@ async function measureGrid(tree: TestTree, rowWidth: number) {
   } finally { row.freeRecursive(); config.free() }
 }
 
-it.each([412, 840])('aligns three achievement tiles to the content edges at %ipx', async (width) => {
+it.each([412, 840, 1200, 1600])('aligns three achievement tiles to the content edges at %ipx', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   let tree!: TestTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
@@ -109,4 +110,29 @@ it('recalculates both columns when the measured Android row resizes', async () =
       expect(Math.abs(tiles[1]!.left + tiles[1]!.width - rowWidth)).toBeLessThanOrEqual(0.5)
     }
   } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
+it.each([412, 1200, 1600])('uses the whole column for the progress summary at %ipx', async (width) => {
+  let tree!: GeometryTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) as GeometryTree })
+  try {
+    const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width: columnWidth, height: 915 })
+    expect(boxes.get('progress-xp-summary')!.width).toBe(columnWidth - 32)
+  } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
+it.each([1200, 1600])('fills a category containing one achievement at %ipx', async (width) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  profile.achievements = achievements.slice(0, 1)
+  let tree!: TestTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ProgressContent />) })
+  try {
+    const rowWidth = SHELL_CONTENT_MAX_WIDTH - 32
+    const tiles = await measureGrid(tree, rowWidth)
+    expect(tiles[0]!.width).toBe(rowWidth)
+  } finally {
+    profile.achievements = achievements
+    await TestRenderer.act(() => tree.unmount())
+  }
 })

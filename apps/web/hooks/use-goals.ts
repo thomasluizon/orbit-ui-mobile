@@ -41,8 +41,9 @@ export function useCreateGoal() {
     mutationFn: (data: CreateGoalRequest, intendedAccountId) =>
       createGoalAction(data, intendedAccountId),
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     },
   })
 }
