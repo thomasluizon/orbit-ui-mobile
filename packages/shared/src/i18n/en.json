@@ -2963,6 +2963,7 @@
       "historyDate": "Date: {date}",
       "historyDelta": "Change: {delta} {unit}",
       "historyProgress": "Progress: {current} of {target} {unit}",
+      "askAstraEyebrow": "Ask Astra",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status"

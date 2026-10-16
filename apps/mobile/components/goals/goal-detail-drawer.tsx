@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { prepareChatRequest } from '@orbit/shared/stores'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { ListRow } from '@/components/ui/list-row'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -37,6 +42,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
+  const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -61,6 +68,21 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
+  const openAstra = () => {
+    if (!goal || !draftHydrated) return
+    const request = {
+      id: `goal-detail:${goal.id}`,
+      label: t('goals.detail.askAstraDefault'),
+      prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
+    }
+    const openConversation = () => {
+      prepareChatRequest(useChatStore.getState(), request)
+      useUIStore.getState().setAstraConversationOpen(true)
+    }
+    if (inline) openConversation()
+    else closeSheet(() => { onClose(); openConversation() })
+  }
+
   async function confirmDelete() {
     try {
       await deleteGoal.mutateAsync(goalId)
@@ -71,10 +93,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   }
 
   useEffect(() => {
-    if (!open || !inline || editing || deleting) return
+    if (!open || !inline || editing || deleting || astraConversationOpen) return
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { close(); return true })
     return () => subscription.remove()
-  }, [open, inline, editing, deleting, close])
+  }, [open, inline, editing, deleting, astraConversationOpen, close])
 
   useEffect(() => {
     if (!open || !inline || !goal || focusedInlineGoalId.current === goalId || !headingRef.current) return
@@ -87,6 +109,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
+        <ListRow placement="column" icon={<AstraGlyph size={24} color={tokens.fg1} />} title={t('nav.astra')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}

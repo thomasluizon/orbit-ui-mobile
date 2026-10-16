@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { prepareChatRequest } from '@orbit/shared/stores'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { ListRow } from '@/components/ui/list-row'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -37,6 +42,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const draftHydrated = useChatStore(state => state.draftHydrated)
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useAccountScopedState(false)
   const [deleting, setDeleting] = useAccountScopedState(false)
@@ -66,6 +72,21 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     refetchDetail: refetch,
   })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
+
+  const openAstra = () => {
+    if (!goal || !draftHydrated) return
+    const request = {
+      id: `goal-detail:${goal.id}`,
+      label: t('goals.detail.askAstraDefault'),
+      prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
+    }
+    const openConversation = () => {
+      prepareChatRequest(useChatStore.getState(), request)
+      useUIStore.getState().setAstraConversationOpen(true)
+    }
+    if (inline) openConversation()
+    else close(openConversation)
+  }
 
   async function confirmDelete() {
     try {
@@ -102,6 +123,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
+        <ListRow placement="column" icon={<AstraGlyph size={24} color="var(--fg-1)" />} title={t('nav.astra')} titleTranslate="no" accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}
