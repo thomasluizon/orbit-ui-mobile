@@ -61,4 +61,35 @@ export const cases = () => {
   try { validateRules(production, { mappings: { 'web:control:habits.viewAll': { reason: 'Moved', targets: ['mobile:control:habits.viewAll'] } } }, () => '') } catch { invalidPlatform = true }
   T('Android evidence cannot satisfy a web capability', invalidPlatform)
 
+  const restored = compare(production, connected, { mappings: { 'web:control:habits.viewAll': { targets: ['web:control:absent'] } } })
+  T('restoring the original control satisfies an old relocation rule', restored.find((entry) => entry.key === 'habits.viewAll')?.disposition === 'retained')
+  const allowedButPresent = compare(production, connected, { removals: { 'web:control:habits.viewAll': { citation: 'DESIGN.md', rule: 'fixture permission' } } })
+  T('a permitted removal is still reported as retained while present', allowedButPresent.find((entry) => entry.key === 'habits.viewAll')?.disposition === 'retained')
+
+  const nativeRoot = 'apps/mobile/modules/orbit-widget/android/src/main/'
+  const provider = `${nativeRoot}java/org/useorbit/app/widget/OrbitWidgetProvider.kt`
+  const nativeFiles = {
+    'packages/shared/src/i18n/en.json': catalog,
+    'apps/mobile/app/index.tsx': 'export default function Home() { return null }',
+    [`${nativeRoot}AndroidManifest.xml`]: readFileSync(join(REPO_ROOT, nativeRoot, 'AndroidManifest.xml'), 'utf8'),
+    [provider]: readFileSync(join(REPO_ROOT, provider), 'utf8'),
+  }
+  const nativeSnapshot = { paths: new Set(Object.keys(nativeFiles)), read: (path) => nativeFiles[path] }
+  const native = scan(nativeSnapshot, 'mobile')
+  T('the registered native widget exposes refresh', native.some((entry) => entry.id === 'mobile:native-control:widget.widget_refresh'))
+  T('native open-app targets expand from the actual provider array', native.some((entry) => entry.id === 'mobile:native-control:widget.widget_root'))
+  nativeFiles[provider] = nativeFiles[provider].replace('views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent)', '')
+  T('deleting the native refresh binding removes its capability', !scan(nativeSnapshot, 'mobile').some((entry) => entry.id === 'mobile:native-control:widget.widget_refresh'))
+
+  const readout = scan(snapshot("export default function Home() { return <p>{t('orbitMcp.created')} {formatKeyDate(apiKey.createdAtUtc)}</p> }"), 'web')
+  T('read-only values beside translated labels are capabilities', readout.some((entry) => entry.id === 'web:display:orbitMcp.created'))
+  const interpolated = scan(snapshot("export default function Home() { return <p>{t('profile.apiKeys.activeCount', { count: apiKeys.length })}</p> }"), 'web')
+  T('interpolated figures are capabilities', interpolated.some((entry) => entry.id === 'web:display:profile.apiKeys.activeCount'))
+  const scoped = scan(snapshot(`function First() { const t = useTranslations('chat'); return <button onClick={open}>{t('title')}</button> }
+    function Second() { const t = useTranslations('profile.support'); return <button onClick={open}>{t('title')}</button> }
+    export default function Home() { return <><First /><Second /></> }`), 'web')
+  T('translation namespaces follow their owning function', scoped.some((entry) => entry.id === 'web:control:chat.title') && scoped.some((entry) => entry.id === 'web:control:profile.support.title'))
+  const noDefault = scan(snapshot('export function FormerPage() { return <main /> }'), 'web')
+  T('a route file without its default export is missing', !noDefault.some((entry) => entry.kind === 'route'))
+
 }

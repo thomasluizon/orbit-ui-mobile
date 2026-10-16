@@ -205,26 +205,39 @@ function sourceTree(snapshot, platform) {
     }
   }
   roots.forEach((path) => visit(path, ['default']))
-  return { roots, reachable, parse, nodes: (path) => moduleFor(path).active }
+  return { roots, reachable, parse, nodes: (path) => moduleFor(path).active, hasDefault: (path) => moduleFor(path).exports.has('default') }
 }
 
 function translationsIn(source) {
-  const namespaces = new Map([['t', ''], ['translate', '']])
+  const names = new Set(['t', 'translate'])
+  const bindings = []
+  const prefixes = new Set([''])
   function visit(node) {
-    if (ts.isVariableDeclaration(node) && node.initializer && ts.isCallExpression(node.initializer)) {
-      const call = node.initializer
-      if (/^(?:useTranslations|useTranslation|getTranslations)$/.test(call.expression.getText(source))) {
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      const call = ts.isAwaitExpression(node.initializer) ? node.initializer.expression : node.initializer
+      if (ts.isCallExpression(call) && /^(?:useTranslations|useTranslation|getTranslations)$/.test(call.expression.getText(source))) {
         const namespace = call.arguments[0] && ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : ''
-        if (ts.isIdentifier(node.name)) namespaces.set(node.name.text, namespace)
-        else if (ts.isObjectBindingPattern(node.name)) {
-          for (const item of node.name.elements) if ((item.propertyName ?? item.name).getText(source) === 't') namespaces.set(item.name.getText(source), namespace)
-        }
+        const identifiers = ts.isIdentifier(node.name) ? [node.name.text] : ts.isObjectBindingPattern(node.name)
+          ? node.name.elements.filter((item) => (item.propertyName ?? item.name).getText(source) === 't').map((item) => item.name.getText(source)) : []
+        let scope = node.parent
+        while (scope.parent && !ts.isFunctionLike(scope) && !ts.isSourceFile(scope)) scope = scope.parent
+        for (const name of identifiers) { names.add(name); bindings.push({ name, namespace, scope }) }
+        prefixes.add(namespace)
       }
     }
     ts.forEachChild(node, visit)
   }
   visit(source)
-  return namespaces
+  return {
+    names,
+    prefixes: [...prefixes],
+    namespace(node, name) {
+      const bound = bindings.filter((binding) => binding.name === name && binding.scope.pos <= node.pos && binding.scope.end >= node.end)
+        .sort((left, right) => left.scope.end - left.scope.pos - (right.scope.end - right.scope.pos))[0]
+      const scoped = [...prefixes].filter(Boolean)
+      return bound?.namespace ?? (scoped.length === 1 ? scoped[0] : '')
+    },
+  }
 }
 
 function evidence(source, node) {
@@ -246,6 +259,25 @@ function interaction(node) {
   return false
 }
 
+function displayedValue(node) {
+  let conditional = false
+  for (let owner = node.parent; owner; owner = owner.parent) {
+    if (ts.isConditionalExpression(owner)) conditional = true
+    if (ts.isJsxElement(owner) || ts.isJsxSelfClosingElement(owner)) {
+      const opening = ts.isJsxElement(owner) ? owner.openingElement : owner
+      if (conditional || (ts.isCallExpression(node) && node.arguments.length > 1) || opening.attributes.properties.some((item) => item.name?.getText() === 'value')) return true
+      if (ts.isJsxElement(owner)) {
+        return owner.children.some((child) => ts.isJsxExpression(child) && child.expression &&
+          !(child.pos <= node.pos && child.end >= node.end) &&
+          !ts.isStringLiteral(child.expression) && !(ts.isCallExpression(child.expression) && /^(?:t|translate)$/.test(child.expression.expression.getText())) && child.expression.getText().trim().length > 0)
+      }
+      return false
+    }
+    if (ts.isFunctionDeclaration(owner) || ts.isArrowFunction(owner)) return false
+  }
+  return false
+}
+
 export function scan(snapshot, platform) {
   const catalog = flatten(JSON.parse(snapshot.read('packages/shared/src/i18n/en.json')))
   const graph = sourceTree(snapshot, platform)
@@ -257,25 +289,28 @@ export function scan(snapshot, platform) {
     if (!record.evidence.some((item) => item.file === location.file && item.line === location.line)) record.evidence.push(location)
   }
   for (const path of graph.roots.filter((path) => path.startsWith(`apps/${platform}/app/`))) {
-    if (/(?:layout|error|not-found)\.tsx$/.test(path)) continue
+    if (/(?:layout|error|not-found)\.tsx$/.test(path) || !graph.hasDefault(path)) continue
     let route = path.slice(`apps/${platform}/app`.length).replace(/\/(?:\([^/]+\)|_components)(?=\/)/g, '').replace(/\/(?:page|index)\.tsx$|\.tsx$/g, '') || '/'
-    add('route', route, { file: path, line: 1 })
+    const source = graph.parse(path)
+    const entrypoint = source.statements.find((node) => ts.isExportAssignment(node) || node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)) ?? source
+    add('route', route, evidence(source, entrypoint))
   }
   for (const path of [...graph.reachable].sort()) {
     const source = graph.parse(path)
     const namespaces = translationsIn(source)
     function visit(node) {
-      if (ts.isCallExpression(node) && namespaces.has(node.expression.getText(source)) && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
+      if (ts.isCallExpression(node) && namespaces.names.has(node.expression.getText(source)) && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
         const literal = node.arguments[0].text
-        const namespace = namespaces.get(node.expression.getText(source))
-        const key = namespace ? `${namespace}.${literal}` : literal
-        if (catalog[key]) add(interaction(node) ? 'control' : 'content', key, evidence(source, node))
+        const namespace = namespaces.namespace(node, node.expression.getText(source))
+        const qualified = namespace ? `${namespace}.${literal}` : literal
+        const key = catalog[qualified] ? qualified : literal
+        if (catalog[key]) add(interaction(node) ? 'control' : displayedValue(node) ? 'display' : 'content', key, evidence(source, node))
       }
       if (ts.isStringLiteral(node) && catalog[node.text] && ts.isPropertyAssignment(node.parent) && /(?:Key|^label)$/.test(node.parent.name.getText(source))) {
         add(/^(?:labelKey|label|textKey)$/.test(node.parent.name.getText(source)) ? 'control' : 'content', node.text, evidence(source, node))
       }
-      if (ts.isStringLiteral(node)) {
-        const prefixes = ['', ...new Set(namespaces.values())].filter((value, index, all) => all.indexOf(value) === index)
+      if (ts.isStringLiteral(node) && !(ts.isCallExpression(node.parent) && namespaces.names.has(node.parent.expression.getText(source)) && node.parent.arguments[0] === node)) {
+        const prefixes = namespaces.prefixes
         for (const prefix of prefixes) {
           const key = prefix ? `${prefix}.${node.text}` : node.text
           if (catalog[key]) add('content', key, evidence(source, node))
@@ -297,8 +332,10 @@ function scanWidget(snapshot, add) {
   const module = 'apps/mobile/modules/orbit-widget/android/src/main/'
   const manifest = `${module}AndroidManifest.xml`
   if (!snapshot.paths.has(manifest)) return
-  if (!snapshot.read(manifest).includes('.OrbitWidgetProvider')) return
-  for (const file of [...snapshot.paths].filter((path) => path.startsWith(module) && path.endsWith('.kt')).sort()) {
+  const declarations = snapshot.read(manifest)
+  if (!declarations.includes('.OrbitWidgetProvider')) return
+  const registered = [...declarations.matchAll(/android:name="\.([A-Za-z]\w+)"/g)].map((match) => match[1])
+  for (const file of [...snapshot.paths].filter((path) => path.startsWith(module) && registered.some((name) => path.endsWith(`/${name}.kt`))).sort()) {
     const source = snapshot.read(file)
     const location = (offset) => ({ file, line: source.slice(0, offset).split('\n').length })
     const calls = /\.set(?:OnClickPendingIntent|OnClickFillInIntent|PendingIntentTemplate|TextViewText)\(\s*R\.id\.(\w+)/g
@@ -315,7 +352,10 @@ function scanWidget(snapshot, add) {
 export function validateRules(capabilities, rules, read) {
   const ids = new Set(capabilities.map((entry) => entry.id))
   for (const section of Object.keys(rules)) {
-    if (!['mappings', 'removals', 'tickets'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+    if (!['mappings', 'removals', 'tickets', 'policies'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+  }
+  for (const [name, policy] of Object.entries(rules.policies ?? {})) {
+    if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(policy.citation) || !policy.rule || !read(policy.citation).includes(policy.rule)) throw new Error(`${name}: missing standing removal citation`)
   }
   for (const section of ['mappings', 'removals', 'tickets']) {
     for (const [id, rule] of Object.entries(rules[section] ?? {})) {
@@ -345,12 +385,12 @@ export function compare(production, redesign, rules) {
   return production.map((capability) => {
     const rule = rules.mappings?.[capability.id]
     const removal = rules.removals?.[capability.id]
+    const direct = byId.get(capability.id)
+    const candidates = direct ? [direct] : (rule?.targets ?? []).map((id) => byId.get(id)).filter(Boolean)
+    const retained = Boolean(direct) || Boolean(rule?.targets && candidates.length === rule.targets.length)
+    if (retained) return { ...capability, disposition: 'retained', redesign: candidates.flatMap((entry) => entry.evidence) }
     if (removal) return { ...capability, disposition: 'approved-removal', removal }
-    const candidates = rule?.targets
-      ? rule.targets.map((id) => byId.get(id)).filter(Boolean)
-      : redesign.filter((entry) => entry.platform === capability.platform && (entry.kind === capability.kind || capability.kind === 'content') && entry.key === capability.key)
-    const retained = rule?.targets ? candidates.length === rule.targets.length : candidates.length > 0
-    return { ...capability, disposition: retained ? 'retained' : 'missing', redesign: retained ? candidates.flatMap((entry) => entry.evidence) : [], ...(rules.tickets?.[capability.id] ? { ticket: rules.tickets[capability.id] } : {}) }
+    return { ...capability, disposition: 'missing', redesign: [], ...(rules.tickets?.[capability.id] ? { ticket: rules.tickets[capability.id] } : {}) }
   })
 }
 
@@ -364,7 +404,7 @@ function run(options) {
   const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform))
   validateRules(capabilities, rules, current.read)
   const entries = compare(capabilities, redesign, rules)
-  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Noninteractive translation references are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
+  const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Noninteractive translation references are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
   if (options.write) {
     const { entries: rows, translationUses, ...header } = inventory
     const serialize = (entry) => JSON.stringify(entry, (key, value) => key === 'label' ? undefined : value)

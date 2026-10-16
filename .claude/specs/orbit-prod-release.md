@@ -177,6 +177,47 @@ The owner set this order: the landing page first, then the 1.3.81 retest fixes i
 
 The owner reviewed staging (`redesign/main`) and his phone build and found the redesign far from the drawings and `DESIGN.md`. Everything he reported gets fixed, and the rendered sweeps (standing rule above) continue until a full pass finds no broken behaviour. **The owner froze this batch at 22 tickets: `#1293`, `#1299`, `#1300`, `#1316`, `#1318`, `#1324`, `#1333`, `#1334`, `#1337`, `#1338`, `#1340`, `#1342`, `#1344`, `#1346`, `#1347`, `#1348`, `#1349`, `#1350`, `#1351`, `#1352`, `#1353` and `#1354`.** A later sweep adds a ticket here only for broken behaviour; polish goes to Batch 2b. **The owner's Orbit Staging 1.3.80 (139) retest added twelve tickets here by his instruction to fix every finding:** `#1381` (done, `ui#1746`) the action toast never closes, `#1382` (done, `ui#1743`) the Astra composer draws a prefilled prompt outside its field, `#1383` (done, `ui#1739`) typed text near black on the dark name field (Android), `#1384` (done, `ui#1748`) wide Android windows centre the content column and size flow actions, `#1385` (done, `ui#1742`) the Calendários sheet redesign and the conflict error on Sincronizar, `#1386` (done, `ui#1741`) unsupported Google repetitions import as the nearest Orbit frequency, `#1387` (done, `ui#1747`) Progresso "Criar meta" opens a create goal sheet, `#1388` (done, `ui#1740`) no Copiar control under each Astra message, `#1389` (done, `ui#1745`) the avoid habit hint states that a slip is logged, `#1390` (done, `ui#1749`) the Assinatura screen with the Astra glyph for every state, `#1391` (done, `ui#1750`) the Google G mark on the sign-in button and `#1392` (done, `ui#1744`) the Android widget redesign. `#1394` (API, lands on `main` and is carried by `#746`) the calendar sync takes its lock before it loads the user, so "Sincronizar" never ends in a 409 conflict (filed from the `#1385` worker's producer trace). `#1395` (done, `ui#1752`) an unlogged bad habit's check control announces a slip before any log exists (filed by the `#1389` worker; broken behaviour on both platforms). `#1397` (API, lands on `main` and is carried by `#746`) account reset takes the user-row lock before it deletes habits, in the same order as calendar sync, and a retried reset reloads the user, so an overlapping sync can no longer leave a reset that reports success without resetting progress or Google credentials (filed from the Pullfrog review of `orbit-api#720`). **The owner's Orbit Staging 1.3.81 (140) retest added:** `#1399` the Android update sheet opens again after the app updates, in a loop (the version check compares the Play version code with the version name), `#1401` Astra replies show one copy control on each copyable block (his clarification of `#1388`: not on every message, and not never), `#1400` (API, on `redesign/main`) Astra puts copy-ready text in a fenced block, and `#1402` Astra shows a typing indicator from send until its reply starts. The same retest added `#1403` the avoid habit hint copy, `#1404` widget padding and the "1 dias" plural, `#1405` header control fills touching the content below, `#1406` the Astra mark in the conversation header, `#1407` a responsive Conquistas grid, `#1408` the Astra mark as the avatar on its turns, `#1409` one padding contract across the app with a guard, `#1410` Progresso rethought as a calm overview with sub-screens, and `#1411` a daily streak up moment in the redesign's language (an owner instruction that amends the celebration rule in `DESIGN.md`). This batch outranks every later batch. Tickets that fix a shipped defect land on `main` first and are carried into `redesign/main` through `#556` (UI) or `#746` (API); every other ticket lands on `redesign/main`.
 
+**Production feature parity restorations**
+
+`#1424` derives the production inventory for web and Android and checks the redesign against it.
+The generated report at `.claude/manifests/feature-parity.json` records every production source
+location, redesign location, owner-approved removal citation and pending restoration ticket.
+Regenerate it with `git fetch origin main && node tools/check-feature-parity.mjs --write`.
+These are Batch R behavior gaps, including the existing habit-view ticket:
+
+| Ticket | Behavior to restore |
+|---|---|
+| `#1423` | Todos and Geral habit views |
+| `#1426` | the habit frequency filter |
+| `#1427` | the contextual Astra entry on goal details |
+| `#1428` | custom manual goal progress and notes |
+| `#1429` | the goal forecast metrics panel |
+| `#1430` | adding a habit to an Astra breakdown preview |
+| `#1431` | removing a habit from an Astra breakdown preview |
+| `#1432` | creating an Astra breakdown as a parent habit |
+| `#1433` | copying a habit description |
+| `#1434` | the habit end-time field |
+| `#1435` | the direct habit emoji suggestion action |
+| `#1436` | habit tag suggestions |
+| `#1437` | expiration when creating an API key |
+| `#1438` | naming an API key before creation |
+| `#1439` | the read-only API key creation choice |
+| `#1440` | legal document section disclosures |
+| `#1441` | the standalone progress sharing sheet |
+| `#1442` | collapsing and expanding the web sidebar |
+| `#1443` | the on-demand daily Astra summary |
+| `#1444` | the setup checklist and its dismissal |
+| `#1445` | the desktop g then a shortcut for Astra |
+| `#1446` | the desktop g then i progress shortcut |
+| `#1447` | the MCP web connection guide and endpoint copy |
+| `#1448` | the MCP code-client configuration and copy |
+| `#1449` | the API key details readout |
+| `#1450` | the complete manual habit schedule choices |
+
+The Production Feature Parity job reports ticketed gaps already on the base as advisory and rejects
+new losses. A restored capability becomes blocking on subsequent pull requests without a switch or
+an external setting. The standalone checker remains strict until all missing capabilities return.
+
 The owner's gate review of Orbit Staging 1.3.78 (137) found broken behaviour, filed beyond the frozen 22 as Batch R tickets: `#1364` segmented controls never wrap (one-word labels and a real-container width guard; done, `ui#1726`), `#1365` onboarding header with the back arrow at the leading edge and Pular trailing (done), `#1366` Hoje date navigator with the chevrons at the column edges and the day centred (done), `#1367` Google sign-in completes in the app when the App Link is unverified (done), `#1368` the reviewed pt-BR copy across the app (final list in the ticket comment; done, `ui#1723`), `#1369` weekday schedule sentences with the right pt-BR article (done), `#1370` the reviewed pt-BR copy in the API's pushes and e-mails (done), `#1371` Android Auto Backup off so a reinstall starts clean (done), and `#1372` the staging Postgres access checks independent of the operator's IP address (done). The Layout Guard flake ticket `#1361` is done (`ui#1728`); `#1374` (the label-fit case whose single click on the Hoje list options menu found no menu: the click landed before hydration) is done (`ui#1731`): every layout spec opens that menu through `openTodayListOptions`, which waits for the hydrated header host. Progress reports count these with the 22.
 
 Open pull requests first, in this order (heads are leads; re-read each). Each merges on the bar; a pull request behind its base merges after a local merge-result check, or at its approved head when the base’s newer commits share none of its files (D115), and every merge of a pull request behind its base also passes `npx turbo run type-check --force` on the combined merge first (a file-disjoint base can still break a type through a changed component contract). A base merge or a body edit needs a fresh Pullfrog approval of the new head. A pull request whose `DESIGN.md` change also edits the `DESIGN.md` row of the `CLAUDE.md` docs registry conflicts with every sibling that does the same: send a mechanical base-merge order that keeps both additions in the one row.
