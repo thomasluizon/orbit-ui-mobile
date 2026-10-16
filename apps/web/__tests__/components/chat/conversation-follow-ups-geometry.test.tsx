@@ -63,9 +63,8 @@ describe('Follow-up conversation geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
-      const geometry = await page.getByRole('group', { name: pt.chat.followUps.label }).evaluate((group, words) => {
+      const geometry = await page.getByRole('group', { name: pt.chat.followUps.label }).evaluate(group => {
         const message = document.querySelector('[data-bubble-role="ai"]')!
-        const copy = [...document.querySelectorAll('button')].find(button => button.textContent === words.chat.copy)!
         const label = group.querySelector('span')!
         const rows = [...group.querySelectorAll('button')].map(row => {
           const text = row.querySelector('span')!
@@ -79,9 +78,9 @@ describe('Follow-up conversation geometry in Chromium', () => {
         })
         const trace = [...document.querySelectorAll('button')].find(button => button.hasAttribute('aria-expanded'))
         return { rows, messageLeft: message.getBoundingClientRect().left,
-          groupWidth: group.getBoundingClientRect().width, labelGap: label.getBoundingClientRect().top - copy.getBoundingClientRect().bottom,
+          groupWidth: group.getBoundingClientRect().width, labelGap: label.getBoundingClientRect().top - message.getBoundingClientRect().bottom,
           traceLeft: trace?.getBoundingClientRect().left }
-      }, pt)
+      })
       expect(geometry.rows).toHaveLength(2)
       for (const row of geometry.rows) {
         expect.soft(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth)

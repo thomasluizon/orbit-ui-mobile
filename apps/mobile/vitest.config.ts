@@ -178,10 +178,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-store-review.ts'),
       },
       {
-        find: 'expo-clipboard',
-        replacement: path.resolve(__dirname, './test-mocks/expo-clipboard.ts'),
-      },
-      {
         find: 'expo-file-system',
         replacement: path.resolve(__dirname, './test-mocks/expo-file-system.ts'),
       },
