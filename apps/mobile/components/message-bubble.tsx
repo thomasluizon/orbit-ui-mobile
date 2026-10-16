@@ -58,7 +58,7 @@ function MessageProse({ message, sourceText, styles }: Readonly<{
         />
       )}
 
-      <Markdown tone="thread">
+      <Markdown tone="thread" copyableBlocks={!isUser}>
         {isUser ? message.content : sourceText}
       </Markdown>
     </View>
