@@ -47,7 +47,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
-                android:layout_marginStart="@dimen/widget_header_ring_offset"
                 android:layout_centerVertical="true"
                 android:layout_toStartOf="@id/widget_header_right"
                 android:layout_marginEnd="@dimen/widget_inline_gap"
@@ -103,7 +102,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/widget_unit_gap"
                             android:fontFamily="sans-serif"
-                                    android:textColor="@color/widget_fg_3"
+                            android:textColor="@color/widget_fg_3"
                             android:textSize="@dimen/widget_label_text_size" />
                     </LinearLayout>
                 </LinearLayout>
@@ -145,6 +144,7 @@
              leaving the widget blank. -->
         <FrameLayout
             android:id="@+id/widget_content"
+            android:visibility="gone"
             android:layout_width="match_parent"
             android:layout_height="@dimen/widget_content_expanded_height"
             android:layout_marginTop="@dimen/widget_header_list_gap"

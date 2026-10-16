@@ -369,7 +369,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 else -> R.layout.widget_layout
             }
             val views = RemoteViews(context.packageName, layout)
-            val inset = (spacing.insetDp * context.resources.displayMetrics.density).toInt()
+            val inset = Math.round(spacing.insetDp * context.resources.displayMetrics.density)
             views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
             views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
             views.setInt(
@@ -393,6 +393,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
 
             applyProgressRing(context, views, colorModes, completedCount, habitCount, syncedOnce && !signedOut)
+            if (layout == R.layout.widget_layout || layout == R.layout.widget_layout_expanded) {
+                val ringInset = if (syncedOnce && !signedOut) {
+                    context.resources.getDimensionPixelSize(R.dimen.widget_header_ring_offset)
+                } else 0
+                views.setViewPadding(R.id.widget_header_left, ringInset, 0, 0, 0)
+            }
 
             // Apply dynamic text colors
             // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4

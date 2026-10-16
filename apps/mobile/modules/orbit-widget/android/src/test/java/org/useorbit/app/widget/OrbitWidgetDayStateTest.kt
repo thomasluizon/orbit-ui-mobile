@@ -32,8 +32,21 @@ class OrbitWidgetDayStateTest {
                 .find(expanded)?.groupValues?.get(1))
     }
 
+    @Test
+    fun `initial layout leaves room for the smallest widget before the provider renders`() {
+        val provider = java.io.File("src/main/res/xml/orbit_widget_info.xml").readText()
+        val layout = Regex("""android:initialLayout="@layout/(\w+)"""").find(provider)!!.groupValues[1]
+        val source = java.io.File("src/main/res/layout/$layout.xml").readText()
+        val content = Regex("""<FrameLayout\b[^>]*android:id="@\+id/widget_content"[^>]*>""")
+            .find(source)!!.value
+        assertEquals(true, content.contains("""android:visibility="gone""""))
+        val header = Regex("""<LinearLayout\b[^>]*android:id="@\+id/widget_header_left"[^>]*>""")
+            .find(source)!!.value
+        assertEquals(false, header.contains("android:layout_marginStart"))
+    }
+
     private val cardSpacing = WidgetSpacing(24f, 48f, 68f, 8f, 16f, 96f)
-    private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 64f)
+    private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 72f)
 
     @Test
     fun `reserves card insets and whole padded rows at every declared size`() {
@@ -57,7 +70,7 @@ class OrbitWidgetDayStateTest {
 
         val twoByTwo = calculateWidgetGeometry(192f, 4, narrowSpacing)
         assertEquals(1, twoByTwo.visibleRowCount)
-        assertEquals(172f, twoByTwo.cardHeightDp)
+        assertEquals(180f, twoByTwo.cardHeightDp)
     }
 
     @Test

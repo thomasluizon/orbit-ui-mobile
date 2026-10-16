@@ -70,41 +70,46 @@
                         android:contentDescription="@null"
                         android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/widget_subtitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:fontFamily="sans-serif"
-                        android:maxLines="1"
-                        android:textColor="@color/widget_fg_3"
-                        android:textSize="@dimen/widget_label_text_size" />
                     <LinearLayout
-                        android:id="@+id/widget_streak_group"
-                        android:layout_marginStart="@dimen/widget_inline_gap"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
+                        android:layout_weight="1"
+                        android:orientation="vertical">
                         <TextView
-                            android:id="@+id/widget_streak"
+                            android:id="@+id/widget_subtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:fontFeatureSettings="tnum"
-                            android:textColor="@color/widget_streak_text"
-                            android:textSize="@dimen/widget_title_text_size" />
-
-                        <TextView
-                            android:id="@+id/widget_streak_unit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/widget_unit_gap"
+                            android:ellipsize="end"
                             android:fontFamily="sans-serif"
-                                    android:textColor="@color/widget_fg_3"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_fg_3"
                             android:textSize="@dimen/widget_label_text_size" />
+                        <LinearLayout
+                            android:id="@+id/widget_streak_group"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/widget_streak"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-medium"
+                                android:fontFeatureSettings="tnum"
+                                android:textColor="@color/widget_streak_text"
+                                android:textSize="@dimen/widget_title_text_size" />
+
+                            <TextView
+                                android:id="@+id/widget_streak_unit"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/widget_unit_gap"
+                                android:fontFamily="sans-serif"
+                                android:textColor="@color/widget_fg_3"
+                                android:textSize="@dimen/widget_label_text_size" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -145,6 +150,7 @@
              leaving the widget blank. -->
         <FrameLayout
             android:id="@+id/widget_content"
+            android:visibility="gone"
             android:layout_width="match_parent"
             android:layout_height="@dimen/widget_row_height"
             android:layout_marginTop="@dimen/widget_header_list_gap"

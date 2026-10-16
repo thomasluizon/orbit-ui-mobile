@@ -251,7 +251,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             }
             val themedContext = context.createConfigurationContext(configuration)
             for ((language, units) in listOf("en" to listOf("day", "days"), "pt-BR" to listOf("dia", "dias"))) {
-                for (streak in 1..2) {
+                for (streak in listOf(1, 2, 365)) {
                     preferences.edit().putString("lang", language).putInt("user_streak", streak)
                         .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã").commit()
                     InstrumentationRegistry.getInstrumentation().runOnMainSync {
@@ -269,33 +269,41 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         hostView.updateAppWidget(views)
                         layoutHost((widthDp * density).toInt(), (heightDp * density).toInt())
                         val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
-                        val insetPx = (insetDp * density).toInt()
+                        val insetResource = if (insetDp == 24f) R.dimen.widget_inset_card else R.dimen.widget_inset_compact
+                        val insetPx = themedContext.resources.getDimensionPixelSize(insetResource)
+                        val touchTargetPx = themedContext.resources.getDimensionPixelSize(R.dimen.widget_touch_target)
                         assertEquals(listOf(insetPx, insetPx, insetPx, insetPx),
                             listOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom))
                         val refresh = hostView.findViewById<View>(R.id.widget_refresh)
-                        assertEquals((48 * density).toInt(), refresh.width)
-                        assertEquals((48 * density).toInt(), refresh.height)
+                        assertEquals(touchTargetPx, refresh.width)
+                        assertEquals(touchTargetPx, refresh.height)
                         val refreshBounds = Rect(0, 0, refresh.width, refresh.height)
                         root.offsetDescendantRectToMyCoords(refresh, refreshBounds)
                         assertTrue(refreshBounds.left >= insetPx)
                         assertTrue(refreshBounds.top >= insetPx)
                         assertTrue(refreshBounds.right <= root.width - insetPx)
                         assertTrue(refreshBounds.bottom <= root.height - insetPx)
-                        assertEquals(units[streak - 1], text(R.id.widget_streak_unit))
+                        assertEquals(units[if (streak == 1) 0 else 1], text(R.id.widget_streak_unit))
+                        for (viewId in listOf(R.id.widget_subtitle, R.id.widget_streak)) {
+                            val figure = root.findViewById<TextView>(viewId)
+                            assertEquals(1, figure.layout.lineCount)
+                            assertEquals(0, figure.layout.getEllipsisCount(0))
+                            assertTrue(figure.layout.getLineWidth(0) <= figure.width + 1f)
+                        }
                         val dayLabel = root.findViewById<TextView>(R.id.widget_header)
                         assertEquals(0, dayLabel.layout.getEllipsisCount(0))
                         val content = root.findViewById<View>(R.id.widget_content)
                         assertEquals(if (heightDp == 96f) View.GONE else View.VISIBLE, content.visibility)
                         if (heightDp > 96f) {
                             val header = root.findViewById<View>(R.id.widget_header_container)
-                            assertEquals((16 * density).toInt(), content.top - header.bottom)
+                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_header_list_gap), content.top - header.bottom)
                             val row = LayoutInflater.from(themedContext).inflate(R.layout.widget_item, root, false)
                             row.measure(View.MeasureSpec.makeMeasureSpec(root.width - 2 * insetPx, View.MeasureSpec.EXACTLY),
                                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
                             val rowContent = row.findViewById<View>(R.id.widget_item_content)
-                            assertEquals((68 * density).toInt(), row.measuredHeight)
-                            assertEquals((16 * density).toInt(), rowContent.paddingLeft)
-                            assertEquals((12 * density).toInt(), rowContent.paddingTop)
+                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_height), row.measuredHeight)
+                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_inset_inline), rowContent.paddingLeft)
+                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_inset_block), rowContent.paddingTop)
                         }
                     }
                 }

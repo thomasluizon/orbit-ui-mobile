@@ -25,9 +25,9 @@
   <dimen name="widget_skeleton_width_3">96dp</dimen>
   <dimen name="widget_skeleton_width_4">64dp</dimen>
   <dimen name="widget_skeleton_width_5">48dp</dimen>
-  <dimen name="widget_header_height_narrow">64dp</dimen>
+  <dimen name="widget_header_height_narrow">72dp</dimen>
   <dimen name="widget_header_label_height">24dp</dimen>
-  <dimen name="widget_header_summary_height">32dp</dimen>
+  <dimen name="widget_header_summary_height">40dp</dimen>
   <dimen name="widget_header_min_width">136dp</dimen>
   <dimen name="widget_compact_height">96dp</dimen>
   <dimen name="widget_title_text_size">15sp</dimen>
