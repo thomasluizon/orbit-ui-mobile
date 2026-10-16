@@ -36,7 +36,7 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
   expect(identities.length).toBeGreaterThan(0)
   for (const { selector, label } of identities) {
     expect(selector || label, 'a stable attribute or accessible name for every field').toBeTruthy()
-    const field = (selector ? (scope ?? page).locator(selector) : (scope ?? page).getByLabel(label, { exact: true })).filter({ visible: true })
+    const field = (selector ? (scope ?? page).locator(selector) : (scope ?? page).getByLabel(label, { exact: true })).and(fields).filter({ visible: true })
     await expect(field).toHaveCount(1)
     const expected = await field.evaluate((element, registry) => registry.find(rule => element.matches(rule.selector))?.padding, rules)
     expect(expected, `inventory entry for ${await field.getAttribute('aria-label') ?? await field.getAttribute('placeholder')}`).toBeDefined()
