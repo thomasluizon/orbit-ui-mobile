@@ -184,6 +184,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/hover-transition.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/icon-size-grid.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -308,11 +313,6 @@
         "source": "CSS Easing Level 2 cubic-bezier output range"
       }
     ]
-  },
-  "eslint-rules/hover-transition.cjs": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
   },
   "eslint-rules/no-pill-radius-on-static.cjs": {
     "scope": "changed-files",
@@ -452,6 +452,11 @@
   "tools/check-docker-registries.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-feature-parity.mjs": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "git fetch origin main && node tools/check-feature-parity.mjs --write",
     "constants": "none"
   },
   "tools/check-gate-charter.mjs": {
