@@ -41,7 +41,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build web
-        run: npm run build -w apps/web
+        run: npm run build:hermetic -w apps/web
 
       - name: Check hermetic client output
         run: node tools/check-hermetic-web-build.mjs

@@ -21,4 +21,5 @@ export const smokeEnv = {
 
 export const STORAGE_STATE_PATH = 'e2e/.auth/smoke-user.json'
 export const LAYOUT_STORAGE_STATE_PATH = 'e2e/.auth/layout-user.json'
-export const LAYOUT_ORIGIN = 'http://127.0.0.1:3000'
+export const LAYOUT_PORT = process.env.LAYOUT_PORT ?? '3000'
+export const LAYOUT_ORIGIN = `http://127.0.0.1:${LAYOUT_PORT}`
