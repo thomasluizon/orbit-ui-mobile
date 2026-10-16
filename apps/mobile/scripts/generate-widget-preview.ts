@@ -60,9 +60,16 @@ function parseNamedResources(source: string, elementName: 'color' | 'string') {
   const resources = new Map<string, string>()
   let currentName: string | undefined
   let currentText = ''
+  let pluralName: string | undefined
   const parser = new SaxesParser()
 
   parser.on('opentag', tag => {
+    if (tag.name === 'plurals') pluralName = String(tag.attributes.name)
+    if (tag.name === 'item' && tag.attributes.quantity === 'other' && pluralName) {
+      currentName = pluralName
+      currentText = ''
+      return
+    }
     if (tag.name !== elementName) return
     currentName = String(tag.attributes.name)
     currentText = ''
@@ -71,7 +78,8 @@ function parseNamedResources(source: string, elementName: 'color' | 'string') {
     if (currentName) currentText += text
   })
   parser.on('closetag', tag => {
-    if (tag.name !== elementName || !currentName) return
+    if (tag.name === 'plurals') pluralName = undefined
+    if ((tag.name !== elementName && tag.name !== 'item') || !currentName) return
     resources.set(currentName, currentText)
     currentName = undefined
   })

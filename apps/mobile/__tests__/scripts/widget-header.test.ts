@@ -205,6 +205,18 @@ function rootAttributes(relativePath: string) {
 }
 
 describe('Android widget content sizing', () => {
+  it.each([
+    ['values', 'day', 'days'],
+    ['values-pt-rBR', 'dia', 'dias'],
+  ])('selects singular and plural streak units in %s', (directory, singular, plural) => {
+    const source = readFileSync(resolve(widgetRoot, directory, 'widget_strings.xml'), 'utf8')
+    expect(source).toContain('<plurals name="widget_streak_unit">')
+    expect(source).toContain(`<item quantity="one">${singular}</item>`)
+    expect(source).toContain(`<item quantity="other">${plural}</item>`)
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('OrbitWidgetFactory.streakUnit(context, lang, streak)')
+  })
+
   it('lets the visible card hug the rows instead of filling the launcher slot', () => {
     const root = rootAttributes('layout/widget_layout.xml')
     expect(root['android:layout_height']).toBe('wrap_content')
@@ -235,7 +247,6 @@ describe('Android widget header', () => {
       widget_tomorrow: 'Tomorrow',
       widget_of: 'of',
       widget_completed: 'completed',
-      widget_streak_unit: 'days',
       widget_all_clear: 'All clear',
       widget_nothing_scheduled: 'Nothing scheduled',
       widget_refresh: 'Refresh',
@@ -245,7 +256,6 @@ describe('Android widget header', () => {
       widget_tomorrow: 'Amanhã',
       widget_of: 'de',
       widget_completed: 'concluídos',
-      widget_streak_unit: 'dias',
       widget_all_clear: 'Tudo feito',
       widget_nothing_scheduled: 'Nada agendado',
       widget_refresh: 'Atualizar',

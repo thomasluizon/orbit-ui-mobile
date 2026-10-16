@@ -102,8 +102,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="3dp"
                             android:fontFamily="sans-serif"
-                            android:text="@string/widget_streak_unit"
-                            android:textColor="@color/widget_fg_3"
+                                    android:textColor="@color/widget_fg_3"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>

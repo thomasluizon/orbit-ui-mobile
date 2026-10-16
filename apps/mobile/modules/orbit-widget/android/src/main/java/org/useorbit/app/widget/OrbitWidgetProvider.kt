@@ -366,7 +366,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_streak, "$streak")
                 views.setTextViewText(
                     R.id.widget_streak_unit,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.STREAK_UNIT)
+                    OrbitWidgetFactory.streakUnit(context, lang, streak)
                 )
                 views.setViewVisibility(R.id.widget_streak_group, streakVisible)
                 views.setTextViewText(

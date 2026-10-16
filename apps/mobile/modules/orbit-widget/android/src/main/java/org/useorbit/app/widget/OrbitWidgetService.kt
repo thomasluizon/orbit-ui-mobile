@@ -106,7 +106,6 @@ internal enum class WidgetString(val resourceId: Int) {
     ALL_CLEAR(R.string.widget_all_clear),
     NOTHING_SCHEDULED(R.string.widget_nothing_scheduled),
     SIGN_IN(R.string.widget_sign_in),
-    STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
     REFRESHING(R.string.widget_refreshing),
     LOADING(R.string.widget_loading),
@@ -294,6 +293,15 @@ class OrbitWidgetFactory(
             }
             return context.createConfigurationContext(configuration)
                 .getString(string.resourceId, *formatArgs)
+        }
+
+        internal fun streakUnit(context: Context, lang: String, streak: Int): String {
+            val localeTag = if (lang.startsWith("pt", ignoreCase = true)) "pt-BR" else "en"
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(localeTag))
+            }
+            return context.createConfigurationContext(configuration).resources
+                .getQuantityString(R.plurals.widget_streak_unit, streak)
         }
 
         private fun fallbackColors(mode: String): Map<String, String> =
