@@ -212,7 +212,7 @@ function StreakRepairPanel({
   if (state.gapUnavailable) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
-        <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapUnavailable')}</p>
+        <p className="text-[16px] leading-[1.5] text-[var(--fg-1)]">{t('progressScreen.streak.gapUnavailable')}</p>
       </div>
     )
   }
@@ -221,7 +221,7 @@ function StreakRepairPanel({
     return (
       <>
         <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
-          <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
+          <p className="text-[16px] leading-[1.5] text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
           {state.canRepair ? <PillButton variant={isDesktop || !hasGoals ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
           {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
           {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}

@@ -419,9 +419,9 @@ export function CalendarTimeGrid({
                 <span
                   key={hour}
                   data-testid="time-grid-hour-label"
-                  className="absolute right-2"
+                  className="absolute right-2 translate-y-[2px]"
                   style={{
-                    top: `calc(${hour * 3}rem + 2px)`,
+                    top: `${hour * 3}rem`,
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.75rem',
                     color: 'var(--fg-2)',

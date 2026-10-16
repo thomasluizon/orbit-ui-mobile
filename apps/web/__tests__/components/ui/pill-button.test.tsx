@@ -162,7 +162,7 @@ describe('PillButton', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     const button = screen.getByRole('button', { name: 'Continue' })
     expect(button).toHaveClass('whitespace-nowrap')
-    expect(button).toHaveStyle({ paddingInlineStart: '18px', paddingInlineEnd: '18px' })
+    expect(button).toHaveStyle({ paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`, paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px` })
   })
 
   it('keeps a leading glyph decorative and tightens its side of the pill', () => {
@@ -170,7 +170,7 @@ describe('PillButton', () => {
     const button = screen.getByRole('button', { name: 'Copy' })
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(button.querySelector('svg')).toHaveAttribute('width', '16')
-    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: '18px' })
+    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px` })
   })
 
   it('gives pill links the interactive states their button variants expose', () => {
@@ -193,8 +193,8 @@ describe('PillButton', () => {
     )
     expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({
-      paddingInlineStart: '18px',
-      paddingInlineEnd: '18px',
+      paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`,
+      paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px`,
     })
   })
 
