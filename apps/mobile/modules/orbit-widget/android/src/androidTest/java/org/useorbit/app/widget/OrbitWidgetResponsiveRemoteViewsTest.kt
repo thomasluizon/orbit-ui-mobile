@@ -53,8 +53,16 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         appWidgetHost.startListening()
         hostView = appWidgetHost.createView(context, appWidgetId, providerInfo)
 
-        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        assertTrue(
+            OrbitWidgetModule.getEncryptedPrefs(context).edit()
+                .putString(AUTH_TOKEN_KEY, SIGNED_IN_TOKEN)
+                .commit()
+        )
+        assertEquals(SIGNED_IN_TOKEN, OrbitWidgetModule.getToken(context))
+        val session = OrbitWidgetModule.sessionKey(SIGNED_IN_TOKEN)
+        val cacheEditor = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             .edit()
+            .clear()
             .putString("header_label", "Today")
             .putInt("habit_count", 7)
             .putInt("completed_count", 3)
@@ -63,12 +71,23 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             .putLong("habits_updated_at", 1L)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
-            .commit()
+        for (heightDp in setOf(
+            OrbitWidgetProvider.FOUR_BY_ONE_HEIGHT_DP,
+            OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP,
+            OrbitWidgetProvider.FOUR_BY_THREE_HEIGHT_DP,
+            OrbitWidgetProvider.TWO_BY_TWO_HEIGHT_DP
+        )) {
+            cacheEditor.putString(OrbitWidgetProvider.renderSessionKey(appWidgetId, heightDp), session)
+        }
+        assertTrue(cacheEditor.commit())
     }
 
     @After
     fun tearDown() {
         InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
+        OrbitWidgetModule.getEncryptedPrefs(context).edit()
+            .remove(AUTH_TOKEN_KEY)
+            .commit()
         context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             .edit()
             .clear()
@@ -204,6 +223,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     companion object {
+        private const val AUTH_TOKEN_KEY = "auth_token"
+        private const val SIGNED_IN_TOKEN = "widget-instrumentation-session"
         private const val HOST_ID = 490
         private const val COMPACT_WIDTH_DP = 160f
         private const val EXPANDED_WIDTH_DP = 250f
