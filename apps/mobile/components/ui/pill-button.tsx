@@ -25,6 +25,8 @@ export function Button({
   onClick,
   onFocus,
   onBlur,
+  onHoverIn,
+  onHoverOut,
   disabled = false,
   loading = false,
   children,
@@ -37,7 +39,7 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void }>) {
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -89,8 +91,8 @@ export function Button({
       onPress={loading ? undefined : onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
       onBlur={() => { setFocused(false); onBlur?.() }}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
+      onHoverIn={() => { setHovered(true); onHoverIn?.() }}
+      onHoverOut={() => { setHovered(false); onHoverOut?.() }}
       disabled={disabled || loading}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}

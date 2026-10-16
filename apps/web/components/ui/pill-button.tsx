@@ -78,6 +78,10 @@ export function Button({
   variant = 'primary',
   size: requestedSize = 'sm',
   onClick,
+  onFocus,
+  onBlur,
+  onMouseEnter,
+  onMouseLeave,
   disabled = false,
   loading = false,
   children,
@@ -91,7 +95,7 @@ export function Button({
   descriptionId,
   buttonRef,
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean }>) {
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const withinRow = useContext(ActionRowContext)
   const size = withinRow ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
@@ -102,6 +106,10 @@ export function Button({
       type={onClick ? 'button' : 'submit'}
       form={formId}
       onClick={loading ? undefined : onClick}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}

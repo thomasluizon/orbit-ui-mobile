@@ -464,6 +464,27 @@ describe('Astra block copying', () => {
     }
   })
 
+  it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', (attention) => {
+    vi.useFakeTimers()
+    renderSelection.current = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content: '```\nkeep me\n```', pendingOperations: [] })} />) })
+      const button = tree!.root.findAllByType('Pressable')[0]
+      TestRenderer.act(() => { button.props.onPress() })
+      TestRenderer.act(() => { if (attention === 'focus') button.props.onFocus(); else button.props.onHoverIn() })
+      TestRenderer.act(() => { vi.advanceTimersByTime(6000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      TestRenderer.act(() => { if (attention === 'focus') button.props.onBlur(); else button.props.onHoverOut() })
+      TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+      vi.useRealTimers()
+    }
+  })
+
   it('never gives user code blocks a control', () => {
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>

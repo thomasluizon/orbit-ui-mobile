@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { Copy } from './icons'
@@ -8,24 +8,28 @@ import { Button } from './pill-button'
 
 export function BlockCopyControl({ text }: Readonly<{ text: string }>) {
   const t = useTranslations('chat.blockCopy')
-  const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle')
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(resetTimer.current), [])
+  const [feedback, setFeedback] = useState<{ status: 'idle' | 'copied' | 'error' }>({ status: 'idle' })
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const { status } = feedback
+  useEffect(() => {
+    if (feedback.status !== 'copied' || focused || hovered) return
+    const resetTimer = setTimeout(() => setFeedback({ status: 'idle' }), 5000)
+    return () => clearTimeout(resetTimer)
+  }, [feedback, focused, hovered])
 
   async function copyBlock() {
-    clearTimeout(resetTimer.current)
-    setStatus('idle')
+    setFeedback({ status: 'idle' })
     try {
       await navigator.clipboard.writeText(text)
-      setStatus('copied')
-      resetTimer.current = setTimeout(() => setStatus('idle'), 5000)
+      setFeedback({ status: 'copied' })
     } catch {
-      setStatus('error')
+      setFeedback({ status: 'error' })
     }
   }
 
   return <>
-    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} leadingIcon={<Copy size={16} aria-hidden="true" />} onClick={() => void copyBlock()}>
+    <Button variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} leadingIcon={<Copy size={16} aria-hidden="true" />} onClick={() => void copyBlock()} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {t(status === 'copied' ? 'copied' : 'copy')}
     </Button>
     <span role="status" aria-live="polite" className={status === 'error' ? 'markdown-copy-error' : 'sr-only'}>

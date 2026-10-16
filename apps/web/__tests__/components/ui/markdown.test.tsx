@@ -275,8 +275,27 @@ describe('Astra block copying', () => {
     expect(getByRole('status')).toBe(region)
     expect(button).toHaveFocus()
     expect(button).toHaveAccessibleName('chat.blockCopy.copied')
+    act(() => { button.blur() })
     act(() => { vi.advanceTimersByTime(5000) })
     expect(button).toHaveAccessibleName('chat.blockCopy.copy')
+  })
+
+  it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', async (attention) => {
+    vi.useFakeTimers()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    const { getByRole } = render(<Markdown content={'```\nkeep me\n```'} copyableBlocks />)
+    const button = getByRole('button')
+    await act(async () => { fireEvent.click(button) })
+    if (attention === 'focus') act(() => { button.focus() })
+    else fireEvent.mouseEnter(button)
+    act(() => { vi.advanceTimersByTime(6000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copied')
+    expect(getByRole('status')).toHaveTextContent('chat.blockCopy.copied')
+    if (attention === 'focus') act(() => { button.blur() })
+    else fireEvent.mouseLeave(button)
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copy')
+    expect(getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('announces a failed clipboard write without claiming success and permits retry', async () => {
