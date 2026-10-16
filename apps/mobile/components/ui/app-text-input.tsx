@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import {
   forwardRef,
@@ -98,8 +99,8 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.borderControl,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,
@@ -107,14 +108,14 @@ function createStyles(tokens: AppTokens) {
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
     },
     inputError: {
       borderWidth: 2,
       borderColor: tokens.statusBad,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
     },
     inputDisabled: {
       opacity: 0.6,
@@ -122,7 +123,7 @@ function createStyles(tokens: AppTokens) {
     errorCaption: {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
-      marginTop: 4,
+      marginTop: SPACING.s4,
       color: tokens.statusBadText,
     },
   })

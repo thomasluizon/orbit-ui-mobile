@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { InfoCardProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -29,7 +30,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 16,
     borderRadius: 20,
-    padding: 24,
+    padding: SPACING.s24,
   },
   body: {
     flex: 1,

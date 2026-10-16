@@ -282,6 +282,30 @@ describe('ProgressContent', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 840, 1352])('measures the padding contract on Progresso at %ipx', async (width) => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const { container } = render(<ProgressContent />)
+    const page = await browser.newPage({ viewport: { width, height: 2400 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const section = page.getByRole('region', { name: 'progressScreen.sections.achievements' })
+      const measured = await section.evaluate((element) => {
+        const children = Array.from(element.children).filter((child) => child.getBoundingClientRect().height > 0)
+        const heading = children[0]!.getBoundingClientRect()
+        const content = children[1]!.getBoundingClientRect()
+        const column = element.parentElement!
+        const bounds = column.getBoundingClientRect()
+        const sectionBounds = element.getBoundingClientRect()
+        const previous = element.previousElementSibling!.getBoundingClientRect()
+        return { gutter: sectionBounds.left - bounds.left, titleGap: content.top - heading.bottom,
+          sectionGap: sectionBounds.top - previous.bottom }
+      })
+      expect(measured).toEqual({ gutter: 16, titleGap: 12, sectionGap: 32 })
+      const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
+      expect(await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingLeft))).toBe(16)
+    } finally { await page.close() }
+  })
+
   it.each([320, 360, 384, 412].flatMap((width) => [false, true].map((locked) => ({ width, locked }))))(
     'keeps drawn streak captions on one line at $width with locked=$locked', async ({ width, locked }) => {
       mocks.account.profile.canViewGamification = !locked

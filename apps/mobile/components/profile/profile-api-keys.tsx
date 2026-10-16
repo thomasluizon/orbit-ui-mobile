@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -504,11 +505,11 @@ const styles = StyleSheet.create({
   message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   errorState: { alignItems: 'flex-start', gap: 8 },
-  mcpWell: { borderRadius: 12, gap: 4, padding: 16 },
+  mcpWell: { borderRadius: 12, gap: 4, padding: SPACING.s16 },
   mcpTitle: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   mcpEndpoint: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
-  keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: 16 },
+  keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: SPACING.s16 },
   keyValue: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
 })

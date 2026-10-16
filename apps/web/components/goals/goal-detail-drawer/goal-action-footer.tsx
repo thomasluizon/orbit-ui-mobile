@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import {
   ArchiveX,
   PencilLine,
@@ -33,7 +36,7 @@ export function GoalActionFooter({
   const t = useTranslations()
 
   return (
-    <div style={{ paddingBottom: 4 }}>
+    <div style={{ paddingBottom: SPACING.s4 }}>
       <ListRow
         compact={false}
         title={t('goals.detail.edit')}

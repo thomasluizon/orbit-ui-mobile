@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { CapacityNoticeProps } from '@orbit/shared/contracts/feedback'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2, radius } from '@/lib/theme'
@@ -21,7 +22,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
     gap: 12,
-    padding: 16,
+    padding: SPACING.s16,
   },
   message: {
     fontFamily: 'Geist_500Medium',

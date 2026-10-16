@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
-import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
+import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { Sheet } from '@/components/ui/sheet';
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   copyRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
-      paddingBottom: 8,
+      paddingBottom: SPACING.s8,
   },
   copyButton: {
     width: TOUCH_TARGET_MIN,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     borderRadius: 18,
     borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
   },
 });

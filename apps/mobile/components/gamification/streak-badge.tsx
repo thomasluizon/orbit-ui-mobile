@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Line } from 'react-native-svg'
 import { useRouter } from 'expo-router'
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     gap: 4,
     minWidth: TOUCH_TARGET_MIN,
     minHeight: TOUCH_TARGET_MIN,
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.s8,
     borderRadius: 999,
     overflow: 'hidden',
   },

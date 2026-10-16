@@ -1,5 +1,5 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type Ref } from 'react'
 import { StyleSheet, Text, type TextInput, View } from 'react-native'
@@ -109,7 +109,7 @@ export function HabitUnderstanding({
       ) : null}
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
-          <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
+          <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: SPACING.s12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
           <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
         </View>
       ) : null}
@@ -137,7 +137,7 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
-      padding: 16,
+      padding: SPACING.s16,
     },
     input: {
       position: 'absolute',
@@ -149,7 +149,7 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
-      padding: 16,
+      padding: SPACING.s16,
       textAlignVertical: 'top',
     },
     consumed: {
@@ -160,7 +160,7 @@ function createStyles(tokens: AppTokens) {
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
       gap: 16,
-      padding: 24,
+      padding: SPACING.s24,
       borderRadius: radius.xl,
       outlineWidth: 1,
       outlineOffset: -1,

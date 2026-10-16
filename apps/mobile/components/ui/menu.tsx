@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   panel: {
     ...shadowsV2.shadow2,
     borderRadius: 20,
-    padding: 8,
+    padding: SPACING.s8,
     position: 'absolute',
     width: PANEL_WIDTH,
   },
@@ -269,8 +269,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     minHeight: TOUCH_TARGET_MIN,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.s12,
+    paddingVertical: SPACING.s8,
   },
   sheetItem: {
     minHeight: 56,
@@ -283,8 +283,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.s8,
+    paddingVertical: SPACING.s4,
   },
   badgeText: {
     fontFamily: 'Geist_500Medium',

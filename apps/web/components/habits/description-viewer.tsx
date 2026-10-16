@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useState } from 'react'
 import { Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -47,7 +50,7 @@ export function DescriptionViewer({
 
   return (
     open ? (<Sheet open onClose={() => (handleOpenChange)(false)} title={title}>
-      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: 8 }}>
+      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: SPACING.s8 }}>
         {copyFailed ? (
           <p role="alert" className="text-xs text-[var(--status-bad-text)]">
             {t('habits.detail.copyFailed')}
@@ -70,7 +73,7 @@ export function DescriptionViewer({
       <div
         className="min-w-0 rounded-[18px] bg-[var(--bg-card)]"
         style={{
-          padding: '16px',
+          padding: "var(--orbit-space-16)",
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >

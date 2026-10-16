@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useIsFocused, useRouter } from 'expo-router'
@@ -625,8 +625,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.borderControl,
-      paddingLeft: 12,
-      paddingRight: 4,
+      paddingLeft: SPACING.s12,
+      paddingRight: SPACING.s4,
     },
     subHabitIndex: {
       width: 16,
@@ -646,8 +646,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 14,
       borderWidth: 0,
       borderRadius: 0,
-      paddingVertical: 8,
-      paddingHorizontal: 0,
+      paddingVertical: SPACING.s8,
+      paddingHorizontal: SPACING.s0,
     },
     subHabitRemoveButton: {
       width: TOUCH_TARGET_MIN,
@@ -661,8 +661,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
       alignSelf: 'flex-start',
       gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s12,
+      paddingVertical: SPACING.s8,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,

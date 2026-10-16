@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { AlertTriangle } from "@/components/ui/icons";
@@ -107,15 +108,15 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
+    paddingHorizontal: SPACING.s16,
+    paddingVertical: SPACING.s12,
+    marginTop: SPACING.s8,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 4,
+    marginBottom: SPACING.s4,
   },
   title: {
     fontFamily: 'Geist_600SemiBold',
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   },
   habitsList: {
     gap: 4,
-    marginBottom: 4,
+    marginBottom: SPACING.s4,
   },
   habitText: {
     fontFamily: 'Geist_400Regular',

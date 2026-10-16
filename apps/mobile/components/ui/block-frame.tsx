@@ -1,6 +1,6 @@
 import { ActionRow } from './action-row'
 
-import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type {
   BlockFrameItem,
   BlockFrameItemStatus,
@@ -301,14 +301,14 @@ const styles = StyleSheet.create({
     gap: 24,
     borderRadius: PROPOSED_RADIUS.block,
     borderWidth: 1,
-    padding: 24,
+    padding: SPACING.s24,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 16 },
   count: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'] },
   body: { flex: 1, minHeight: 0 },
   rows: { gap: 8 },
-  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
   rowWords: { flex: 1, minWidth: 0 },
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   rowLabelNode: { minWidth: 0 },
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
   staleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   staleMessage: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14 },
-  refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12 },
+  refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: SPACING.s12 },
   refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },
   actionGuard: { padding: actionHitPadding, margin: -actionHitPadding },

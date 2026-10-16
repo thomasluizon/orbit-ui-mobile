@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import type { ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -37,7 +37,7 @@ function DrillEmptyMessage({
 }: Readonly<Pick<HabitDrillProps, 'drill' | 't' | 'onShowCompleted'>>) {
   return (
     <div className="flex flex-col items-start gap-2 py-2">
-      <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
+      <p style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
         {t(drill.hasUnfilteredChildren ? 'habits.filterEmptySubHabits' : 'habits.noSubHabits')}
       </p>
       {drill.canRevealCompletedChildren && onShowCompleted ? (
@@ -73,12 +73,12 @@ export function HabitDrill({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex min-w-0 flex-col" style={{ gap: 12, padding: '8px 16px 0' }}>
+        <div className="flex min-w-0 flex-col" style={{ gap: 12, padding: "var(--orbit-space-8) var(--orbit-space-16) var(--orbit-space-0)" }}>
           <div className="min-w-0 w-full">
             <h2
               className="min-w-0"
               style={{
-                margin: 0,
+                margin: SPACING.s0,
                 color: 'var(--fg-1)',
                 fontFamily: 'var(--font-display)',
                 fontSize: 20,
@@ -104,7 +104,7 @@ export function HabitDrill({
           </button>
             <p
               style={{
-                margin: 0,
+                margin: SPACING.s0,
                 color: 'var(--fg-3)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 12,
@@ -136,8 +136,8 @@ export function HabitDrill({
       {drill.drillLoading ? <HabitListSkeleton /> : null}
 
       {!drill.drillLoading && drill.drillError ? (
-        <div className="flex flex-col items-center text-center" style={{ gap: 16, padding: '32px 16px' }}>
-          <p role="alert" style={{ margin: 0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
+        <div className="flex flex-col items-center text-center" style={{ gap: 16, padding: "var(--orbit-space-32) var(--orbit-space-16)" }}>
+          <p role="alert" style={{ margin: SPACING.s0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
             {drill.drillError}
           </p>
           <PillButton variant="ghost" onClick={() => void drill.refreshCurrent()}>

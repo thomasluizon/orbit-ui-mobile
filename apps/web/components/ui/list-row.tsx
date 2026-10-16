@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, useRef, useState, type ComponentProps, type MouseEventHandler, type ReactNode } from 'react'
 import Link from 'next/link'
@@ -26,11 +26,11 @@ function alignsFirstLine({ textMode, description, value, toggle, trailing, readO
 }
 
 function getBodyStyle(hasDescription: boolean, column: boolean) {
-  return { minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: 12, ...(column ? { position: 'relative' as const } : { paddingInline: 16 }) }
+  return { minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: PADDING.rowBlock, ...(column ? { position: 'relative' as const } : { paddingInline: PADDING.rowInline }) }
 }
 
 function getActionStyle(hasDescription: boolean) {
-  return { marginBlock: hasDescription ? 8 : 4, marginInlineEnd: 16, marginInlineStart: 0, alignSelf: 'center' as const }
+  return { marginBlock: hasDescription ? SPACING.s8 : SPACING.s4, marginInlineEnd: SPACING.s16, marginInlineStart: SPACING.s0, alignSelf: 'center' as const }
 }
 
 function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
@@ -66,10 +66,10 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const Title = textMode === 'personal' ? PersonalText : PlainRowText
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  const titleLine = <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
+  const titleLine = <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? SPACING.s0 : undefined }}>{title}</Title>
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle) }}>
     {titleLine}
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: textMode === 'label' ? 1.4 : 1.25, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: textMode === 'label' ? 1.4 : 1.25, paddingInlineStart: personalTextInsetStart === false ? SPACING.s0 : undefined }}>{description}</Description> : null}
   </span>
 }
 
@@ -146,7 +146,7 @@ function switchAccessibility(props: WebListRowProps) {
 
 function rowControl(props: WebListRowProps, children: ReactNode, bodyStyle: ReturnType<typeof getBodyStyle>) {
   const { readOnly, href, onClick, disabled, accessibilityLabel, expanded, controls, toggle } = props
-  const fill = props.placement === 'column' ? <span aria-hidden="true" data-press-fill="" data-slot="list-row-body" className="orbit-list-row-outset" style={{ minHeight: bodyStyle.minHeight, paddingBlock: 12 }} /> : null
+  const fill = props.placement === 'column' ? <span aria-hidden="true" data-press-fill="" data-slot="list-row-body" className="orbit-list-row-outset" style={{ minHeight: bodyStyle.minHeight, paddingBlock: PADDING.rowBlock }} /> : null
   const slot = props.placement === 'column' ? undefined : 'list-row-body'
   const content = <>{fill}{children}</>
   return (readOnly || (!href && !onClick && !toggle) ? (

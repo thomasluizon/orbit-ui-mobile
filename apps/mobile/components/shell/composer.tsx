@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import {
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'column',
     gap: 12,
-    padding: 16,
+    padding: SPACING.s16,
   },
   tray: {
     gap: 8,
@@ -486,7 +487,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.s12,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     minWidth: 0,
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: SPACING.s8,
     justifyContent: 'center',
     borderRadius: 8,
     overflow: 'hidden',
@@ -520,8 +521,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: COMPOSER_CHIP_GAP,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.s12,
+    paddingVertical: SPACING.s12,
     borderRadius: 999,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
@@ -584,7 +585,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 4,
+    padding: SPACING.s4,
     borderRadius: 28,
   },
   fieldOutline: {
@@ -611,8 +612,8 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     minWidth: 0,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: SPACING.s12,
+    paddingHorizontal: SPACING.s8,
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
   retry: {
     borderRadius: 999,
     overflow: 'hidden',
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.s12,
     minHeight: 48,
     alignSelf: 'flex-start',
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   allDone: {
     alignItems: 'flex-start',
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: SPACING.s8,
   },
   allDoneTitle: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
+    paddingHorizontal: SPACING.s32,
+    paddingVertical: SPACING.s64,
     gap: 16,
   },
   title: {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   actions: {
-    marginTop: 8,
+    marginTop: SPACING.s8,
     alignSelf: 'stretch',
     gap: 12,
   },
@@ -171,9 +171,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    marginTop: SPACING.s4,
+    paddingVertical: SPACING.s12,
+    paddingHorizontal: SPACING.s8,
   },
   linkActionText: {
     fontFamily: 'Geist_500Medium',

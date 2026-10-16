@@ -1,5 +1,5 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minHeight: 52,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
     fontFamily: 'GeistMono_400Regular',
     fontSize: 16,
     fontVariant: ['tabular-nums'],
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT, flexShrink: 1, minHeight: ROW_HEIGHT },
   column: { flex: 1 },
   columnScroll: { flex: 1 },
-  columnContent: { paddingVertical: 4 },
+  columnContent: { paddingVertical: SPACING.s4 },
   option: {
     borderWidth: 2,
     borderColor: 'transparent',

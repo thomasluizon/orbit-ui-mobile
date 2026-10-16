@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
@@ -164,8 +165,8 @@ function TimedBlock({
           BLOCK_HORIZONTAL_INSET / 2,
         width: colWidth / block.laneCount - BLOCK_HORIZONTAL_INSET,
         minWidth: BLOCK_MIN_WIDTH,
-        paddingVertical: 4,
-        paddingHorizontal: 4,
+        paddingVertical: SPACING.s4,
+        paddingHorizontal: SPACING.s4,
         borderRadius: 8,
         overflow: "hidden",
         justifyContent: "space-between",
@@ -204,8 +205,8 @@ function AllDayChip({ label, accessibilityLabel, onPress, tokens, fontScale, mor
   more?: boolean;
 }>) {
   return <InsetFocusPressable testID={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: 0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
-    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: 8, borderRadius: 8, backgroundColor: tokens.bgWell, borderWidth: 1, borderColor: tokens.hairline, justifyContent: 'center' }}>
+    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: SPACING.s0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
+    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: SPACING.s8, borderRadius: 8, backgroundColor: tokens.bgWell, borderWidth: 1, borderColor: tokens.hairline, justifyContent: 'center' }}>
       <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{label}</Text>
     </View>
   </InsetFocusPressable>;
@@ -593,9 +594,9 @@ function createStyles(tokens: Tokens) {
     wrap: {
       flex: 1,
       minHeight: 0,
-      paddingHorizontal: 16,
-      paddingTop: 0,
-      paddingBottom: 16,
+      paddingHorizontal: SPACING.s16,
+      paddingTop: SPACING.s0,
+      paddingBottom: SPACING.s16,
     },
     anyTimeLabel: {
       maxWidth: "100%",
@@ -626,7 +627,7 @@ function createStyles(tokens: Tokens) {
       borderBottomColor: tokens.hairline,
     },
     gutterAllDay: {
-      padding: 8,
+      padding: SPACING.s8,
       alignItems: "flex-end",
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
@@ -656,7 +657,7 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
-      paddingVertical: 8,
+      paddingVertical: SPACING.s8,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
       borderBottomWidth: 1,
@@ -684,8 +685,8 @@ function createStyles(tokens: Tokens) {
     allDayCell: {
       gap: 4,
       justifyContent: "center",
-      paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingVertical: SPACING.s8,
+      paddingHorizontal: SPACING.s4,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
       borderBottomWidth: 1,
@@ -714,7 +715,7 @@ function createStyles(tokens: Tokens) {
       width: 7,
       height: 7,
       borderRadius: 999,
-      marginLeft: -4,
+      marginLeft: -SPACING.s4,
       backgroundColor: tokens.primary,
     },
     nowBar: {
@@ -726,7 +727,7 @@ function createStyles(tokens: Tokens) {
       ...StyleSheet.absoluteFill,
       alignItems: "center",
       justifyContent: "center",
-      padding: 24,
+      padding: SPACING.s24,
     },
     emptyText: {
       fontFamily: "Geist_400Regular",

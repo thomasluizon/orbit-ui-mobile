@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Bell } from '@/components/ui/icons'
@@ -24,12 +27,12 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const t = useTranslations()
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const corner = countPlacement === 'corner'
-  const layout = corner ? 'grid w-[48px] place-items-center' : 'inline-flex min-w-[48px] items-center justify-center gap-[4px] px-[8px] py-[4px]'
+  const layout = corner ? 'grid w-[48px] place-items-center' : 'inline-flex min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'
   const content = <>
       <Bell size={24} strokeWidth={1.8} aria-hidden="true" />
       {count > 0 ? <span aria-hidden="true" data-notification-count=""
         className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-xs tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
-        style={{ borderRadius: 8, paddingInline: 4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
+        style={{ borderRadius: 8, paddingInline: SPACING.s4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
         {count > 9 ? '9+' : count}
       </span> : null}
   </>

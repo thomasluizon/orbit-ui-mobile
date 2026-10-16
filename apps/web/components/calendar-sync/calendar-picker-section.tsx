@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { CheckRow } from '@/components/ui/check-row'
@@ -50,7 +53,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       {isError && (
         <div
           className="flex items-center"
-          style={{ gap: 8, paddingTop: 4 }}
+          style={{ gap: 8, paddingTop: SPACING.s4 }}
           role="alert"
         >
           <span
@@ -75,7 +78,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
-            paddingTop: 4,
+            paddingTop: SPACING.s4,
           }}
         >
           {t('calendar.calendars.empty')}

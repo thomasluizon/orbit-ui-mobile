@@ -241,6 +241,16 @@ function flattenText(node: unknown): string {
 }
 
 describe('Hoje date boundaries', () => {
+  it.each([412, 840, 1352])('keeps the Android Hoje section gaps at %ipx', async (width) => {
+    const native = await import('react-native')
+    const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<TodayScreen />); await Promise.resolve() })
+    try {
+      const header = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-section-header')[0]!
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24, paddingBottom: 24 })
+    } finally { await TestRenderer.act(() => tree.update(<></>)); dimensions.mockRestore() }
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.focusCallback = null

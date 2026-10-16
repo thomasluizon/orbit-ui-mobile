@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { forwardRef, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -77,7 +78,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'column',
       gap: 24,
       overflow: 'hidden',
-      padding: 32,
+      padding: SPACING.s32,
       borderRadius: 20,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,

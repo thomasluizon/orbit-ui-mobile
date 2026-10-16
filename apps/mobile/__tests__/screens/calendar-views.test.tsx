@@ -679,7 +679,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
-  it.each([320, 412, 600, 840])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
+  it.each([320, 412, 600, 840, 1352])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
     let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };

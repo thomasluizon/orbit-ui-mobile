@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet, View } from 'react-native'
 import type { ReactNode } from 'react'
 import { NotificationBell } from './notification-bell'
@@ -10,4 +11,4 @@ export function RootNotificationHeader() {
   return <DestinationHeaderRow testID="root-notification-header"><NotificationBell /></DestinationHeaderRow>
 }
 
-const styles = StyleSheet.create({ row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48, paddingHorizontal: 16 } })
+const styles = StyleSheet.create({ row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48, paddingHorizontal: SPACING.s16 } })

@@ -2,7 +2,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, StyleSheet, View } from 'react-native'
+import { FlatList, StyleSheet, View, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError } from '@orbit/shared/utils'
@@ -638,6 +638,27 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it.each([412, 840, 1352])('renders the padding contract on Android Hoje at %ipx', async (width) => {
+    const native = await import('react-native')
+    const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    try {
+    replaySelection.isSelectMode = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const list = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'habit-list')[0]!
+    expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingHorizontal).toBe(16)
+    const row = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'habit-row')[0]!
+    expect(StyleSheet.flatten(row.props.style).paddingHorizontal ?? 0).toBe(0)
+    const resolvedStyle = (style: ViewStyle | ((state: { pressed: boolean }) => ViewStyle)) => StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+    const body = row.findAll((node: { type: unknown; props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); accessibilityRole?: string } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
+      && resolvedStyle(node.props.style ?? {}).paddingLeft === 8)[0]!
+    expect(resolvedStyle(body.props.style)).toMatchObject({ paddingLeft: 8, paddingVertical: 8 })
+    } finally { dimensions.mockRestore() }
   })
 
   it('keeps the Hoje habit list loading through 429 then renders the list', async () => {

@@ -10,7 +10,7 @@ export function GoalGroupLabel({ children, top = 4 }: Readonly<GoalGroupLabelPro
   return (
     <div
       style={{
-        padding: `${top}px 0 8px`,
+        padding: `${top}px var(--orbit-space-0) var(--orbit-space-8)`,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,

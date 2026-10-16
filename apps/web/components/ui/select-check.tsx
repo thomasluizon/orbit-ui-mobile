@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown } from '@/components/ui/icons'
 import { usePersonalTextContentRef } from '@/components/ui/personal-text-action'
@@ -56,9 +59,9 @@ function radioRowStyle(depth: number, selected: boolean, disabled: boolean) {
   return {
     gap: 12,
     minHeight: 52,
-    paddingBlock: 8,
+    paddingBlock: SPACING.s8,
     paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
-    paddingInlineEnd: 16,
+    paddingInlineEnd: SPACING.s16,
     background: disabled && selected ? 'rgba(var(--primary-rgb), 0.10)' : undefined,
     borderRadius: 'var(--r-well)',
     opacity: disabled ? 0.5 : 1,
@@ -113,7 +116,7 @@ function DisabledRadioRow({ label, textMode, accessibilityLabel, contentId, sele
   if (textMode !== 'personal') return <div role="radio" aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin flex min-w-0 items-center" style={style}>{children}</div>
   return <div className="flex min-w-0 items-center">
     <div className="relative min-w-0 flex-1">
-      <div role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin absolute inset-0" style={{ ...style, padding: 0 }} />
+      <div role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin absolute inset-0" style={{ ...style, padding: SPACING.s0 }} />
       <div ref={contentRef} className="flex min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{children}</div>
     </div>
     <button type="button" aria-label={label} aria-expanded={disclosed} aria-controls={contentId} onClick={onToggle} className="orbit-hover-text flex min-h-12 min-w-12 items-center justify-center rounded-[12px] p-2 hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><ChevronDown aria-hidden="true" size={20} strokeWidth={2} className={disclosed ? 'rotate-180' : undefined} /></button>

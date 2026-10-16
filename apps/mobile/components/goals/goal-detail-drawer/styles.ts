@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -13,7 +13,7 @@ export function createStyles(tokens: AppTokens) {
       alignSelf: 'flex-start',
       minHeight: TOUCH_TARGET_MIN,
       justifyContent: 'center',
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
     },
     retryButtonPressed: {
       backgroundColor: tokens.bgHover,
@@ -24,7 +24,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     actions: {
-      paddingBottom: 4,
+      paddingBottom: SPACING.s4,
     },
   })
 }

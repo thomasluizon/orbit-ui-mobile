@@ -63,7 +63,7 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
+  it.each([412, 840, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     const entries = makeCalendarDayCardEntries()
     expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])

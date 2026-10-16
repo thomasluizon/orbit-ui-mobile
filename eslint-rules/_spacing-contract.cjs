@@ -9,7 +9,10 @@ const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCas
 function renderSpacingCss() {
   const scale = Object.entries(definition.scale).map(([token, value]) => `  --orbit-space-${token.slice(1)}: ${value}px;`)
   const roles = Object.entries(definition.roles).map(([role, token]) => `  --padding-${kebab(role)}: var(--orbit-space-${token.slice(1)});`)
-  const utilities = Object.keys(definition.roles).map((role) => `  --spacing-${kebab(role)}: var(--padding-${kebab(role)});`)
+  const utilities = [
+    ...Object.values(definition.scale).map((value) => `  --spacing-${value / 4}: var(--orbit-space-${value});`),
+    ...Object.keys(definition.roles).map((role) => `  --spacing-${kebab(role)}: var(--padding-${kebab(role)});`),
+  ]
   return `:root {\n${[...scale, ...roles].join('\n')}\n}\n\n@theme inline {\n${utilities.join('\n')}\n}\n`
 }
 

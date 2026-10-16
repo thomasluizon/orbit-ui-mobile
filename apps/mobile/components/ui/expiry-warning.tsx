@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
@@ -186,8 +186,8 @@ function createStyles(tokens: AppTokensV2) {
       left: 0,
       right: 0,
       zIndex: zLayers.toast,
-      paddingTop: 48,
-      paddingHorizontal: 8,
+      paddingTop: SPACING.s48,
+      paddingHorizontal: SPACING.s8,
     },
     banner: {
       flexDirection: 'row',
@@ -198,8 +198,8 @@ function createStyles(tokens: AppTokensV2) {
       borderWidth: 1,
       borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s12,
+      paddingVertical: SPACING.s8,
       ...shadowsV2.shadow2,
     },
     text: {
@@ -222,8 +222,8 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingVertical: SPACING.s8,
+      paddingHorizontal: SPACING.s4,
     },
     actionText: {
       fontFamily: 'Geist_500Medium',

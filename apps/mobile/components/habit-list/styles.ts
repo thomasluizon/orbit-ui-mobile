@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -39,8 +39,8 @@ export function createStyles(tokens: AppTokens) {
 
   return StyleSheet.create({
     skeletonContainer: {
-      paddingTop: 8,
-      paddingHorizontal: 16,
+      paddingTop: SPACING.s8,
+      paddingHorizontal: PADDING.screenGutter,
       gap: 12,
     },
     skeletonCard: {
@@ -48,8 +48,8 @@ export function createStyles(tokens: AppTokens) {
       borderRadius: 20,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
+      paddingVertical: SPACING.s12,
+      paddingHorizontal: SPACING.s12,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
@@ -84,17 +84,17 @@ export function createStyles(tokens: AppTokens) {
     },
 
     sectionInset: {},
-    allDoneHeader: { paddingBottom: 24 },
+    allDoneHeader: { paddingBottom: PADDING.sectionGap },
     listContent: {
-      paddingHorizontal: 16,
+      paddingHorizontal: PADDING.screenGutter,
     },
-    drillControls: { gap: 8, paddingBottom: 24 },
+    drillControls: { gap: 8, paddingBottom: PADDING.sectionGap },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 0,
-      paddingTop: 8,
+      paddingHorizontal: SPACING.s0,
+      paddingTop: SPACING.s8,
     },
     drillBackBtn: {
       width: TOUCH_TARGET_MIN,
@@ -117,8 +117,8 @@ export function createStyles(tokens: AppTokens) {
     drillErrorWrap: {
       alignItems: 'center',
       gap: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 32,
+      paddingHorizontal: PADDING.screenGutter,
+      paddingVertical: SPACING.s32,
     },
     drillTitle: {
       fontFamily: 'Geist_500Medium',
@@ -132,7 +132,7 @@ export function createStyles(tokens: AppTokens) {
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
       color: tokens.fg3,
-      marginTop: 0,
+      marginTop: SPACING.s0,
     },
     drillErrorText: {
       fontFamily: 'Geist_400Regular',
@@ -150,7 +150,7 @@ export function createStyles(tokens: AppTokens) {
     drillEmptyWrap: {
       alignItems: 'flex-start',
       gap: 8,
-      paddingVertical: 8,
+      paddingVertical: SPACING.s8,
     },
   })
 }

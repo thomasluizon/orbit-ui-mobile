@@ -61,7 +61,7 @@ describe('Hoje group spacing', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([320, 412, 600, 1024, 1352].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
+  it.each([320, 412, 600, 840, 1024, 1352].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
     (['en', 'pt-BR'] as const).map((locale) => ({ width, mode, locale })),
   )))('separates Hoje groups at $width in $mode and $locale', async ({ width, mode, locale }) => {
     const messages = locale === 'en' ? en : ptBr

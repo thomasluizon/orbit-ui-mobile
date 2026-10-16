@@ -14,7 +14,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
   const t = useTranslations()
 
   return (
-    <div style={{ padding: '12px 16px 0' }}>
+    <div style={{ padding: "var(--orbit-space-12) var(--orbit-space-16) var(--orbit-space-0)" }}>
       <p
         style={{
           fontFamily: 'var(--font-sans)',

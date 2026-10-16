@@ -282,7 +282,7 @@ export function CreateGoalSheet({ open, onClose, initialHabitIds = [], onCreated
             />
           </div>
 
-          <div style={{ padding: '16px 0 0' }}>
+          <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
           </div>
 

@@ -1,6 +1,6 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -28,17 +28,17 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: createHabits, onConfirmed })
-  if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
+  if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: SPACING.s12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
   const rows = card.habits.map((habit) => ({
     id: habit.id,
     wrapLabel: true,
-    label: card.editingId === habit.id ? <TypedTextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    label: card.editingId === habit.id ? <TypedTextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: SPACING.s12 }} /> : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],
     proposed: card.results[habit.id] == null,
     irreversible: card.results[habit.id] == null,
     control: card.results[habit.id] == null ? (
-      <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: SPACING.s12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
     ) : undefined,
   }))
   return <><BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<>

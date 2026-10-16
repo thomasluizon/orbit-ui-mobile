@@ -115,7 +115,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
               if (root instanceof HTMLElement) root.focus()
               suggestion.onSelect()
             }}
-            className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-[12px] py-[12px] text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+            className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
           >
             <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
               {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
@@ -237,7 +237,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const sendIsAccent = canSend || props.state === 'sending'
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-[4px] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -263,7 +263,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-[8px] py-[12px] text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
+          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
         />}
 
         <ComposerControls props={props} />
@@ -342,7 +342,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
       tabIndex={-1}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-[16px]"
+      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
     >
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
         <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />

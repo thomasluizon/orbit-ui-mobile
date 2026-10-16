@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -207,7 +208,7 @@ function TodayScreenContent() {
   )
 
   const listHeader = (
-    <View style={styles.header}>
+    <View testID="today-section-header" style={styles.header}>
       {todayFocused ? (
         <TodayAstra
           today={date.today}
@@ -313,10 +314,10 @@ function TodayScreenContent() {
 
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
-  profileLoading: { gap: 24, padding: 16 },
+  profileLoading: { gap: 24, padding: SPACING.s16 },
   profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
-  header: { gap: 24, paddingBottom: 24 },
-  notice: { paddingHorizontal: 0 },
-  selectionTray: { paddingHorizontal: 16, paddingVertical: 12 },
+  header: { gap: PADDING.sectionGap, paddingBottom: PADDING.sectionGap },
+  notice: { paddingHorizontal: SPACING.s0 },
+  selectionTray: { paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
 })

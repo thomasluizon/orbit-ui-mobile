@@ -81,7 +81,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
     <ShellHeader><TodayHeaderActions {...props} /></ShellHeader>
     <div className="flex min-w-0 flex-col gap-6">
       {props.beforeDate}
-      <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
+      <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-4 py-1">
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
           <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>

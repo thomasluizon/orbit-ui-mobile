@@ -8,12 +8,12 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const EXPIRY_ACTION_STYLE = {
   minHeight: TOUCH_TARGET_MIN,
-  margin: '-12px 0',
+  margin: "calc(-1 * var(--orbit-space-12)) var(--orbit-space-0)",
   fontFamily: 'var(--font-sans)',
   fontSize: 14,
   fontWeight: 500,
   color: 'var(--fg-1)',
-  padding: '0 8px',
+  padding: "var(--orbit-space-0) var(--orbit-space-8)",
   transitionDuration: 'var(--dur-hover-control), 150ms',
   transitionTimingFunction: 'var(--ease-standard), var(--ease-out)',
   textDecoration: 'underline',
@@ -41,7 +41,7 @@ export function ExpiryWarning() {
       <div
         className="flex items-center rounded-[14px]"
         style={{
-          padding: '8px 12px',
+          padding: "var(--orbit-space-8) var(--orbit-space-12)",
           marginTop: 'calc(var(--safe-top) + 0.25rem)',
           marginLeft: 'max(10px, var(--safe-left))',
           marginRight: 'max(10px, var(--safe-right))',

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
-import { TOUCH_TARGET_MIN, BUTTON_SIZES } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, BUTTON_SIZES } from '@orbit/shared/theme'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface AstraAllowancePanelProps {
@@ -33,7 +33,7 @@ export function AstraAllowancePanel({
       className="flex flex-col bg-[var(--bg-card)]"
       style={{
         gap: 12,
-        padding: 16,
+        padding: SPACING.s16,
         borderRadius: 20,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}

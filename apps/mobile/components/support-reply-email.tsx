@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -46,7 +47,7 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
 
 const styles = StyleSheet.create({
   field: { gap: 8, minWidth: 0 },
-  control: { minHeight: 48, width: '100%', paddingHorizontal: 16, paddingVertical: 12, gap: 8, borderRadius: radius.md, overflow: 'hidden' },
+  control: { minHeight: 48, width: '100%', paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, gap: 8, borderRadius: radius.md, overflow: 'hidden' },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, flexShrink: 1 },
   email: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, width: '100%' },

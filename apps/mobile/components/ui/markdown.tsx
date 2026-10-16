@@ -165,7 +165,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
       lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
-    paragraph: thread ? { marginVertical: 0, paddingVertical: 0 } : { marginVertical: 4 },
+    paragraph: thread ? { marginVertical: SPACING.s0, paddingVertical: SPACING.s0 } : { marginVertical: SPACING.s4 },
     strong: { color: heading, fontFamily: 'Geist_500Medium' },
     em: { color: body, fontStyle: 'italic' },
     link: { color: link, textDecorationLine: 'underline', flexShrink: 1 },
@@ -185,9 +185,9 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
       color: heading,
       fontFamily: 'Geist_400Regular',
       fontSize: 17,
-      marginVertical: 4,
+      marginVertical: SPACING.s4,
     },
-    list: { marginVertical: 4 },
+    list: { marginVertical: SPACING.s4 },
     li: {
       color: body,
       fontFamily: 'Geist_400Regular',
@@ -203,13 +203,13 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
     },
     code: {
       backgroundColor: tokens.bgElev,
-      padding: 12,
+      padding: SPACING.s12,
       borderRadius: radius.sm,
     },
     blockquote: {
       borderLeftWidth: 2,
       borderLeftColor: tokens.hairline,
-      paddingLeft: 12,
+      paddingLeft: SPACING.s12,
     },
   }
 }

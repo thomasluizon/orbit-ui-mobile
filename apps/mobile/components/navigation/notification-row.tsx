@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { useState } from 'react'
@@ -78,7 +78,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
 
 const styles = StyleSheet.create({
   wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
-  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: TOUCH_TARGET_MIN, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: SPACING.s12, minHeight: TOUCH_TARGET_MIN, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
   deleteButton: { width: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, flexShrink: 0, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 4, borderColor: 'transparent', overflow: 'hidden' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },

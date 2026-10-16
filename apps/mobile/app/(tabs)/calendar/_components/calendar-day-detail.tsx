@@ -3,7 +3,7 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
-import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { PADDING, SPACING, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -225,7 +225,7 @@ export function CalendarDayDetail({
 
             return (
               <Pressable key={`${selectedDate}:${entry.habitId}`} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={({ pressed }) => [styles.habitDisclosure, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }}>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                     <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
                     <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{value}</Text>
@@ -273,7 +273,7 @@ export function CalendarDayDetail({
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: 24, paddingVertical: 24 },
+    container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: PADDING.cardInset, paddingVertical: PADDING.cardInset },
     copyBlock: { gap: 4 },
     rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },

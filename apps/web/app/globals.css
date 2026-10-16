@@ -746,12 +746,12 @@
   --radius-full: 999px;
 
   /* Spacing rhythm (8px base grid) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
+  --space-1: var(--orbit-space-4);
+  --space-2: var(--orbit-space-8);
+  --space-3: var(--orbit-space-12);
+  --space-4: var(--orbit-space-16);
+  --space-6: var(--orbit-space-24);
+  --space-8: var(--orbit-space-32);
 
   /* Composite transitions */
   --transition-interactive: var(--dur-fast) var(--ease-standard);

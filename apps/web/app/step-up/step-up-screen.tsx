@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -432,7 +435,7 @@ function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}
-      <div className="flex flex-col items-start" style={{ gap: 8, paddingTop: 8 }}>
+      <div className="flex flex-col items-start" style={{ gap: 8, paddingTop: SPACING.s8 }}>
         <p style={{ color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.55 }}>{t('neverShare')}</p>
         <QuietLink onClick={onCancel}>{t('cancel')}</QuietLink>
       </div>

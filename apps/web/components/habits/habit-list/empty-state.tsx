@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -16,8 +16,8 @@ const SECONDARY_ACTION_STYLE = {
   fontWeight: 500,
   minHeight: TOUCH_TARGET_MIN,
   minWidth: TOUCH_TARGET_MIN,
-  padding: '12px 16px',
-  margin: '-4px 0',
+  padding: "var(--orbit-space-12) var(--orbit-space-16)",
+  margin: "calc(-1 * var(--orbit-space-4)) var(--orbit-space-0)",
   textDecoration: 'underline',
   textUnderlineOffset: 4,
   textDecorationThickness: 1,
@@ -56,7 +56,7 @@ export function HabitListEmptyState({
   return (
     <div
       className="flex flex-col items-center justify-center text-center"
-      style={{ padding: '64px 32px', gap: 16 }}
+      style={{ padding: "var(--orbit-space-64) var(--orbit-space-32)", gap: 16 }}
     >
       <OrbitMark size={96} />
       <div
@@ -87,7 +87,7 @@ export function HabitListEmptyState({
       {showActions ? (
         <div
           className="flex w-full max-w-[300px] flex-col items-stretch"
-          style={{ marginTop: 8, gap: 12 }}
+          style={{ marginTop: SPACING.s8, gap: 12 }}
         ><ActionRow>
           {actionLabel && (
             <PillButton
@@ -131,7 +131,7 @@ export function HabitListEmptyState({
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
   return (
-    <div className="flex flex-col items-start" style={{ gap: 8, paddingBlock: 8 }}>
+    <div className="flex flex-col items-start" style={{ gap: 8, paddingBlock: SPACING.s8 }}>
       <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
         {t('habits.allDoneToday')}
       </p>

@@ -1,5 +1,5 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import { ListRow } from '@/components/ui/list-row'
 import { usePreferenceControls } from '@/app/use-preference-controls'
@@ -46,7 +46,7 @@ function buildPreferenceRows(
             accessibilityState={{ selected }}
             accessibilityLabel={t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
             onPress={() => controls.handleThemeModeChange(mode)}
-            style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : pressed ? tokens.bgHover : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: tokens.hairline })}
+            style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s12, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : pressed ? tokens.bgHover : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: tokens.hairline })}
           >
             <Text style={{ color: selected ? tokens.fg1 : tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}</Text>
           </Pressable>

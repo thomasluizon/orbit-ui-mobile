@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 
@@ -15,7 +18,7 @@ export function ShareCardQr({ value, size }: Readonly<ShareCardQrProps>) {
   useEffect(() => {
     let active = true
     QRCode.toDataURL(value, {
-      margin: 0,
+      margin: SPACING.s0,
       width: size * 4,
       color: { dark: '#020618', light: '#ffffff' },
     })

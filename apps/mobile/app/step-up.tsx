@@ -1,5 +1,5 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -514,12 +514,12 @@ const styles = StyleSheet.create({
   note: {
     alignItems: 'flex-start',
     gap: 8,
-    paddingTop: 8,
+    paddingTop: SPACING.s8,
   },
   quietAction: {
     borderRadius: 999,
     overflow: 'hidden',
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.s12,
     minHeight: TOUCH_TARGET_MIN,
     justifyContent: 'center',
   },

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { AppTokens } from './styles'
 
 interface ReminderPermissionNoticeProps {
@@ -33,14 +33,14 @@ export function ReminderPermissionNotice({ visible, tokens, onPress }: Readonly<
           {
             minHeight: TOUCH_TARGET_MIN,
             justifyContent: 'center',
-            paddingHorizontal: 8,
-            paddingVertical: 8,
+            paddingHorizontal: SPACING.s8,
+            paddingVertical: SPACING.s8,
             borderRadius: 12,
             overflow: 'hidden',
           },
           (hovered || pressed) && { backgroundColor: tokens.bgHover },
           focused && { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 },
-          !visible && { position: 'absolute', width: 1, height: 1, minHeight: 1, paddingHorizontal: 0, paddingVertical: 0, overflow: 'hidden', backgroundColor: 'transparent' },
+          !visible && { position: 'absolute', width: 1, height: 1, minHeight: 1, paddingHorizontal: SPACING.s0, paddingVertical: SPACING.s0, overflow: 'hidden', backgroundColor: 'transparent' },
         ]}
       >
         <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 18, color: tokens.fg2 }}>

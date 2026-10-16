@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { useReducedMotion } from 'react-native-reanimated'
-import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
   createAccountScopedHabitDetailWriteQueue,
@@ -151,7 +151,7 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
 function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; error: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   if (!visible) return null
-  if (!loading && (error || !metrics || metrics.totalCompletions === 0)) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
+  if (!loading && (error || !metrics || metrics.totalCompletions === 0)) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: SPACING.s16 }]}>{t('habits.detail.noDataYet')}</Text>
   const values = [
     { label: t(isBadHabit ? 'habits.detail.daysFree' : 'habits.detail.currentStreak'), value: String(metrics?.currentStreak ?? '') },
     { label: t('habits.detail.longestStreak'), value: String(metrics?.longestStreak ?? '') },
@@ -371,12 +371,12 @@ async function waitForQueuedDetailLog(response: unknown, toggleKey: string): Pro
 
 function CompletionBoundaryReason({ disabled, reason, tokens }: Readonly<{ disabled: boolean; reason?: string; tokens: ReturnType<typeof createTokensV2> }>) {
   if (!disabled || !reason) return null
-  return <Text style={[styles.muted, { color: tokens.fg2, marginHorizontal: 16, marginBottom: 16 }]}>{reason}</Text>
+  return <Text style={[styles.muted, { color: tokens.fg2, marginHorizontal: SPACING.s16, marginBottom: SPACING.s16 }]}>{reason}</Text>
 }
 
 function LogDateError({ visible, tokens }: Readonly<{ visible: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
-  return <View accessibilityLiveRegion="polite">{visible ? <Text style={[styles.muted, { color: tokens.statusBadText, marginHorizontal: 16 }]}>{t('habits.detail.logDateUnavailable')}</Text> : null}</View>
+  return <View accessibilityLiveRegion="polite">{visible ? <Text style={[styles.muted, { color: tokens.statusBadText, marginHorizontal: SPACING.s16 }]}>{t('habits.detail.logDateUnavailable')}</Text> : null}</View>
 }
 
 function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   reminderHeading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   reminderRow: { flexDirection: 'row', alignItems: 'center', minHeight: 32, gap: 8 },
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
-  stripSection: { gap: 8, paddingTop: 24 },
+  stripSection: { gap: 8, paddingTop: SPACING.s24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
   content: { width: '100%', maxWidth: 620, gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
@@ -669,16 +669,16 @@ const styles = StyleSheet.create({
   renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
   renameFill: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  titleInput: { borderBottomWidth: 2, padding: 0 },
+  titleInput: { borderBottomWidth: 2, padding: SPACING.s0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },
-  dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
+  dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: SPACING.s12 },
+  childReason: { alignSelf: 'flex-end', paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statCard: { padding: 24, borderRadius: 20 },
+  statCard: { padding: SPACING.s24, borderRadius: 20 },
   statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },
-  statRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingVertical: 8 },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingVertical: SPACING.s8 },
   statLabel: { flexGrow: 1, flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   statValueSlot: { marginStart: 'auto', flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
   statValueLine: { flexDirection: 'row', alignItems: 'baseline' },
@@ -686,11 +686,11 @@ const styles = StyleSheet.create({
   statValueSizer: { height: 0, opacity: 0, fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, fontWeight: '600' },
   statValue: { minWidth: 0, textAlign: 'right', fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
   statLoadingValue: { fontSize: 14, lineHeight: 18.2 },
-  headerMetadata: { paddingTop: 12 },
+  headerMetadata: { paddingTop: SPACING.s12 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { minWidth: 0, maxWidth: '100%', borderWidth: 1, borderRadius: 8 },
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
-  rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },
+  rescueCard: { gap: 12, padding: SPACING.s24, borderRadius: 20, borderWidth: 1 },
   rescueContent: { gap: 12 },
   rescueHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rescueValues: { gap: 4 },

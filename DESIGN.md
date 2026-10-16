@@ -414,7 +414,7 @@ style literals, including style factories and conditional values, without a viol
 |---|---|---|---|
 | screen gutter, inside the centred content column at every width | `PADDING.screenGutter` | `SPACING.s16` | 16 |
 | card and panel inner padding | `PADDING.cardInset` | `SPACING.s24` | 24 |
-| drawn compact records: habit panels, goal cards, achievement cards, StatTile and allowance card | `PADDING.recordInset` | `SPACING.s16` | 16 |
+| drawn compact records: goal cards, achievement cards, StatTile and allowance card | `PADDING.recordInset` | `SPACING.s16` | 16 |
 | section title to content | `PADDING.sectionTitleGap` | `SPACING.s12` | 12 |
 | sections on Hoje and Calendário | `PADDING.sectionGap` | `SPACING.s24` | 24 |
 | sections on Progresso and Perfil | `PADDING.sectionStackGap` | `SPACING.s32` | 32 |
@@ -428,6 +428,8 @@ enlarging every compact record to the panel inset. A padded column owns its gutt
 column-placed ListRow shares that content edge and extends only its interaction fill. Sheet
 callers leave the outer content inset to the primitive; the stepped date-grid adapter remains
 defined in Overlay. Safe areas and scroll clearance are added by their platform owners.
+Habit-family panels are unpadded wrappers in the Hoje drawing; their body and trailing controls
+own the inset, so the wrapper does not add the panel inset again.
 
 | between | clearance |
 |---|---|

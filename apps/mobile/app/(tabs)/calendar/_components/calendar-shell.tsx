@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions, type PressableProps } from 'react-native'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -53,7 +54,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   return <View style={styles.picker}>
     {choosingYear ? <YearPicker selectedYear={year} tokens={tokens} onSelectYear={onSelectYear} /> :
       <View style={styles.months}>
-        {Array.from({ length: 12 }, (_, month) => <View key={month} style={{ width: fontScale > 1.3 ? '50%' : '33.333333%', padding: 4 }}><Pressable accessibilityRole="button"
+        {Array.from({ length: 12 }, (_, month) => <View key={month} style={{ width: fontScale > 1.3 ? '50%' : '33.333333%', padding: SPACING.s4 }}><Pressable accessibilityRole="button"
           accessibilityLabel={formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'long' })}
           accessibilityState={{ selected: month === currentMonth.getMonth() && year === currentMonth.getFullYear() }}
           style={({ pressed }) => [styles.month, month === currentMonth.getMonth() && year === currentMonth.getFullYear() && styles.selectedMonth, pressed && styles.pressed]} onPress={() => onSelectMonth(month, year)}>
@@ -115,10 +116,10 @@ export function CalendarLegend({ loggableLabel, fullLabel, partialLabel, noneLab
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    header: { gap: 16, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+    header: { gap: 16, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
     navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' },
-    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
+    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
     title: { flexShrink: 1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, color: tokens.fg1 },
     span: { fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
@@ -127,7 +128,7 @@ function createStyles(tokens: Tokens) {
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
     picker: { gap: 16, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
-    month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
+    month: { minHeight: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
     legend: { gap: 16 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     legendLabel: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },

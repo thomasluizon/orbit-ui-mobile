@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
@@ -43,7 +46,7 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
           fontSize: 16,
           color: 'var(--fg-2)',
           lineHeight: 1.5,
-          margin: 0,
+          margin: SPACING.s0,
           textWrap: 'pretty',
         }}
       >
@@ -172,7 +175,7 @@ function ListBlock({
       className="flex flex-col rounded-[16px]"
       style={{
         gap: 8,
-        padding: '12px 16px',
+        padding: "var(--orbit-space-12) var(--orbit-space-16)",
         background: 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
@@ -199,7 +202,7 @@ function ListBlock({
                 color="var(--status-bad)"
                 aria-hidden="true"
                 className="shrink-0"
-                style={{ marginTop: 0 }}
+                style={{ marginTop: SPACING.s0 }}
               />
             ) : (
               <Check
@@ -208,7 +211,7 @@ function ListBlock({
                 color="var(--status-done)"
                 aria-hidden="true"
                 className="shrink-0"
-                style={{ marginTop: 0 }}
+                style={{ marginTop: SPACING.s0 }}
               />
             )}
             <span

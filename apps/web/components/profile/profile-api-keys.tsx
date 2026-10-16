@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { type ReactNode } from 'react'
@@ -170,7 +173,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
         <p className="text-sm font-medium text-[var(--status-overdue-text)]">
           {t('orbitMcp.keyCreatedWarning')}
         </p>
-        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: 16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
+        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: SPACING.s16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
           <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
           <PillButton size="sm" variant="ghost" onClick={() => void copyKey()}>
             {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
@@ -447,7 +450,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
           ) : null}
           {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
-          <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
+          <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: SPACING.s16 }}>
             <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
             <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
             <p className="break-all font-mono text-[12px] text-[var(--fg-2)]">{getMcpEndpointUrl(accountEventApiBase())}</p>

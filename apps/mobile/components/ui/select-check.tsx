@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
@@ -82,7 +83,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <InsetFocusPressable selectionRingWidth={1.5}
       {...navigationProps}
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  row: { minHeight: 52, paddingRight: 16, paddingVertical: 8, borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { minHeight: 52, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
   leading: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 20.8 },

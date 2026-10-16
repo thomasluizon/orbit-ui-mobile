@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -324,7 +325,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
 const styles = StyleSheet.create({
   body: {
-    paddingBottom: 8,
+    paddingBottom: SPACING.s8,
     gap: 16,
   },
   modalDescription: {
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: SPACING.s16,
     gap: 8,
   },
   boxLabel: {
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
   destructiveHero: {
     alignItems: 'center',
     gap: 16,
-    paddingTop: 4,
+    paddingTop: SPACING.s4,
   },
   destructiveHeroCircle: {
     width: 80,

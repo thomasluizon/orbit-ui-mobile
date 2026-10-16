@@ -1,4 +1,4 @@
-
+import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native'
@@ -80,7 +80,7 @@ export function WrappedPlayer({
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}>
-        <View testID="wrapped-header" style={[styles.headerRow, { paddingTop: Math.max(8, insets.top) }]}>
+        <View testID="wrapped-header" style={[styles.headerRow, { paddingTop: Math.max(SPACING.s8, insets.top) }]}>
           <View style={styles.headerCopy}>
             <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t(`wrapped.player.eyebrow.${period}`)}</Text>
             <Text style={[styles.headerWindow, { color: tokens.fg3 }]}>{windowLabel}</Text>
@@ -195,7 +195,7 @@ function PlayerPager(props: Readonly<PlayerPagerProps>) {
     backLabel: props.backLabel,
   }
   return (
-    <View testID="wrapped-pager" style={[styles.pager, { paddingBottom: props.bottomInset + 16 }]}>
+    <View testID="wrapped-pager" style={[styles.pager, { paddingBottom: props.bottomInset + SPACING.s16 }]}>
       {props.isLast ? (
         <Pager
           {...pagerProps}

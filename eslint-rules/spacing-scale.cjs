@@ -1,5 +1,5 @@
 // ## Analysis boundary
-// Local style identifiers resolve only write-free const object literals and logical
+// Gap and inset identifiers resolve only write-free const object literals and logical
 // expressions. Unknown logical guards keep both operands reachable. Mutated styles
 // stay silent because their value at the JSX use cannot be established here.
 
@@ -44,7 +44,7 @@ const UTILITY_TO_PROP = new Map([
 
 const TAILWIND_STEP_PX = 4
 
-const CLASS_TOKEN = /^(-?)([a-z]+(?:-[xy])?)-(\[[^\]]+\]|\d+(?:\.\d+)?)$/
+const CLASS_TOKEN = /^(-?)([a-z]+(?:-[xy])?)-(\[[^\]]+\]|px|\d+(?:\.\d+)?)$/
 
 function stripVariants(token) {
   let depth = 0
@@ -150,6 +150,7 @@ module.exports = {
     const styleIdentifiers = []
     const styleSpreadObjects = []
     const reportedLiterals = new WeakSet()
+    const reportedClassNodes = new WeakSet()
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -460,6 +461,8 @@ module.exports = {
     }
 
     function scanClassString(node, text, offset) {
+      if (reportedClassNodes.has(node)) return
+      reportedClassNodes.add(node)
       const canFix = node.type === 'Literal'
       let cursor = 0
       for (const raw of text.split(/(\s+)/)) {
@@ -473,7 +476,7 @@ module.exports = {
         const [, sign, utility, value] = match
         const prop = UTILITY_TO_PROP.get(utility)
         if (!prop) continue
-        const magnitude = value.startsWith('[') ? pxFromArbitrary(value) : Number(value) * TAILWIND_STEP_PX
+        const magnitude = value === 'px' ? 1 : value.startsWith('[') ? pxFromArbitrary(value) : Number(value) * TAILWIND_STEP_PX
         if (magnitude === null || !Number.isFinite(magnitude)) continue
         const px = sign === '-' ? -magnitude : magnitude
         if (isOnScale(px, prop)) continue
@@ -536,6 +539,16 @@ module.exports = {
     }
 
     return {
+      Literal(node) {
+        if (typeof node.value === 'string' && /\b[pm][xytrblse]?-(?:\[|px|\d)/.test(node.value)) {
+          scanClassString(node, node.value, node.range[0] + 1)
+        }
+      },
+      TemplateElement(node) {
+        if (/\b[pm][xytrblse]?-(?:\[|px|\d)/.test(node.value.raw)) {
+          scanClassString(node, node.value.raw, node.range[0] + 1)
+        }
+      },
       Property(node) {
         const name = propertyName(node)
         if (!name || !/^(padding|margin)/.test(name) || !BOX_PROPS.has(name) || reportedLiterals.has(node.value)) return

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from "react-native";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -29,8 +29,8 @@ export function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       gap: 24,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s16,
     },
     aiDisclaimer: {
       fontFamily: 'Geist_400Regular',
@@ -41,7 +41,7 @@ export function createStyles(tokens: Tokens) {
       color: tokens.fg3,
     },
     messageList: {
-      padding: 16,
+      padding: SPACING.s16,
       gap: 16,
     },
   });

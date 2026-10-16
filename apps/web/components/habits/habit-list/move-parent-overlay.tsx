@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useMemo, useState } from 'react'
 import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
@@ -37,7 +40,7 @@ interface MoveParentOverlayProps {
 const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
-  margin: 0,
+  margin: SPACING.s0,
   fontFamily: 'var(--font-mono)',
   fontSize: 12,
   fontWeight: 500,
@@ -187,8 +190,8 @@ export function MoveParentOverlay({
           <p
             className="text-center"
             style={{
-              margin: 0,
-              padding: '16px 0',
+              margin: SPACING.s0,
+              padding: "var(--orbit-space-16) var(--orbit-space-0)",
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--fg-3)',
