@@ -13,6 +13,7 @@ import type { TodayInitialHabits } from '@/app/(app)/today-initial-data'
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { useTodayHabitsData } from '@/app/(app)/use-today-habits-data'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
+import { useUIStore } from '@/stores/ui-store'
 
 const navigationState = vi.hoisted(() => ({ dateParam: null as string | null }))
 
@@ -192,6 +193,29 @@ describe('Today preload hydration', () => {
     vi.stubGlobal('fetch', fetchMock)
     navigationState.dateParam = null
     localStorage.clear()
+    useUIStore.setState({ activeFilters: {} })
+  })
+
+  it('uses the selected frequency instead of the unfiltered server preload', async () => {
+    useUIStore.getState().setFilters({ frequencyUnit: 'Month' })
+    const monthlyHabit = makeHabit({ id: 'monthly', title: 'Monthly result', frequencyUnit: 'Month' })
+    fetchMock.mockResolvedValue({ ok: true, json: async () => paginated([monthlyHabit]) })
+    const hydrated = await hydrateAcrossDays({
+      serverNow: new Date('2026-08-29T12:00:00'),
+      browserNow: new Date('2026-08-29T12:00:00'),
+      initialToday: '2026-08-29',
+      initialHabits: {
+        queryKey: todayQueryKey('2026-08-29', true),
+        items: [makeHabit({ title: 'Unfiltered seed' })],
+        totalCount: 1,
+      },
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(hydrated.recoverableError).not.toHaveBeenCalled()
+    expect(hydrated.container).toHaveTextContent('Monthly result')
+    expect(hydrated.container).not.toHaveTextContent('Unfiltered seed')
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('frequencyUnit=Month')
+    await act(async () => hydrated.root.unmount())
   })
 
   afterEach(() => {

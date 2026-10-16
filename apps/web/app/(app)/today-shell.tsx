@@ -1,6 +1,9 @@
 'use client'
 
 import { useId, useRef, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
+import { HABIT_FREQUENCY_FILTER_OPTIONS, toggleHabitFrequencyFilter } from '@orbit/shared/utils/habit-frequency-filter'
+import { useUIStore } from '@/stores/ui-store'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
@@ -44,7 +47,11 @@ export interface TodayDateControlProps {
 }
 
 function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
+  const t = useTranslations()
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
+  const setFilters = useUIStore((state) => state.setFilters)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [frequencyMenu, setFrequencyMenu] = useState(false)
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
@@ -55,20 +62,27 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       <button type="button" aria-label={props.searchLabel} onClick={props.onSearch}
         className={`${DATE_ICON_BUTTON_CLASS_NAME} lg:hidden`}><Search size={20} aria-hidden="true" /></button>
       <button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
-        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => setMenuOpen((open) => !open)}>
+        aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => { setFrequencyMenu(false); setMenuOpen((open) => !open) }}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <div className="lg:hidden"><NotificationBell /></div>
     </div>
-    <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
-      items={[
+    <Menu key={frequencyMenu ? 'frequency' : 'options'} id={menuId} open={menuOpen} anchorRef={menuAnchorRef}
+      title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
+      shortTitle={frequencyMenu ? t('habits.frequencyFilter') : props.menuHeading}
+      items={frequencyMenu ? HABIT_FREQUENCY_FILTER_OPTIONS.map((option) => ({
+        id: option.id, label: t(option.labelKey), checked: frequencyUnit === option.value,
+      })) : [
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
         { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },
         { id: 'refresh', label: props.refreshLabel, icon: 'refresh', disabled: props.isFetching },
         { id: 'completed', label: props.completedLabel, icon: props.showCompleted ? 'eye-off' : 'eye' },
+        { id: 'frequency', label: t('habits.frequencyFilter'), icon: 'adjustments-horizontal' },
       ]}
       onClose={() => setMenuOpen(false)} onSelect={(id) => {
-        if (id === 'select') props.onToggleSelect()
+        if (frequencyMenu) setFilters({ frequencyUnit: toggleHabitFrequencyFilter(frequencyUnit, id) })
+        else if (id === 'frequency') { setFrequencyMenu(true); setMenuOpen(true) }
+        else if (id === 'select') props.onToggleSelect()
         else if (id === 'collapse') props.onToggleCollapse()
         else if (id === 'refresh') props.onRefresh()
         else if (id === 'completed') props.onToggleCompleted()
