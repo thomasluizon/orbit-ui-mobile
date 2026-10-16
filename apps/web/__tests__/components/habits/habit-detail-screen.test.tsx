@@ -1449,6 +1449,17 @@ describe('HabitDetailScreen', () => {
     expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
+  it('copies the full description from habit details', async () => {
+    const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
+    mocks.detail = { ...makeDetail(), description }
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(document.querySelector('[data-habit-detail-description] button')!)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.detail.copyDescription' })) })
+    expect(writeText).toHaveBeenCalledWith(description)
+  })
+
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
     mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
     mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }

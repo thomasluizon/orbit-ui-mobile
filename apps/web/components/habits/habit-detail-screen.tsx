@@ -1,5 +1,7 @@
 'use client'
 
+import { DescriptionCopyButton } from './description-copy-button'
+
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
@@ -209,7 +211,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
         </div>
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] border border-[var(--hairline-strong)]"><PersonalTextDetails lines={1} textStyle={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>{tag.name}</PersonalTextDetails></div>)}</div></div> : null}
-      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} aria-controls="habit-description" onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span id="habit-description" className={`block ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button></div> : null}
+      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} aria-controls="habit-description" onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span id="habit-description" className={`block ${descriptionOpen ? 'select-text whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button>{descriptionOpen ? <DescriptionCopyButton key={habit.description} description={habit.description} /> : null}</div> : null}
     </header>
   )
 }

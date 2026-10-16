@@ -37,6 +37,9 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
+const clipboard = vi.hoisted(() => ({ setString: vi.fn(), getString: vi.fn() }))
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+
 const TestRenderer = require('react-test-renderer')
 
 interface TestNode {
@@ -1743,6 +1746,21 @@ describe('HabitDetailScreen', () => {
     expect(gap).toBe(0)
     const body = tree.root.findByType('ScrollView')
     expect(StyleSheet.flatten(body.props.contentContainerStyle)).toMatchObject({ gap: 24 })
+  })
+
+  it('copies the full description from habit details', async () => {
+    const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
+    mocks.detail = { ...makeDetail(), description }
+    clipboard.getString.mockResolvedValue(description)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: description }).props.onPress())
+    const copy = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.copyDescription')
+    expect(copy).toBeDefined()
+    await TestRenderer.act(async () => { await copy!.props.onPress() })
+    expect(clipboard.setString).toHaveBeenCalledWith(description)
+    expect(clipboard.getString).toHaveBeenCalled()
+    expect(tree.root.findByProps({ accessibilityLabel: description }).findByType('Text').props.selectable).toBe(true)
   })
 
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {

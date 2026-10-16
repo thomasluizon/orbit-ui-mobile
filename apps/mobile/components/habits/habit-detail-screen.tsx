@@ -1,3 +1,4 @@
+import { DescriptionCopyButton } from './description-copy-button'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
@@ -219,7 +220,8 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><PersonalTextDetails lines={1} textStyle={{ ...styles.tagText, color: tokens.fg2 }}>{tag.name}</PersonalTextDetails></View>)}</View></View> : null}
-      {habit.description ? <Pressable testID="habit-detail-description" style={[styles.headerMetadata, { minHeight: TOUCH_TARGET_MIN }]} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)}><Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
+      {habit.description ? <Pressable testID="habit-detail-description" style={[styles.headerMetadata, { minHeight: TOUCH_TARGET_MIN }]} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)}><Text selectable={descriptionOpen} numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
+      {habit.description && descriptionOpen ? <DescriptionCopyButton key={habit.description} description={habit.description} /> : null}
     </>
   )
 }
