@@ -7,6 +7,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { createMockAchievement } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
@@ -33,10 +34,15 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () =
 const clients: QueryClient[] = []
 afterEach(() => { for (const client of clients.splice(0)) client.clear() })
 
-function renderLayoutProgress(locale: 'en' | 'pt-BR', fullyEmpty = false) {
+function renderLayoutProgress(locale: 'en' | 'pt-BR', fullyEmpty = false, withAchievements = false) {
   const profile = { ...progressGoalsEmptyProfile, language: locale,
     ...(fullyEmpty ? { currentStreak: 0, longestStreak: 0, totalXp: 0 } : {}) }
-  const gamification = fullyEmpty ? gamificationProfileFixture : progressGoalsEmptyGamification
+  const gamification = withAchievements ? {
+    ...progressGoalsEmptyGamification,
+    achievements: ['first_orbit', 'liftoff', 'mission_control'].map((id, index) => createMockAchievement({ id, isEarned: index === 0 })),
+    achievementsEarned: 1,
+    achievementsTotal: 3,
+  } : fullyEmpty ? gamificationProfileFixture : progressGoalsEmptyGamification
   vi.mocked(fetchJson).mockImplementation(async (path) => {
     if (path === API.profile.get) return profile
     if (path === API.gamification.profile) return gamification
@@ -136,4 +142,35 @@ describe('Progress empty label geometry from the real page', () => {
       }
     },
   )
+
+  it.each([412, 600, 840, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+    'fills responsive achievement columns at $width in $locale', async ({ width, locale }) => {
+      const words = locale === 'en' ? en : ptBR
+      const { container } = renderLayoutProgress(locale, false, true)
+      await waitFor(() => expect(container.querySelectorAll('[data-achievement-id]')).toHaveLength(3))
+      const page = await browser.newPage({ viewport: { width, height: 2000 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => {
+          const tiles = [...document.querySelectorAll('[data-achievement-id]')]
+          const grid = tiles[0]!.parentElement!.getBoundingClientRect()
+          return { width: grid.width, tiles: tiles.map((tile) => {
+            const box = tile.getBoundingClientRect()
+            return { left: box.left - grid.left, top: box.top, width: box.width, height: box.height, overflow: tile.scrollWidth > tile.clientWidth }
+          }) }
+        })
+        const columns = width === 412 ? 1 : 2
+        expect(new Set(geometry.tiles.map((tile) => tile.left)).size).toBe(columns)
+        expect(geometry.tiles[0]!.left).toBe(0)
+        expect(geometry.tiles[columns - 1]!.left + geometry.tiles[columns - 1]!.width).toBeCloseTo(geometry.width, 0)
+        for (const tile of geometry.tiles) expect(tile.overflow).toBe(false)
+        if (columns === 2) expect(geometry.tiles[0]!.height).toBe(geometry.tiles[1]!.height)
+        const chip = page.getByText(words.progressScreen.achievements.earnedLabel, { exact: true })
+        await markRequiredLabels(chip)
+        await expectLabelsFit(page, chip.locator('..'))
+      } finally { await page.close() }
+    },
+  )
+
 })

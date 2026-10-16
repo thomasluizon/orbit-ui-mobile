@@ -13,6 +13,7 @@ import {
   type DragEndParams,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 import {
@@ -467,7 +468,7 @@ function AchievementTile({ achievement, tokens, width }: Readonly<{ achievement:
           <Text style={[styles.achievementName, { color: achievement.isEarned ? tokens.fg1 : tokens.fg2 }]}>{name}</Text>
           <Text style={[styles.achievementBody, { color: tokens.fg3 }]}>{t(`gamification.achievements.${achievement.id}.description`)}</Text>
         </View>
-        {achievement.isEarned ? <Badge>{t('progressScreen.achievements.earnedLabel')}</Badge> : null}
+        {achievement.isEarned ? <View style={styles.earnedBadge}><Badge>{t('progressScreen.achievements.earnedLabel')}</Badge></View> : null}
       </View>
       {hasProgress ? <View style={styles.achievementProgress}><ProgressBar value={current} max={target} label={t('progressScreen.achievements.progressLabel', { name, current, target })} /><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.achievements.progress', { current, target })}</Text></View> : null}
     </View>
@@ -481,8 +482,9 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
-  const { width } = useWindowDimensions()
-  const [gridWidth, setGridWidth] = useState(0)
+  const { width, fontScale } = useWindowDimensions()
+  const contentWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH) - styles.sections.paddingHorizontal * 2
+  const columns = Math.max(1, Math.floor((contentWidth + styles.achievementGrid.gap) / (260 * fontScale + styles.achievementGrid.gap)))
   if (!gamificationAvailable) {
     return (
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
@@ -501,7 +503,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
   const levelTitle = t(getGamificationLevelTitleKey(profile.level))
-  const tileWidth = width >= 768 && gridWidth > 0 ? (gridWidth - styles.achievementGrid.gap) / 2 : '100%'
+  const tileWidth = (contentWidth - styles.achievementGrid.gap * (columns - 1)) / columns
   return (
     <>
       <View style={styles.xpSummary} testID="progress-xp-summary">
@@ -509,7 +511,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={achievements.filter((item) => item.category === category).length === 1 ? '100%' : tileWidth} />)}</View></View>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
       </Section>
     </>
   )
@@ -647,9 +649,10 @@ const styles = StyleSheet.create({
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: 16 },
+  earnedBadge: { flexShrink: 0 },
   achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16 },
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  achievementHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, achievementCopy: { flexGrow: 1, flexShrink: 1, flexBasis: 120, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
   xpSummary: { gap: 12, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
 })
