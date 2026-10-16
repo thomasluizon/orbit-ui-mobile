@@ -538,7 +538,7 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
       <div className="flex flex-wrap items-center gap-3">
         <AchievementMark achievement={achievement} name={name} />
         <div className="flex min-w-0 flex-[1_1_120px] flex-col gap-1">
-          <p className={`text-[14px] font-medium leading-[19px] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
+          <p className={`text-[14px] font-medium leading-[1.4] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
           <p className="text-pretty text-[12px] leading-[17px] text-[var(--fg-3)]">{t(`gamification.achievements.${achievement.id}.description`)}</p>
         </div>
         {achievement.isEarned ? <div className="shrink-0"><Badge>{t('progressScreen.achievements.earnedLabel')}</Badge></div> : null}
