@@ -238,23 +238,22 @@ export function Markdown({ children, tone = "default", copyableBlocks = false }:
     () => createMarkedStyles(tokens, colors, tone),
     [tokens, colors, tone],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text, copyableBlocks), [colors, styles.text, copyableBlocks])
+  const prose = useMemo(() => ({
+    value: children,
+    renderer: new SafeLinkRenderer(colors, styles.text, copyableBlocks),
+  }), [children, colors, styles.text, copyableBlocks])
   const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
+  const theme = useMemo(() => ({
+    colors: { text: colors.body, link: colors.link, code: colors.body, border: tokens.hairline },
+  }), [colors.body, colors.link, tokens.hairline])
 
   return (
     <RNMarkdown
-      value={children}
+      value={prose.value}
       styles={styles}
-      renderer={renderer}
+      renderer={prose.renderer}
       tokenizer={tokenizer}
-      theme={{
-        colors: {
-          text: colors.body,
-          link: colors.link,
-          code: colors.body,
-          border: tokens.hairline,
-        },
-      }}
+      theme={theme}
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,

@@ -64,6 +64,7 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
     width: iconOnly ? Math.max(minimumHeight ?? sizeSpec.height, sizeSpec.height) : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
     paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
     paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
+    paddingBlock: 4,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
   }

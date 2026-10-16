@@ -261,6 +261,24 @@ describe('Astra block copying', () => {
     expect(container.querySelector('[data-bubble-role="user"]')).toHaveClass('select-text')
   })
 
+  it('preserves a copied block and keyboard focus when more reply prose streams in', async () => {
+    vi.useFakeTimers()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    const content = '```\nkeep me\n```\n\nA reply'
+    const { getByRole, rerender } = render(<Markdown content={content} copyableBlocks />)
+    const button = getByRole('button')
+    const region = getByRole('status')
+    button.focus()
+    await act(async () => { fireEvent.click(button) })
+    rerender(<Markdown content={`${content} that continues.`} copyableBlocks />)
+    expect(getByRole('button')).toBe(button)
+    expect(getByRole('status')).toBe(region)
+    expect(button).toHaveFocus()
+    expect(button).toHaveAccessibleName('chat.blockCopy.copied')
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copy')
+  })
+
   it('announces a failed clipboard write without claiming success and permits retry', async () => {
     const writeText = vi.fn().mockRejectedValueOnce(new Error('denied')).mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })

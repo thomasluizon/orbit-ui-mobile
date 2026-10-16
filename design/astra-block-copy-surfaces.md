@@ -13,6 +13,6 @@ The conversation keeps text selectable. Only fenced and indented code blocks in 
 | User message | Same message and Markdown owners | Same message and Markdown owners | Code and prose stay selectable with no copy control. |
 | Non-conversation descriptions | `components/ui/markdown.tsx` | `components/ui/markdown.tsx` | Copying is opt-in at the Astra reply owner; description callers retain their renderer. |
 
-Both locale catalogs own the control's label, copied confirmation and retry message. Confirmation changes the visible label and updates a stable polite live region. Errors remain visible until retry. The confirmation resets after five seconds.
+Both locale catalogs own the control's label, copied confirmation and retry message. Confirmation changes the visible label and updates a stable polite live region. Errors remain visible until retry. The confirmation resets after five seconds. Appending streamed prose retains each unchanged block control, its live region and its feedback; web keyboard focus stays on that control.
 
 Web Chromium Vitest cases use the production stylesheet, theme variables and fonts at 320 and 1352, both themes and locales, with normal and doubled text. Native Vitest drives the actual Markdown parser and message composition; it does not measure Android text or prove TalkBack delivery. Device inspection remains part of the whole-redesign review.

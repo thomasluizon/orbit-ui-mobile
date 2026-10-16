@@ -438,6 +438,32 @@ describe('Astra block copying', () => {
     }
   })
 
+  it('preserves copied feedback when more reply prose streams in', () => {
+    vi.useFakeTimers()
+    renderSelection.current = true
+    const content = '```\nkeep me\n```\n\nA reply'
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      const message = makeHeldHabitMessage({ role: 'ai', content, pendingOperations: [] })
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
+      const button = tree!.root.findAllByType('Pressable')[0]
+      const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
+      TestRenderer.act(() => { button.props.onPress() })
+      TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message }} />) })
+      expect(tree!.root.findAllByType('Pressable')[0]).toBe(button)
+      TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: `${content} that continues.` }} />) })
+      expect(tree!.root.findAllByType('Pressable')[0]).toBe(button)
+      expect(tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toBe(region)
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+      vi.useRealTimers()
+    }
+  })
+
   it('never gives user code blocks a control', () => {
     renderSelection.current = true
     let tree: ReturnType<typeof TestRenderer.create>
