@@ -39,14 +39,19 @@ const sidebarStorage: StateStorage = {
   },
 }
 
-export const useShellStore = create<ShellState>()(persist((set) => ({
+function setShellState(update: Partial<ShellState> | ((state: ShellState) => Partial<ShellState>)) {
+  if (!useShellStore.persist.hasHydrated()) void useShellStore.persist.rehydrate()
+  useShellStore.setState(update)
+}
+
+export const useShellStore = create<ShellState>()(persist((): ShellState => ({
   sidebarCollapsed: false,
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleSidebar: () => setShellState((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   lastDestination: 'hoje',
-  setLastDestination: (lastDestination) => set({ lastDestination }),
+  setLastDestination: (lastDestination) => setShellState({ lastDestination }),
   paletteOpen: false,
-  setPaletteOpen: (value) => set({ paletteOpen: value }),
-  togglePalette: () => set((state) => ({ paletteOpen: !state.paletteOpen })),
+  setPaletteOpen: (value) => setShellState({ paletteOpen: value }),
+  togglePalette: () => setShellState((state) => ({ paletteOpen: !state.paletteOpen })),
 }), {
   name: 'orbit-shell-store',
   version: 1,
