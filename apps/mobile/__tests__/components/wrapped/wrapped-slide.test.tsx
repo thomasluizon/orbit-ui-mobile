@@ -192,13 +192,14 @@ describe('mobile WrappedSlide', () => {
     expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: width >= 1024 ? 44 : 34 })
   })
 
-  it('centres the 60px completions figure without a page eyebrow', () => {
+  it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {
     const completions = buildWrappedSlides(recap).find((slide) => slide.id === 'completions')!
     const tree = renderSlide(completions)
     const page = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-completions')[0]!
     const figure = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-figure')[0]!
-    expect(StyleSheet.flatten(page.props.style)).toMatchObject({ alignItems: 'center', paddingHorizontal: 16 })
+    expect(StyleSheet.flatten(page.props.style)).toMatchObject({ alignItems: 'flex-start', paddingHorizontal: 16 })
     expect(StyleSheet.flatten(figure.props.style)).toMatchObject({ fontSize: 60 })
+    expect(StyleSheet.flatten(figure.props.style)).not.toHaveProperty('textAlign', 'center')
     expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.completions.eyebrow')).toHaveLength(0)
   })
 

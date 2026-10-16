@@ -60,8 +60,8 @@ describe('Avisos content edge in Chromium', () => {
           lastWidth: list.lastElementChild!.getBoundingClientRect().width }
       }, words.common.back)
       expect(Math.abs(geometry.rowLeft - geometry.backLeft - 8)).toBeLessThanOrEqual(0.5)
-      expect(geometry.listWidth).toBe(Math.min(width, 740))
-      expect(geometry.firstWidth).toBe(Math.min(width, 740) - 32)
+      expect(geometry.listWidth).toBe(width < 1024 ? Math.min(width, 740) : 592)
+      expect(geometry.firstWidth).toBe(width < 1024 ? Math.min(width, 740) - 32 : 560)
       expect(geometry.lastWidth).toBe(geometry.firstWidth)
     } finally { await page.close() }
   })

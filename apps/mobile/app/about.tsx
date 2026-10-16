@@ -88,7 +88,7 @@ function ProfileAccountFact({
 
 export default function AboutScreen() {
   const { width } = useWindowDimensions()
-  const contentFrameStyle = useContentFrameStyle()
+  const contentFrameStyle = useContentFrameStyle(620)
   const { t } = useTranslation()
   const pageEnd = useShellPageEnd()
   const router = useRouter()

@@ -82,6 +82,11 @@ function UpgradeContent({
   )
 }
 
+function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 652 {
+  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
+  return isPitch ? 652 : 560
+}
+
 export default function UpgradeScreen() {
   const clearance = useShellScrollerClearance()
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
@@ -160,7 +165,7 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
-  const contentFrameStyle = useContentFrameStyle()
+  const contentFrameStyle = useContentFrameStyle(upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus)))
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

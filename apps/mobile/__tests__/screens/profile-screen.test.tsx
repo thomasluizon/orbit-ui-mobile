@@ -691,8 +691,8 @@ describe('ProfileScreen', () => {
       const measured = measureProfileRow(tree.toJSON(), width, 1)
       for (const testID of ['profile-settings-group-you', 'profile-settings-group-ending']) {
         const box = measured.boxes.find((box) => box.testID === testID)!
-        expect(box.left).toBe((width - Math.min(width, 740)) / 2 + 16)
-        expect(box.width).toBe(Math.min(width, 740) - 32)
+        expect(box.left).toBe(16)
+        expect(box.width).toBe(width < 1024 ? width - 32 : 560)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
@@ -725,9 +725,9 @@ describe('ProfileScreen', () => {
       scroller.insertChild(content, 0)
       content.insertChild(firstRow, 0)
       column.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
-      expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe((width - Math.min(width, 740)) / 2 + 16)
-      expect(content.getComputedWidth()).toBe(Math.min(width, 740))
-      expect(firstRow.getComputedWidth()).toBe(Math.min(width, 740) - 32)
+      expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe(16)
+      expect(content.getComputedWidth()).toBe(width < 1024 ? width : 592)
+      expect(firstRow.getComputedWidth()).toBe(width < 1024 ? width - 32 : 560)
       const back = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
         node.type === 'Pressable' && node.props.accessibilityLabel === 'common.backToProfile')[0]!
       let header = back.parent!

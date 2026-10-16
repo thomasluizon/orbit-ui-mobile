@@ -2192,7 +2192,7 @@ describe('HabitDetailScreen', () => {
         expect(geometry.family).toContain('Space Grotesk')
         expect(geometry.size).toBe(width < 640 ? '22px' : '28px')
         expect(geometry.weight).toBe('500')
-        expect(geometry.contentWidth).toBe(Math.min(width, 740) - 32)
+        expect(geometry.contentWidth).toBe(Math.min(width - 32, 620))
         expect(geometry.headerInset).toBe(geometry.columnInset)
         const rename = title.getByRole('button', { name: habitTitle, exact: true })
         await rename.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))

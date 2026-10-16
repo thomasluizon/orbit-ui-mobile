@@ -123,7 +123,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     }
   }
 
-  it.each([412, 1200, 1600])('centres the cover inside the shared cap at %ipx', async (width) => {
+  it.each([412, 1200, 1600])('centres the drawn cover frame and keeps its content at the start edge at %ipx', async (width) => {
     const rendered = renderPage()
     const page = await browser.newPage({ viewport: { width, height: 900 } })
     try {
@@ -133,14 +133,14 @@ describe('WrappedPage cover geometry in Chromium', () => {
         const heading = document.querySelector('h1')!.getBoundingClientRect()
         const start = [...document.querySelectorAll('button')].at(-1)!.getBoundingClientRect()
         return { width: frame.width, centre: frame.left + frame.width / 2,
-          headingCentre: heading.left + heading.width / 2, startWidth: start.width,
-          startCentre: start.left + start.width / 2 }
+          headingLeft: heading.left, startWidth: start.width,
+          startLeft: start.left }
       })
-      expect(geometry.width).toBe(Math.min(width, 740))
+      expect(geometry.width).toBe(Math.min(width, 900))
       expect(geometry.centre).toBe(width / 2)
-      expect(geometry.headingCentre).toBeCloseTo(width / 2, 0)
+      expect(geometry.headingLeft).toBe((width - geometry.width) / 2 + 24)
       expect(geometry.startWidth).toBeLessThanOrEqual(360)
-      expect(geometry.startCentre).toBeCloseTo(width / 2, 0)
+      expect(geometry.startLeft).toBe(geometry.headingLeft)
     } finally { await page.close() }
   })
 

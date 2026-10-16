@@ -65,7 +65,7 @@ describe('habit detail content edge', () => {
       column.insertChild(content, 0)
       viewport.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
       expect(content.getComputedLeft()).toBe(16)
-      expect(content.getComputedWidth()).toBe(column.getComputedWidth() - 32)
+      expect(content.getComputedWidth()).toBe(Math.min(column.getComputedWidth() - 32, 620))
       expect(scroller.getComputedLeft() + column.getComputedLeft()).toBe((width - column.getComputedWidth()) / 2)
     } finally {
       viewport.freeRecursive()
@@ -76,6 +76,7 @@ describe('habit detail content edge', () => {
 })
 
 it.each([412, 1200, 1600].flatMap((width) => [false, true].map((profileLoading) => ({ width, profileLoading }))))('fills the loading calendar at $width with profile loading $profileLoading', async ({ width, profileLoading }) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   state.profileLoading = profileLoading
   state.loading = true
   let tree!: GeometryTree
@@ -84,8 +85,8 @@ it.each([412, 1200, 1600].flatMap((width) => [false, true].map((profileLoading) 
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width, height: 915 })
     const grid = boxes.get('month-grid-7-columns')!
     expect(grid).toBeDefined()
-    expect(grid.width).toBe(Math.min(width, 740) - 32)
-    expect(grid.left + grid.width / 2).toBe(width / 2)
+    expect(grid.width).toBe(Math.min(width - 32, 620))
+    expect(grid.left).toBe((width - Math.min(width, 740)) / 2 + 16)
     for (let row = 0; row < 6; row++) expect(boxes.get(`month-grid-row-${row}`)!.width).toBe(grid.width)
   } finally { state.loading = false; state.profileLoading = false; await act(() => tree.unmount()) }
 })

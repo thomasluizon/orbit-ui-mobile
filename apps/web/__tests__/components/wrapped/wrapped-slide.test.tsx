@@ -181,12 +181,12 @@ describe('WrappedSlide', () => {
     expect(screen.getByRole('img', { name: 'dates.daysShort.friday: 0' })).toHaveTextContent('0')
   })
 
-  it('centres the 60px completions figure without a page eyebrow', () => {
+  it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {
     const completions = buildWrappedSlides(recap).find((slide) => slide.id === 'completions')!
     renderSlide(completions)
     const page = screen.getByTestId('wrapped-slide-completions')
-    expect(page).toHaveClass('items-center', 'text-center')
-    expect(page).not.toHaveClass('items-start', 'text-start')
+    expect(page).toHaveClass('items-start', 'text-start')
+    expect(page).not.toHaveClass('items-center', 'text-center')
     const figure = page.querySelector('[data-wrapped-figure="primary"]')
     expect(figure).toHaveStyle({ fontSize: '60px', fontWeight: '600' })
     expect(page).not.toHaveTextContent('wrapped.slides.completions.eyebrow')

@@ -34,20 +34,20 @@ it.each([412, 1200, 1600])('centres standalone flow content and bounds its pinne
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each([412, 1200, 1600])('centres the Wrapped cover and limits its primary action at %ipx', async (width) => {
+it.each([412, 1200, 1600])('keeps the Wrapped cover content at the centred column start and limits its primary action at %ipx', async (width) => {
   let tree!: GeometryTree
   await act(() => { tree = create(<View style={{ flex: 1 }}><WrappedCover tokens={tokens} period="month" state="ready" onStart={noop} onRetry={noop} onSelectPeriod={noop} /></View>) as GeometryTree })
   try {
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.accessibilityRole === 'header' ? 'heading' : host.props.testID === 'button-primary-md' ? 'start' : undefined, { width, height: 900 })
     const heading = boxes.get('heading')!
-    expect(heading.left + heading.width / 2).toBe(width / 2)
+    expect(heading.left).toBe((width - Math.min(width, 740)) / 2 + 24)
     const start = boxes.get('start')!
     expect(start.width).toBeLessThanOrEqual(360)
-    expect(start.left + start.width / 2).toBe(width / 2)
+    expect(start.left).toBe(heading.left)
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each([412, 1200, 1600])('centres a Wrapped figure inside the content cap at %ipx', async (width) => {
+it.each([412, 1200, 1600])('starts a Wrapped figure inside the centred content cap at %ipx', async (width) => {
   let tree!: GeometryTree
   await act(() => { tree = create(<View style={{ flex: 1 }}><WrappedSlide slide={activeDays} recap={recap} period="month" tokens={tokens} shareRef={null} shareError={false} savedFileName={null} /></View>) as GeometryTree })
   try {
@@ -55,7 +55,7 @@ it.each([412, 1200, 1600])('centres a Wrapped figure inside the content cap at %
     const slide = boxes.get('wrapped-slide-activeDays')!
     const figure = boxes.get('wrapped-figure')!
     expect(slide.width).toBe(Math.min(width, 740))
-    expect(figure.left + figure.width / 2).toBe(width / 2)
+    expect(figure.left).toBe((width - slide.width) / 2 + 16)
     expect(figure.top).toBeGreaterThan(300)
   } finally { await act(() => tree.unmount()) }
 })

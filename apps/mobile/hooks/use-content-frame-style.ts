@@ -1,10 +1,14 @@
-import { StyleSheet, type ViewStyle } from 'react-native'
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { StyleSheet, useWindowDimensions, type ViewStyle } from 'react-native'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
-export function useContentFrameStyle(): ViewStyle {
-  return styles.frame
+export function useContentFrameStyle(cap: 560 | 620 | 652 = 560): ViewStyle {
+  const { width } = useWindowDimensions()
+  return {
+    ...styles.frame,
+    maxWidth: width >= WIDE_DESKTOP_BREAKPOINT ? cap + 2 * styles.frame.paddingHorizontal : undefined,
+  }
 }
 
 const styles = StyleSheet.create({
-  frame: { width: '100%', minWidth: 0, maxWidth: SHELL_CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16 },
+  frame: { width: '100%', minWidth: 0, alignSelf: 'flex-start', paddingHorizontal: 16 },
 })

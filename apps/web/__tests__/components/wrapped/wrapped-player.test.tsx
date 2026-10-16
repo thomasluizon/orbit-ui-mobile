@@ -124,7 +124,7 @@ describe('WrappedPlayer', () => {
   it('uses the wide Wrapped frame for the player', () => {
     renderPlayer()
     const frame = screen.getByTestId('wrapped-frame')
-    expect(frame).toHaveClass('max-w-[740px]')
+    expect(frame).toHaveClass('max-w-[900px]')
     expect(frame).not.toHaveClass('md:max-w-[480px]')
   })
 

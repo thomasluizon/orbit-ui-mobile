@@ -301,7 +301,7 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testID'>>) {
   return (
     <View style={[styles.slide, styles.streakSlide]} testID="wrapped-slide-streak">
       <StreakRing tokens={props.tokens} reducedMotion={props.reducedMotion} />
-      <View style={{ alignItems: 'center', gap: 8 }}>
+      <View style={{ alignItems: 'flex-start', gap: 8 }}>
         <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, props.reducedMotion)} style={[styles.streakNumeral, motionFinalStyle, { color: props.tokens.fg1 }]}>{props.value}</Animated.Text>
         <Animated.Text nativeID="wrapped-motion-part-2" entering={enter(2, props.reducedMotion)} style={[styles.label, motionFinalStyle, { color: props.tokens.fg2 }]}>{props.label}</Animated.Text>
         <Animated.Text nativeID="wrapped-motion-part-3" entering={enter(3, props.reducedMotion)} style={[styles.caption, motionFinalStyle, { color: props.tokens.fg3 }]}>{props.caption}</Animated.Text>

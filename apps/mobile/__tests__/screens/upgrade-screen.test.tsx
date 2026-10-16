@@ -1,4 +1,4 @@
-import { StyleSheet, type AppStateStatus } from 'react-native'
+import { StyleSheet, View, type AppStateStatus } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
@@ -110,6 +110,11 @@ vi.mock('react-native', async (importOriginal) => {
     Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) },
   }
 })
+
+vi.mock('react-native-safe-area-context', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-native-safe-area-context')>(),
+  SafeAreaView: (props: React.ComponentProps<typeof View>) => <View {...props} />,
+}))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
@@ -237,9 +242,10 @@ describe('UpgradeScreen', () => {
         markCards(host)
         const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
         expect(cards.length).toBeGreaterThan(0)
+        const cap = plan === 'free' ? 652 : 560
         for (const card of [cards[0]!, cards.at(-1)!]) {
           expect(card.left).toBe((width - Math.min(width, 740)) / 2 + 16)
-          expect(card.width).toBe(Math.min(width, 740) - 32)
+          expect(card.width).toBe(width < 1024 ? Math.min(width, 740) - 32 : cap)
         }
       } finally { TestRenderer.act(() => tree.unmount()) }
     },

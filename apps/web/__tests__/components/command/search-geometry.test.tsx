@@ -294,8 +294,8 @@ describe('search result geometry in Chromium', () => {
         }
       })
       expect(measured.rows).toHaveLength(count)
-      expect(measured.field.left).toBe((width - Math.min(width, 740)) / 2 + 16)
-      expect(measured.field.right).toBe((width - Math.min(width, 740)) / 2 + Math.min(width, 740) - 16)
+      expect(measured.field.left).toBe(16)
+      expect(measured.field.right).toBe(Math.min(width, 620) - 16)
       expect(measured.documentWidth).toBe(width)
       for (const row of measured.rows) {
         expect(row.left, JSON.stringify(measured)).toBe(measured.field.left)

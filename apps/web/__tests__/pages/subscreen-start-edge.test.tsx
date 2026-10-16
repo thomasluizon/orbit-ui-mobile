@@ -61,6 +61,17 @@ vi.mock('@/lib/actions/support', () => ({ sendSupportMessage: vi.fn() }))
 
 const cases = ['about', 'support', 'support-success', 'free', 'lapsed', 'stripe', 'play', 'loading', 'load-failed', 'offline'] as const
 
+function contentFrameWidth(state: typeof cases[number], width: number, available: number) {
+  if (state.startsWith('support')) return width < 768 ? available : Math.min(available, 620)
+  if (width < 1024) return available
+  if (state === 'about') return Math.min(available, 652)
+  return Math.min(available, (state === 'free' || state === 'offline' ? 652 : 560) + 32)
+}
+
+function supportFormWidth(width: number, available: number) {
+  return width < 768 ? available - 32 : Math.min(available - 32, 520)
+}
+
 describe('sub-screen start edges in isolated Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -139,8 +150,8 @@ describe('sub-screen start edges in isolated Chromium', () => {
           expect.soft(geometry.column.width).toBe(Math.min(width, 740))
           expect.soft(geometry.column.left + geometry.column.width / 2).toBe(width / 2)
           expect.soft(geometry.box.left).toBe(geometry.scroller.left)
-          expect.soft(geometry.box.width).toBe(geometry.available)
-          if (state === 'support') expect(geometry.body.width).toBe(geometry.available - 32)
+          expect.soft(geometry.box.width).toBe(contentFrameWidth(state, width, geometry.available))
+          if (state === 'support') expect(geometry.body.width).toBe(supportFormWidth(width, geometry.available))
         } finally { await page.close(); view.unmount(); client.clear() }
       })
     }

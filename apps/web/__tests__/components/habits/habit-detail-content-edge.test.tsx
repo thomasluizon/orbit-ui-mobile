@@ -55,7 +55,7 @@ describe('habit detail frame content edge in Chromium', () => {
       })
       expect(Math.abs(geometry.contentLeft - geometry.backLeft)).toBeLessThanOrEqual(0.5)
       expect(geometry.contentWidth).toBeGreaterThan(0)
-      expect(geometry.contentWidth).toBe(geometry.availableWidth - 32)
+      expect(geometry.contentWidth).toBe(Math.min(geometry.availableWidth - 32, 620))
       if (!isError) expect(geometry.calendarWidth).toBe(geometry.contentWidth)
     } finally {
       await page.close()

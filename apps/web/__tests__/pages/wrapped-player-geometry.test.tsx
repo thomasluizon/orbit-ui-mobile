@@ -224,7 +224,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const back = (await page.getByRole('button', { name: en.common.backToProfile }).boundingBox())!
       expect(back.y).toBe(insets.top + 4)
-      expect(back.x).toBe((width - Math.min(width, 740)) / 2 + insets.left + 16)
+      expect(back.x).toBe((width - Math.min(width, 900)) / 2 + insets.left + 16)
       expect(back.x + back.width).toBeLessThanOrEqual(width - insets.right)
       expect(container.querySelector('[role="dialog"]')).toBeNull()
     } finally { await page.close() }

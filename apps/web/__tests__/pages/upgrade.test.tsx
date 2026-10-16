@@ -282,7 +282,7 @@ describe('UpgradePage', () => {
         expect(geometry.fontWeight).toBe('500')
         expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
         expect(geometry.scrollerMeasure).toBe(width - 4)
-        expect(geometry.measure).toBe(Math.min(geometry.scrollerMeasure, 740) - 32)
+        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 652)
       } finally { await page.close() }
     })
   })

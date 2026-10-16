@@ -2,7 +2,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
@@ -85,8 +85,8 @@ for (const locale of ['pt-BR', 'en'] as const) {
   it.each([412, 600, 840, 1100, 1352])(`lays out the drawn Agenda rows with real ${locale} messages at %i`, async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
-    await act(() => { tree = TestRenderer.create(<View style={{ width }}><CalendarAgendaView startDate={parseAPIDate('2026-10-05')} dayMap={dayMap}
-      displayTime={createTimeDisplay(locale, true).displayTime} todayKey="2026-10-05" isLoading={false} loadingLabel={i18n.t('common.loading')} /></View>) })
+    await act(() => { tree = TestRenderer.create(<CalendarAgendaView startDate={parseAPIDate('2026-10-05')} dayMap={dayMap}
+      displayTime={createTimeDisplay(locale, true).displayTime} todayKey="2026-10-05" isLoading={false} loadingLabel={i18n.t('common.loading')} />) })
     const rows = tree!.root.findAllByType(ListRow)
     expect(rows.map((row) => row.props.title)).toEqual([titles[2], titles[3], titles[1], titles[0]])
     expect(rows.map((row) => row.props.value)).toEqual([i18n.t('calendar.timeGrid.noSetTime'), i18n.t('calendar.timeGrid.noSetTime'), '08:00', '21:00'])
@@ -104,8 +104,8 @@ for (const locale of ['pt-BR', 'en'] as const) {
     const measured = measureProfileRow(tree!.toJSON(), width, 1)
     const days = measured.boxes.filter((box) => box.testID === 'calendar-agenda-day')
     for (const box of [days[0]!, days.at(-1)!]) {
-      expect(box.left).toBe((width - Math.min(width, 740)) / 2 + 16)
-      expect(box.width).toBe(Math.min(width, 740) - 32)
+      expect(box.left).toBe(16)
+      expect(box.width).toBe(width < 1024 ? width - 32 : 560)
     }
     const headings = measured.texts.filter((text) => text.label.includes('outubro') || text.label.includes('October'))
     expect(headings[0]!.label).toBe(locale === 'pt-BR' ? 'Hoje, segunda-feira, 5 de outubro' : 'Today, Monday, October 5')

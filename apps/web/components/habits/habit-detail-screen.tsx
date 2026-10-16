@@ -438,7 +438,7 @@ function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Rea
 function HabitDetailFrame({ header, children }: Readonly<{ header: React.ReactNode; children: React.ReactNode }>) {
   return <>
     <ShellHeader>{header}</ShellHeader>
-    <div data-habit-detail-content="" className="orbit-content-frame flex min-h-full flex-col gap-6 pt-6">{children}</div>
+    <div data-habit-detail-content="" className="w-full max-w-[652px] px-4 flex min-h-full flex-col gap-6 pt-6">{children}</div>
   </>
 }
 

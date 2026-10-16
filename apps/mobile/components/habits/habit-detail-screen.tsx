@@ -406,8 +406,8 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       else router.replace(date ? { pathname: '/(tabs)', params: { date } } : '/(tabs)')
     }} />}>
       {isError
-        ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('habits.detail.retry')}</PillButton>} />
-        : <View accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }} style={styles.profileLoading}>
+        ? <View style={styles.content}><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('habits.detail.retry')}</PillButton>} /></View>
+        : <View accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }} style={[styles.content, styles.profileLoading]}>
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
             <HistoryLoading />
@@ -586,8 +586,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const childUnavailableReason = t(childUnavailableReasonKey)
 
   const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || allHabitsQuery.isLoading || detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data} onBack={back} />
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></FlowShell>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></View></FlowShell>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></View></FlowShell>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data, dateStr)
     .childrenByParent.get(habit.id) ?? [])
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   stripSection: { gap: 8, paddingTop: 24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  content: { width: '100%', gap: 24 },
+  content: { width: '100%', maxWidth: 620, gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16 },
   surface: { gap: 8 },

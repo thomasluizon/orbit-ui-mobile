@@ -218,7 +218,7 @@ function SlideShell({ children, testId, gap = 8 }: Readonly<SlideShellProps>) {
   return (
     <div
       data-testid={testId}
-      className="flex flex-1 flex-col items-center justify-center px-4 py-6 text-center lg:px-16 lg:py-12"
+      className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
       style={{ gap }}
     >
       {children}
@@ -313,7 +313,7 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testId'>>) {
           />
         </svg>
       </motion.div>
-      <div className="flex flex-col items-center" style={{ gap: 8 }}>
+      <div className="flex flex-col items-start" style={{ gap: 8 }}>
         <motion.span data-testid="wrapped-motion-part" data-wrapped-figure="primary"
           {...motionProps(1, props.reducedMotion)} style={streakNumeralStyle}>
           {props.value}
@@ -390,7 +390,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
   return (
     <div
       data-testid="wrapped-slide-share"
-      className="flex flex-1 flex-col items-center justify-center px-4 py-6 text-center lg:px-16 lg:py-12"
+      className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
       style={{ gap: 16 }}
     >
       <motion.h2 data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={titleStyle}>

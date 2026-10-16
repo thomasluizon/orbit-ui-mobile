@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   action: { alignSelf: 'center', width: '100%', maxWidth: 740, padding: 16 },
   wideAction: { maxWidth: 392 },
-  content: { alignSelf: 'center', width: '100%', padding: 16, gap: 24 },
+  content: { alignSelf: 'flex-start', width: '100%', maxWidth: 592, padding: 16, gap: 24 },
   origin: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   originText: { flex: 1, fontSize: 14, lineHeight: 21, fontFamily: 'Geist_400Regular' },
 })
