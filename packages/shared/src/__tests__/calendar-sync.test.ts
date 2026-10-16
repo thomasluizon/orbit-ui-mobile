@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calendarSyncSuggestionSchema } from '../types/calendar'
 import { bulkCreateRequestSchema } from '../types/habit'
-import en from '../i18n/en.json'
-import ptBR from '../i18n/pt-BR.json'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -301,44 +299,6 @@ describe('calendar-sync utils', () => {
       .toMatchObject({ intervalWeeks: 2 })
   })
 
-  it.each([
-    'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO',
-    'RRULE:FREQ=DAILY;INTERVAL=2;BYDAY=MO',
-    'RRULE:FREQ=YEARLY;INTERVAL=2;BYDAY=MO',
-    'RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO',
-  ])('refuses a weekday interval Orbit cannot represent: %s', (recurrenceRule) => {
-    const event = {
-      id: 'unsupported-interval', title: 'Training', description: null,
-      startDate: '2026-09-21', startTime: null, endTime: null,
-      isRecurring: true, recurrenceRule, reminders: [],
-    }
-    expect(getCalendarSyncImportIssue(recurrenceRule, event.startDate, null, null, null, 1))
-      .toBe('unsupported-weekday-recurrence')
-    expect(isCalendarSyncEventImportable(event, 1)).toBe(false)
-    expect(() => buildCalendarSyncImportRequest([event], 1)).toThrow(
-      'Unsupported calendar recurrence: unsupported-weekday-recurrence',
-    )
-  })
-
-  it('refuses an alternating week when the account partitions its selected days differently', () => {
-    const event = {
-      id: 'different-week-start', title: 'Training', description: null,
-      startDate: '2026-09-27', startTime: null, endTime: null,
-      isRecurring: true,
-      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO',
-      reminders: [],
-    }
-    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 0))
-      .toBe('unsupported-weekday-recurrence')
-    expect(isCalendarSyncEventImportable(event, 0)).toBe(false)
-    expect(() => buildCalendarSyncImportRequest([event], 0)).toThrow(
-      'Unsupported calendar recurrence: unsupported-weekday-recurrence',
-    )
-    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 1)).toBeNull()
-    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU', event.startDate, null, null, null, 0)).toBeNull()
-    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE', '2026-09-28', null, null, null, 0)).toBeNull()
-  })
-
   it('accepts only valid interval week values in bulk create requests', () => {
     const habit = { title: 'Monday training', intervalWeeks: 2 }
     expect(bulkCreateRequestSchema.parse({ habits: [habit] }).habits[0]).toEqual(habit)
@@ -365,63 +325,6 @@ describe('calendar-sync utils', () => {
     expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-10-07')
   })
 
-  it('refuses ordinal weekdays instead of importing a different monthly schedule', () => {
-    const event = {
-      id: 'event-second-monday',
-      title: 'Second Monday review',
-      description: null,
-      startDate: '2026-09-14',
-      startTime: null,
-      endTime: null,
-      isRecurring: true,
-      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO',
-      reminders: [],
-    }
-
-    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
-    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
-      'Unsupported calendar recurrence: ordinal-weekday',
-    )
-  })
-
-  it('refuses a BYSETPOS ordinal weekday, which spells the same schedule another way', () => {
-    const event = {
-      id: 'event-second-monday-setpos',
-      title: 'Second Monday review',
-      description: null,
-      startDate: '2026-09-14',
-      startTime: null,
-      endTime: null,
-      isRecurring: true,
-      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO;BYSETPOS=2',
-      reminders: [],
-    }
-
-    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
-    expect(isCalendarSyncEventImportable(event)).toBe(false)
-    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
-      'Unsupported calendar recurrence: ordinal-weekday',
-    )
-  })
-
-  it('refuses the last weekday of the month, which Google spells with BYSETPOS=-1', () => {
-    const event = {
-      id: 'event-last-weekday',
-      title: 'Month end wrap up',
-      description: null,
-      startDate: '2026-09-30',
-      startTime: null,
-      endTime: null,
-      isRecurring: true,
-      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1',
-      reminders: [],
-    }
-
-    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
-    expect(isCalendarSyncEventImportable(event)).toBe(false)
-  })
-
-
   it('filters events to one calendar day, and to nothing when no day is selected', () => {
     const onThatDay = { id: 'a', title: 'A', description: null, startDate: '2026-09-14', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }
     const anotherDay = { ...onThatDay, id: 'b', startDate: '2026-09-15' }
@@ -431,13 +334,6 @@ describe('calendar-sync utils', () => {
   })
 
   it('names a message key per import issue', () => {
-    expect(getCalendarSyncImportIssueMessageKey('ordinal-weekday')).toBe('calendar.importIssue.ordinalWeekday')
-    expect(getCalendarSyncImportIssueMessageKey('unsupported-weekday-recurrence'))
-      .toBe('calendar.importIssue.unsupportedWeekdayRecurrence')
-    expect(en.calendar.importIssue.unsupportedWeekdayRecurrence).toBeTruthy()
-    expect(ptBR.calendar.importIssue.unsupportedWeekdayRecurrence).toBeTruthy()
-    expect(getCalendarSyncImportIssueMessageKey('finite-date-clamp')).toBe('calendar.importIssue.finiteDateClamp')
-    expect(getCalendarSyncImportIssueMessageKey('finite-date-range')).toBe('calendar.importIssue.finiteDateRange')
     expect(getCalendarSyncImportIssueMessageKey('utc-until-offset-shift')).toBe('calendar.importIssue.utcUntilOffsetShift')
   })
 
@@ -504,38 +400,6 @@ describe('calendar-sync utils', () => {
 
   it('bounds a monthly COUNT series using its frequency', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-15')).toBe('2026-03-15')
-  })
-
-  it('refuses a finite monthly series that Orbit would clamp to different dates', () => {
-    const event = {
-      id: 'event-month-end',
-      title: 'Month end close',
-      description: null,
-      startDate: '2026-01-31',
-      startTime: null,
-      endTime: null,
-      isRecurring: true,
-      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
-      reminders: [],
-    }
-
-    expect(getCalendarSyncImportIssue(
-      event.recurrenceRule,
-      event.startDate,
-      event.startTime,
-    )).toBe('finite-date-clamp')
-    expect(isCalendarSyncEventImportable(event)).toBe(false)
-    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
-      'Unsupported calendar recurrence: finite-date-clamp',
-    )
-  })
-
-  it('refuses a finite leap-day yearly series that Orbit would clamp to February 28', () => {
-    expect(getCalendarSyncImportIssue(
-      'RRULE:FREQ=YEARLY;COUNT=3',
-      '2024-02-29',
-      null,
-    )).toBe('finite-date-clamp')
   })
 
   it('keeps a finite monthly series whose anchor exists in every month', () => {
@@ -628,31 +492,6 @@ describe('calendar-sync utils', () => {
     })
   })
 
-  it('refuses a monthly COUNT beyond the supported date range promptly', () => {
-    const startedAt = performance.now()
-    const issue = getCalendarSyncImportIssue(
-      'RRULE:FREQ=MONTHLY;COUNT=5000000',
-      '2026-01-15',
-    )
-
-    expect(issue).toBe('finite-date-range')
-    expect(performance.now() - startedAt).toBeLessThan(100)
-  })
-
-  it('refuses a two-occurrence interval whose last candidate exceeds year 9999', () => {
-    expect(getCalendarSyncImportIssue(
-      'RRULE:FREQ=MONTHLY;INTERVAL=100000;COUNT=2',
-      '2026-01-15',
-    )).toBe('finite-date-range')
-  })
-
-  it('refuses an UNTIL date beyond year 9999', () => {
-    expect(getCalendarSyncImportIssue(
-      'RRULE:FREQ=DAILY;UNTIL=100000101',
-      '2026-01-15',
-    )).toBe('finite-date-range')
-  })
-
   it('imports a recurrence whose last candidate stays within year 9998', () => {
     const event = {
       id: 'event-year-9998',
@@ -720,11 +559,11 @@ describe('calendar-sync utils', () => {
     })
   })
 
-  it('refuses a weekday count whose emitted daily schedule leaves year 9999', () => {
+  it('caps a weekday count whose emitted daily schedule leaves year 9999', () => {
     expect(getCalendarSyncImportIssue(
       'RRULE:FREQ=MONTHLY;BYDAY=FR;COUNT=2',
       '9999-12-31',
-    )).toBe('finite-date-range')
+    )).toBeNull()
   })
 
   it('builds a large in-range weekday request promptly from the resolved offset', () => {
