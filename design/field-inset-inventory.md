@@ -137,7 +137,7 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 
 | Surface | Native owner | Web owner | Foreground path |
 | --- | --- | --- | --- |
-| Habit create and edit name | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea`; transparent mirrors retain only consumed-word backgrounds and underlines, while the editable controls draw letters and placeholders |
+| Habit create and edit name | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea`; mirrors retain consumed-word backgrounds and underlines, while the editable controls draw foreground letters and placeholders. Native consumed spans use `hairlineStrong` foreground to paint Android underlines beneath the editable glyphs; web uses an independent inset shadow with transparent mirror glyphs |
 | Habit rename | `habits/habit-detail-screen.tsx` | same relative component | Native `TypedTextInput`, web input with `--fg-1` |
 | Checklist add and description | `habits/habit-form-fields.tsx`, `habits/habit-detail-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
 | Checklist and subhabit edit | `habits/habit-checklist.tsx`, `habits/create-habit-modal/sub-habit-editor.tsx` | same relative components | Native `BottomSheetAppTextInput`, web input with `--fg-1` |

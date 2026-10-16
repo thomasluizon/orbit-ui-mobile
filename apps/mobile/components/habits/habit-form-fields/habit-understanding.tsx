@@ -154,8 +154,8 @@ function createStyles(tokens: AppTokens) {
     },
     consumed: {
       backgroundColor: tokens.bgWell,
+      color: tokens.hairlineStrong,
       textDecorationLine: 'underline',
-      textDecorationColor: tokens.hairlineStrong,
     },
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
