@@ -60,7 +60,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/google-sign-in-surfaces.md` | Google sign-in mark owners and theme, locale and request-state coverage. |
 | `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
-| `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, retained actions, state coverage and platform mirrors. |
+| `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, retained actions, state coverage, long-list rendering and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |

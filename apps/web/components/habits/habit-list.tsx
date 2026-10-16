@@ -161,6 +161,12 @@ interface HabitListProps {
 
 const HABIT_PANEL_CLASS_NAME = 'habit-panel'
 
+function getListViewPanelStyle(view: HabitView, rootCount: number, isDragging: boolean) {
+  return view !== 'today' && rootCount >= 21 && !isDragging
+    ? { contentVisibility: 'auto', containIntrinsicSize: 'auto 96px' } as const
+    : undefined
+}
+
 export interface HabitListHandle {
   collapseAll: () => void
   expandAll: () => void
@@ -621,6 +627,7 @@ export function HabitList({
   const sensors = useSensors(pointerSensor, touchSensor)
 
   const isDndEnabled = view !== 'all' && !isSelectMode
+  const listViewPanelStyle = getListViewPanelStyle(view, habits.length, isDragging)
 
   const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
   const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
@@ -1387,7 +1394,7 @@ export function HabitList({
     return <div className="flex min-w-0 flex-col gap-6">
       {buildHabitDateBuckets(habits, todayStr).map((bucket) => <section key={bucket.key} className="flex min-w-0 flex-col gap-3" aria-label={formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}>
         <h2 className="font-mono text-xs font-medium text-[var(--fg-3)]">{formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}</h2>
-        {dragPanels.filter((panel) => bucket.habits.some((habit) => habit.id === panel[0]?.id)).map((panel) => <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
+        {dragPanels.filter((panel) => bucket.habits.some((habit) => habit.id === panel[0]?.id)).map((panel) => <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
           {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
         </div>)}
       </section>)}
@@ -1446,7 +1453,7 @@ export function HabitList({
           >
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
               {activeDragPanels.map((panel) => (
-                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
+                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
                   {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, true))}
                 </div>
               ))}
@@ -1459,7 +1466,7 @@ export function HabitList({
     return (
       <div className="flex flex-col" style={{ gap: 12 }}>
         {dragPanels.map((panel) => (
-          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
+          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
             {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
           </div>
         ))}

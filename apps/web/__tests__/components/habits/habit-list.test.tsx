@@ -490,6 +490,36 @@ describe('HabitList', () => {
     expect(screen.getAllByTestId(/^habit-card-/).map((row) => row.getAttribute('data-testid')?.replace('habit-card-', ''))).toEqual(HABIT_VIEW_ROW_ORDER[view])
   })
 
+  it.each(['all', 'general'] as const)('skips offscreen family rendering in a large %s list while keeping keyboard access', async (view) => {
+    useActualHabitVisibility = true
+    rowImplementation.actual = true
+    dragLocale.english = true
+    const items = Array.from({ length: 40 }, (_, index) => createMockHabitScheduleItem({
+      id: `root-${index}`, title: `Routine ${index}`, position: index, dueDate: TODAY,
+      scheduledDates: [TODAY], isGeneral: view === 'general', hasSubHabits: index === 0,
+      children: index === 0 ? ['first-child', 'second-child'].map((id) => createMockHabitScheduleChild({ id, title: id, dueDate: TODAY, scheduledDates: [TODAY], isGeneral: view === 'general' })) : [],
+    }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items))
+    const { container } = renderWithProviders(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} />)
+    const cssPath = resolve('app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      const page = await browser.newPage({ viewport: { width: 412, height: 600 } })
+      await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
+      await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
+      expect(await page.locator('.habit-panel').count()).toBe(40)
+      expect(await page.locator('.habit-panel').first().getByTestId('habit-row').count()).toBe(3)
+      const lastTitle = page.locator('[data-habit-title="Routine 39"] [data-habit-row-body]')
+      const lastRow = page.locator('[data-habit-title="Routine 39"]')
+      expect(await lastRow.evaluate((element) => element.checkVisibility({ contentVisibilityAuto: true }))).toBe(false)
+      await lastTitle.focus()
+      expect(await lastRow.evaluate((element) => element.checkVisibility({ contentVisibilityAuto: true }))).toBe(true)
+      expect(await lastTitle.evaluate((element) => element === document.activeElement)).toBe(true)
+    } finally { await closeChrome(launch) }
+  }, 45_000)
+
   it.each([
     { code: 'RATE_LIMITED', status: 429, failures: 1, retryAfter: '60', deadline: 60_000 },
     { code: 'UPSTREAM_STARTING', status: 503, failures: 2, retryAfter: '5', deadline: 15_000 },

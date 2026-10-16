@@ -21,3 +21,8 @@ overdue, current, future, recurring, completed, general and nested habits.
 
 Row action and creation surfaces retain their existing redesign components. Restoring their view
 inputs and handlers is the required change; the restoration does not restyle those components.
+
+At 21 roots, web Todos and Geral virtualize offscreen family rendering with `content-visibility`
+and an intrinsic size reservation, retaining natural family height and keyboard access. Geral
+temporarily renders every panel while dragging so reorder measurements use the whole list.
+Android retains its virtualized FlatList owners.
