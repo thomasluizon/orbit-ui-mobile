@@ -2372,6 +2372,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 @media (prefers-reduced-motion: no-preference) {
   .astra-pending-pulse {
-    animation: astra-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) infinite;
+    animation: astra-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) var(--skeleton-pulse-iterations);
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, skeletonPulseIterations } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,7 +18,7 @@ export function PendingReply({ visible }: Readonly<{ visible: boolean }>) {
       return
     }
     const timing = { duration: motionDurations.slow * 2, easing: Easing.bezier(...motionEasings.standard) }
-    opacity.value = withRepeat(withSequence(withTiming(0.6, timing), withTiming(1, timing)), -1)
+    opacity.value = withRepeat(withSequence(withTiming(0.6, timing), withTiming(1, timing)), skeletonPulseIterations)
     return () => cancelAnimation(opacity)
   }, [opacity, reducedMotion, visible])
   const dots = [0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)

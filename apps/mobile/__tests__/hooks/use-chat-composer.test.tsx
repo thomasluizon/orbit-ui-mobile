@@ -408,17 +408,21 @@ describe('mobile useChatComposer', () => {
     expect(pending[0].props.importantForAccessibility).toBe('no-hide-descendants')
   })
 
-  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit'])('replaces the pending reply indicator on %s', async (arrival) => {
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValue(stream.response)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
-    onTestFinished(() => { if (arrival != 'cancel') stream.close() })
+    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
     const pending = () => tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'astra-pending')
     expect(pending()).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.accessibilityState).toEqual({ busy: true })
     await TestRenderer.act(async () => {
+      if (arrival === 'limit-notice') {
+        mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 5, aiMessagesLimit: 5 })
+        tree.update(<ComposerConversationHarness />)
+      }
       if (arrival === 'text') stream.enqueue(frame('{"type":"delta","text":"Start with water"}'))
       if (arrival === 'tool') stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}'))
       if (arrival === 'error') stream.enqueue(frame('{"type":"error","error":"Could not reply","status":500}'))

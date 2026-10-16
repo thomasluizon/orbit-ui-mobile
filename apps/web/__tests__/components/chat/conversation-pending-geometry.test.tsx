@@ -1,3 +1,4 @@
+import { skeletonPulseIterations } from '@orbit/shared/theme'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -7,8 +8,10 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import { AstraConversation } from '@/components/chat/conversation'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -46,21 +49,30 @@ describe('Astra pending reply geometry in Chromium', () => {
     expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: reduced ? 'reduce' : 'no-preference' })
     try {
-      await page.setContent(`<style>${stylesheet}</style><div class="${theme}">${container.innerHTML}</div>`)
+      const variables = Object.entries(resolveWebThemeVariables('orange', theme as 'light' | 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet}
+        .${theme} { ${variables} }</style><div class="${theme}" style="background:var(--bg)">${container.innerHTML}</div>`)
       await loadAppFonts(page)
+      await page.evaluate(iterations => document.documentElement.style.setProperty('--skeleton-pulse-iterations', String(iterations)), skeletonPulseIterations)
       const pending = page.locator('[data-astra-pending]')
       const position = await pending.boundingBox()
       expect(position).not.toBeNull()
       expect(await pending.locator('[data-working-mark] > span').count()).toBe(3)
       const animation = await pending.evaluate(element => {
         const mark = element.querySelector('.astra-pending-pulse')!
-        return { name: getComputedStyle(mark).animationName, opacity: getComputedStyle(mark).opacity, height: element.getBoundingClientRect().height }
+        return { name: getComputedStyle(mark).animationName, opacity: getComputedStyle(mark).opacity, height: element.getBoundingClientRect().height, duration: getComputedStyle(mark).animationDuration, iterations: getComputedStyle(mark).animationIterationCount, foreground: getComputedStyle(mark.querySelector('[data-working-mark]')!).color, background: getComputedStyle(element.closest('.light, .dark')!).backgroundColor }
       })
       expect(animation.height).toBe(24)
+      const contrast = contrastOnSurface(withAlpha(animation.foreground, 0.6), [animation.background])
+      expect(contrast).toBeGreaterThanOrEqual(3)
       if (reduced) {
         expect(animation.name).toBe('none')
         expect(animation.opacity).toBe('1')
-      } else expect(animation.name).not.toBe('none')
+      } else {
+        expect(animation.name).not.toBe('none')
+        expect(Number(animation.iterations)).toBe(skeletonPulseIterations)
+        expect(parseFloat(animation.duration) * Number(animation.iterations)).toBeLessThanOrEqual(5)
+      }
       chat.isTyping = false
       chat.streamingMessageId = 'reply'
       chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]

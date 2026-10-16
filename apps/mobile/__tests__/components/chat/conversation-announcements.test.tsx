@@ -75,6 +75,29 @@ function politeRegions() {
 }
 afterEach(() => { void act(() => tree.unmount()) })
 
+it('announces work once across pending, text and tool phases in one stable polite region', async () => {
+  const chat = buildChat()
+  mount(chat)
+  const progress = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-working-announcement')[0]!
+  const region = progress()
+  expect(renderedText(region.props.children)).toBe('')
+  chat.isTyping = true
+  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  expect(progress()).toBe(region)
+  expect(renderedText(region.props.children)).toBe('chat.trace.working')
+  chat.isTyping = false
+  chat.streamingMessageId = 'reply'
+  update(chat)
+  chat.activeSteps = [{ domain: 'habits', access: 'read' }]
+  update(chat)
+  expect(progress()).toBe(region)
+  expect(renderedText(region.props.children)).toBe('chat.trace.working')
+  chat.streamingMessageId = null
+  chat.activeSteps = []
+  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  expect(renderedText(region.props.children)).toBe('')
+})
+
 it('keeps the list silent and busy while a turn or tool batch arrives', () => {
   const chat = buildChat()
   mount(chat)

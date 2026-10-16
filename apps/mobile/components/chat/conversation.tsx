@@ -123,7 +123,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     verifyStepUpForBubble,
   } = chat;
   const [pendingVisible, setPendingVisible] = useState(true);
-  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0;
+  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit;
   const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0;
   const [announcingWork, setAnnouncingWork] = useState(false)
   useEffect(() => {

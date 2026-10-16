@@ -265,16 +265,20 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
-  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit'])('replaces the pending reply indicator on %s', async (arrival) => {
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValue(stream.response)
-    const { container } = render(<ComposerConversationHarness />)
+    const { container, rerender } = render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
-    onTestFinished(() => { if (arrival != 'cancel') stream.close() })
+    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
     expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
     expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', 'true')
     await act(async () => {
+      if (arrival === 'limit-notice') {
+        mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 5, aiMessagesLimit: 5 })
+        rerender(<ComposerConversationHarness />)
+      }
       if (arrival === 'text') stream.enqueue(frame('{"type":"delta","text":"Start with water"}'))
       if (arrival === 'tool') stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}'))
       if (arrival === 'error') stream.enqueue(frame('{"type":"error","error":"Could not reply","status":500}'))

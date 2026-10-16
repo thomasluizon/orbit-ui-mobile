@@ -123,6 +123,8 @@ disclosure in `--fg-3`.
 **Astra pending reply:** sending immediately reserves one 24px line at the next assistant
 turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
 for state indication, using the standard easing and four slow-duration units per cycle.
+Use the existing skeleton pulse count, then keep the dots static so automatic motion ends
+within five seconds.
 The dots remain visible and static under reduced motion; pause the pulse outside the feed
 viewport. Replace the line in the same render as the first reply text, tool step or block,
 without an assistant entrance translation or exit delay. Clear it on error, cancellation or

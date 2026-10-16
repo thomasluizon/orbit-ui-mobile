@@ -134,7 +134,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [trackOperation, threadScroll])
 
   const [pendingVisible, setPendingVisible] = useState(true)
-  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0
+  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit
   const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0
   const [announcingWork, setAnnouncingWork] = useState(false)
   useEffect(() => {
@@ -142,7 +142,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     void Promise.resolve().then(() => { if (mounted) setAnnouncingWork(replyWorking) })
     return () => { mounted = false }
   }, [replyWorking])
-
 
   const senderIdPrefix = useId()
   const announcedMessageIds = useRef(new Set<string>())
