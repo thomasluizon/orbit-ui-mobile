@@ -10,7 +10,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { apiKeySchema } from '@orbit/shared/types/api-key'
@@ -279,11 +280,15 @@ describe('Sheet', () => {
     expect(screen.getByRole('button', { name: 'Delete' }).closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
-  it.each([1, 14])('separates footer actions from a %i-row body with space only', (rowCount) => {
-    const stylesheet = document.createElement('style')
-    stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-    document.head.append(stylesheet)
-    try {
+  describe('shared sheet spacing', () => {
+    let browser: Browser
+    let browserLaunch: BrowserLaunch
+    const stylesheet = readFileSync(resolve(process.cwd(), '../../packages/shared/src/theme/spacing.css'), 'utf8')
+      + readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8').replace(/^@import .*$/gm, '')
+    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+    afterAll(async () => { await closeChrome(browserLaunch) })
+
+    it.each([1, 14])('separates footer actions from a %i-row body with space only', async (rowCount) => {
       render(
         <Sheet open title="Options" actions={<button type="button">Save</button>}>
           {Array.from({ length: rowCount }, (_, index) => <p key={index}>Row {index + 1}</p>)}
@@ -293,14 +298,17 @@ describe('Sheet', () => {
       const body = dialog.querySelector('[data-slot="sheet-body"]')!
       const footer = screen.getByRole('button', { name: 'Save' }).closest<HTMLElement>('[data-slot="sheet-actions"]')!
       expect(body).not.toContainElement(footer)
-      expect(getComputedStyle(body).paddingBottom).toBe('24px')
-      const footerStyle = getComputedStyle(footer)
-      expect(footerStyle.paddingTop).toBe('16px')
-      expect(Number.parseFloat(footerStyle.borderTopWidth) || 0).toBe(0)
-      expect(footerStyle.boxShadow).toMatch(/^(none)?$/)
-    } finally {
-      stylesheet.remove()
-    }
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+        expect(await page.locator('[data-slot="sheet-body"]').evaluate((element) => getComputedStyle(element).paddingBottom)).toBe('24px')
+        const footerStyle = await page.locator('[data-slot="sheet-actions"]').evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { top: style.paddingTop, border: Number.parseFloat(style.borderTopWidth) || 0, shadow: style.boxShadow }
+        })
+        expect(footerStyle).toEqual({ top: '16px', border: 0, shadow: 'none' })
+      } finally { await page.close() }
+    })
   })
 
   it('finishes its exit before reporting close', async () => {
