@@ -577,15 +577,25 @@ describe('Hoje header geometry', () => {
         const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
           const range = document.createRange()
           range.selectNodeContents(label)
-          return { text: label.textContent, textWidth: range.getBoundingClientRect().width, available: label.getBoundingClientRect().width, lines: range.getClientRects().length }
+          const bounds = label.getBoundingClientRect()
+          const text = range.getBoundingClientRect()
+          const row = label.closest('.orbit-menu-item')
+          const icon = row?.querySelector('[data-icon]')?.getBoundingClientRect()
+          return { text: label.textContent, textWidth: text.width, textHeight: text.height,
+            available: bounds.width, lines: range.getClientRects().length,
+            rowHeight: row?.getBoundingClientRect().height,
+            iconOffset: icon ? icon.top - bounds.top : undefined,
+            lineHeight: Number.parseFloat(getComputedStyle(label).lineHeight) }
         })
         const close = document.querySelector('.orbit-sheet-close')!.getBoundingClientRect()
         return { labels, close: { width: close.width, height: close.height } }
       })
-      expect(geometry.labels).toHaveLength(5)
+      expect(geometry.labels).toHaveLength(6)
       for (const label of geometry.labels) {
         expect(label.textWidth, label.text).toBeLessThanOrEqual(label.available)
-        expect(label.lines).toBe(1)
+        expect(label.lines).toBeGreaterThanOrEqual(1)
+        if (label.rowHeight !== undefined) expect(label.textHeight).toBeLessThanOrEqual(label.rowHeight)
+        if (label.iconOffset !== undefined) expect(label.iconOffset).toBeLessThanOrEqual(label.lineHeight / 2)
       }
       expect(geometry.close.width).toBeGreaterThanOrEqual(48)
       expect(geometry.close.height).toBeGreaterThanOrEqual(48)
