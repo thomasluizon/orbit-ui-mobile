@@ -20,6 +20,7 @@ function customPropertiesIn(value: string): string[] {
 
 function declaredCustomProperties(): Set<string> {
   const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    + readFileSync(resolve(process.cwd(), '../../packages/shared/src/theme/spacing.css'), 'utf8')
   const staticProperties = [...stylesheet.matchAll(CUSTOM_PROPERTY_DECLARATION)].flatMap(
     (match) => (match[1] ? [match[1]] : []),
   )
