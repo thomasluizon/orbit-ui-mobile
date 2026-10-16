@@ -14185,7 +14185,8 @@
       "ownedFiles": [
         "apps/mobile/components/version-update-drawer.tsx",
         "apps/mobile/hooks/use-version-check.ts",
-        "apps/mobile/lib/version-check.ts"
+        "apps/mobile/lib/version-check.ts",
+        "apps/mobile/modules/orbit-app-update/index.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -14200,7 +14201,8 @@
       "ownedFiles": [
         "apps/mobile/components/version-update-drawer.tsx",
         "apps/mobile/hooks/use-version-check.ts",
-        "apps/mobile/lib/version-check.ts"
+        "apps/mobile/lib/version-check.ts",
+        "apps/mobile/modules/orbit-app-update/index.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -14215,7 +14217,8 @@
       "ownedFiles": [
         "apps/mobile/components/version-update-drawer.tsx",
         "apps/mobile/hooks/use-version-check.ts",
-        "apps/mobile/lib/version-check.ts"
+        "apps/mobile/lib/version-check.ts",
+        "apps/mobile/modules/orbit-app-update/index.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -14230,7 +14233,8 @@
       "ownedFiles": [
         "apps/mobile/components/version-update-drawer.tsx",
         "apps/mobile/hooks/use-version-check.ts",
-        "apps/mobile/lib/version-check.ts"
+        "apps/mobile/lib/version-check.ts",
+        "apps/mobile/modules/orbit-app-update/index.ts"
       ],
       "state": "default",
       "theme": "dark",
