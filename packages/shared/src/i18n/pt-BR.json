@@ -1157,8 +1157,8 @@
       "saveFailed": "Não foi possível salvar a seleção de calendários. Tente de novo."
     },
     "autoSync": {
-      "syncing": "Buscando eventos.",
-      "automaticImport": "Busca automática",
+      "syncing": "Sincronizando eventos.",
+      "automaticImport": "Sincronizar sempre",
       "automaticImportDescription": "Novos eventos aparecem aqui.",
       "proRequired": "A sincronização automática precisa do Orbit Pro.",
       "title": "Sincronização automática",

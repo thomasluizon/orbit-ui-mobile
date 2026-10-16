@@ -79,7 +79,7 @@ function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpande
   const calendarDay = variant === 'calendar-day'
   const CircleIcon = checked ? CheckCircle : Circle
   return (
-    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: placement === 'column' ? 0 : 16, paddingBlock: calendarDay ? 0 : 12, gap: 12 }}>
+    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: calendarDay || error || description || value !== undefined ? 68 : 52, paddingInline: 16, marginInline: placement === 'column' ? -16 : undefined, paddingBlock: calendarDay ? 0 : 12, gap: 12 }}>
       <button type="button" disabled={disabled} data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText id={labelControls} expanded={placement === 'column' && labelExpanded} style={{ paddingInline: placement === 'column' ? 0 : undefined }} className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} text-[var(--fg-1)]`}>{label}</PersonalText>
         {error || description ? <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}

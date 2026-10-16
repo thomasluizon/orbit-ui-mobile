@@ -383,6 +383,11 @@ describe('CalendarSyncPage', () => {
     }
 
     async function expectInteractivePaint(row: Locator, state: string, blocked: boolean) {
+      const shape = await row.locator('[data-press-fill]').evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { radius: style.borderRadius, overflowX: style.overflowX, overflowY: style.overflowY }
+      })
+      expect(shape).toEqual({ radius: '12px', overflowX: 'hidden', overflowY: 'hidden' })
       if (state === 'rest' || blocked) return
       const fills = await row.evaluate((element) => {
         const reference = document.createElement('span')
@@ -457,7 +462,14 @@ describe('CalendarSyncPage', () => {
       provideEvents(review, blocked)
       const { container } = renderPage()
       await screen.findByText(personalText(longEvent.title))
-      fireEvent.click(screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!)
+      const disclosure = screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!
+      expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(disclosure)
+      expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+      const controlled = document.getElementById(disclosure.getAttribute('aria-controls')!)!
+      expect(controlled.querySelector('[data-personal-text-expanded]')).toHaveTextContent(longEvent.title)
+      expect(screen.getAllByText(personalText(longEvent.title))).toHaveLength(1)
+      expect(screen.queryByText(longEvent.description!)).not.toBeInTheDocument()
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)

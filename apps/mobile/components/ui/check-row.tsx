@@ -113,7 +113,7 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
 }
 
 function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement']) {
-  return [styles.personalRow, placement === 'column' ? { paddingHorizontal: 0 } : null, calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }]
+  return [styles.personalRow, placement === 'column' ? { marginHorizontal: -16 } : null, calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }]
 }
 
 function getPersonalLabelFill(calendarDay: boolean) {

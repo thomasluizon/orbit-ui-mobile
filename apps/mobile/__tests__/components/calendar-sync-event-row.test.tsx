@@ -6,6 +6,7 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { PersonalText } from '@/components/ui/personal-text'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 
 const theme = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({
@@ -30,6 +31,8 @@ interface RowNode {
     style?: StyleProp<TextStyle & ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     accessibilityRole?: string
     accessibilityState?: { checked: boolean; disabled: boolean }
+    accessibilityLabel?: string
+    expanded?: boolean
     accessibilityHint?: string
     disabled?: boolean
     onPressIn?: () => void
@@ -97,10 +100,30 @@ describe('calendar import row press contrast', () => {
       void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
       const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
       const paint = StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)
+      expect(paint).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
       expect(paint.left).toBe(-16)
       expect(paint.right).toBe(-16)
       expect(paint.backgroundColor).toBe(pressed && !blocked ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
     }
+  })
+
+  it('expands the existing event title without duplicating it or exposing the description', () => {
+    let tree!: RowTree
+    void act(() => {
+      tree = create(<CalendarSyncEventRow event={event} weekStartDay={1} selected isReviewMode={false} suggestionId={null} dismissPending={false} styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />) as unknown as RowTree
+      trees.push(tree)
+    })
+    const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!
+    const titles = () => tree.root.findAll((node) => node.type === PersonalText && node.props.children === event.title)
+    expect(titles()).toHaveLength(1)
+    expect(titles()[0]!.props.expanded).toBe(false)
+    void act(() => { disclosure.props.onPress!() })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(titles()).toHaveLength(1)
+    expect(titles()[0]!.props.expanded).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0)
+    void act(() => { disclosure.props.onPress!() })
+    expect(titles()[0]!.props.expanded).toBe(false)
   })
 
   it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].flatMap((selected) =>

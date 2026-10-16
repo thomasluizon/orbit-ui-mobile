@@ -70,7 +70,6 @@ export function CalendarSyncEventRow({
       data-focus-inset=""
       style={{
         borderRadius: 12,
-
       }}
     >
       <button
@@ -82,7 +81,7 @@ export function CalendarSyncEventRow({
         className="orbit-list-row-body relative flex-1 min-w-0 text-start flex items-start appearance-none border-0 bg-transparent cursor-pointer rounded-[12px] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed"
         style={{ gap: 12, paddingBlock: 12, '--calendar-event-fill': importIssue ? 'var(--bg-elev)' : selected ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent' } as CSSProperties}
       >
-        <span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset bg-[var(--calendar-event-fill)]" />
+        <span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset overflow-hidden bg-[var(--calendar-event-fill)]" />
         <span data-slot="list-row-content" id={`${titleId}-details`} data-calendar-event-disclosure="" className="flex-1 min-w-0 block">
           <PersonalText id={titleId}
             style={{
