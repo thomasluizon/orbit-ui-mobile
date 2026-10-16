@@ -1394,6 +1394,29 @@ describe('ProfileScreen', () => {
     expect(mockCreateGrant.consumed).toBe(false)
   })
 
+  it('returns to expiry correction when it becomes past inside the scoped sheet', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('habits:read'))
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
+    try {
+      await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress(); await Promise.resolve() })
+      expect(tree.root.findAllByProps({ title: 'profile.apiKeys.scopeTitle' })).toHaveLength(0)
+      const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
+      expect(field.props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
+      expect(field.props.value).toBe('2099-12-31T23:59')
+      expect(mockApiClient).not.toHaveBeenCalled()
+      expect(mockCreateGrant.consumed).toBe(false)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('disables expiry and both creation actions while creating a key', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,

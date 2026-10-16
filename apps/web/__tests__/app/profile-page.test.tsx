@@ -1170,6 +1170,30 @@ describe('ProfilePage', () => {
     expect(mockCreateGrant.consumed).toBe(false)
   })
 
+  it('returns to expiry correction when it becomes past inside the scoped sheet', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    render(<ProfileSubscreen screen="astra" />)
+    const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
+    fireEvent.change(field, { target: { value: '2099-12-31T23:59' } })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'habits:read' } })
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.scopeTitle' })).not.toBeInTheDocument())
+      expect(field).toHaveAccessibleDescription(/orbitMcp.invalidExpiry/)
+      expect(field).toHaveFocus()
+      expect(field).toHaveValue('2099-12-31T23:59')
+      expect(mockCreateApiKey).not.toHaveBeenCalled()
+      expect(mockCreateGrant.consumed).toBe(false)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('disables expiry and both creation actions while creating a key', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,

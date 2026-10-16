@@ -90,8 +90,10 @@ interface ScopeSheetProps {
   onCreate: (
     scope: string,
     onCreateGrantRequired: () => Promise<void>,
+    onInvalidExpiry: () => void,
   ) => Promise<ApiKeyCreateResponse | null>
   onCreateGrantRequired: () => void
+  onInvalidExpiry: () => void
   onCreated: (createdKey: ApiKeyCreateResponse) => void
 }
 
@@ -101,6 +103,7 @@ function ScopeSheet({
   onClose,
   onCreate,
   onCreateGrantRequired,
+  onInvalidExpiry,
   onCreated,
 }: Readonly<ScopeSheetProps>) {
   const t = useTranslations()
@@ -112,6 +115,7 @@ function ScopeSheet({
     const result = await onCreate(
       trimmedScope,
       () => Promise.resolve(closeSheet(onCreateGrantRequired)),
+      () => closeSheet(onInvalidExpiry),
     )
     if (result) closeSheet(() => onCreated(result))
   }
@@ -377,19 +381,24 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     t,
   })
 
-  function validateExpiry() {
+  function validateExpiry(focusInvalid = true) {
     const parsed = parseApiKeyExpiryUtc(expiresAt)
     const invalid = Boolean(expiresAt.trim()) && (!parsed || parsed.getTime() <= Date.now())
     setExpiryError(invalid)
-    if (invalid) setExpiryFocusRequest((current) => current + 1)
+    if (invalid && focusInvalid) setExpiryFocusRequest((current) => current + 1)
     return !invalid
   }
 
   async function createKey(
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void> = stepUp.start,
+    onInvalidExpiry?: () => void,
   ) {
-    if (creating || !validateExpiry()) return null
+    if (creating) return null
+    if (!validateExpiry(onInvalidExpiry === undefined)) {
+      onInvalidExpiry?.()
+      return null
+    }
     const creationAccount = getAccountGeneration()
     setCreating(true)
     try {
@@ -496,10 +505,15 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           busy={creating}
           error={management.createKeyError}
           onClose={() => setScopeOpen(false)}
-          onCreate={(scope, onCreateGrantRequired) => createKey(
+          onCreate={(scope, onCreateGrantRequired, onInvalidExpiry) => createKey(
             { name: t('profile.apiKeys.newKeyName'), scopes: [scope] },
             onCreateGrantRequired,
+            onInvalidExpiry,
           )}
+          onInvalidExpiry={() => {
+            setScopeOpen(false)
+            setExpiryFocusRequest((current) => current + 1)
+          }}
           onCreateGrantRequired={() => {
             setScopeOpen(false)
             void stepUp.start()
