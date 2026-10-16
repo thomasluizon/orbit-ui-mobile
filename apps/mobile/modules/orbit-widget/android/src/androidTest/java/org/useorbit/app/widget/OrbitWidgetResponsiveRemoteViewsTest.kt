@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.widget.RemoteViews
 import android.widget.TextView
 import kotlin.math.floor
 import androidx.test.core.app.ApplicationProvider
@@ -103,6 +104,48 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         assertHeaderAtContentSize(views, EXPANDED_WIDTH_DP, DEFAULT_HEIGHT_DP, View.VISIBLE)
         assertHeaderAtContentSize(views, breakpointPx / density, DEFAULT_HEIGHT_DP, View.GONE)
         assertHeaderAtContentSize(views, (breakpointPx + 1) / density, DEFAULT_HEIGHT_DP, View.VISIBLE)
+    }
+
+    @Test
+    fun signedOutReapplicationReplacesThePreviousProgressDescription() {
+        val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        for (language in listOf("en", "pt-BR")) {
+            preferences.edit().putString("lang", language).commit()
+            val signInInstruction = OrbitWidgetFactory.tr(context, language, WidgetString.SIGN_IN)
+            for (fallback in listOf(false, true)) {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    val density = context.resources.displayMetrics.density
+                    val widthPx = (WIDE_WIDTH_DP * density).toInt()
+                    val heightPx = (DEFAULT_HEIGHT_DP * density).toInt()
+                    val signedIn = OrbitWidgetProvider.buildWidgetRemoteViews(
+                        context, appWidgetId, widthPx, heightPx, signedOut = false
+                    )
+                    val viewTree = signedIn.apply(context, hostView)
+                    val subtitle = viewTree.findViewById<TextView>(R.id.widget_subtitle)
+                    val progressDescription = "3 ${OrbitWidgetFactory.tr(context, language, WidgetString.OF)} " +
+                        "7 ${OrbitWidgetFactory.tr(context, language, WidgetString.COMPLETED)}"
+                    assertEquals(progressDescription, subtitle.contentDescription.toString())
+
+                    val signedOut = if (fallback) {
+                        RemoteViews(context.packageName, R.layout.widget_layout).also {
+                            OrbitWidgetProvider.applySignedOutCard(context, it)
+                        }
+                    } else {
+                        OrbitWidgetProvider.buildWidgetRemoteViews(
+                            context, appWidgetId, widthPx, heightPx, signedOut = true
+                        )
+                    }
+                    signedOut.reapply(context, viewTree)
+
+                    assertTrue(subtitle === viewTree.findViewById<TextView>(R.id.widget_subtitle))
+                    assertEquals(signInInstruction, subtitle.text.toString())
+                    assertEquals(signInInstruction, subtitle.contentDescription.toString())
+                    val freshSubtitle = signedOut.apply(context, hostView)
+                        .findViewById<TextView>(R.id.widget_subtitle)
+                    assertEquals(signInInstruction, freshSubtitle.contentDescription.toString())
+                }
+            }
+        }
     }
 
     private fun assertHeaderAtContentSize(

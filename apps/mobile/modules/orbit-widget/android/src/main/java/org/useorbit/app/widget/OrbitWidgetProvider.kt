@@ -120,6 +120,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 R.id.widget_subtitle,
                 OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
             )
+            views.setContentDescription(
+                R.id.widget_subtitle,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+            )
             views.setTextViewText(
                 R.id.widget_empty_text,
                 OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)

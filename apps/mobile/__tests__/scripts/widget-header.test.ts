@@ -990,6 +990,27 @@ describe('Android widget header', () => {
     }
   })
 
+  it('overwrites the retained subtitle description on signed-out reapplication', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const signedInRender = kotlinFunctionBody(provider, 'buildWidgetViews')
+    const signedOutRender = kotlinFunctionBody(provider, 'applySignedOutCard')
+
+    expect(signedInRender).toContain(
+      'views.setContentDescription(R.id.widget_subtitle, subtitleText)',
+    )
+    expect(signedInRender).toContain('applySignedOutCard(context, views)')
+    expect(provider).toContain('applySignedOutCard(context, fallback)')
+    for (const setter of ['setTextViewText', 'setContentDescription']) {
+      expect(signedOutRender).toContain(
+        `views.${setter}(\n                R.id.widget_subtitle,\n                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)\n            )`,
+      )
+    }
+    expect(resourceStrings('values/widget_strings.xml').get('widget_sign_in'))
+      .toBe('Open Orbit to sign in')
+    expect(resourceStrings('values-pt-rBR/widget_strings.xml').get('widget_sign_in'))
+      .toBe('Abra o Orbit para entrar')
+  })
+
   it('keeps the static refresh name and replaces it through the widget language path', () => {
     const views = layoutViews()
     const provider = readFileSync(
