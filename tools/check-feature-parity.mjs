@@ -74,6 +74,10 @@ function flatten(catalog, prefix = '', result = {}) {
   return result
 }
 
+function hasModifier(node, kind) {
+  return ts.canHaveModifiers(node) && Boolean(ts.getModifiers(node)?.some((modifier) => modifier.kind === kind))
+}
+
 function parseModule(source, resolveSpecifier) {
 const module = { declarations: new Map(), imports: new Map(), exports: new Map(), stars: [], sideEffects: [], active: new Set(), requested: new Set() }
 for (const statement of source.statements) {
@@ -99,18 +103,18 @@ for (const statement of source.statements) {
   } else if (ts.isExportAssignment(statement)) {
     module.exports.set('default', { node: statement.expression })
   } else {
-    const exported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
-    const isDefault = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
-    const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations : [statement]
+    const exported = hasModifier(statement, ts.SyntaxKind.ExportKeyword)
+    const isDefault = hasModifier(statement, ts.SyntaxKind.DefaultKeyword)
+    if (ts.isExpressionStatement(statement)) module.active.add(statement)
+    const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations
+      : ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement) || ts.isModuleDeclaration(statement) ? [statement] : []
     for (const declaration of declarations) {
-      if (ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration)) continue
       const names = declaration.name ? [...declaration.name.getText(source).matchAll(/[A-Za-z_$][\w$]*/g)].map((match) => match[0]) : []
       for (const name of names) {
         module.declarations.set(name, declaration)
         if (exported) module.exports.set(name, { node: declaration })
       }
       if (isDefault) module.exports.set('default', { node: declaration })
-      if (ts.isExpressionStatement(declaration)) module.active.add(declaration)
     }
   }
 }
@@ -248,7 +252,7 @@ function interaction(node) {
   for (let owner = node.parent; owner; owner = owner.parent) {
     if (ts.isJsxElement(owner) || ts.isJsxSelfClosingElement(owner)) {
       const opening = ts.isJsxElement(owner) ? owner.openingElement : owner
-      const attributes = opening.attributes.properties.map((item) => item.name?.getText() ?? '')
+      const attributes = opening.attributes.properties.filter(ts.isJsxAttribute).map((item) => item.name.getText())
       if (attributes.some((name) => /^(?:on(?!Close$|OpenChange$|Dismiss$|Cancel$|RequestClose$|Layout$|ContentSizeChange$)[A-Z]|toggle$|href$)/.test(name))) return true
     }
     if (ts.isPropertyAssignment(owner) && /^(?:label|labelKey|textKey|ariaLabel)$/.test(owner.name.getText())) return true
@@ -265,7 +269,7 @@ function displayedValue(node) {
     if (ts.isConditionalExpression(owner)) conditional = true
     if (ts.isJsxElement(owner) || ts.isJsxSelfClosingElement(owner)) {
       const opening = ts.isJsxElement(owner) ? owner.openingElement : owner
-      if (conditional || (ts.isCallExpression(node) && node.arguments.length > 1) || opening.attributes.properties.some((item) => item.name?.getText() === 'value')) return true
+      if (conditional || (ts.isCallExpression(node) && node.arguments.length > 1) || opening.attributes.properties.some((item) => ts.isJsxAttribute(item) && item.name.getText() === 'value')) return true
       if (ts.isJsxElement(owner)) {
         return owner.children.some((child) => ts.isJsxExpression(child) && child.expression &&
           !(child.pos <= node.pos && child.end >= node.end) &&
@@ -292,7 +296,7 @@ export function scan(snapshot, platform) {
     if (/(?:layout|error|not-found)\.tsx$/.test(path) || !graph.hasDefault(path)) continue
     let route = path.slice(`apps/${platform}/app`.length).replace(/\/(?:\([^/]+\)|_components)(?=\/)/g, '').replace(/\/(?:page|index)\.tsx$|\.tsx$/g, '') || '/'
     const source = graph.parse(path)
-    const entrypoint = source.statements.find((node) => ts.isExportAssignment(node) || node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)) ?? source
+    const entrypoint = source.statements.find((node) => ts.isExportAssignment(node) || hasModifier(node, ts.SyntaxKind.DefaultKeyword)) ?? source
     add('route', route, evidence(source, entrypoint))
   }
   for (const path of [...graph.reachable].sort()) {
