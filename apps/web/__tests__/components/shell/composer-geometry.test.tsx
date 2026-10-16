@@ -137,10 +137,12 @@ describe('Composer compact geometry in Chromium', () => {
     const buildOptions = {
       stdin: { contents: `import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
         import { Composer } from './components/shell/composer';
+        import { AstraConversation } from './components/chat/conversation';
+        import { createChatThreadScroll } from '@orbit/shared/hooks';
         const props = JSON.parse(document.getElementById('configuration').textContent);
         function MountedComposer() {
           const [value, setValue] = useState(props.value);
-          return React.createElement(Composer, {
+          const composerProps = {
           ...props, value, onChangeValue: setValue, onSend: () => {},
           onOpenConversation: props.conversationLabel ? () => {} : undefined,
           onAttachFile: props.attachWords ? () => {} : undefined,
@@ -151,7 +153,14 @@ describe('Composer compact geometry in Chromium', () => {
             remove: name => props.attachmentRemoveTemplate.replace('{name}', name) } : undefined,
           suggestions: props.suggestions.map(chip => ({ ...chip, onSelect: () => {},
             icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
-          });
+          };
+          if (props.withMessages === undefined) return React.createElement(Composer, composerProps);
+          return React.createElement(AstraConversation, { chat: {
+            composerProps, threadScroll: createChatThreadScroll(), chatContainerRef: { current: null },
+            messages: props.withMessages ? [{ id: 'previous', role: 'user', content: props.value, timestamp: new Date(0) }] : [],
+            activeSteps: [], canShowFollowUps: false, showSuggestions: !props.withMessages,
+            isTyping: false, streamingMessageId: null, scrollToBottom: () => {},
+          } });
         }
         createRoot(document.getElementById('root')).render(React.createElement(MountedComposer));`, resolveDir: process.cwd(), loader: 'tsx' },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
@@ -162,13 +171,56 @@ describe('Composer compact geometry in Chromium', () => {
       const options = JSON.parse(process.argv[1]);
       options.plugins = [{ name: 'composer-overlay-boundaries', setup(builder) {
         builder.onResolve({ filter: /^@\\/components\\/ui\\/(menu|sheet)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
-        builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const Menu = () => null; export const Sheet = () => null;', loader: 'js' }));
+        builder.onResolve({ filter: /^(next-intl|next\\/navigation)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+        builder.onResolve({ filter: /^@\\/components\\/(goals\\/goal-detail-drawer|chat\\/message-bubble)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+        builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents:
+          'export const Menu = () => null; export const Sheet = () => null; export const GoalDetailDrawer = () => null; export const MessageBubble = ({message}) => message.content; export const useRouter = () => ({}); export const useTranslations = () => key => key;', loader: 'js' }));
       } }];
       const result = await build(options);
       process.stdout.write(result.outputFiles[0].text);
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages => ({ width, withMessages }))))(
+    'contains the prefilled conversation input at $width with messages $withMessages', async ({ width, withMessages }) => {
+      const prompt = ptBR.habits.detail.askAstraSeedDefault.replace('{title}', 'Ler 10 minutos')
+      const configuration = { ...geometryProps('idle', ptBR, false), value: prompt, withMessages }
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div id="root" style="height:915px;max-width:740px;margin:auto"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const input = page.locator('[data-composer-input]')
+        await expect.poll(() => input.evaluate(element => element === document.activeElement)).toBe(true)
+        expect(await input.inputValue()).toBe(prompt)
+        expect(await input.evaluate((element: HTMLTextAreaElement) => [element.selectionStart, element.selectionEnd])).toEqual([prompt.length, prompt.length])
+        for (const value of [prompt, Array.from({ length: 8 }, () => prompt).join('\n'), 'Ler']) {
+          if (value !== prompt) await input.fill(value)
+          const geometry = await input.evaluate(element => {
+            const field = element.parentElement!
+            const pill = field.getBoundingClientRect()
+            const text = element.getBoundingClientRect()
+            const send = field.querySelector('button:last-child')!.getBoundingClientRect()
+            const style = getComputedStyle(element)
+            return { top: text.top, bottom: text.bottom, height: text.height, fieldTop: pill.top, fieldBottom: pill.bottom,
+              sendBottom: send.bottom, scrollHeight: element.scrollHeight, maximumHeight: parseFloat(style.maxHeight),
+              overflowY: style.overflowY }
+          })
+          expect(geometry.top).toBeGreaterThanOrEqual(geometry.fieldTop + 4)
+          expect(geometry.bottom).toBe(geometry.fieldBottom - 4)
+          expect(geometry.sendBottom).toBe(geometry.bottom)
+          if (value.includes('\n')) {
+            expect(geometry.height).toBe(geometry.maximumHeight)
+            expect(geometry.scrollHeight).toBeGreaterThan(geometry.height)
+            expect(geometry.overflowY).toBe('auto')
+            await input.evaluate(element => { element.scrollTop = element.scrollHeight })
+            expect(await input.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+          } else expect(geometry.scrollHeight).toBe(geometry.height)
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each([320, 412, 1352].flatMap(width => [false, true].flatMap(withOpener =>
     ['ltr', 'rtl'].map(direction => ({ width, withOpener, direction })),

@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
-import * as Clipboard from 'expo-clipboard'
 import { createTokensV2 } from '@/lib/theme'
-import { Check, Copy } from '@/components/ui/icons'
 
 import { MessageBubble } from '@/components/message-bubble'
 import { useChatStore } from '@/stores/chat-store'
@@ -63,7 +61,6 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('@/hooks/use-resolve-clarification', () => ({
   useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }),
@@ -424,73 +421,28 @@ describe('MessageBubble trace footer (mobile)', () => {
   })
 })
 
-describe('MessageBubble copy control (mobile)', () => {
-  it('copies directive-free AI source text and confirms the action', async () => {
+describe('MessageBubble text copying (mobile)', () => {
+  it.each(['ai', 'user'] as const)('renders %s prose without a copy control', async (role) => {
     let tree!: TestInstance
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <MessageBubble
-          message={makeMessage({ content: 'Your habits\n[[orbit:habits:today]]' })}
-        />,
-      )
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role, content: 'Your habits' })} />)
     })
-
-    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
-    expect(tree.root.findAll((node) => node.type === Copy)).toHaveLength(1)
-    vi.useFakeTimers()
-    await TestRenderer.act(async () => {
-      await copy?.props.onPress?.()
-    })
-
-    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Your habits')
-    expect(
-      tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copied').length,
-    ).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.type === Check)).toHaveLength(1)
-    await TestRenderer.act(() => { vi.advanceTimersByTime(1600) })
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy').length).toBeGreaterThan(0)
+    expect(renderedText(tree.root)).toContain('Your habits')
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0)
   })
 
-  it('omits the copy control when an AI turn has no prose', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '[[orbit:habits:today]]' })} />)
-    })
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
-  })
-
-  it('does not copy a hidden partial directive while streaming', async () => {
+  it('hides partial directives during streaming without offering a copy control', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '[[orbit:habits:' })} isStreaming />)
     })
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
-
+    expect(renderedText(tree.root)).not.toContain('[[orbit:')
     await TestRenderer.act(() => {
       tree.update(<MessageBubble message={makeMessage({ content: 'Hello [[orbit:habits:' })} isStreaming />)
     })
-    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
-    await TestRenderer.act(async () => { await copy?.props.onPress?.() })
-    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Hello')
-  })
-
-  it('omits the copy control for a separator-only reply', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '---' })} />)
-    })
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
-  })
-
-  it('does not offer copying a sent message', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />,
-      )
-    })
-
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
+    expect(renderedText(tree.root)).toContain('Hello')
+    expect(renderedText(tree.root)).not.toContain('[[orbit:')
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0)
   })
 })
 

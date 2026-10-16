@@ -13,7 +13,6 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => {} }, useTranslation: () => ({ i18n: { language: 'pt-BR' }, t: (key: string) => key }) }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => React.createElement('Markdown', null, children) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.ai.pendingOperationRefresh('refresh') ? mutations.refresh() : mutations.revise() }))

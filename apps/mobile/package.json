@@ -48,7 +48,6 @@
     "expo-audio": "~57.0.5",
     "expo-blur": "~57.0.3",
     "expo-build-properties": "~57.0.22",
-    "expo-clipboard": "~57.0.2",
     "expo-crypto": "~57.0.4",
     "expo-dev-client": "~57.0.20",
     "expo-device": "~57.0.2",
@@ -113,9 +112,9 @@
     "eslint-plugin-sonarjs": "^4.1.0",
     "react-test-renderer": "19.2.7",
     "saxes": "^6.0.0",
+    "tsx": "^4.20.6",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.62.1",
-    "tsx": "^4.20.6",
     "vitest": "^4.1.9",
     "yoga-layout": "^3.2.1"
   }

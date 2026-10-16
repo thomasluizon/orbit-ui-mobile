@@ -426,8 +426,11 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     if (inputDisabled && (initialFocus || focusedTarget.current === 'input')) {
       composerRef.current?.setNativeProps({ hasTVPreferredFocus: true })
     }
-    else if (!inputDisabled && (initialFocus || focusedTarget.current === 'container')) focusTarget.current?.focus()
-  }, [inputDisabled, props.autoFocus])
+    else if (!inputDisabled && (initialFocus || focusedTarget.current === 'container')) {
+      focusTarget.current?.focus()
+      if (initialFocus) focusTarget.current?.setSelection(props.value.length, props.value.length)
+    }
+  }, [inputDisabled, props.autoFocus, props.value])
   const testID = [
     'composer',
     props.state,
@@ -578,7 +581,6 @@ const styles = StyleSheet.create({
   field: {
     minHeight: 56,
     minWidth: 0,
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 4,
@@ -613,6 +615,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
+    textAlignVertical: 'top',
   },
   iconButton: {
     width: 48,

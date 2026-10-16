@@ -38,20 +38,20 @@ for (const width of [412, 600, 1352]) {
             await expect(conversation.getByRole('feed')).toHaveAttribute('aria-busy', 'false')
             await page.evaluate(() => document.fonts.ready)
             await turn.evaluate(settleAnimations)
-            const geometry = await turn.evaluate((article, copyLabel) => {
+            const geometry = await turn.evaluate(article => {
               const bounds = (element: Element) => {
                 const rect = element.getBoundingClientRect()
                 return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
               }
-              const copy = [...article.querySelectorAll('button')].find(button => button.textContent.trim() === copyLabel)
+              const prose = article.querySelector('[data-bubble-role="ai"]')
               return { turn: bounds(article), previous: bounds(article.previousElementSibling!),
-                copy: copy ? bounds(copy) : null, blocks: [...article.querySelectorAll('section[data-state]')].map(bounds),
+                prose: prose ? bounds(prose) : null, blocks: [...article.querySelectorAll('section[data-state]')].map(bounds),
                 composer: bounds(document.querySelector('[data-shell-conversation] [data-composer-input-row]')!),
                 chips: bounds(document.querySelector('[data-shell-conversation] [data-composer-root] [role="group"]')!),
               }
-            }, messages.chat.copy)
+            })
             expect(geometry.turn.top - geometry.previous.bottom).toBeCloseTo(16, 1)
-            expect(geometry.blocks[0]!.top - (geometry.copy?.bottom ?? geometry.turn.top)).toBeCloseTo(withProse ? 16 : 0, 1)
+            expect(geometry.blocks[0]!.top - (geometry.prose?.bottom ?? geometry.turn.top)).toBeCloseTo(withProse ? 16 : 0, 1)
             for (const [index, block] of geometry.blocks.entries()) {
               expect(block.left).toBeCloseTo(geometry.composer.left, 1)
               expect(block.right).toBeCloseTo(geometry.composer.right, 1)
