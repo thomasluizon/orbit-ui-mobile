@@ -79,46 +79,46 @@ function hasModifier(node, kind) {
 }
 
 function parseModule(source, resolveSpecifier) {
-const module = { declarations: new Map(), imports: new Map(), exports: new Map(), stars: [], sideEffects: [], active: new Set(), requested: new Set() }
-for (const statement of source.statements) {
-  if (ts.isImportDeclaration(statement)) {
-    const target = resolveSpecifier(statement.moduleSpecifier.text)
-    if (!target || statement.importClause?.isTypeOnly) continue
-    const clause = statement.importClause
-    if (!clause) module.sideEffects.push(target)
-    if (clause?.name) module.imports.set(clause.name.text, { target, name: 'default' })
-    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-      for (const item of clause.namedBindings.elements) {
-        if (!item.isTypeOnly) module.imports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
+  const module = { declarations: new Map(), imports: new Map(), exports: new Map(), stars: [], sideEffects: [], active: new Set(), requested: new Set() }
+  for (const statement of source.statements) {
+    if (ts.isImportDeclaration(statement)) {
+      const target = resolveSpecifier(statement.moduleSpecifier.text)
+      if (!target || statement.importClause?.isTypeOnly) continue
+      const clause = statement.importClause
+      if (!clause) module.sideEffects.push(target)
+      if (clause?.name) module.imports.set(clause.name.text, { target, name: 'default' })
+      if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+        for (const item of clause.namedBindings.elements) {
+          if (!item.isTypeOnly) module.imports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
+        }
+      } else if (clause?.namedBindings) module.imports.set(clause.namedBindings.name.text, { target, name: '*' })
+    } else if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue
+      const target = statement.moduleSpecifier ? resolveSpecifier(statement.moduleSpecifier.text) : null
+      if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+        for (const item of statement.exportClause.elements) {
+          if (!item.isTypeOnly) module.exports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
+        }
+      } else if (target) module.stars.push(target)
+    } else if (ts.isExportAssignment(statement)) {
+      module.exports.set('default', { node: statement.expression })
+    } else {
+      const exported = hasModifier(statement, ts.SyntaxKind.ExportKeyword)
+      const isDefault = hasModifier(statement, ts.SyntaxKind.DefaultKeyword)
+      if (ts.isExpressionStatement(statement)) module.active.add(statement)
+      const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations
+        : ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement) || ts.isModuleDeclaration(statement) ? [statement] : []
+      for (const declaration of declarations) {
+        const names = declaration.name ? [...declaration.name.getText(source).matchAll(/[A-Za-z_$][\w$]*/g)].map((match) => match[0]) : []
+        for (const name of names) {
+          module.declarations.set(name, declaration)
+          if (exported) module.exports.set(name, { node: declaration })
+        }
+        if (isDefault) module.exports.set('default', { node: declaration })
       }
-    } else if (clause?.namedBindings) module.imports.set(clause.namedBindings.name.text, { target, name: '*' })
-  } else if (ts.isExportDeclaration(statement)) {
-    if (statement.isTypeOnly) continue
-    const target = statement.moduleSpecifier ? resolveSpecifier(statement.moduleSpecifier.text) : null
-    if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-      for (const item of statement.exportClause.elements) {
-        if (!item.isTypeOnly) module.exports.set(item.name.text, { target, name: (item.propertyName ?? item.name).text })
-      }
-    } else if (target) module.stars.push(target)
-  } else if (ts.isExportAssignment(statement)) {
-    module.exports.set('default', { node: statement.expression })
-  } else {
-    const exported = hasModifier(statement, ts.SyntaxKind.ExportKeyword)
-    const isDefault = hasModifier(statement, ts.SyntaxKind.DefaultKeyword)
-    if (ts.isExpressionStatement(statement)) module.active.add(statement)
-    const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations
-      : ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement) || ts.isModuleDeclaration(statement) ? [statement] : []
-    for (const declaration of declarations) {
-      const names = declaration.name ? [...declaration.name.getText(source).matchAll(/[A-Za-z_$][\w$]*/g)].map((match) => match[0]) : []
-      for (const name of names) {
-        module.declarations.set(name, declaration)
-        if (exported) module.exports.set(name, { node: declaration })
-      }
-      if (isDefault) module.exports.set('default', { node: declaration })
     }
   }
-}
-return module
+  return module
 }
 
 function sourceTree(snapshot, platform) {
