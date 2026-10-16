@@ -138,9 +138,9 @@ function isInstructionOrFormatExample(value: string): boolean {
 
 describe('bad-habit logging instructions', () => {
   it.each([
-    { locale: 'en', messages: en, hint: 'Log slips. Streak: days without them.' },
-    { locale: 'pt-BR', messages: ptBR, hint: 'Anote deslizes. Sequência: dias sem eles.' },
-  ])('describes logging slips and counting days without them in $locale', ({ messages, hint }) => {
+    { locale: 'en', messages: en, hint: 'Log it when you do it, not when you resist.' },
+    { locale: 'pt-BR', messages: ptBR, hint: 'Registre quando fizer, não quando resistir.' },
+  ])('says a bad habit is logged when it happens in $locale', ({ messages, hint }) => {
     expect(messages.habits.form.habitTypeAvoidHint).toBe(hint)
   })
 })

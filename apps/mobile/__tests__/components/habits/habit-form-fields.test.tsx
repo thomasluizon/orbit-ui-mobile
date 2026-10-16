@@ -167,8 +167,8 @@ describe('HabitFormFields mobile', () => {
   })
 
   it.each([
-    ['en', 'Log slips. Streak: days without them.'],
-    ['pt-BR', 'Anote deslizes. Sequência: dias sem eles.'],
+    ['en', 'Log it when you do it, not when you resist.'],
+    ['pt-BR', 'Registre quando fizer, não quando resistir.'],
   ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
     formLocale.language = locale
     let tree!: ReturnType<typeof TestRenderer.create>
