@@ -211,7 +211,7 @@ These are Batch R behavior gaps, including the existing habit-view ticket:
 | `#1446` | the desktop g then i progress shortcut |
 | `#1447` | the MCP web connection guide and endpoint copy |
 | `#1448` | the MCP code-client configuration and copy |
-| `#1449` | the API key details readout |
+| `#1449` | the API key details readout, including the created key's read-only permission summary |
 | `#1450` | the complete manual habit schedule choices |
 
 The Production Feature Parity job reports ticketed gaps already on the base as advisory and rejects

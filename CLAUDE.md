@@ -69,7 +69,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
 | `.claude/manifests/feature-parity.json` | Generated production capability inventory for web and Android, reachable redesign evidence, cited removals and pending restoration tickets; regenerate with `git fetch origin main && node tools/check-feature-parity.mjs --write`. |
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
-| `.claude/specs/orbit-prod-release.md` | Release standing rules and batch work, including the Batch R production capability restorations and progressive parity enforcement. |
+| `.claude/specs/orbit-prod-release.md` | Release standing rules and batch work, including the Batch R production capability restorations, created-key permission summaries and progressive parity enforcement. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |

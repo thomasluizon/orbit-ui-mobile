@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { T, REPO_ROOT } from './_harness.mjs'
@@ -96,5 +96,75 @@ export const cases = () => {
     'apps/web/components/options.ts': "export const options = <T>(value: T) => ({ value, label: t('habits.viewAll') })",
   }), 'web')
   T('TypeScript option builders retain generic arrow syntax', genericOptions.some((entry) => entry.id === 'web:control:habits.viewAll'))
+
+  for (const platform of ['web', 'mobile']) {
+    const files = {
+      'packages/shared/src/i18n/en.json': catalog,
+      [`apps/${platform}/app/${platform === 'web' ? 'page' : 'index'}.tsx`]: `
+        import { useWords } from '../words'; import { Controls } from '../controls';
+        export default function Home() { const { unused, ...words } = useWords(); return <Controls words={words} /> }
+      `,
+      [`apps/${platform}/words.ts`]: "export function useWords() { return { unused: false, file: t('habits.viewAll'), image: t('common.all') } }",
+      [`apps/${platform}/controls.tsx`]: `
+        export function Controls({ words }) { const { file: caption } = words; return <button onClick={open}>{caption}</button> }
+      `,
+    }
+    const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const capability = [{ id: `${platform}:control:habits.viewAll`, platform, kind: 'control', key: 'habits.viewAll', evidence: [] }]
+    const mapping = { mappings: { [capability[0].id]: { targets: [`${platform}:content:habits.viewAll`] } } }
+    const before = compare(capability, scan(current, platform), mapping)
+    T(`${platform} mapped word aliases follow rest props and renamed destructuring`, before[0].disposition === 'retained')
+    files[`apps/${platform}/controls.tsx`] = `
+      export function Controls({ words }) { const unused = { file: words.file }; return <button onClick={open}>{words.image}</button> }
+    `
+    const after = compare(capability, scan(current, platform), mapping)
+    T(`${platform} unused bindings and a rendered sibling word cannot retain the mapped control`, newLosses(after, before).length === 1)
+    files[`apps/${platform}/controls.tsx`] = `
+      export function Controls({ words }) { const unrelated = { file: t('common.all') }; return <button onClick={open}>{unrelated.file}</button> }
+    `
+    T(`${platform} an unrelated object with the same property name cannot retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'missing')
+    files[`apps/${platform}/controls.tsx`] = `
+      function Inert({ image }) { return <button onClick={open}>{image}</button> }
+      export function Controls({ words }) { return <Inert unused={words.file} image={words.image} /> }
+    `
+    T(`${platform} an unread scalar prop cannot retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'missing')
+    files[`apps/${platform}/controls.tsx`] = `
+      function Forwarded({ unused, ...props }) { return <button onClick={open} {...props} /> }
+      export function Controls({ words }) { return <Forwarded aria-label={words.file} unused={words.image} /> }
+    `
+    T(`${platform} forwarded accessibility props retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'retained')
+    files[`apps/${platform}/controls.tsx`] = `
+      function Stripped({ 'aria-label': unused, ...props }) { return <button onClick={open} {...props} /> }
+      export function Controls({ words }) { return <Stripped aria-label={words.file} /> }
+    `
+    T(`${platform} a removed rest property cannot retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'missing')
+  }
+
+  const rules = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/feature-parity-rules.json'), 'utf8'))
+  const inventory = JSON.parse(readFileSync(join(REPO_ROOT, '.claude/manifests/feature-parity.json'), 'utf8'))
+  for (const platform of ['mobile', 'web']) {
+    const files = { 'packages/shared/src/i18n/en.json': catalog }
+    function load(directory) {
+      for (const name of readdirSync(join(REPO_ROOT, directory), { withFileTypes: true })) {
+        const path = `${directory}/${name.name}`
+        if (name.isDirectory() && !/^(?:node_modules|\.next|\.expo|__tests__|e2e)$/.test(name.name)) load(path)
+        else if (name.isFile() && /\.[jt]sx?$/.test(path)) files[path] = readFileSync(join(REPO_ROOT, path), 'utf8')
+      }
+    }
+    load(`apps/${platform}`)
+    load('packages/shared/src')
+    const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const id = `${platform}:control:chat.attachFile`
+    const capability = inventory.entries.filter((entry) => entry.id === id)
+    const before = compare(capability, scan(current, platform), rules)
+    T(`${platform} attachment control is retained before removing its consumer`, before[0]?.disposition === 'retained')
+    const composer = `apps/${platform}/components/shell/composer.tsx`
+    const original = files[composer]
+    files[composer] = original.split('\n').filter((line) => !line.includes("id: 'file', label: props.attachWords.file") && !line.includes("if (id === 'file') props.onAttachFile?.()")).join('\n')
+    T(`${platform} mutation removes the real attachment menu item and selection branch`, files[composer] !== original && !files[composer].includes('props.attachWords.file'))
+    const after = compare(capability, scan(current, platform), rules)
+    T(`${platform} a surviving word producer cannot retain a deleted attachment control`, after[0]?.disposition === 'missing')
+    T(`${platform} deleting the consuming control is a blocking new loss`, newLosses(after, before).some((entry) => entry.id === id))
+  }
 
 }

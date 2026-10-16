@@ -3945,6 +3945,10 @@
     }
   },
   "tickets": {
+    "mobile:display:common.no": "#1449",
+    "mobile:display:common.yes": "#1449",
+    "web:display:common.no": "#1449",
+    "web:display:common.yes": "#1449",
     "mobile:control:common.all": "#1426",
     "mobile:control:common.never": "#1437",
     "mobile:control:common.seeLess": "#1443",
