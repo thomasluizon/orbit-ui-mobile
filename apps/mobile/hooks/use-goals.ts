@@ -72,9 +72,9 @@ export function useCreateGoal() {
 
       return queueOrExecute({
         mutation,
-        execute: async () => apiClient<{ id: string }>(API.goals.create, {
+        execute: async (resolvedMutation) => apiClient<{ id: string }>(API.goals.create, {
           method: 'POST',
-          body: JSON.stringify(data),
+          body: JSON.stringify(resolvedMutation.payload),
         }),
         queuedResult: withQueuedMarker({ id: tempId }, mutation.id),
       })
