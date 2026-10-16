@@ -311,10 +311,15 @@ function bindingInputs(graph, symbols) {
   return { ...symbols, calls, sinks, assignments, stateWrites, arrayWrites, returned }
 }
 
-function traceBindingParameter(node, path, next, calls) {
+function traceBindingParameter(node, path, next, calls, context) {
   next(node.initializer)
   const fn = node.parent
   const position = fn.parameters.indexOf(node)
+  const origin = context.findLastIndex((frame) => frame.fn === fn)
+  if (origin !== -1) {
+    next(context[origin].call.arguments[position], path, context.slice(0, origin))
+    return
+  }
   for (const call of calls.get(fn) ?? []) {
     if (ts.isCallExpression(call)) next(call.arguments[position])
     else if (position === 0 && path.length) {
@@ -331,11 +336,14 @@ function traceBindingParameter(node, path, next, calls) {
   if (ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) && /^(?:map|flatMap|filter|find|some|every)$/.test(call.expression.name.text) && position === 0) next(call.expression.expression, ['*', ...path])
 }
 
-function traceBindingCall(node, path, next, inputs) {
+function traceBindingCall(node, path, next, inputs, context) {
   const { callable, returned, translationNames } = inputs
   const fn = callable(node.expression)
-  if (fn) returned(fn).forEach((value) => next(value))
-  else if (/^(?:useMemo|useCallback|useState)$/.test(node.expression.getText())) {
+  if (fn) {
+    if (!context.some((frame) => frame.call === node)) {
+      returned(fn).forEach((value) => next(value, path, [...context, { fn, call: node }]))
+    }
+  } else if (/^(?:useMemo|useCallback|useState)$/.test(node.expression.getText())) {
     const callback = callable(node.arguments[0])
     if (callback) returned(callback).forEach((value) => next(value, node.expression.getText() === 'useState' ? path.slice(1) : path))
     else next(node.arguments[0], node.expression.getText() === 'useState' ? path.slice(1) : path)
@@ -354,12 +362,13 @@ function traceBindingCall(node, path, next, inputs) {
 function bindingConsumers(graph, origins) {
   const inputs = bindingInputs(graph, bindingSymbols(graph))
   const { declaration, assignments, stateWrites, arrayWrites, calls, returned, sinks } = inputs
+  const callIds = new Map([...calls.values()].flat().map((call, index) => [call, index]))
   const consumers = new Map()
   for (const { node: sink, path: sinkPath } of sinks) {
     const seen = new Map()
-    function trace(node, path = []) {
+    function trace(node, path = [], context = []) {
       if (!node || path.length > 20) return
-      const key = path.join('.')
+      const key = `${path.join('.')}|${context.map((frame) => callIds.get(frame.call)).join(',')}`
       if (!seen.has(node)) seen.set(node, new Set())
       if (seen.get(node).has(key)) return
       seen.get(node).add(key)
@@ -369,7 +378,7 @@ function bindingConsumers(graph, origins) {
         const location = evidence(sink.getSourceFile(), sink)
         if (!consumers.get(id).some((item) => item.file === location.file && item.line === location.line)) consumers.get(id).push(location)
       }
-      const next = (value, suffix = path) => trace(value, suffix)
+      const next = (value, suffix = path, caller = context) => trace(value, suffix, caller)
       if (ts.isIdentifier(node) || ts.isShorthandPropertyAssignment(node)) next(declaration(node))
       else if (ts.isPropertyAccessExpression(node)) next(node.expression, [node.name.text, ...path])
       else if (ts.isElementAccessExpression(node)) next(node.expression, [ts.isStringLiteral(node.argumentExpression) ? node.argumentExpression.text : '*', ...path])
@@ -384,7 +393,7 @@ function bindingConsumers(graph, origins) {
         if (!excluded) next(pattern.parent, node.dotDotDotToken ? path : [name, ...path])
         for (const value of stateWrites.get(node) ?? []) next(value)
       } else if (ts.isParameter(node)) {
-        traceBindingParameter(node, path, next, calls)
+        traceBindingParameter(node, path, next, calls, context)
       } else if (ts.isObjectLiteralExpression(node) && path.length) {
         for (const property of node.properties) {
           if (ts.isSpreadAssignment(property)) next(property.expression)
@@ -394,7 +403,7 @@ function bindingConsumers(graph, origins) {
         const suffix = path[0] === '*' || /^\d+$/.test(path[0] ?? '') ? path.slice(1) : path
         for (const item of node.elements) next(ts.isSpreadElement(item) ? item.expression : item, ts.isSpreadElement(item) ? path : suffix)
       } else if (ts.isCallExpression(node)) {
-        traceBindingCall(node, path, next, inputs)
+        traceBindingCall(node, path, next, inputs, context)
       } else if (ts.isConditionalExpression(node)) { next(node.whenTrue); next(node.whenFalse) }
       else if (ts.isBinaryExpression(node) && [ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.PlusToken].includes(node.operatorToken.kind)) { next(node.left); next(node.right) }
       else if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node) || ts.isAwaitExpression(node)) next(node.expression)

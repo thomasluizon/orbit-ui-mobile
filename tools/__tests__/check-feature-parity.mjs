@@ -190,6 +190,22 @@ export const cases = () => {
     const after = compare(capability, scan(current, platform), rules)
     T(`${platform} a surviving word producer cannot retain a deleted attachment control`, after[0]?.disposition === 'missing')
     T(`${platform} deleting the consuming control is a blocking new loss`, newLosses(after, before).some((entry) => entry.id === id))
+    files[composer] = original
+
+    const celebration = `apps/${platform}/components/gamification/celebration-panel.tsx`
+    const titles = inventory.entries.filter((entry) => [
+      `${platform}:control:gamification.levelUp.title`,
+      `${platform}:control:goals.completedCelebrationTitle`,
+    ].includes(entry.id))
+    const beforeCelebration = compare(titles, scan(current, platform), rules)
+    T(`${platform} both mapped celebration titles have their actual rendered output`, beforeCelebration.length === 2 && beforeCelebration.every((entry) => entry.disposition === 'retained' && entry.redesign.some((item) => item.file === celebration)))
+    const originalCelebration = files[celebration]
+    files[celebration] = originalCelebration.split('\n').filter((line) => !line.includes('{line}</p>') && !line.includes('{line}</Text>')).join('\n')
+    T(`${platform} mutation deletes only the actual celebration output`, files[celebration] !== originalCelebration && files[celebration].includes('plural(translatedLine, pluralCount)'))
+    const afterCelebration = compare(titles, scan(current, platform), rules)
+    T(`${platform} unrelated plural consumers cannot retain either deleted celebration title`, afterCelebration.every((entry) => entry.disposition === 'missing'))
+    T(`${platform} deleting the celebration output blocks both mapped titles`, newLosses(afterCelebration, beforeCelebration).length === 2)
+    files[celebration] = originalCelebration
   }
 
 }
