@@ -1,3 +1,4 @@
+import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -55,11 +56,11 @@ function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable
 }
 
 function SelectionStatusGlyph({
-  habit, depth, hasChildren, childrenDone, childrenTotal, dotState, tokens,
+  habit, depth, hasChildren, childrenDone, childrenTotal, dotState, isDoneForRange, tokens,
   completionReadOnly, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
-  const statusName = t(`habits.statusDot.${dotState}` as const)
+  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   if (showParentRing(hasChildren, childrenTotal, completionStatusUnavailable)) {
     return (
       <View accessibilityRole="image" accessibilityLabel={`${statusName}, ${childrenDone}/${childrenTotal}`}
@@ -81,7 +82,7 @@ function InteractiveParentRing({
   completionReadOnly, completionReason, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
-  const statusName = t(`habits.statusDot.${dotState}` as const)
+  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(dotState, isDoneForRange)}` as const)
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
@@ -111,7 +112,7 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   if (showParentRing(props.hasChildren, props.childrenTotal, props.completionStatusUnavailable)) {
     return <InteractiveParentRing {...props} />
   }
-  const statusName = t(`habits.statusDot.${props.dotState}` as const)
+  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(props.dotState, props.isDoneForRange)}` as const)
   const toggleLabel = props.isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(props.completionStatusUnavailable, statusName, toggleLabel, props.habit.title)
   return <CheckCircle state={props.dotState} unavailable={props.completionStatusUnavailable}

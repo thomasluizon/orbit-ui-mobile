@@ -156,7 +156,7 @@ describe('HabitRow canonical content (mobile)', () => {
     { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
       words: ['habits.overdue', 'habits.statusDot.bad'], state: 'bad' },
     { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
-      words: [], state: 'bad' },
+      words: [], state: 'empty' },
     { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
       words: [], state: 'done' },
   ])('renders parent progress with applicable state words for $label', ({ label, words, state, ...flags }) => {
