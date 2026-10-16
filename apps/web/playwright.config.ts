@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { LAYOUT_ORIGIN, LAYOUT_STORAGE_STATE_PATH, STORAGE_STATE_PATH } from './e2e/support/env'
+import { LAYOUT_ORIGIN, LAYOUT_PORT, LAYOUT_STORAGE_STATE_PATH, STORAGE_STATE_PATH } from './e2e/support/env'
 
 if (process.argv.includes('--project=layout')) process.env.LAYOUT = '1'
 const isLayout = process.env.LAYOUT === '1'
@@ -47,6 +47,8 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
+        PORT: LAYOUT_PORT,
+        NEXT_PUBLIC_SITE_URL: LAYOUT_ORIGIN,
         API_BASE: 'http://127.0.0.1:5099',
         TZ: 'UTC',
         NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ./e2e/layout/server-clock.mjs`,
