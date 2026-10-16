@@ -468,7 +468,7 @@ describe('ChatScreen composer recoveries', () => {
 
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
     expect(avoidingView?.props.behavior).toBe('height')
-    expect(composerContainer?.props.style).toMatchObject({ paddingBottom: 20 })
+    expect(composerContainer?.props.style).toHaveProperty('paddingBottom', 20)
     expect(composerContainer?.props.style).not.toHaveProperty('marginBottom')
     await TestRenderer.act(async () => {
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
