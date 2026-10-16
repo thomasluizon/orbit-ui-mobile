@@ -1,6 +1,6 @@
 import type { HabitsFilter, NormalizedHabit } from "../types/habit";
 import type { ShellDestinationId } from "../utils/shell-destinations";
-import { formatAPIDate } from "../utils/dates";
+import { formatAPIDate, formatAPIDateInTimeZone } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
 import {
@@ -94,7 +94,7 @@ export interface UIStoreState {
   showStreakMoment: (
     streak: number,
     previousStreak: number | undefined,
-    log: { date?: string; intent: "log" | "unlog"; countsTowardStreak: boolean },
+    log: { date?: string; timeZone?: string | null; intent: "log" | "unlog"; countsTowardStreak: boolean },
   ) => void;
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
@@ -109,6 +109,7 @@ export interface UIStoreState {
     habitsById: Map<string, NormalizedHabit>,
     childrenByParent: Map<string, string[]>,
     date: string,
+    timeZone?: string | null,
   ) => void;
 
   isSelectMode: boolean;
@@ -215,7 +216,7 @@ export function createUIStoreState(
 
     dailyStreakMomentDate: "",
     showStreakMoment: (streak, previousStreak, log) => {
-      const today = formatAPIDate(new Date());
+      const today = formatAPIDateInTimeZone(new Date(), log.timeZone);
       if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
       if (previousStreak === undefined || streak !== previousStreak + 1) return;
       set((state) => {
@@ -288,9 +289,9 @@ export function createUIStoreState(
       goalCompletedCelebration: null,
     }),
 
-    checkAllDoneCelebration: (habitsById, childrenByParent, date) => {
+    checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone) => {
       const { allDoneCelebratedDate, enqueueCelebration } = get();
-      const today = formatAPIDate(new Date());
+      const today = timeZone === undefined ? formatAPIDate(new Date()) : formatAPIDateInTimeZone(new Date(), timeZone);
 
       if (date !== today) return;
       if (allDoneCelebratedDate === today) return;
