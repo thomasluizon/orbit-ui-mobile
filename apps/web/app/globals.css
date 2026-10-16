@@ -2365,3 +2365,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-day-target:hover .orbit-day-well { background: transparent; }
   .orbit-day-target:hover [data-press-fill] { opacity: 1; }
 }
+
+@keyframes astra-pending-pulse {
+  50% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .astra-pending-pulse {
+    animation: astra-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) infinite;
+  }
+}

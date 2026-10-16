@@ -21,6 +21,7 @@ import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
+import { PendingReply } from "@/components/chat/pending-reply";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
@@ -42,14 +43,7 @@ function ThinkingTrace({ steps, running }: Readonly<{
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = createTokensV2(currentScheme, currentTheme);
   const [expanded, setExpanded] = useState(false);
-  const announced = useRef(false);
   const panelId = useId();
-  useEffect(() => {
-    if (running && steps.length > 0 && !announced.current) {
-      announced.current = true;
-      AccessibilityInfo.announceForAccessibility(t('chat.trace.working'));
-    }
-  }, [running, steps.length, t]);
   if (steps.length === 0) return null;
   const lines = steps.map((step, index) => <View key={`${step.domain}-${step.access}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
     <Text style={{ color: tokens.fg3, fontSize: 14, flexShrink: 1 }}>{t(chatTraceLabelKey(step.domain, step.access))}</Text>
@@ -128,6 +122,16 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = chat;
+  const [pendingVisible, setPendingVisible] = useState(true);
+  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0;
+  const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0;
+  const [announcingWork, setAnnouncingWork] = useState(false)
+  useEffect(() => {
+    let mounted = true
+    void Promise.resolve().then(() => { if (mounted) setAnnouncingWork(replyWorking) })
+    return () => { mounted = false }
+  }, [replyWorking])
+
   const keyboardScroll = useConversationKeyboardScroll(flatListRef, threadScroll.isFollowing);
   const initialScrollPending = useRef(true);
   useEffect(() => { threadScroll.followLatest(); }, [threadScroll]);
@@ -191,7 +195,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
-        animateEntry={!initialMessageIds.has(item.id)}
+        animateEntry={item.role === 'user' && !initialMessageIds.has(item.id)}
         isStreaming={item.id === streamingMessageId}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
@@ -248,6 +252,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           }
         />
 
+        <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
+
         {showSuggestions ? (
           <ChatEmptyState ref={chatAreaRef} styles={styles} />
         ) : (
@@ -263,13 +269,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onScroll={(event) => {
                 const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
                 threadScroll.recordScroll(contentOffset.y, contentSize.height - layoutMeasurement.height);
+                setPendingVisible(contentSize.height - layoutMeasurement.height - contentOffset.y < 40);
               }}
               scrollEventThrottle={16}
               onLayout={() => {
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+              ListFooterComponent={showPendingReply ? <PendingReply visible={pendingVisible} /> : activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />

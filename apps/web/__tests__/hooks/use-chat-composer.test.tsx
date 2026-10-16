@@ -229,6 +229,7 @@ function controlledSseResponse() {
     }),
     enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
     close: () => streamController.close(),
+    fail: (error: Error) => streamController.error(error),
   }
 }
 
@@ -264,6 +265,28 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit'])('replaces the pending reply indicator on %s', async (arrival) => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { container } = render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    onTestFinished(() => { if (arrival != 'cancel') stream.close() })
+    expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
+    expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', 'true')
+    await act(async () => {
+      if (arrival === 'text') stream.enqueue(frame('{"type":"delta","text":"Start with water"}'))
+      if (arrival === 'tool') stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}'))
+      if (arrival === 'error') stream.enqueue(frame('{"type":"error","error":"Could not reply","status":500}'))
+      if (arrival === 'limit') stream.enqueue(frame('{"type":"error","error":"Limit reached","status":403}'))
+      if (arrival === 'block') stream.enqueue(finalFrame(makeChatResponse({ aiMessage: '', habitList: { scope: 'today', items: [] } })))
+      if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
+    })
+    await waitFor(() => expect(container.querySelector('[data-astra-pending]')).toBeNull())
+    if (arrival === 'text') expect(screen.getByText('Start with water')).toBeVisible()
+    if (arrival === 'tool') expect(screen.getByText('chat.trace.habits.read')).toBeVisible()
+  })
+
   it.each([412, 1440])('opens the conversation for a shell typed send at %s with streaming text and one composer', async (width) => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const stream = controlledSseResponse()

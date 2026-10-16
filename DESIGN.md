@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation and pending reply, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -120,6 +120,15 @@ at every width. The header is NavHeader: minimum height 56, start-aligned mono 1
 `Astra`, and a 48 close control with a 20 X. The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
+**Astra pending reply:** sending immediately reserves one 24px line at the next assistant
+turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
+for state indication, using the standard easing and four slow-duration units per cycle.
+The dots remain visible and static under reduced motion; pause the pulse outside the feed
+viewport. Replace the line in the same render as the first reply text, tool step or block,
+without an assistant entrance translation or exit delay. Clear it on error, cancellation or
+the allowance notice. Keep the feed busy and announce work once through a stable polite
+region outside the feed, independently of the dots; completed prose retains its turn announcement.
+
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
 
