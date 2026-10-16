@@ -38,12 +38,11 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
         onHoverIn={() => setHovered(true)}
         onHoverOut={() => setHovered(false)}
         onPress={() => { void copyDescription() }}
-        style={({ pressed }) => [styles.copyButton, { opacity: disabled ? 0.4 : 1, backgroundColor: (pressed || hovered) && !disabled ? tokens.bgHover : tokens.bgElev }]}
+        style={({ pressed }) => [styles.copyButton, { opacity: disabled ? 0.4 : 1, backgroundColor: (pressed || hovered) && !disabled ? tokens.bgElevHover : tokens.bgElev }]}
       >
-        {status === 'copied' ? <Check size={20} strokeWidth={1.5} color={tokens.fg2} /> : <Copy size={20} strokeWidth={1.5} color={tokens.fg2} />}
+        {status === 'copied' ? <Check accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} /> : <Copy accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} />}
       </InsetFocusPressable>
-      <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: tokens.fg2 }]}>{status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</Text>
-      {status === 'error' ? <Text accessibilityRole="alert" style={[styles.feedback, { color: tokens.statusBadText }]}>{t('habits.detail.copyFailed')}</Text> : null}
+      <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: status === 'error' ? tokens.statusBadText : tokens.fg2 }]}>{status === 'error' ? t('habits.detail.copyFailed') : status === 'copied' ? t('habits.detail.descriptionCopied') : ''}</Text>
     </View>
   )
 }

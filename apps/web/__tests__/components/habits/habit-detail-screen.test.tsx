@@ -1449,6 +1449,24 @@ describe('HabitDetailScreen', () => {
     expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
+  it('keeps the description expanded while selecting its text', () => {
+    mocks.detail = { ...makeDetail(), description: 'A note worth selecting' }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const toggle = screen.getByRole('button', { name: 'A note worth selecting' })
+    fireEvent.click(toggle)
+    const selection = document.getSelection()!
+    try {
+      selection.selectAllChildren(document.getElementById('habit-description')!)
+      fireEvent.click(toggle, { detail: 1 })
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(selection.toString()).toBe('A note worth selecting')
+    } finally {
+      selection.removeAllRanges()
+    }
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it('copies the full description from habit details', async () => {
     const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
     mocks.detail = { ...makeDetail(), description }

@@ -1,5 +1,7 @@
 import React from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DescriptionCopyButton } from '@/components/habits/description-copy-button'
@@ -26,6 +28,16 @@ beforeEach(() => {
 afterEach(async () => { await act(() => { tree.update(<></>) }) })
 
 describe('description copy action', () => {
+  it('keeps the pressed well distinct from its opaque resting fill', async () => {
+    await mount()
+    const style = button().props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    const resting = StyleSheet.flatten(style({ pressed: false }))
+    const pressed = StyleSheet.flatten(style({ pressed: true }))
+    const tokens = createTokensV2('orange', 'dark')
+    expect(contrastOnSurface(String(resting.backgroundColor), [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(1.25)
+    expect(contrastOnSurface(tokens.fg2, [tokens.bg, String(pressed.backgroundColor)])).toBeGreaterThanOrEqual(4.5)
+  })
+
   it('copies the full original text and verifies it before announcing success', async () => {
     await mount()
     expect(feedback().props.children).toBe('')
@@ -41,8 +53,8 @@ describe('description copy action', () => {
     else clipboard.getString.mockResolvedValue('Previous clipboard text')
     await mount()
     await act(async () => { press(); await Promise.resolve() })
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')[0]!.props.children).toBe('habits.detail.copyFailed')
-    expect(feedback().props.children).toBe('')
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
+    expect(feedback().props.children).toBe('habits.detail.copyFailed')
     clipboard.setString.mockReset()
     clipboard.getString.mockResolvedValue(description)
     await act(async () => { press(); await Promise.resolve() })
