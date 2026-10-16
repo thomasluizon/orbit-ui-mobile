@@ -94,7 +94,7 @@ for (const width of [320, 412, 1352]) {
       }
 
       test('omits select all when every event has an import issue', async ({ context, page }) => {
-        const blocked = calendarEventsResponseSchema.parse(events.map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' })))
+        const blocked = calendarEventsResponseSchema.parse(events.map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null })))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.calendar.events, (route) => route.fulfill({ json: blocked }))
         await page.goto('/calendar?import=1')
         const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
@@ -103,7 +103,7 @@ for (const width of [320, 412, 1352]) {
         await expect(sheet.getByRole('button', { name: words.calendar.selectAll, exact: true })).toHaveCount(0)
         await expect(sheet.getByRole('button', { name: words.calendar.deselectAll, exact: true })).toHaveCount(0)
         await expect(row.locator('button:disabled')).toHaveCount(0)
-        await expect(sheet.getByText(words.calendar.importIssue.ordinalWeekday, { exact: true })).toHaveCount(2)
+        await expect(sheet.getByText(words.calendar.importIssue.utcUntilOffsetShift, { exact: true })).toHaveCount(2)
       })
     })
   }

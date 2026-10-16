@@ -8,8 +8,12 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-docker-registries.mjs [--root <path>]
 
   Requires an explicit registry host in every tracked Dockerfile FROM image.
-  Allows scratch and references to earlier build stages. Variable image references
-  must be replaced with explicit registry paths so the source can be checked.
+  Allows scratch, earlier build stages, and global ARG image references whose
+  literal defaults include explicit registry hosts. Unresolved variables fail.
+  Requires the same explicit hosts in docker/build-push-action build-args
+  overrides of global ARGs referenced by tracked Dockerfile FROM instructions,
+  and rejects quoted build-args forms and CSV-quoted build-args entries
+  whose decoded value it cannot read.
   Also requires provenance: false on pushing docker/build-push-action steps
   when their steps list sets the docker/setup-buildx-action driver to docker.
   Reads tracked Dockerfiles and .github/workflows YAML as working-tree text,
@@ -35,8 +39,15 @@ if (argumentsToParse.length > 0) {
   repositoryRoot = resolve(argumentsToParse[1])
 }
 
-const inspectDockerfile = (filename, contents) => {
+const hasExplicitRegistry = (image) => {
+  const host = image.split("/")[0]
+  return image.includes("/") && !image.includes("$") && (host.includes(".") || host.includes(":") || host === "localhost")
+}
+
+const inspectDockerfile = (filename, contents, imageArguments) => {
   const stages = new Set()
+  const globalArguments = new Map()
+  let beforeFirstStage = true
   const violations = []
   const escape = contents.match(/^\s*#\s*escape\s*=\s*([\\`])\s*$/im)?.[1] ?? "\\"
   let instruction = ""
@@ -48,13 +59,18 @@ const inspectDockerfile = (filename, contents) => {
     const continued = trimmed.endsWith(escape)
     instruction += `${continued ? trimmed.slice(0, -1) : trimmed} `
     if (continued) continue
+    const argument = instruction.match(/^ARG\s+([A-Za-z_][A-Za-z0-9_]*)(?:=(\S+))?\s*$/i)
+    if (beforeFirstStage && argument) globalArguments.set(argument[1], argument[2])
     const from = instruction.match(/^FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+(\S+))?\s*$/i)
     instruction = ""
     if (!from) continue
+    beforeFirstStage = false
     const [, image, stage] = from
-    const host = image.split("/")[0]
-    const explicitRegistry = image.includes("/") && !image.includes("$") && (host.includes(".") || host.includes(":") || host === "localhost")
-    if (image !== "scratch" && !stages.has(image.toLowerCase()) && !explicitRegistry) {
+    const variable = image.match(/^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/)
+    const argumentName = variable?.[1] ?? variable?.[2]
+    if (globalArguments.has(argumentName)) imageArguments.add(argumentName)
+    const resolvedImage = (variable && globalArguments.get(variable[1] ?? variable[2])) || image
+    if (image !== "scratch" && !stages.has(image.toLowerCase()) && !hasExplicitRegistry(resolvedImage)) {
       violations.push(`${filename}:${instructionLine}: FROM ${image} needs an explicit registry host`)
     }
     if (stage) stages.add(stage.toLowerCase())
@@ -81,37 +97,72 @@ const workflowStepLists = (contents) => {
     if (!list) continue
     if (stepIndent === null && line.trimStart().startsWith("- ")) stepIndent = indent
     if (indent === stepIndent && line.trimStart().startsWith("- ")) {
-      list.push({ line: index + 1, indent, lines: [line.replace("- ", "  ")] })
+      list.push({ line: index + 1, indent, lines: [{ text: line.replace("- ", "  "), number: index + 1 }] })
     } else if (list.length > 0) {
-      list.at(-1).lines.push(line)
+      list.at(-1).lines.push({ text: line, number: index + 1 })
     }
   }
   return lists
 }
 
-const stepValue = (step, key, input = false) => {
+const stepProperty = (step, key, input = false) => {
   const indent = step.indent + (input ? 4 : 2)
   const pattern = new RegExp(`^ {${indent}}${key}:\\s*(.*?)\\s*(?:\\s+#.*)?$`)
-  let lines = step.lines
+  let start = 0
   if (input) {
-    const withIndex = lines.findIndex((line) => new RegExp(`^ {${step.indent + 2}}with:\\s*(?:#.*)?$`).test(line))
+    const withIndex = step.lines.findIndex(({ text }) => new RegExp(`^ {${step.indent + 2}}with:\\s*(?:#.*)?$`).test(text))
     if (withIndex === -1) return undefined
-    lines = lines.slice(withIndex + 1)
-    const end = lines.findIndex((line) => line.match(/^ */)[0].length < indent)
-    if (end !== -1) lines = lines.slice(0, end)
+    start = withIndex + 1
   }
-  const value = lines.map((line) => line.match(pattern)?.[1]).find((value) => value !== undefined)
-  return value?.replace(/^(["'])(.*)\1$/, "$2")
+  for (let index = start; index < step.lines.length; index++) {
+    const { text } = step.lines[index]
+    if (input && text.match(/^ */)[0].length < indent) break
+    const match = text.match(pattern)
+    if (match) return { value: match[1].replace(/^(["'])(.*)\1$/, "$2"), raw: match[1], index }
+  }
+  return undefined
 }
 
-const inspectWorkflow = (filename, contents) => {
+const stepValue = (step, key, input = false) => stepProperty(step, key, input)?.value
+
+const inspectBuildArguments = (filename, step, imageArguments) => {
+  const property = stepProperty(step, "build-args", true)
+  if (!property) return []
+  const number = step.lines[property.index].number
+  const quote = property.raw[0]
+  if ((quote === '"' || quote === "'") && (property.raw.length < 2 || !property.raw.endsWith(quote) || (quote === '"' && property.raw.includes("\\")))) {
+    return [`${filename}:${number}: build-args uses a quoted YAML form this guard cannot read; write it as a plain value or a literal block`]
+  }
+  let lines = [{ text: property.value, number }]
+  if (/^[|>](?:[1-9][+-]?|[+-][1-9]?)?$/.test(property.value)) {
+    lines = step.lines.slice(property.index + 1)
+    const end = lines.findIndex(({ text }) => text.match(/^ */)[0].length <= step.indent + 4)
+    if (end !== -1) lines = lines.slice(0, end)
+  }
+  const violations = []
+  for (const { text, number } of lines) {
+    const entry = text.trim()
+    if (entry.startsWith('"')) {
+      violations.push(`${filename}:${number}: build-args entry ${entry} uses CSV quoting this guard cannot read; write it unquoted`)
+      continue
+    }
+    const argument = entry.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
+    if (argument && imageArguments.has(argument[1]) && !hasExplicitRegistry(argument[2])) {
+      violations.push(`${filename}:${number}: build-args ${argument[1]}=${argument[2]} needs an explicit registry host`)
+    }
+  }
+  return violations
+}
+
+const inspectWorkflow = (filename, contents, imageArguments) => {
   const violations = []
   for (const steps of workflowStepLists(contents)) {
     const dockerDriver = steps.some((step) => /^docker\/setup-buildx-action@/.test(stepValue(step, "uses") ?? "") && stepValue(step, "driver", true) === "docker")
-    if (!dockerDriver) continue
     for (const step of steps) {
       const action = stepValue(step, "uses") ?? ""
-      if (/^docker\/build-push-action@/.test(action) && stepValue(step, "push", true) === "true" && stepValue(step, "provenance", true) !== "false") {
+      if (!/^docker\/build-push-action@/.test(action)) continue
+      violations.push(...inspectBuildArguments(filename, step, imageArguments))
+      if (dockerDriver && stepValue(step, "push", true) === "true" && stepValue(step, "provenance", true) !== "false") {
         violations.push(`${filename}:${step.line}: ${stepValue(step, "name") ?? action} must set provenance: false for pushes with the docker driver`)
       }
     }
@@ -125,15 +176,16 @@ try {
     .filter(Boolean)
   const dockerfiles = trackedFiles.filter((filename) => /^(?:Dockerfile(?:\..+)?|.+\.Dockerfile)$/i.test(basename(filename)))
   const workflows = trackedFiles.filter((filename) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(filename))
+  const imageArguments = new Set()
   const violations = [
-    ...dockerfiles.flatMap((filename) => inspectDockerfile(filename, readFileSync(join(repositoryRoot, filename), "utf8"))),
-    ...workflows.flatMap((filename) => inspectWorkflow(filename, readFileSync(join(repositoryRoot, filename), "utf8"))),
+    ...dockerfiles.flatMap((filename) => inspectDockerfile(filename, readFileSync(join(repositoryRoot, filename), "utf8"), imageArguments)),
+    ...workflows.flatMap((filename) => inspectWorkflow(filename, readFileSync(join(repositoryRoot, filename), "utf8"), imageArguments)),
   ]
   if (violations.length > 0) {
     console.error(violations.join("\n"))
     process.exit(1)
   }
-  console.log(`Checked ${dockerfiles.length} tracked Dockerfile(s): image registries are explicit; checked ${workflows.length} workflow(s): docker driver pushes disable provenance`)
+  console.log(`Checked ${dockerfiles.length} tracked Dockerfile(s): image registries are explicit; checked ${workflows.length} workflow(s): image build arguments use explicit registries; docker driver pushes disable provenance`)
 } catch (error) {
   console.error(`check-docker-registries: ${error.message}`)
   process.exit(2)
