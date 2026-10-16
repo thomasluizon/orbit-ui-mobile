@@ -168,14 +168,13 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
         ) : null}</>
 }
 
-function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string }>) {
+function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string; collapsed: boolean }>) {
   const client = useIsClient()
   const t = useTranslations()
-  const savedCollapsed = useShellStore(state => state.sidebarCollapsed)
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
-  const collapsed = client && savedCollapsed
+  const collapsed = props.collapsed
   const navigationId = useId()
-  const toggleLabel = t(collapsed ? 'shell.expandSidebar' : 'shell.collapseSidebar')
+  const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
   useEffect(() => { void useShellStore.persist.rehydrate() }, [])
   return (
     <aside
@@ -215,15 +214,6 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
 
       <div className="flex-1 shrink-0 min-h-6" />
       <div className="flex flex-col gap-6">
-        {props.onCreate ? (
-          <div className="flex flex-col gap-3">
-            <div aria-live="polite" aria-atomic="true">{props.createRefusal}</div>
-            {collapsed ? <Button onClick={props.onCreate} iconOnly label={props.createLabel} minimumHeight={48}>
-              <Plus size={20} aria-hidden="true" />
-            </Button> : <Button onClick={props.onCreate}>{props.createLabel}</Button>}
-          </div>
-        ) : null}
-        <SidebarAccount account={props.account} accountEmail={props.accountEmail} collapsed={collapsed} />
         <button
           type="button"
           data-shell-sidebar-toggle=""
@@ -237,6 +227,15 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         >
           {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
         </button>
+        {props.onCreate ? (
+          <div className="flex flex-col gap-3">
+            <div aria-live="polite" aria-atomic="true">{collapsed ? null : props.createRefusal}</div>
+            {collapsed ? <Button onClick={props.onCreate} iconOnly label={props.createLabel} minimumHeight={48}>
+              <Plus size={20} aria-hidden="true" />
+            </Button> : <Button onClick={props.onCreate}>{props.createLabel}</Button>}
+          </div>
+        ) : null}
+        <SidebarAccount account={props.account} accountEmail={props.accountEmail} collapsed={collapsed} />
       </div>
     </aside>
   )
@@ -302,6 +301,11 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
     : { padding: 'pb-8', minimum: 'min-h-8' }
 }
 
+function getSidebarCreateRefusal(props: ResponsiveShellProps, wide: boolean, collapsed: boolean) {
+  if (props.nav === false || !wide || !collapsed || !props.createRefusal) return null
+  return <div className="py-4">{props.createRefusal}</div>
+}
+
 function ShellWideBackground({
   props: { registerHeaderHost, ...props },
   conversationOpen,
@@ -316,6 +320,10 @@ function ShellWideBackground({
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
+  const client = useIsClient()
+  const savedCollapsed = useShellStore(state => state.sidebarCollapsed)
+  const collapsed = client && savedCollapsed
+  const sidebarRefusal = getSidebarCreateRefusal(props, wide, collapsed)
   const pinnedSlot = getPinnedSlot(props)
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
@@ -339,7 +347,7 @@ function ShellWideBackground({
     <div
       className="flex min-w-0 flex-1"
     >
-      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} /> : null}
+      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
         <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
@@ -355,6 +363,7 @@ function ShellWideBackground({
             ) : null}
           </div>
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} wide={wide} />
+          <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           {conversationOpen ? <div
             id={conversationId}
