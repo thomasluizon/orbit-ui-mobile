@@ -92,4 +92,9 @@ export const cases = () => {
   const noDefault = scan(snapshot('export function FormerPage() { return <main /> }'), 'web')
   T('a route file without its default export is missing', !noDefault.some((entry) => entry.kind === 'route'))
 
+  const genericOptions = scan(snapshot("import { options } from '../components/options'; export default function Home() { return <Tabs items={options('all')} onSelect={selectView} /> }", {
+    'apps/web/components/options.ts': "export const options = <T>(value: T) => ({ value, label: t('habits.viewAll') })",
+  }), 'web')
+  T('TypeScript option builders retain generic arrow syntax', genericOptions.some((entry) => entry.id === 'web:control:habits.viewAll'))
+
 }

@@ -130,7 +130,7 @@ function sourceTree(snapshot, platform) {
     sources.set(path, null)
   }
   const parse = (path) => {
-    if (!sources.get(path)) sources.set(path, ts.createSourceFile(path, snapshot.read(path), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX))
+    if (!sources.get(path)) sources.set(path, ts.createSourceFile(path, snapshot.read(path), ts.ScriptTarget.Latest, true))
     return sources.get(path)
   }
   const roots = [...sources.keys()].filter((path) => {
