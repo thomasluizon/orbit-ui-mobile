@@ -32,7 +32,8 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue : testTranslations[key]
+  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue
+    : key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -278,6 +279,15 @@ describe('HabitFormFields', () => {
     formLocale.language = locale
     renderForm()
     expect(screen.getByText(expected)).toBeDefined()
+  })
+
+  it.each([
+    ['en', 'Log it when you do it, not when you resist.'],
+    ['pt-BR', 'Registre quando fizer, não quando resistir.'],
+  ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
+    formLocale.language = locale
+    renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   beforeEach(() => {

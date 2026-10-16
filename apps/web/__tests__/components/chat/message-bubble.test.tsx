@@ -77,10 +77,6 @@ const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
 describe('MessageBubble', () => {
   beforeEach(() => {
     push.mockClear()
-    Object.defineProperty(globalThis.navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText: vi.fn().mockResolvedValue(undefined) },
-    })
   })
 
   it('reveals the period insight only after the final response', () => {
@@ -103,48 +99,19 @@ describe('MessageBubble', () => {
     expect(screen.queryByLabelText('chat.senderOrbit')).not.toBeInTheDocument()
   })
 
-  it('copies directive-free AI source text and confirms the action', async () => {
-    vi.useFakeTimers()
-    render(
-      <MessageBubble
-        message={makeMessage({ role: 'ai', content: 'Your habits\n[[orbit:habits:today]]' })}
-      />,
-    )
-
-    expect(screen.getByRole('button', { name: 'chat.copy' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
-
-    await act(async () => { await Promise.resolve() })
-    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Your habits')
-    expect(screen.getByRole('button', { name: 'chat.copied' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'chat.copied' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    await act(async () => { vi.advanceTimersByTime(1600) })
-    expect(screen.getByRole('button', { name: 'chat.copy' })).toBeInTheDocument()
+  it.each(['ai', 'user'] as const)('renders %s prose without a copy control', (role) => {
+    render(<MessageBubble message={makeMessage({ role, content: 'Your habits' })} />)
+    expect(screen.getByText('Your habits')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('omits the copy control when an AI turn has no prose', () => {
-    render(<MessageBubble message={makeMessage({ role: 'ai', content: '[[orbit:habits:today]]' })} />)
-    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
-  })
-
-  it('does not copy a hidden partial directive while streaming', async () => {
+  it('hides partial directives during streaming without offering a copy control', () => {
     const { rerender } = render(<MessageBubble message={makeMessage({ role: 'ai', content: '[[orbit:habits:' })} isStreaming />)
-    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
-
+    expect(screen.queryByTestId('markdown')).not.toBeInTheDocument()
     rerender(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hello [[orbit:habits:' })} isStreaming />)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
-    await act(async () => { await Promise.resolve() })
-    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Hello')
-  })
-
-  it('omits the copy control for a separator-only reply', () => {
-    render(<MessageBubble message={makeMessage({ role: 'ai', content: '---' })} />)
-    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
-  })
-
-  it('does not offer copying a sent message', () => {
-    render(<MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />)
-    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('markdown')).toHaveTextContent('Hello')
+    expect(screen.getByTestId('markdown')).not.toHaveTextContent('[[orbit:')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('renders message content', () => {
@@ -213,7 +180,7 @@ describe('MessageBubble', () => {
     expect(bubble).toBeInTheDocument()
     expect(bubble).toHaveClass('bg-[var(--bg-well)]', 'text-[var(--fg-1)]')
     expect(bubble).toHaveStyle({ borderRadius: '16px' })
-    expect((bubble?.parentElement?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
+    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
     expect((container.firstChild as HTMLElement).style.marginBottom).toBe('')
   })
 
@@ -223,7 +190,7 @@ describe('MessageBubble', () => {
       <MessageBubble message={makeMessage({ role: 'user', content: longMessage })} />,
     )
     const bubble = container.querySelector('[data-bubble-role="user"]')
-    expect((bubble?.parentElement?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
+    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
     expect(screen.getByTestId('markdown')).toHaveTextContent(longMessage)
   })
 

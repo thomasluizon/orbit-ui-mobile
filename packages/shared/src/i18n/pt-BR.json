@@ -827,7 +827,7 @@
       "habitTypeBuild": "Construir",
       "habitTypeAvoid": "Evitar este hábito",
       "habitTypeBuildHint": "Uma rotina que você quer fortalecer.",
-      "habitTypeAvoidHint": "Você marca quando resistiu, não quando fez.",
+      "habitTypeAvoidHint": "Registre quando fizer, não quando resistir.",
       "generalBadHabit": "Hábitos sem dia certo não podem ser marcados como maus hábitos.",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",
@@ -1258,8 +1258,6 @@
     "empty": {
       "title": "Fale com a Astra"
     },
-    "copy": "Copiar",
-    "copied": "Copiado",
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
     "removeImage": "Remover imagem",
