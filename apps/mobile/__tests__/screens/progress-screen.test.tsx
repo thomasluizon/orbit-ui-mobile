@@ -352,6 +352,31 @@ describe('mobile ProgressContent', () => {
     }
   })
 
+  it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    try {
+      mocks.goals.data.allGoals = [createMockGoal()]
+      const tree = await renderProgress()
+      const hosts = tree.toJSON()
+      function findActionRow(host: HabitRowHost): HabitRowHost | undefined {
+        if (host.props.testID === 'action-row') return host
+        return (host.children ?? []).filter((child): child is HabitRowHost => typeof child !== 'string').map(findActionRow).find(Boolean)
+      }
+      const row = (Array.isArray(hosts) ? hosts : hosts ? [hosts] : []).map(findActionRow).find(Boolean)!
+      const geometry = measureProfileRow(row, width - 32, 1)
+      expect(geometry.controls).toHaveLength(2)
+      const [filter, create] = geometry.controls
+      expect(filter!.accessibilityLabel).toBe('progressScreen.goals.filter: progressScreen.goals.all')
+      expect(create!.labels).toEqual(['goals.create'])
+      expect(filter!.height).toBe(48)
+      expect(create!.height).toBe(filter!.height)
+      expect(create!.top).toBe(filter!.top)
+      expect(create!.left - filter!.right).toBe(12)
+    } finally {
+      dimensions.mockRestore()
+    }
+  })
+
   it.each([false, true])('scrolls Progresso on reselect and preserves goal detail at open=%s', async (detailOpen) => {
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal]

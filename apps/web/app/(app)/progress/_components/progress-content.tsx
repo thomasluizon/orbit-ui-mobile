@@ -446,7 +446,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <>
-        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />

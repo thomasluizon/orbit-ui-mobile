@@ -955,6 +955,24 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
+  it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
+    mocks.isDesktop = width >= 1024
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<ProgressPage />)
+    await act(async () => {})
+    const filter = screen.getByRole('button', { name: /^progressScreen.goals.filter:/ })
+    const create = screen.getByRole('button', { name: 'goals.create' })
+    expect(create).toHaveAttribute('data-variant', width >= 1024 ? 'secondary' : 'primary')
+    expect(filter.parentElement).toBe(create.parentElement)
+    expect(filter.parentElement).toHaveAttribute('data-slot', 'action-row')
+    expect(filter.parentElement).toHaveStyle({ gap: '12px' })
+    for (const action of [filter, create]) {
+      expect(action).toHaveAttribute('data-size', 'sm')
+      expect(action).toHaveStyle({ minHeight: '48px' })
+      expect(action.style.height).toBe('')
+    }
+  })
+
   it('keeps the Metas filter when goal creation is cancelled', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
     render(<ProgressPage />)

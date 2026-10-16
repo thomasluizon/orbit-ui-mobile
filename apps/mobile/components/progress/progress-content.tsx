@@ -376,7 +376,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <>
-        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
+        <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
