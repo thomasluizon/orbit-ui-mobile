@@ -48,7 +48,7 @@ that disagrees with production is a trap rather than an authority.
 | Paired web and Android surface | Contract and evidence |
 |---|---|
 | Hoje selected day | Day title and full month date centred between edge targets; compact 320 and 412 geometry and full date labels in both locales. |
-| Hoje another day and forward boundary | Same geometry with the separate Hoje jump action and an enabled or disabled forward target; existing navigation, accessible names and feedback retained. Native composition tests include the proactive line and populated habit rows. |
+| Hoje another day and forward boundary | Same geometry with the centred date label returning to today and an enabled or disabled forward target. The label is inert on today, retains the 48 touch floor and one focus indicator, and announces the return action away from today. No separate Hoje jump control. Native composition tests include the proactive line and populated habit rows. |
 | Hoje compact and wide drawing | Both pager compositions span their content column with 48px targets and centred labels; this amendment and DESIGN.md record the placement. |
 
 The date pager has no separate loading, empty or error state. Those belong to the surrounding habit
@@ -82,6 +82,19 @@ scroll owners retain their existing behavior.
 The unit geometry fixtures include crowded lanes and long titles. Whole-page layout and real native
 rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
 screen tests verify native scroll ownership without an emulator.
+
+### Return-to-today navigation amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Hoje header and date pager | No header jump pill. The centred date label returns from past and future days, remains inert on today, announces its action in both locales and retains a padded 48 target and one focus indicator. Surrounding loading, empty, error and populated lists share this pager. |
+| Calendário month header | The month label returns to today's selected day, including from another day of the current month. The adjacent chevron retains the month and year picker and wraps below the whole label when large text needs another line. Month controls have no gap so full labels and independent 48px targets fit the narrow column; other views keep their 8px gap. |
+| Calendário week, range and agenda headers | The centred span label returns to the span containing today and remains inert on the current span. Existing paging boundaries and view selection remain intact. |
+| Calendário month and year picker sheet | Month selection and year browsing remain available; the separate current-month shortcut is removed. |
+| Other date controls | Form date pickers and habit history controls have no separate return-to-today action and retain their existing jobs. |
+
+Unit tests cover activation, keyboard behavior on web and native target styles. The layout workflow
+owns full-page web evidence. Android screen geometry remains a native rendering boundary.
 
 ### Any-time label amendment surface inventory
 

@@ -1,9 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
-import { BUTTON_SIZES } from '@orbit/shared/theme'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
@@ -32,7 +31,6 @@ const props = {
   isTodaySelected: false,
   nextDisabled: false,
   previousLabel: 'Previous day',
-  todayLabel: 'Today',
   goToTodayLabel: 'Go to today',
   nextLabel: 'Next day',
   moreLabel: 'List options',
@@ -72,6 +70,44 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
+  it.each([false, true])('returns through the centred label only when away from today, today=%s', (isTodaySelected) => {
+    const onGoToToday = vi.fn()
+    const renderer = renderControl({ isTodaySelected, onGoToToday })
+    const row = renderer.root.findByProps({ testID: 'today-date-row' })
+    const label = row.findAllByType(Pressable).find((node: { props: Record<string, unknown> }) =>
+      String(node.props.accessibilityLabel).includes(props.numericDate))
+    expect(label, 'the date label is the return control').toBeDefined()
+    expect(label!.props.accessibilityRole).toBe('button')
+    expect(label!.props.accessibilityState).toEqual({ disabled: isTodaySelected })
+    expect(String(label!.props.accessibilityLabel)).toContain(props.dayName)
+    if (!isTodaySelected) expect(label!.props.accessibilityLabel).toContain(props.goToTodayLabel)
+    const style = StyleSheet.flatten(label!.props.style({ pressed: false }))
+    expect(style.minHeight).toBeGreaterThanOrEqual(48)
+    expect(style.minWidth).toBeGreaterThanOrEqual(48)
+    TestRenderer.act(() => label!.props.onPress())
+    expect(onGoToToday).toHaveBeenCalledTimes(isTodaySelected ? 0 : 1)
+    const header = renderer.root.findByProps({ testID: 'today-header-actions' })
+    expect(header.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) =>
+      String(node.props.accessibilityLabel).includes(props.goToTodayLabel))).toBe(false)
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it.each([false, true])('keeps one focus indicator and available hover feedback, today=%s', (isTodaySelected) => {
+    const renderer = renderControl({ isTodaySelected })
+    const date = renderer.root.findByProps({ testID: 'today-date-row' }).findAllByType(Pressable).find(
+      (node: { props: Record<string, unknown> }) => String(node.props.accessibilityLabel).includes(props.numericDate),
+    )!
+    TestRenderer.act(() => date.props.onHoverIn())
+    expect(StyleSheet.flatten(date.props.style({ pressed: false })).backgroundColor).toBe(isTodaySelected ? undefined : 'rgba(250,250,250,0.13)')
+    TestRenderer.act(() => date.props.onFocus({ target: 1, currentTarget: 1 }))
+    const indicators = () => date.findAllByType(View).filter((node: { props: Record<string, unknown> }) =>
+      StyleSheet.flatten<ViewStyle | undefined>(node.props.style as ViewStyle | undefined)?.outlineWidth === 2)
+    expect(indicators()).toHaveLength(1)
+    TestRenderer.act(() => date.props.onBlur({ target: 1, currentTarget: 1 }))
+    expect(indicators()).toHaveLength(0)
+    TestRenderer.act(() => renderer.unmount())
+  })
+
   it('opens search from the header row', () => {
     const renderer = renderControl()
     const search = button(renderer, 'Search')
@@ -81,15 +117,15 @@ describe('Today date control feedback (mobile)', () => {
   })
   it('keeps the full date accessible without truncating its labels', () => {
     const renderer = renderControl()
-    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
+    const date = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => node.type === Pressable && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Go to today')
     const labels = date.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && (node.props.children === 'Wednesday' || node.props.children === '08/04/2026'))
     expect(labels).toHaveLength(2)
     for (const label of labels) expect(label.props.numberOfLines).toBeUndefined()
   })
-  it('gives the arrows, jump action, and menu control pressed feedback', () => {
+  it('gives the arrows, date label, and menu control pressed feedback', () => {
     const renderer = renderControl()
 
-    for (const label of ['Previous day', 'Next day', 'List options']) {
+    for (const label of ['Previous day', 'Next day', 'List options', 'Wednesday, 08/04/2026, Go to today']) {
       const control = button(renderer, label)
       if (!control) throw new Error(`${label} control did not render`)
       const idle = StyleSheet.flatten(control.props.style({ pressed: false })) as Record<string, unknown>
@@ -98,11 +134,10 @@ describe('Today date control feedback (mobile)', () => {
       expect(pressed.backgroundColor).toBe('rgba(250,250,250,0.13)')
     }
 
-    const today = button(renderer, 'Go to today')
+    const today = button(renderer, 'Wednesday, 08/04/2026, Go to today')
     if (!today) throw new Error('Today control did not render')
-    expect(today.props.testID).toBe('button-ghost-sm')
     const next = button(renderer, 'Next day')
-    expect(today.parent).not.toBe(next.parent)
+    expect(next.parent.findAllByType(Pressable)).toContain(today)
     TestRenderer.act(() => today.props.onPress())
     expect(callbacks.onGoToToday).toHaveBeenCalledOnce()
   })
@@ -165,10 +200,10 @@ describe('Today date control feedback (mobile)', () => {
 
   it('uses display type and centred alignment for the date', () => {
     const renderer = renderControl()
-    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
-    expect(StyleSheet.flatten(date.props.style)).toHaveProperty('alignItems', 'center')
-    expect(StyleSheet.flatten(date.props.style)).toMatchObject({ flexGrow: 1, flexShrink: 1 })
-    const row = date.parent
+    const date = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => node.type === Pressable && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Go to today')
+    expect(StyleSheet.flatten(date.props.style({ pressed: false }))).toHaveProperty('alignItems', 'center')
+    expect(StyleSheet.flatten(date.props.style({ pressed: false }))).toMatchObject({ flexGrow: 1, flexShrink: 1 })
+    const row = renderer.root.findByProps({ testID: 'today-date-row' })
     expect(StyleSheet.flatten(row.props.style).flexWrap).toBeUndefined()
     const day = date.findAllByType(Text)[0]
     expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
@@ -178,9 +213,9 @@ describe('Today date control feedback (mobile)', () => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const numericDate = fontScale === 1 ? formatLocaleDayMonth('2026-09-30', 'pt-BR') : '8 abr.'
     const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate })
-    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === `Quarta-feira, ${numericDate}`)
-    const dateStyle = StyleSheet.flatten(date.props.style)
-    const rowStyle = StyleSheet.flatten(date.parent.props.style)
+    const date = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => node.type === Pressable && node.props.accessibilityLabel === `Quarta-feira, ${numericDate}, Go to today`)
+    const dateStyle = StyleSheet.flatten(date.props.style({ pressed: false }))
+    const rowStyle = StyleSheet.flatten(renderer.root.findByProps({ testID: 'today-date-row' }).props.style)
     const rowWidth = width - 32
     const day = width / fontScale < 240 ? 'Qua.' : 'Quarta-feira'
     const dayWidth = measuredTextWidth(day, 'Space Grotesk', 22,
@@ -225,9 +260,7 @@ describe('Today date control feedback (mobile)', () => {
       expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4, flexWrap: 'wrap' })
       const cluster = button(renderer, 'Search')!.parent
       expect(StyleSheet.flatten(cluster.props.style)).toMatchObject({ flexDirection: 'row', gap: 4, flexShrink: 0 })
-      const jumpWidth = measuredTextWidth('Hoje', 'Geist', BUTTON_SIZES.sm.fontSize,
-        require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')) * fontScale + BUTTON_SIZES.sm.paddingX * 2
-      expect(jumpWidth + 3 * 48 + 4 * 4).toBeLessThanOrEqual(rowWidth)
+      expect(3 * 48 + 2 * 4).toBeLessThanOrEqual(rowWidth)
     } finally {
       layout.freeRecursive()
       TestRenderer.act(() => renderer.unmount())
@@ -256,7 +289,7 @@ it('separates the header actions from the grouped date arrows', () => {
   const previous = button(renderer, 'Previous day')!
   const search = button(renderer, 'Search')!
   expect(previous.parent).not.toBe(search.parent)
-  expect(previous.parent.findAllByType(Pressable)).toHaveLength(2)
+  expect(previous.parent.findAllByType(Pressable)).toHaveLength(3)
   expect(renderer.root.findAllByType(Pressable).filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'notifications.bell')).toHaveLength(1)
 })
 

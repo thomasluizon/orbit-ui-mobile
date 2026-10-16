@@ -153,7 +153,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
 
 const noop = () => {}
 const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
-  previousLabel="Previous" todayLabel="Today" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
+  previousLabel="Previous" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
   selectLabel="Select" collapseLabel="Collapse" allCollapsed={false} refreshLabel="Refresh" completedLabel="Completed"
   showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
   onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />

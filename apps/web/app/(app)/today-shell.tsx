@@ -3,7 +3,6 @@
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
-import { PillButton } from '@/components/ui/pill-button'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { ShellHeader } from '@/components/shell/shell-header'
@@ -24,7 +23,6 @@ export interface TodayDateControlProps {
   onGoToToday: () => void
   onGoToNextDay: () => void
   previousLabel: string
-  todayLabel: string
   goToTodayLabel: string
   nextLabel: string
   moreLabel: string
@@ -48,8 +46,6 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
-    {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
-      accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
       <button type="button" aria-label={props.searchLabel} onClick={props.onSearch}
@@ -85,15 +81,18 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
           <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
-        <div className="min-w-0 flex-1 text-center" title={`${props.dayName}, ${props.numericDate}`}>
+        <button type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
+          aria-disabled={props.isTodaySelected} onClick={() => { if (!props.isTodaySelected) props.onGoToToday() }}
+          className="touch-target group transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-[8px] py-[4px] text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+          title={`${props.dayName}, ${props.numericDate}`}>
           <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
             {props.shortDayName ? <>
               <span className="@[15rem]:contents hidden">{props.dayName}</span>
               <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
             </> : props.dayName}
           </p>
-          <p className="m-0 font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
-        </div>
+          <p className="m-0 font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)] group-[[aria-disabled=false]:hover]:text-[var(--fg-2)] group-[[aria-disabled=false]:active]:text-[var(--fg-2)]">{props.numericDate}</p>
+        </button>
         <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />

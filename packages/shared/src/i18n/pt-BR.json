@@ -409,7 +409,7 @@
     },
     "today": "Hoje",
     "todayWithDate": "Hoje, {date}",
-    "goToToday": "Ir para hoje",
+    "goToToday": "Voltar para hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
     "nextDay": "Próximo dia",
@@ -1072,7 +1072,7 @@
       "agenda": "Agenda"
     },
     "period": {
-      "goToCurrent": "{period}, ir para hoje"
+      "goToCurrent": "{period}, voltar para hoje"
     },
     "range": {
       "label": "{start} a {end}",
@@ -1108,7 +1108,6 @@
     "googleCalendar": "Google Agenda",
     "options": "Opções do calendário",
     "monthPicker": "Mês e ano",
-    "thisMonth": "Este mês",
     "legendTitle": "Legenda",
     "title": "Google Agenda",
     "profileButton": "Google Agenda",
