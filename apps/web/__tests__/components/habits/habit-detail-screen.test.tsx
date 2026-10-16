@@ -1449,22 +1449,41 @@ describe('HabitDetailScreen', () => {
     expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
-  it('keeps the description expanded while selecting its text', () => {
-    mocks.detail = { ...makeDetail(), description: 'A note worth selecting' }
+  it('keeps the description expanded while selecting its text', async () => {
+    const description = 'A note worth selecting'
+    mocks.detail = { ...makeDetail(), description }
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     render(<HabitDetailScreen habitId="habit-1" />)
-    const toggle = screen.getByRole('button', { name: 'A note worth selecting' })
+    const toggle = screen.getByRole('button', { name: description })
     fireEvent.click(toggle)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.detail.copyDescription' })) })
+    expect(screen.getByText('habits.detail.copyFailed')).toBeInTheDocument()
+    const text = document.getElementById('habit-description')!
+    expect(text.closest('button')).toBeNull()
     const selection = document.getSelection()!
     try {
-      selection.selectAllChildren(document.getElementById('habit-description')!)
-      fireEvent.click(toggle, { detail: 1 })
+      fireEvent.pointerDown(text, { pointerType: 'touch' })
+      selection.selectAllChildren(text)
+      fireEvent.pointerUp(text, { pointerType: 'touch' })
+      fireEvent.click(text, { detail: 1 })
       expect(toggle).toHaveAttribute('aria-expanded', 'true')
-      expect(selection.toString()).toBe('A note worth selecting')
+      expect(selection.toString()).toBe(description)
+      selection.collapse(text, 0)
+      fireEvent.pointerDown(text, { pointerType: 'touch' })
+      selection.selectAllChildren(text)
+      fireEvent.pointerUp(text, { pointerType: 'touch' })
+      fireEvent.click(text, { detail: 1 })
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(selection.toString()).toBe(description)
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(document.getElementById('habit-description')).toHaveTextContent(description)
     } finally {
       selection.removeAllRanges()
     }
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('copies the full description from habit details', async () => {

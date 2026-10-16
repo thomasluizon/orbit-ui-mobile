@@ -1,5 +1,6 @@
 import { DescriptionCopyButton } from './description-copy-button'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
@@ -68,7 +69,7 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
@@ -179,11 +180,37 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
   )
 }
 
+function HabitDescription({ description, tokens }: Readonly<{ description: string; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  const [descriptionOpen, setDescriptionOpen] = useState(false)
+  const [descriptionHovered, setDescriptionHovered] = useState(false)
+  return (
+    <View testID="habit-detail-description" style={styles.headerMetadata}>
+      <InsetFocusPressable
+        accessibilityRole="button"
+        accessibilityLabel={descriptionOpen ? t('common.collapse') : description}
+        accessibilityHint={descriptionOpen ? undefined : t('habits.detail.viewDescription')}
+        accessibilityState={{ expanded: descriptionOpen }}
+        onPress={() => setDescriptionOpen((open) => !open)}
+        onHoverIn={() => setDescriptionHovered(true)}
+        onHoverOut={() => setDescriptionHovered(false)}
+        style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, backgroundColor: pressed || descriptionHovered ? tokens.bgHover : 'transparent' })}
+      >
+        {({ pressed, focused }) => <>
+          <Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { flex: 1, color: pressed || focused || descriptionHovered ? tokens.fg2 : tokens.fg3 }]}>{descriptionOpen ? t('common.collapse') : description}</Text>
+          <ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={descriptionOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+        </>}
+      </InsetFocusPressable>
+      {descriptionOpen ? <Text selectable style={[styles.muted, { fontSize: 16, lineHeight: 24.8, color: tokens.fg3 }]}>{description}</Text> : null}
+      {descriptionOpen ? <DescriptionCopyButton key={description} description={description} /> : null}
+    </View>
+  )
+}
+
 function Header({ habit, summary, completed, logged, overdue, progress, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; overdue: boolean; progress?: number; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
   const [editing, setEditing] = useState(false)
-  const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [renameHovered, setRenameHovered] = useState(false)
   const [renameFocused, setRenameFocused] = useState(false)
   const titleType = responsiveTypeStyle('habitTitle', width)
@@ -220,8 +247,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><PersonalTextDetails lines={1} textStyle={{ ...styles.tagText, color: tokens.fg2 }}>{tag.name}</PersonalTextDetails></View>)}</View></View> : null}
-      {habit.description ? <Pressable testID="habit-detail-description" style={[styles.headerMetadata, { minHeight: TOUCH_TARGET_MIN }]} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)}><Text selectable={descriptionOpen} numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
-      {habit.description && descriptionOpen ? <DescriptionCopyButton key={habit.description} description={habit.description} /> : null}
+      {habit.description ? <HabitDescription description={habit.description} tokens={tokens} /> : null}
     </>
   )
 }
