@@ -22,7 +22,7 @@ for (const width of [320, 412, 1352]) {
     test.describe(`follow-up questions at ${width} with text scale ${textScale}`, () => {
       test.use({ appLocale: 'pt-BR', layoutProfile: profile, viewport: { width, height: 915 } })
 
-      test('shows whole sentences on the message edge with a gap after copy', async ({ page, context }) => {
+      test('shows whole sentences on the message edge with a gap after prose', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
@@ -39,14 +39,14 @@ for (const width of [320, 412, 1352]) {
         await page.evaluate(settleAnimations, undefined)
 
         const message = await conversation.locator('[data-bubble-role="ai"]').boundingBox()
-        const copy = await conversation.getByRole('button', { name: pt.chat.copy, exact: true }).elementHandle()
+        const prose = await conversation.locator('[data-bubble-role="ai"]').elementHandle()
         const label = await group.getByText(pt.chat.followUps.label, { exact: true }).elementHandle()
         expect(message).not.toBeNull()
-        expect(copy).not.toBeNull()
+        expect(prose).not.toBeNull()
         expect(label).not.toBeNull()
-        const gap = await page.evaluate(({ copyElement, labelElement }) =>
-          labelElement.getBoundingClientRect().top - copyElement.getBoundingClientRect().bottom,
-        { copyElement: copy!, labelElement: label! })
+        const gap = await page.evaluate(({ proseElement, labelElement }) =>
+          labelElement.getBoundingClientRect().top - proseElement.getBoundingClientRect().bottom,
+        { proseElement: prose!, labelElement: label! })
         expect(gap).toBeGreaterThanOrEqual(16)
         for (const question of questions) {
           expect(question).toHaveLength(60)
