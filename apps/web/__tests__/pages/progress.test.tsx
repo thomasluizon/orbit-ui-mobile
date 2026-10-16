@@ -1803,3 +1803,16 @@ it('places the Progresso bell in scrolling root content and opens Avisos', () =>
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
   expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 })
+
+
+describe('Progress overview navigation', () => {
+  it('keeps the overview to its window and one-tap detail entries', () => {
+    render(<ProgressPage />)
+    for (const screenId of ['streak', 'goals', 'achievements']) {
+      expect(screen.getByRole('link', { name: `progressScreen.sections.${screenId}` })).toHaveAttribute('href', `/progress/${screenId}`)
+    }
+    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
+    expect(document.querySelector('[data-goal-id]')).toBeNull()
+    expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
+  })
+})

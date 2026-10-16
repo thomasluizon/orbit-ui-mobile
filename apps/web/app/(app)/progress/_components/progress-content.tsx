@@ -7,6 +7,10 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 
 import Link from 'next/link'
+import { PROGRESS_SUBMENUS, type ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
+import { ListRow } from '@/components/ui/list-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ProgressSubscreen } from './progress-subscreen'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 
 import {
@@ -40,7 +44,6 @@ import {
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
-  deriveProgressViewState,
   visibleProgressAchievements,
   mapCompletionSeries,
   type ProgressGoalFilter,
@@ -592,7 +595,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
   )
 }
 
-export function ProgressContent() {
+function ProgressGoalsContent() {
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
   const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
@@ -607,38 +610,61 @@ export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
   const isDesktop = useIsDesktop()
-  const account = useProfile()
   const goals = useGoals()
-  const canViewGamification = account.profile?.canViewGamification ?? false
-  const gamification = useGamificationProfile(canViewGamification)
-  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({
-    goalCount: allGoals.length,
-    account,
-    goals,
-    gamification,
-    canViewGamification,
-  })
-  const retry = () => {
-    void account.refetch()
-    void goals.refetch()
-    void gamification.refetch()
-  }
+  const error = goals.isError
+  const loading = !error && goals.isLoading
+  const empty = !loading && !error && allGoals.length === 0
+  const retry = () => { void goals.refetch() }
   return (
-    <div ref={contentRef} className="mx-auto flex w-full max-w-[740px] flex-col">
+    <div ref={contentRef}>
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col">
-        <RootNotificationHeader />
-        <div className="flex w-full flex-col gap-8 px-4 pt-12 lg:pt-4">
-          <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+        <ProgressSubscreen screen="goals">
           {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
           {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
-          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
-        </div>
+          {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /> : null}
+        </ProgressSubscreen>
       </div>
     </div>
   )
+}
+
+function ProgressOverview() {
+  const t = useTranslations()
+  return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col" data-progress-screen="overview">
+    <RootNotificationHeader />
+    <div className="flex min-w-0 flex-col gap-8 px-4 py-4">
+      <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+      <WindowSection hasGoals={false} />
+      <SettingsGroup>
+        {PROGRESS_SUBMENUS.map((entry) => <ListRow key={entry.id} placement="column" textMode="label" icon={entry.icon} title={t(entry.labelKey)} description={entry.descriptionKey ? t(entry.descriptionKey) : undefined} href={entry.route} />)}
+      </SettingsGroup>
+    </div>
+  </div>
+}
+
+function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | 'achievements' }>) {
+  const t = useTranslations()
+  const account = useProfile()
+  const canView = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canView)
+  const available = canView && !isPayGateError(gamification.error)
+  const error = account.isError || (available && gamification.isError)
+  const loading = !error && (account.isLoading || (available && gamification.isLoading))
+  const retry = () => { void account.refetch(); void gamification.refetch() }
+  return <ProgressSubscreen screen={screen}>
+    {error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} />
+      : loading ? <ProgressLoading label={t('progressScreen.loading')} />
+      : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} hasGoals={false} />
+      : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} />}
+  </ProgressSubscreen>
+}
+
+export function ProgressContent({ screen = 'overview' }: Readonly<{ screen?: ProgressSubmenuId | 'overview' }>) {
+  if (screen === 'overview') return <ProgressOverview />
+  if (screen === 'goals') return <ProgressGoalsContent />
+  return <ProgressGamificationContent screen={screen} />
 }

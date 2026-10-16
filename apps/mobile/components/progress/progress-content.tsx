@@ -2,6 +2,10 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PersonalText } from '@/components/ui/personal-text'
+import { PROGRESS_SUBMENUS, type ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
+import { ListRow } from '@/components/ui/list-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ProgressSubscreen } from './progress-subscreen'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -31,7 +35,6 @@ import {
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
-  deriveProgressViewState,
   visibleProgressAchievements,
   mapCompletionSeries,
   type ProgressGoalFilter,
@@ -543,7 +546,7 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
   return <Text ref={focusRef} testID="progress-screen-heading" accessible accessibilityRole="header" style={styles.screenReaderTitle}>{title}</Text>
 }
 
-export function ProgressContent() {
+function ProgressGoalsContent() {
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
   const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
@@ -552,10 +555,6 @@ export function ProgressContent() {
   const detailScrollRef = useRef<ScrollView>(null)
   const clearance = useShellScrollerClearance()
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
-  useRootScrollToTop('progresso', useCallback(() => {
-    const target = detailGoalId ? detailScrollRef.current : scrollRef.current
-    target?.scrollTo({ y: 0, animated: false })
-  }, [detailGoalId]))
   const openingGoalIdRef = useRef<string | null>(null)
   const goalCardRefs = useRef(new Map<string, View>())
   const pageHeadingRef = useRef<Text>(null)
@@ -563,24 +562,12 @@ export function ProgressContent() {
   const { width } = useWindowDimensions()
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
-  const account = useProfile()
   const goals = useGoals()
-  const canViewGamification = account.profile?.canViewGamification ?? false
-  const gamification = useGamificationProfile(canViewGamification)
-  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({
-    goalCount: allGoals.length,
-    account,
-    goals,
-    gamification,
-    canViewGamification,
-  })
-  const retry = () => {
-    void account.refetch()
-    void goals.refetch()
-    void gamification.refetch()
-  }
+  const error = goals.isError
+  const loading = !error && goals.isLoading
+  const empty = !loading && !error && allGoals.length === 0
+  const retry = () => { void goals.refetch() }
   const registerGoalCard = useCallback((goalId: string, instance: View | null) => {
     if (instance) goalCardRefs.current.set(goalId, instance)
     else goalCardRefs.current.delete(goalId)
@@ -603,20 +590,19 @@ export function ProgressContent() {
     if (destination) AccessibilityInfo.sendAccessibilityEvent(destination, 'focus')
   }, [creating, createdGoalId])
   return (
-    <>
+    <ProgressSubscreen screen="goals">
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <ScrollView ref={detailScrollRef} style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer ref={scrollRef} style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
-      <RootNotificationHeader />
       <View testID="progress-sections" style={styles.sections}>
         <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
         {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
         {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
         {empty ? <View style={styles.empty}><GoalsEmptyState onCreate={openCreateGoal} tokens={tokens} /></View> : null}
-        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+        {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /> : null}
       </View>
     </NestableScrollContainer>
-    </>
+    </ProgressSubscreen>
   )
 }
 
@@ -653,3 +639,51 @@ const styles = StyleSheet.create({
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
   xpSummary: { gap: 12, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
 })
+
+function ProgressOverview() {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const theme = useAppTheme()
+  const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
+  const clearance = useShellScrollerClearance()
+  const scrollRef = useRef<ScrollView>(null)
+  useRootScrollToTop('progresso', useCallback(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }) }, []))
+  return <ScrollView ref={scrollRef} testID="progress-overview" style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]}>
+    <RootNotificationHeader />
+    <View style={styles.sections}>
+      <Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
+      <WindowSection tokens={tokens} hasGoals={false} />
+      <SettingsGroup>
+        {PROGRESS_SUBMENUS.map((entry) => <ListRow key={entry.id} placement="column" textMode="label" icon={entry.icon} title={t(entry.labelKey)} description={entry.descriptionKey ? t(entry.descriptionKey) : undefined} href={entry.route} onClick={() => router.push(entry.route)} />)}
+      </SettingsGroup>
+    </View>
+  </ScrollView>
+}
+
+function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | 'achievements' }>) {
+  const { t } = useTranslation()
+  const theme = useAppTheme()
+  const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
+  const clearance = useShellScrollerClearance()
+  const account = useProfile()
+  const canView = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canView)
+  const available = canView && !isPayGateError(gamification.error)
+  const error = account.isError || (available && gamification.isError)
+  const loading = !error && (account.isLoading || (available && gamification.isLoading))
+  const retry = () => { void account.refetch(); void gamification.refetch() }
+  return <ProgressSubscreen screen={screen}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}>
+      {error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} />
+        : loading ? <ProgressLoading label={t('progressScreen.loading')} />
+        : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={false} />
+        : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} />}
+    </ScrollView>
+  </ProgressSubscreen>
+}
+
+export function ProgressContent({ screen = 'overview' }: Readonly<{ screen?: ProgressSubmenuId | 'overview' }>) {
+  if (screen === 'overview') return <ProgressOverview />
+  if (screen === 'goals') return <ProgressGoalsContent />
+  return <ProgressGamificationContent screen={screen} />
+}

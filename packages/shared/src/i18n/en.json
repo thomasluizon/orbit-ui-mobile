@@ -2988,6 +2988,7 @@
     }
   },
   "progressScreen": {
+    "back": "Back to Progress",
     "title": "Progress",
     "loading": "Loading your progress",
     "error": "We could not load your progress. Check the connection and try again.",
@@ -3080,6 +3081,7 @@
       "lockedAction": "See Orbit Pro"
     },
     "achievements": {
+      "destination": "Level and XP",
       "empty": "Log habits to earn them",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progress to the next level",
