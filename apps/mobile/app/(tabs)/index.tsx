@@ -52,6 +52,10 @@ function getSeeUpcomingAction(view: ActiveView, nextDisabled: boolean, goToNextD
   return view === 'today' && !nextDisabled ? goToNextDay : undefined
 }
 
+function getSearchLabelKey(open: boolean) {
+  return open ? 'habits.closeSearch' : 'habits.search.title'
+}
+
 function TodaySearchInput({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
   const { t } = useTranslation()
   if (!search.open) return null
@@ -255,7 +259,8 @@ function TodayScreenContent() {
         </View>}
         headerActive={todayFocused}
         shortDayName={date.shortDayName}
-        searchLabel={t('habits.search.title')}
+        searchLabel={t(getSearchLabelKey(search.open))}
+        searchOpen={search.open}
         onSearch={search.toggle}
         dayName={date.dayName}
         numericDate={date.numericDate}

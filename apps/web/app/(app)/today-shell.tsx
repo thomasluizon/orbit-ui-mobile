@@ -41,6 +41,8 @@ export interface TodayDateControlProps {
   onRefresh: () => void
   onToggleCompleted: () => void
   searchLabel: string
+  searchOpen?: boolean
+  searchControlsId?: string
   onSearch: () => void
 }
 
@@ -53,7 +55,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
-      <button type="button" aria-label={props.searchLabel} onClick={props.onSearch}
+      <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
         className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => setMenuOpen((open) => !open)}>

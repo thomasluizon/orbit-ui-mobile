@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
@@ -94,18 +94,21 @@ function useTodayRefetchMotion(isRefetching: boolean) {
 
 export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView; children?: React.ReactNode }>) {
   const t = useTranslations()
+  const searchId = useId()
   const key = view.activeView === 'today' ? boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today)) : null
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
-        beforeDate={<>{view.search.open ? <div className="px-4"><Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /></div> : null}<HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</>}
+        beforeDate={<><div id={searchId} hidden={!view.search.open} className="px-4">{view.search.open ? <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /> : null}</div><HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</>}
         showDate={view.activeView === 'today'}
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}
         menuHeading={t('common.options')}
-        searchLabel={t('habits.search.title')}
+        searchLabel={t(view.search.open ? 'habits.closeSearch' : 'habits.search.title')}
+        searchOpen={view.search.open}
+        searchControlsId={searchId}
         onSearch={view.search.toggle}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}

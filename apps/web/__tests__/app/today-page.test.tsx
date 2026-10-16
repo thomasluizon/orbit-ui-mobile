@@ -12,7 +12,7 @@ import {
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { Icon } from '@/components/ui/icon'
 import type { TodayView } from '@/app/(app)/use-today-page'
-import type { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
@@ -219,6 +219,26 @@ function getAnimationForStyleValue(styleValue: unknown) {
 }
 
 describe('Hoje date control', () => {
+  it('announces whether inline search is open and offers its closing action', () => {
+    function SearchHeader() {
+      const search = useHabitViewSearch('all')
+      const view = { ...createMotionView('2026-04-08'), search }
+      view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }
+      view.nav.today = '2026-04-08'
+      return <TodayHeaderRegion view={view} />
+    }
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><SearchHeader /></NextIntlClientProvider>)
+    const search = screen.getByRole('button', { name: ptBr.habits.search.title })
+    expect(search).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(search)
+    const close = screen.getByRole('button', { name: ptBr.habits.closeSearch })
+    expect(close).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('textbox', { name: ptBr.habits.search.title })).toHaveFocus()
+    fireEvent.click(close)
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByRole('button', { name: ptBr.habits.search.title })).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', (activeView) => {
     const view = { ...createMotionView('2026-04-08'), activeView, changeView: vi.fn() }
     view.nav.dateNav = { ...baseProps, shortDayName: 'Wed' }

@@ -39,6 +39,7 @@ interface TodayDateControlProps {
   onGoToToday: () => void
   onGoToNextDay: () => void
   searchLabel: string
+  searchOpen?: boolean
   onSearch: () => void
 }
 
@@ -51,7 +52,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <View style={styles.spacer} />
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} onPress={props.onSearch}
+      <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} accessibilityState={{ expanded: props.searchOpen }} onPress={props.onSearch}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <Search size={20} color={tokens.fg2} />
       </Pressable>

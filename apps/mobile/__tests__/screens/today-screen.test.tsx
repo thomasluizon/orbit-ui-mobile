@@ -28,6 +28,17 @@ afterEach(async () => {
   await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
 })
 
+it('announces whether inline search is open and offers its closing action', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+  const searchButton = (label: string) => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+  await TestRenderer.act(() => { (searchButton(en.habits.search.title).props.onPress as () => void)() })
+  expect(searchButton(en.habits.closeSearch).props.accessibilityState).toMatchObject({ expanded: true })
+  await TestRenderer.act(() => { (searchButton(en.habits.closeSearch).props.onPress as () => void)() })
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+})
+
 const mocks = vi.hoisted(() => ({
   scrollToOffset: vi.fn(),
   logHabitMutateAsync: vi.fn(),
