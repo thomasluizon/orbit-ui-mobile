@@ -771,6 +771,7 @@
       "dueDate": "Começar em",
       "dueTime": "Horário",
       "dueEndTime": "Horário final",
+      "endTimeRequiresStart": "Defina o horário inicial para adicionar o horário final.",
       "reminder": "Me lembrar",
       "reminderAtTime": "Na hora",
       "reminder5minAfter": "5 min depois",

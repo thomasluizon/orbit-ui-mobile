@@ -798,6 +798,7 @@ describe('habit end time', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     const end = screen.getByLabelText('habits.form.dueEndTime')
     expect(end).toBeDisabled()
+    expect(end).toHaveAccessibleDescription('habits.form.endTimeRequiresStart')
     const start = screen.getByLabelText('habits.form.exactTime')
     fireEvent.change(start, { target: { value: '08:00' } })
     expect(end).toBeEnabled()

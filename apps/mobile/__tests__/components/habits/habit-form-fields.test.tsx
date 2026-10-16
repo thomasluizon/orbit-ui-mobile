@@ -837,6 +837,7 @@ it('edits end times, reports ordering errors, and disables the field after clear
     await TestRenderer.act(() => tree.update(renderNode()))
   }
   expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
+  expect(field('habits.form.dueEndTime').props.hint).toBe('habits.form.endTimeRequiresStart')
   await refresh(() => field('habits.form.exactTime').props.onChange('08:00'))
   expect(field('habits.form.dueEndTime').props.disabled).toBe(false)
   await refresh(() => field('habits.form.dueEndTime').props.onChange('09:00'))

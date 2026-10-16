@@ -66,6 +66,7 @@ function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: Hab
       label={t('habits.form.dueEndTime')}
       value={toTime24(dueEndTime)}
       disabled={!dueTime}
+      hint={dueTime ? undefined : t('habits.form.endTimeRequiresStart')}
       error={error ? t(error) : undefined}
       onChange={(value) => formHelpers.form.setValue('dueEndTime', value, { shouldDirty: true })}
       onClear={() => formHelpers.form.setValue('dueEndTime', '', { shouldDirty: true })}
