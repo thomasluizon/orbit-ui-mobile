@@ -53,7 +53,8 @@ async function assertPersonalCheckRow(body: Locator) {
     const bounds = element.getBoundingClientRect()
     const label = element.querySelector('.orbit-check-row-label')!
     const labelBounds = label.getBoundingClientRect()
-    const labelStyle = getComputedStyle(label)
+    const labelContent = label.closest('[data-personal-text-action]')!.querySelector('[data-personal-text-content]')!
+    const labelStyle = getComputedStyle(labelContent)
     const calendarDay = label.getAttribute('data-variant') === 'calendar-day'
     const control = element.querySelector(calendarDay ? '[data-slot="calendar-day-circle"]' : '[data-slot="checkbox-box"]')!.getBoundingClientRect()
     const style = getComputedStyle(element)
@@ -63,7 +64,7 @@ async function assertPersonalCheckRow(body: Locator) {
       calendarDay,
       labelMinHeight: labelStyle.minHeight, labelPaddingStart: labelStyle.paddingBlockStart, labelPaddingEnd: labelStyle.paddingBlockEnd,
       labelTop: labelBounds.top - bounds.top, labelBottom: labelBounds.bottom - bounds.bottom,
-      border: parseFloat(style.borderBottomWidth), supporting: label.children.length > 2 }
+      border: parseFloat(style.borderBottomWidth), supporting: labelContent.children.length + label.children.length > 2 }
   })
   expect(Math.abs(geometry.start - 16)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
@@ -87,7 +88,7 @@ async function assertRows(surface: Locator) {
   await expect(rows.first()).toBeVisible()
   expect(await rows.count()).toBeGreaterThan(0)
   for (const row of await rows.all()) if (await row.isVisible()) await assertRow(row)
-  for (const body of await surface.locator('[data-slot="list-row-body"]:has(> .orbit-check-row-label)').all()) {
+  for (const body of await surface.locator('[data-slot="list-row-body"]:has(> [data-personal-text-action] > .orbit-check-row-label)').all()) {
     if (await body.isVisible()) await assertPersonalCheckRow(body)
   }
 }

@@ -111,7 +111,8 @@ async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
 async function checkCalendarLabels(page: Page, words: typeof en | typeof ptBR) {
   await expect(page.getByRole('radio', { name: words.calendar.view.month, exact: true })).toBeVisible()
   const dayCard = page.locator('section[data-field-surface="card"]').filter({ has: page.getByText(userFields.habitTitle, { exact: true }) })
-  await expect(dayCard.getByRole('button', { name: userFields.habitTitle, exact: true })
+  await expect(dayCard.getByRole('button', { name: userFields.habitTitle, exact: true })).toBeVisible()
+  await expect(dayCard.locator('[data-personal-text-action]').filter({ has: page.getByRole('button', { name: userFields.habitTitle, exact: true }) })
     .getByText(userFields.habitTitle, { exact: true })).toBeVisible()
   const eventRow = dayCard.getByRole('button').filter({ has: page.getByText(userFields.eventTitle, { exact: true }) })
   await expect(eventRow.getByText(userFields.eventTitle, { exact: true })).toBeVisible()
