@@ -598,7 +598,7 @@ function ProgressGoalsContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32 }, sections: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%' },
+  loading: { gap: 32 }, loadingRows: { gap: 12 },
   loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%' }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
