@@ -303,7 +303,7 @@ export default function UpgradeScreen() {
         contentContainerStyle={[styles.scrollContent, clearance > 0 ? { paddingBottom: clearance } : undefined]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[contentFrameStyle, styles.centeredFrame]}>
+        <View style={contentFrameStyle}>
           <UpgradeContent
             state={model.state}
             content={model.content}
@@ -319,7 +319,6 @@ export default function UpgradeScreen() {
 }
 
 const styles = StyleSheet.create({
-  centeredFrame: { alignSelf: 'center' },
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {

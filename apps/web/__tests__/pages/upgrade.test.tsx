@@ -318,7 +318,7 @@ describe('UpgradePage', () => {
         expect(geometry.backgroundToken).toBe(tokens['--bg'])
         expect(geometry.foregroundToken).toBe(tokens['--fg-1'])
         expect(geometry.width).toBe(frameWidth)
-        expect(geometry.left).toBe((width - frameWidth) / 2)
+        expect(geometry.left).toBe(0)
         expect(geometry.overflow).toBe(false)
         for (const heading of geometry.headings) expect(heading).toEqual({ lines: 1, fits: true })
       } finally { await page.close() }

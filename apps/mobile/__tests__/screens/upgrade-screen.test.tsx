@@ -285,7 +285,7 @@ describe('UpgradeScreen', () => {
   })
 
   it.each([600, 840, 1352].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
-    'centers the shared $plan frame at $width', async ({ width, plan }) => {
+    'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
       mocks.hasProAccess = plan !== 'free'
@@ -306,7 +306,7 @@ describe('UpgradeScreen', () => {
         const frame = measureProfileRow(host, width, 1).boxes.find((box) => box.testID === 'subscription-content-frame')!
         expect(frame).toBeDefined()
         const cap = plan === 'free' ? 652 : 560
-        expect(frame.left).toBe(width < 1024 ? 0 : (width - cap - 32) / 2)
+        expect(frame.left).toBe(0)
         expect(frame.width).toBe(width < 1024 ? width : cap + 32)
       } finally { TestRenderer.act(() => tree.unmount()) }
     },

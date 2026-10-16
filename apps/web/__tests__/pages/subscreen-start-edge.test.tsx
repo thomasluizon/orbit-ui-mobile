@@ -89,7 +89,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
 
   for (const locale of ['en', 'pt-BR'] as const) {
     for (const width of [412, 600, 840, 1100, 1352]) {
-      it.each(cases)(`places %s within its content frame at ${width}px in ${locale}`, async (state) => {
+      it.each(cases)(`starts %s at the header inset with its cap at ${width}px in ${locale}`, async (state) => {
         mocks.locale = locale
         mocks.loading = state === 'loading'
         mocks.failed = state === 'load-failed'
@@ -137,13 +137,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
               ? document.querySelector('h2')! : document.querySelector('form button')!
             return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
           }, state)
-          if (state === 'about' || support) {
-            expect.soft(Math.abs(geometry.body.left - geometry.back.left - 8)).toBeLessThanOrEqual(0.5)
-          } else {
-            const frameLeft = (Math.min(width, 736) - expectedFrameWidth(state, width)) / 2
-            expect.soft(geometry.box.left).toBe(frameLeft)
-            expect.soft(geometry.body.left).toBe(frameLeft + 16)
-          }
+          expect.soft(Math.abs(geometry.body.left - geometry.back.left - 8)).toBeLessThanOrEqual(0.5)
           expect.soft(geometry.box.width).toBe(expectedFrameWidth(state, width))
           if (state === 'support') expect(geometry.body.width).toBe(width < 768 ? width - 32 : 520)
         } finally { await page.close(); header.unmount(); view.unmount(); client.clear() }
