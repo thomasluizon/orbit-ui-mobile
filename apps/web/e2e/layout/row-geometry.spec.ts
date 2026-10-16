@@ -53,7 +53,8 @@ async function assertPersonalCheckRow(body: Locator) {
     const bounds = element.getBoundingClientRect()
     const label = element.querySelector('.orbit-check-row-label')!
     const labelBounds = label.getBoundingClientRect()
-    const labelStyle = getComputedStyle(label)
+    const labelContent = label.closest('[data-personal-text-action]')!.querySelector('[data-personal-text-content]')!
+    const labelStyle = getComputedStyle(labelContent)
     const calendarDay = label.getAttribute('data-variant') === 'calendar-day'
     const control = element.querySelector(calendarDay ? '[data-slot="calendar-day-circle"]' : '[data-slot="checkbox-box"]')!.getBoundingClientRect()
     const style = getComputedStyle(element)
@@ -63,7 +64,7 @@ async function assertPersonalCheckRow(body: Locator) {
       calendarDay,
       labelMinHeight: labelStyle.minHeight, labelPaddingStart: labelStyle.paddingBlockStart, labelPaddingEnd: labelStyle.paddingBlockEnd,
       labelTop: labelBounds.top - bounds.top, labelBottom: labelBounds.bottom - bounds.bottom,
-      border: parseFloat(style.borderBottomWidth), supporting: label.children.length > 2 }
+      border: parseFloat(style.borderBottomWidth), supporting: labelContent.children.length + label.children.length > 2 }
   })
   expect(Math.abs(geometry.start - 16)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
@@ -87,7 +88,7 @@ async function assertRows(surface: Locator) {
   await expect(rows.first()).toBeVisible()
   expect(await rows.count()).toBeGreaterThan(0)
   for (const row of await rows.all()) if (await row.isVisible()) await assertRow(row)
-  for (const body of await surface.locator('[data-slot="list-row-body"]:has(> .orbit-check-row-label)').all()) {
+  for (const body of await surface.locator('[data-slot="list-row-body"]:has(> [data-personal-text-action] > .orbit-check-row-label)').all()) {
     if (await body.isVisible()) await assertPersonalCheckRow(body)
   }
 }
@@ -178,8 +179,9 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       await page.getByTestId(`calendar-day-select-${date}`).click()
       await assertRows(page.locator('#orbit-main'))
       await page.goto('/calendar?import=1')
+      const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
+      await expect(sheet).toBeVisible()
       if (pro) {
-        const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
         await assertRows(sheet)
         const checkbox = sheet.getByRole('checkbox', { name: 'Family calendar', exact: true })
         const label = sheet.getByRole('button', { name: 'Family calendar', exact: true })
@@ -203,7 +205,13 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         expect(separators).toBe(1)
       } else {
         await expect(page).toHaveURL(/\/calendar/)
-        await expect(page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })).toHaveCount(0)
+        const proGate = sheet.getByRole('status').filter({ hasText: words.calendar.autoSync.proRequired })
+        await expect(proGate).toHaveText(words.calendar.autoSync.proRequired)
+        await expect(proGate).toBeVisible()
+        await expect(sheet.getByRole('switch')).toHaveCount(0)
+        await expect(sheet.getByRole('checkbox')).toHaveCount(0)
+        await expect(sheet.locator('[data-slot="sheet-body"]').getByRole('button')).toHaveCount(0)
+        await expect(sheet.locator('[data-slot="sheet-actions"]')).toHaveCount(0)
       }
     })
   })

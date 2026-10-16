@@ -24,8 +24,9 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   calendarImportEventsKey,
+  calendarImportVisibleCount,
   isCalendarSyncEventImportable,
-  isCalendarSyncConnectionActive,
+  isCalendarImportConnected,
   resolveCalendarImportConnectionStep,
   resolveCalendarImportEvents,
   resolveCalendarImportSelection,
@@ -157,7 +158,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
-    setVisibleCount(EVENTS_PAGE_SIZE)
+    setVisibleCount(calendarImportVisibleCount(incomingEvents, initialEventId, EVENTS_PAGE_SIZE))
     setSelectedIds(resolveCalendarImportSelection(
       initialEventId, isReviewMode, incomingEvents, weekStartDay, selectedIds, previousEventsKey,
     ))
@@ -181,10 +182,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     useCallback(() => {
       if (!profile) return
 
-      if (!profile.hasProAccess) {
-        router.replace('/upgrade')
-        return
-      }
+      if (!profile.hasProAccess) return
       if (!isOnline) {
         return
       }
@@ -200,7 +198,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       }
 
       void eventsQuery.refetch()
-    }, [eventsQuery, isOnline, isReviewMode, profile, queryClient, router]),
+    }, [eventsQuery, isOnline, isReviewMode, profile, queryClient]),
   )
 
   const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
@@ -213,10 +211,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     isQueryError: activeQuery.isError,
     eventsStatus: eventsQuery.data?.status,
   })
-  const googleConnected = (isReviewMode || eventsQuery.data?.status !== 'not-connected') && isCalendarSyncConnectionActive(
-    autoSyncStateQuery.data?.hasGoogleConnection ?? false,
-    autoSyncStateQuery.data?.status ?? 'Idle',
-  )
+  const googleConnected = isCalendarImportConnected(isReviewMode, eventsQuery.data?.status, autoSyncStateQuery.data)
   const step = resolveCalendarImportConnectionStep(
     resolvedStep, autoSyncStateQuery.isLoading, autoSyncStateQuery.isError,
     googleConnected, isOnline, wizardStage === 'browse',
@@ -285,7 +280,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   }, [isConnecting, isOnline, isReviewMode, router, setActionError, setErrorMessage, setIsConnecting])
 
   const handleImportSelected = useCallback(async () => {
-    if (!isOnline) {
+    if (!hasProAccess || !isOnline) {
       return
     }
     if (selectedIds.size === 0) return
@@ -355,6 +350,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     }
   }, [
     bulkCreateHabits,
+    hasProAccess,
     isOnline,
     isReviewMode,
     queryClient,
@@ -371,10 +367,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   useImperativeHandle(actionRef, () => ({ importSelected: () => void handleImportSelected() }), [handleImportSelected])
   useEffect(() => {
-    onActionStateChange(step === 'select' && events.length > 0
+    onActionStateChange(hasProAccess && step === 'select' && events.length > 0
       ? { count: selectedCount, disabled: selectedCount === 0 || !isOnline }
       : null)
-  }, [step, events.length, selectedCount, isOnline, accountGeneration, onActionStateChange])
+  }, [hasProAccess, step, events.length, selectedCount, isOnline, accountGeneration, onActionStateChange])
   useEffect(() => () => onActionStateChange(null), [onActionStateChange])
 
   const handleRetry = useCallback(() => {
@@ -418,14 +414,16 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     [suggestions],
   )
 
+  if (profile && !hasProAccess) return <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2 }}>{t('calendar.autoSync.proRequired')}</Text>
+
   return (
-    <View>
-      <CalendarImportSyncBoundary enabled={hasProAccess} isConnected={googleConnected} autoSyncState={autoSyncStateQuery.data}
+    <View style={{ gap: 24 }}>
+      <CalendarImportSyncBoundary enabled={Boolean(profile)} hasProAccess={hasProAccess} isConnected={googleConnected} autoSyncState={autoSyncStateQuery.data}
           onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
           onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
           tokens={tokens} t={t} locale={i18n.language} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock}
         />
-      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.statusBadText }}>{actionError ?? ''}</Text>
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ display: actionError ? undefined : 'none', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.statusBadText }}>{actionError ?? ''}</Text>
       <OpenedCalendarEventTitle eventId={initialEventId} eventsResult={eventsQuery.data} reviewMode={isReviewMode} enabled={hasProAccess} tokens={tokens} />
       <CalendarPickerSection
         styles={styles}
@@ -488,7 +486,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
         )}
 
         {step === 'select' && (
-          <>
+          <View>
             {events.length === 0 ? (
               <EmptyState
                 title={
@@ -506,7 +504,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               <>
                 <View
                   testID="section-heading-row"
-                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 12, paddingBottom: 12 }}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingBottom: 12 }}
                 >
                   <View style={{ minWidth: 0, flex: 1, paddingTop: Math.max(0, TOUCH_TARGET_MIN / 2 - firstLineCentre) }}>
                     <Text
@@ -539,6 +537,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                     event={event}
                     weekStartDay={weekStartDay}
                     selected={selectedIds.has(event.id)}
+                    initiallyExpanded={initialEventId === event.id}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
                     dismissPending={dismissSuggestion.isPending}
@@ -580,7 +579,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 ) : null}
               </>
             )}
-          </>
+          </View>
         )}
 
         {step === 'importing' && (
@@ -664,6 +663,6 @@ function CalendarImportSyncBoundary({ enabled, ...props }: Readonly<ComponentPro
 function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled, tokens }: Readonly<{ eventId: string | null; eventsResult: CalendarEventsResult | undefined; reviewMode: boolean; enabled: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
-  if (!event) return null
+  if (!event?.isImported) return null
   return <View style={{ minWidth: 0, gap: 8, paddingVertical: 24 }}><PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg3 }}>{event.calendarName}</PersonalText> : null}</View>
 }

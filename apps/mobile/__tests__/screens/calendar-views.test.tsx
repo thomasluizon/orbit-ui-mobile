@@ -637,13 +637,8 @@ describe("CalendarScreen views (mobile)", () => {
       expect(state.routerPush).not.toHaveBeenCalled();
       expect(imports()).toHaveLength(0);
       TestRenderer.act(() => sheetTestControls.completeDismissal());
-      if (hasProAccess) {
-        expect(imports()).toHaveLength(1);
-        expect(state.routerPush).not.toHaveBeenCalled();
-      } else {
-        expect(state.routerPush).toHaveBeenCalledWith('/upgrade');
-        expect(imports()).toHaveLength(0);
-      }
+      expect(imports()).toHaveLength(1);
+      expect(state.routerPush).not.toHaveBeenCalled();
     } finally {
       sheetTestControls.defer(false);
       TestRenderer.act(() => tree.update(<></>));
@@ -1009,7 +1004,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
-  it.each(['options', 'day card'] as const)('keeps selection after the free-plan upgrade from %s', (entry) => {
+  it.each(['options', 'day card'] as const)('keeps selection after the free-plan boundary from %s', (entry) => {
     let tree!: Tree
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); })
     const header = openSelectedDay(tree, '2026-09-10')
@@ -1024,7 +1019,8 @@ describe("CalendarScreen views (mobile)", () => {
       const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'calendar.googleCalendar')[0]!
       TestRenderer.act(() => google.props.onPress())
     }
-    expect(state.routerPush).toHaveBeenCalledWith('/upgrade')
+    if (entry === 'day card') expect(state.routerPush).toHaveBeenCalledWith('/upgrade')
+    else expect(tree.root.findAll((node) => node.type === 'CalendarImportContentMock')).toHaveLength(1)
     TestRenderer.act(() => tree.update(<CalendarScreen />))
     if (entry === 'options') {
       expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'segment-range-selected-enabled')).toHaveLength(1)
@@ -1302,6 +1298,16 @@ describe("CalendarScreen views (mobile)", () => {
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'calendar.calendars.title')).toHaveLength(1);
     expect(state.routerPush).not.toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it('opens the Calendars sheet for a free account route without navigating to upgrade', () => {
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false };
+    state.routeParams = { import: '1' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    expect(tree.root.findAll((node) => node.type === 'CalendarImportContentMock')).toHaveLength(1);
+    expect(state.routerPush).not.toHaveBeenCalledWith('/upgrade');
     TestRenderer.act(() => tree.update(<></>));
   });
 

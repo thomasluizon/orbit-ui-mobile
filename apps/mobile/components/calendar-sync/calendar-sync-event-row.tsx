@@ -35,13 +35,20 @@ function eventRowBackground(
 }
 
 function eventAccessibleLabel(event: CalendarSyncEvent, displayDate: ReturnType<typeof useDateFormat>['displayDate'], timeLabel: string, recurrenceLabel: string, importIssueLabel: string | null) {
-  return [event.title, event.startDate ? displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' }) : '', timeLabel, recurrenceLabel, event.reminders.length ? String(event.reminders.length) : '', event.calendarName, event.description, importIssueLabel].filter(Boolean).join(', ')
+  return [event.title, event.startDate ? displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' }) : '', timeLabel, recurrenceLabel, event.reminders.length ? String(event.reminders.length) : '', event.calendarName, importIssueLabel].filter(Boolean).join(', ')
+}
+
+function eventContentProps(expanded: boolean) {
+  return expanded
+    ? { pointerEvents: 'box-none' as const, importantForAccessibility: 'auto' as const }
+    : { pointerEvents: 'none' as const, importantForAccessibility: 'no-hide-descendants' as const }
 }
 
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
   weekStartDay: 0 | 1
   selected: boolean
+  initiallyExpanded?: boolean
   isReviewMode: boolean
   suggestionId: string | null
   dismissPending: boolean
@@ -56,6 +63,7 @@ export function CalendarSyncEventRow({
   event,
   weekStartDay,
   selected,
+  initiallyExpanded = false,
   isReviewMode,
   suggestionId,
   dismissPending,
@@ -65,7 +73,10 @@ export function CalendarSyncEventRow({
   onToggle,
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(initiallyExpanded)
+  const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
   const disclosureLabel = [event.title, event.calendarName].filter(Boolean).join(', ')
   const { displayTime } = useTimeFormat()
   const { displayDate } = useDateFormat()
@@ -96,49 +107,49 @@ export function CalendarSyncEventRow({
 
   return (
     <View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
       <Pressable
+        hitSlop={{ left: 16, right: 16 }}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onPress={() => onToggle(event.id)}
         disabled={importIssue !== null}
         accessibilityRole="checkbox"
         accessibilityLabel={accessibleLabel}
         accessibilityState={{ checked: selected, disabled: importIssue !== null }}
         accessibilityHint={importIssueLabel ?? undefined}
-        style={({ pressed }) => [
-          styles.eventRow,
-          { flex: 1 },
-          {
-            backgroundColor: eventRowBackground(
-              hasImportIssue,
-              pressed,
-              selectedBackground,
-              tokens,
-            ),
-          },
-        ]}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 }}
       >
-        <View style={styles.eventBody}>
+        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
+      </Pressable>
+      <View {...eventContentProps(expanded)} style={styles.eventRow}>
+        <View pointerEvents="box-none" style={styles.eventBody}>
           <PersonalText
             style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
-          >{event.title}</PersonalText>
-          <View style={styles.eventMetaRow}>
+            expanded={expanded}>{event.title}</PersonalText>
+          <View pointerEvents="box-none" style={styles.eventMetaRow}>
             {event.startDate ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Text>
+              </Text></View>
             ) : null}
             {timeLabel ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {timeLabel}
-              </Text>
+              </Text></View>
             ) : null}
             {event.isRecurring ? (
-              <Badge >
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Badge >
                 {recurrenceLabel || t('calendar.recurring')}
-              </Badge>
+              </Badge></View>
             ) : null}
             {event.reminders.length > 0 ? (
-              <View style={styles.eventReminders}>
+              <View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={styles.eventReminders}>
                 <Bell size={16} color={tokens.fg2} />
                 <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                   {event.reminders.length}
@@ -147,27 +158,21 @@ export function CalendarSyncEventRow({
             ) : null}
             {event.calendarName ? (
               <PersonalText
-                style={[styles.eventTagText, { color: tokens.fg2 }]}
+                 expanded={expanded} style={[styles.eventTagText, { color: tokens.fg2 }]}
               >{event.calendarName}</PersonalText>
             ) : null}
           </View>
-          {event.description ? (
-            <Text
-              style={[styles.eventDescription, { color: tokens.fg2 }]}
-            >
-              {event.description}
-            </Text>
-          ) : null}
           {importIssueLabel ? (
-            <Text style={[styles.importIssue, { color: tokens.statusBadText }]}>
+            <View pointerEvents="none" importantForAccessibility="no-hide-descendants"><Text data-slot="calendar-import-issue" style={[styles.importIssue, { color: tokens.statusBadText }]}>
               {importIssueLabel}
-            </Text>
+            </Text></View>
           ) : null}
         </View>
-        <View style={{ opacity: issueVisuals.selectorOpacity }}>
+        <View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={{ opacity: issueVisuals.selectorOpacity }}>
           <RadioGlyph selected={selected} size={24} tokens={tokens} />
         </View>
-      </Pressable>
+      </View>
+      </View>
       {isReviewMode && suggestionId ? (
         <Pressable
           onPress={() => onDismiss(suggestionId)}
@@ -177,13 +182,8 @@ export function CalendarSyncEventRow({
           style={({ pressed }) => [styles.dismissButton, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }, dismissPending && styles.quietActionDim]}
         ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></Pressable>
       ) : null}
-      <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, alignSelf: 'flex-end', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
+      <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
       </View>
-      {expanded ? <FullEventText event={event} styles={styles} tokens={tokens} /> : null}
     </View>
   )
-}
-
-function FullEventText({ event, styles, tokens }: Readonly<Pick<CalendarSyncEventRowProps, 'event' | 'styles' | 'tokens'>>) {
-  return <View><PersonalText expanded style={[styles.eventTitle, { color: tokens.fg1 }]}>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded style={[styles.eventTagText, { color: tokens.fg2 }]}>{event.calendarName}</PersonalText> : null}</View>
 }

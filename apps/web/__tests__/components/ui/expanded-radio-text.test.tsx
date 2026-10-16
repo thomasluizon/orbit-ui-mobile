@@ -32,12 +32,20 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { RadioGroup } from './components/ui/radio-row';
           import { RadioRow } from './components/ui/select-check';
           import { ListRow } from './components/ui/list-row';
+          import { CheckRow } from './components/ui/check-row';
+          import { CalendarSyncEventRow } from './components/calendar-sync/calendar-sync-event-row';
+          import { useTranslations } from 'next-intl';
           import { PersonalTextDetails } from './components/ui/personal-text-details';
           import { HabitRow } from './components/habits/habit-row';
           import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
           import { NextIntlClientProvider } from 'next-intl';
           import messages from '../../packages/shared/src/i18n/en.json';
+          function CalendarEvent({ label }) {
+            const t = useTranslations();
+            const [selected, select] = useState(false);
+            return <CalendarSyncEventRow event={{ id: 'event', title: label, calendarName: label + '.source', startDate: '2026-07-01', startTime: '09:00', endTime: '10:00', isRecurring: false, recurrenceRule: null, reminders: [] }} weekStartDay={1} selected={selected} isReviewMode={false} suggestionId={null} dismissPending={false} onToggle={() => { select(!selected); document.getElementById('commits').textContent += 'toggle'; }} onDismiss={() => {}} t={t} />;
+          }
           function Subjects() {
             const [selected, select] = useState(0);
             const label = document.getElementById('root').dataset.label;
@@ -50,6 +58,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
                 root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
               });
             }, []);
+            if (composition === 'calendarEvent') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><CalendarEvent label={label} /></NextIntlClientProvider>;
+            if (composition === 'calendarCheck') return <CheckRow placement="column" textMode="personal" label={label} checked={false} labelExpanded={selected === 1} labelControls="calendar-name" onOpenLabel={() => { select(selected === 0 ? 1 : 0); document.getElementById('commits').textContent += 'toggle'; }} onChange={() => {}} />;
             if (composition === 'expandedStack') return <ListRow title={label} description={label} textMode="personal" personalExpanded onClick={() => {}} accessibilityLabel={label} />;
             if (composition === 'collapsedStack') return <ListRow title={label} description={label} textMode="personal" onClick={() => {}} accessibilityLabel={label} />;
             if (composition === 'plainStack') return <ListRow title={label} description={label} wrapTitle onClick={() => {}} accessibilityLabel={label} />;
@@ -77,6 +87,9 @@ describe('expanded RadioRow personal text in Chromium', () => {
         resolveDir: process.cwd(), loader: 'tsx',
       },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      plugins: [{ name: 'calendar-profile', setup(bundler) {
+        bundler.onLoad({ filter: /hooks\/use-time-format\.ts$/ }, () => ({ contents: "export function useTimeFormat() { return { displayTime: (time) => time }; }", loader: 'js' }))
+      } }],
       define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
     })
     componentScript = result.outputFiles[0]!.text
@@ -90,7 +103,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, text) => { (root as HTMLElement).dataset.label = text }, label)
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.addScriptTag({ content: componentScript })
-    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit'].includes(composition) }).waitFor()
+    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit', 'calendarEvent'].includes(composition) }).waitFor({ timeout: 2_000 })
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
@@ -218,10 +231,10 @@ describe('expanded RadioRow personal text in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(labels.flatMap((label) => ['list', 'details', 'settings', 'settingsGroup', ...(label === token ? ['support'] : [])].map((composition) => ({ label, composition }))))('keeps expanded $composition actions separate from scrolling for $label', async ({ label, composition }) => {
+  it.each(labels.flatMap((label) => ['list', 'details', 'settings', 'settingsGroup', 'calendarCheck', ...(label === token ? ['support', 'calendarEvent'] : [])].map((composition) => ({ label, composition }))))('keeps expanded $composition actions separate from scrolling for $label', async ({ label, composition }) => {
     const page = await mount(label, 'light', composition)
     try {
-      await page.getByRole('button', { name: label, exact: composition !== 'support' }).click()
+      await page.getByRole('button', { name: composition === 'calendarEvent' ? 'View details' : label, exact: composition !== 'support' }).click()
       const text = page.getByRole('region', { name: label, exact: true })
       await text.waitFor()
       expect(await text.getAttribute('tabindex')).toBe('0')
@@ -234,9 +247,40 @@ describe('expanded RadioRow personal text in Chromium', () => {
         return results.violations.map((violation) => violation.id)
       })
       expect(violations).toEqual([])
-      await page.getByRole('button', { name: label, exact: composition !== 'support' }).focus()
+      await page.getByRole('button', { name: composition === 'calendarEvent' ? 'View details' : label, exact: composition !== 'support' }).focus()
       await page.keyboard.press('Enter')
       expect(await page.getByRole('region', { name: label, exact: true }).count()).toBe(0)
+    } finally { await page.close() }
+  })
+
+
+  it.each(['calendarCheck', 'calendarEvent'].flatMap((composition) => ['Enter', 'Space'].map((key) => ({ composition, key }))))('keeps $composition scroll targets independent from $key activation', async ({ composition, key }) => {
+    const label = `${'longaddress'.repeat(20)}@example.com`
+    const page = await mount(label, 'light', composition)
+    try {
+      const disclosure = page.getByRole('button', { name: composition === 'calendarEvent' ? 'View details' : label, exact: true })
+      const selection = page.locator('[aria-pressed]')
+      await disclosure.click()
+      const names = composition === 'calendarEvent' ? [label, `${label}.source`] : [label]
+      for (const name of names) {
+        const region = page.getByRole('region', { name, exact: true })
+        await region.focus()
+        await page.keyboard.press('ArrowRight')
+        await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+        await page.keyboard.press(key)
+        expect(await disclosure.getAttribute('aria-expanded')).toBe('true')
+        if (composition === 'calendarEvent') expect(await selection.getAttribute('aria-pressed')).toBe('false')
+        expect(await page.locator('#commits').textContent()).toBe(composition === 'calendarEvent' ? '' : 'toggle')
+        expect(await region.evaluate((element) => element.closest('button, a, [role="checkbox"]'))).toBeNull()
+      }
+      const control = composition === 'calendarEvent' ? selection : disclosure
+      const bounds = (await control.boundingBox())!
+      await page.mouse.click(bounds.x + 8, bounds.y + (composition === 'calendarCheck' ? -8 : 8))
+      expect(await control.getAttribute(composition === 'calendarEvent' ? 'aria-pressed' : 'aria-expanded')).toBe(composition === 'calendarEvent' ? 'true' : 'false')
+      await control.focus()
+      await page.keyboard.press(key)
+      expect(await control.getAttribute(composition === 'calendarEvent' ? 'aria-pressed' : 'aria-expanded')).toBe(composition === 'calendarEvent' ? 'false' : 'true')
+      expect(await page.locator('#commits').textContent()).toBe(composition === 'calendarEvent' ? 'toggletoggle' : 'toggletoggletoggle')
     } finally { await page.close() }
   })
 

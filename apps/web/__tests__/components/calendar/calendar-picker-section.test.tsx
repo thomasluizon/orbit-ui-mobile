@@ -88,7 +88,12 @@ describe('CalendarPickerSection', () => {
     fireEvent.click(open)
     expect(open).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText(personalText(name), { selector: '[data-personal-text-expanded]' })).toBeVisible()
-    expect(screen.getByText(personalText(name), { selector: '[data-personal-text-expanded]' }).parentElement).toHaveAttribute('id', open.getAttribute('aria-controls'))
+    const fullName = document.getElementById(open.getAttribute('aria-controls')!)!
+    expect(fullName).toHaveTextContent(name)
+    expect(fullName).toHaveAttribute('data-personal-text-expanded')
+    const row = open.closest('[data-slot="list-row-body"]')!
+    expect(row).toHaveStyle({ paddingInline: '16px', marginInline: '-16px' })
+    expect(screen.getAllByText(personalText(name))).toHaveLength(1)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(open)

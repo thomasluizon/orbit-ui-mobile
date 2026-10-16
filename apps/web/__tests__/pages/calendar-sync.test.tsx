@@ -383,16 +383,28 @@ describe('CalendarSyncPage', () => {
     }
 
     async function expectInteractivePaint(row: Locator, state: string, blocked: boolean) {
+      const shape = await row.locator('[data-press-fill]').evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { radius: style.borderRadius, overflowX: style.overflowX, overflowY: style.overflowY }
+      })
+      expect(shape).toEqual({ radius: '12px', overflowX: 'hidden', overflowY: 'hidden' })
       if (state === 'rest' || blocked) return
       const fills = await row.evaluate((element) => {
         const reference = document.createElement('span')
         reference.style.backgroundColor = 'var(--bg-hover)'
         element.append(reference)
-        const fills = { actual: getComputedStyle(element).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
+        const fills = { actual: getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
         reference.remove()
         return fills
       })
       expect(fills.actual).toBe(fills.expected)
+      const clearance = await row.evaluate((element) => {
+        const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
+        const content = element.parentElement!.querySelector('[data-slot="list-row-content"]')!.getBoundingClientRect()
+        return { leading: content.left - fill.left, trailing: fill.right - element.getBoundingClientRect().right }
+      })
+      expect(clearance.leading).toBeGreaterThanOrEqual(8)
+      expect(clearance.trailing).toBeGreaterThanOrEqual(8)
       if (state === 'press') expect(await row.getAttribute('data-contrast-pressed')).toBe('true')
     }
 
@@ -425,15 +437,19 @@ describe('CalendarSyncPage', () => {
             await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
           })
           await expectInteractivePaint(paintedRow, state, blocked)
-          const pairs = await paintedRow.evaluate((element) => Array.from(element.querySelectorAll('span'))
+          const pairs = await paintedRow.evaluate((element) => {
+            const content = element.parentElement!.querySelector('[data-personal-text-content]')!
+            return Array.from(content.querySelectorAll('span'))
             .filter((field) => Array.from(field.childNodes).some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim()))
             .map((field) => {
               const layers: string[] = []
               for (let surface: HTMLElement | null = field; surface; surface = surface.parentElement) {
                 layers.unshift(getComputedStyle(surface).backgroundColor)
+                if (surface === element.parentElement) layers.unshift(getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)
               }
               return { text: field.textContent, color: getComputedStyle(field).color, layers }
-            }))
+            })
+          })
           expect(pairs.length).toBeGreaterThanOrEqual(7)
           for (const pair of pairs) {
             expect.soft(contrastOnSurface(pair.color, pair.layers), `${mode}, selected: ${selected}, blocked: ${blocked}, state: ${state}, ${pair.text.slice(0, 80)}, ${pair.color} on ${pair.layers.join(' over ')}`).toBeGreaterThanOrEqual(4.5)
@@ -444,18 +460,25 @@ describe('CalendarSyncPage', () => {
     })
 
     it.each([
-      [320, false, false], [412, true, false], [320, true, true], [1440, false, false],
+      [320, false, false], [412, true, false], [320, true, true], [1200, false, false],
     ])('wraps all full values at %ipx, review: %s, blocked: %s', async (width, review, blocked) => {
       provideEvents(review, blocked)
       const { container } = renderPage()
       await screen.findByText(personalText(longEvent.title))
-      fireEvent.click(screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!)
+      const disclosure = screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!
+      expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(disclosure)
+      expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+      const controlled = document.getElementById(disclosure.getAttribute('aria-controls')!)!
+      expect(controlled.querySelector('[data-personal-text-expanded]')).toHaveTextContent(longEvent.title)
+      expect(screen.getAllByText(personalText(longEvent.title))).toHaveLength(1)
+      expect(screen.queryByText(longEvent.description!)).not.toBeInTheDocument()
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)
         await loadAppFonts(page)
-        for (const value of [longEvent.title, longEvent.calendarName!, longEvent.description!]) {
-          const field = value === longEvent.description ? page.getByText(value, { exact: true }) : page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
+        for (const value of [longEvent.title, longEvent.calendarName!]) {
+          const field = page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
           const geometry = await field.evaluate((element) => {
             const bounds = element.getBoundingClientRect()
             const style = getComputedStyle(element)
@@ -469,8 +492,7 @@ describe('CalendarSyncPage', () => {
             }
           })
           expect(geometry.height, value).toBeGreaterThan(geometry.lineHeight)
-          if (value === longEvent.description) expect(geometry.textInside, value).toBe(true)
-          else expect(await field.getAttribute('data-personal-text')).toBe('')
+          expect(await field.getAttribute('data-personal-text')).toBe('')
           expect(geometry.horizontalOverflow, value).toBe(false)
         }
       } finally { await page.close() }
@@ -502,12 +524,13 @@ describe('CalendarSyncPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('redirects non-Pro users to upgrade', async () => {
+  it('shows the Pro gate without redirecting', async () => {
     mockHasProAccess = false
     mockProfile = { id: 'u1', hasProAccess: false }
     renderPage()
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/upgrade')
+      expect(screen.getByText('calendar.autoSync.proRequired')).toBeVisible()
+      expect(mockReplace).not.toHaveBeenCalled()
     })
   })
 
@@ -642,7 +665,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const row = (await screen.findByText(personalText('Second Monday review'))).closest('button')
+    const row = await screen.findByRole('button', { name: /Second Monday review/ })
     expect(row).not.toBeDisabled()
     expect(screen.getByText('calendar.recurrenceMonthly')).toBeVisible()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
@@ -676,7 +699,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Alternate week training'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Alternate week training/ })).not.toBeDisabled()
     const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
     fireEvent.click(importButton!)
@@ -705,7 +728,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Unsupported training'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Unsupported training/ })).not.toBeDisabled()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
     const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
@@ -742,7 +765,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText(personalText('Month end close'))).closest('button')).not.toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Month end close/ })).not.toBeDisabled()
     expect(screen.queryByText(/calendar.importIssue/)).not.toBeInTheDocument()
     fireEvent.click((await screen.findByText(/calendar.importButton/)).closest('button')!)
     expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
@@ -774,12 +797,11 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const button = await screen.findByText(personalText('Weekly review'))
-    const hitArea = button.closest('button')
+    const hitArea = await screen.findByRole('button', { name: /Weekly review/ })
     expect(hitArea).not.toBeDisabled()
-    expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
-    expect(hitArea?.className).toContain('rounded-[12px]')
-    expect(hitArea?.parentElement?.className).not.toContain('hover:bg-')
+    expect(hitArea.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
+    expect(hitArea.className).toContain('rounded-[12px]')
+    expect(hitArea.parentElement?.className).not.toContain('hover:bg-')
   })
 
   it('shows select all / deselect all toggle', async () => {

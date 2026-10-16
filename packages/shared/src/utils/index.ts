@@ -136,6 +136,8 @@ export {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   calendarImportEventsKey,
+  calendarImportVisibleCount,
+  isCalendarImportConnected,
   resolveCalendarEventsGrantRevocation,
   resolveCalendarImportEvents,
   resolveCalendarImportSelection,

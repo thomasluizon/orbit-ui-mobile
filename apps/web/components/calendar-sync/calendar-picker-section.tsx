@@ -1,10 +1,7 @@
 'use client'
 
-import { PersonalText } from '@/components/ui/personal-text'
-
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
@@ -44,8 +41,9 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
   }
 
   return (
-    <div className="pt-6">
-      <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{saveError ?? ''}</p>
+    <div>
+      <h2 className="pb-3 text-[20px] font-medium text-[var(--fg-1)]">{t('calendar.calendars.readFrom')}</h2>
+      <p role="alert" hidden={!saveError} className="m-0 text-sm text-[var(--status-bad-text)]">{saveError ?? ''}</p>
 
       {isLoading && <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} />}
 
@@ -88,7 +86,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         !isError &&
         calendars?.slice(0, visibleCount).map((calendar) => (
           <div key={calendar.id}>
-            <CheckRow
+            <CheckRow placement="column"
               label={calendar.name}
               textMode="personal"
               onOpenLabel={() => setOpenedCalendarId(openedCalendarId === calendar.id ? null : calendar.id)}
@@ -98,9 +96,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
               checked={calendar.isSynced}
               onChange={(checked) => void handleToggle(calendar.id, checked)}
             />
-            <div id={`${disclosureId}-${calendar.id}`} hidden={openedCalendarId !== calendar.id}>
-              {openedCalendarId === calendar.id ? <PersonalText expanded className="m-0 px-4 pb-3 text-sm text-[var(--fg-1)]">{calendar.name}</PersonalText> : null}
-            </div>
+
           </div>
         ))}
 
@@ -117,7 +113,6 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         </div>
       ) : null}
 
-      <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
     </div>
   )
 }

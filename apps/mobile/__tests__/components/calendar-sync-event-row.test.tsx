@@ -6,6 +6,8 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { RadioGlyph } from '@/components/ui/select-check'
+import { PersonalText } from '@/components/ui/personal-text'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 
 const theme = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({
@@ -25,13 +27,19 @@ interface RowNode {
   type: unknown
   parent: RowNode | null
   props: {
+    pointerEvents?: string
     importantForAccessibility?: string
     children?: unknown
     style?: StyleProp<TextStyle & ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     accessibilityRole?: string
     accessibilityState?: { checked: boolean; disabled: boolean }
+    accessibilityLabel?: string
+    expanded?: boolean
     accessibilityHint?: string
     disabled?: boolean
+    onPressIn?: () => void
+    onPressOut?: () => void
+    testID?: string
     onPress?: () => void
   }
 }
@@ -85,15 +93,62 @@ describe('calendar import row press contrast', () => {
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: state === 'selected', disabled: blocked })
     if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift')
-    const rowStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     for (const pressed of blocked ? [false] : [false, true]) {
-      const flattened = StyleSheet.flatten(rowStyle({ pressed }))
+      const flattened = StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>)
       expect(flattened).not.toHaveProperty('borderBottomWidth')
       expect(flattened).not.toHaveProperty('borderBottomColor')
       expect(flattened.borderRadius).toBe(12)
-      expect(flattened.overflow).toBe('hidden')
-      expect(flattened.backgroundColor).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
+      expect(flattened.overflow).toBeUndefined()
+      void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
+      const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
+      const paint = StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)
+      expect(paint).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+      expect(paint.left).toBe(-16)
+      expect(paint.right).toBe(-16)
+      expect(paint.backgroundColor).toBe(pressed && !blocked ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
     }
+  })
+
+  it('expands the existing event title without duplicating it or exposing the description', () => {
+    let tree!: RowTree
+    void act(() => {
+      tree = create(<CalendarSyncEventRow event={event} weekStartDay={1} selected isReviewMode={false} suggestionId={null} dismissPending={false} styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />) as unknown as RowTree
+      trees.push(tree)
+    })
+    const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!
+    const titles = () => tree.root.findAll((node) => node.type === PersonalText && node.props.children === event.title)
+    expect(titles()).toHaveLength(1)
+    expect(titles()[0]!.props.expanded).toBe(false)
+    void act(() => { disclosure.props.onPress!() })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(titles()).toHaveLength(1)
+    expect(titles()[0]!.props.expanded).toBe(true)
+    const scrollers = tree.root.findAll((node) => node.type === 'ScrollView')
+    expect(scrollers).toHaveLength(2)
+    const staticContent = tree.root.findAll((node) => {
+      if (node.type === RadioGlyph) return true
+      if (node.type !== 'Text') return false
+      for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.type === PersonalText) return false
+      }
+      return true
+    })
+    expect(staticContent.length).toBeGreaterThanOrEqual(4)
+    for (const content of staticContent) {
+      let pointerTransparent = false
+      for (let ancestor = content.parent; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.props.pointerEvents === 'none') pointerTransparent = true
+      }
+      expect(pointerTransparent).toBe(true)
+    }
+    for (const scroller of scrollers) {
+      for (let ancestor = scroller.parent; ancestor; ancestor = ancestor.parent) {
+        expect(ancestor.type).not.toBe('Pressable')
+      }
+    }
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0)
+    void act(() => { disclosure.props.onPress!() })
+    expect(titles()[0]!.props.expanded).toBe(false)
   })
 
   it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].flatMap((selected) =>
@@ -117,9 +172,10 @@ describe('calendar import row press contrast', () => {
     expect(row.props.disabled).toBe(blocked)
     expect(row.props.accessibilityState).toEqual({ checked: selected, disabled: blocked })
     if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift')
-    const rowStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     for (const pressed of blocked ? [false] : [false, true]) {
-      const fill = String(StyleSheet.flatten(rowStyle({ pressed })).backgroundColor)
+      void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
+      const painted = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
+      const fill = String(StyleSheet.flatten(painted.props.style as StyleProp<ViewStyle>).backgroundColor)
       expect(fill).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : selected ? tintFromPrimary(tokens, 0.06) : 'transparent')
       expectTextContrast(tree, row, [tokens.bgSheet, fill], `${mode}, selected: ${selected}, pressed: ${pressed}`)
     }

@@ -291,8 +291,7 @@ function CalendarPageContent({
   const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
   const disclosedWeekDay = view === 'week' ? selectedDay : null
   const openGoogleCalendar = () => {
-    if (hasProAccess) openImport(null)
-    else router.push('/upgrade')
+    openImport(null)
   }
   const openDayDisclosure = (open: () => void) => closeSheet(() => { setIsDayDetailOpen(false); open() })
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false)
@@ -304,7 +303,7 @@ function CalendarPageContent({
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, searchParams.get('import') === '1')
   const importRequested = useAccountBoundRouteRequest(routeRequestKey)
   useClearStaleCalendarImportRoute(routeRequestKey, importRequested, navigation.importReturnHref)
-  const showImportSheet = shouldOpenCalendarImportSheet(hasProAccess, isImportOpen, importRequested)
+  const showImportSheet = shouldOpenCalendarImportSheet(Boolean(profile), isImportOpen, importRequested)
 
   const openImport = useCallback((eventId: string | null) => {
     const open = () => {

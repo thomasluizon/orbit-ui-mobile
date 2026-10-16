@@ -50,13 +50,13 @@ for (const width of [412, 1352]) {
         await expect(blocked).toBeDisabled()
         await expect(blocked).toHaveAttribute('aria-pressed', 'false')
         await expect(blocked).toHaveAccessibleDescription(ptBR.calendar.importIssue.utcUntilOffsetShift)
-        const rows = [plain, selected, blocked].map((button) => button.locator('..'))
+        const rows = [plain, selected, blocked].map((button) => button.locator('xpath=ancestor::*[@data-focus-inset][1]'))
         const list = rows[0]!.locator('..')
         for (const surface of [...rows, list]) {
           await expect(surface).toHaveCSS('border-bottom-width', '0px')
           await expect(surface).toHaveCSS('box-shadow', 'none')
         }
-        for (const row of rows.slice(1)) {
+        for (const row of [selected, blocked].map((button) => button.locator('[data-press-fill]'))) {
           await expect(row).toHaveCSS('border-radius', '12px')
           await expect(row).toHaveCSS('overflow-x', 'hidden')
           await expect(row).toHaveCSS('overflow-y', 'hidden')
@@ -65,9 +65,9 @@ for (const width of [412, 1352]) {
         await page.keyboard.press('Tab')
         await selected.focus()
         await expect(selected).toBeFocused()
-        await expect(selected).toHaveCSS('outline-style', 'solid')
-        await expect(selected).toHaveCSS('outline-width', '2px')
-        await expect(selected).toHaveCSS('outline-offset', '-4px')
+        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-style', 'solid')
+        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-width', '2px')
+        await expect(selected.locator('[data-press-fill]')).toHaveCSS('outline-offset', '-2px')
         const details = rows[2]!.getByRole('button', { name: ptBR.contextMenu.viewDetails, exact: true })
         await details.focus()
         await expect(details).toBeFocused()

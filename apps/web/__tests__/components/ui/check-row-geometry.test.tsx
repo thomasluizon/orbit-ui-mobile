@@ -61,14 +61,21 @@ describe('personal checkbox interaction fills in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((checked) => (['light', 'dark'] as const).map((mode) => ({ width, checked, mode })))))('pads both controls in $mode at $width, checked $checked', async ({ width, checked, mode }) => {
-    const markup = renderToStaticMarkup(<CheckRow label="Family calendar" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
+  it.each([412, 1352].flatMap((width) => [false, true].flatMap((checked) => (['light', 'dark'] as const).flatMap((mode) => (['inset', 'column'] as const).map((placement) => ({ width, checked, mode, placement }))))))('pads both controls in $mode at $width, checked $checked, placement $placement', async ({ width, checked, mode, placement }) => {
+    const markup = renderToStaticMarkup(<CheckRow placement={placement} label="Family calendar" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<!DOCTYPE html><html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="padding:32px">${markup}</body></html>`)
       const checkbox = page.getByRole('checkbox', { name: 'Family calendar', exact: true })
       const label = page.getByRole('button', { name: 'Family calendar', exact: true })
+      const insets = await label.evaluate((element) => {
+        const row = element.closest('[data-slot="list-row-body"]')!.getBoundingClientRect()
+        const label = element.getBoundingClientRect()
+        const graphic = element.closest('[data-slot="list-row-body"]')!.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
+        return { start: label.left - row.left, end: row.right - graphic.right }
+      })
+      expect(insets).toEqual({ start: 16, end: 16 })
       await expectInteractionFill(checkbox)
       await expectInteractionFill(label)
       const contents = await checkbox.evaluate((control) => {

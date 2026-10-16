@@ -181,7 +181,7 @@ for (const width of [412, 1352]) {
           const sheet = page.getByRole('dialog', { name: messages.calendar.calendars.title, exact: true })
           await expect(sheet).toBeVisible()
           for (const importEvent of events) {
-            const selection = sheet.getByRole('button').filter({ has: page.getByText(importEvent.title, { exact: true }) })
+            const selection = sheet.locator('[data-personal-text-action]').filter({ has: page.getByText(importEvent.title, { exact: true }) }).getByRole('button')
             await expect(selection).toHaveAttribute('aria-pressed', String(importEvent.id === calendarEvent.id))
           }
           const actions = sheet.locator('[data-slot="sheet-actions"] [data-slot="action-row"]')

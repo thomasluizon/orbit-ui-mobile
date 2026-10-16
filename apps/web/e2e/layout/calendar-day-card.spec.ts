@@ -64,15 +64,16 @@ for (const width of [320, 412, 1280]) {
         const rowBodyBox = rowBody.getBoundingClientRect()
         const labelBox = label.getBoundingClientRect()
         const labelStyle = getComputedStyle(rowBody)
-        const titleTargetStyle = getComputedStyle(label)
-        const headline = label.querySelector<HTMLElement>('[data-personal-text]')!
+        const titleContent = label.closest('[data-personal-text-action]')!.querySelector<HTMLElement>('[data-personal-text-content]')!
+        const titleTargetStyle = getComputedStyle(titleContent)
+        const headline = titleContent.querySelector<HTMLElement>('[data-personal-text]')!
         const headlineStyle = getComputedStyle(headline)
         const muted = document.createElement('span')
         muted.style.color = 'var(--fg-3)'
         element.append(muted)
         const mutedColor = getComputedStyle(muted).color
         muted.remove()
-        const fills = [...rows, ...element.querySelectorAll<HTMLElement>('a, button:not([role="checkbox"])')].filter((target) => !target.parentElement?.parentElement?.isSameNode(groups[1]!))
+        const fills = [...rows, ...element.querySelectorAll<HTMLElement>('a, button:not([role="checkbox"])')].filter((target) => rows.includes(target) || !groups[1]!.contains(target))
         return {
           titleInsets: [title.getBoundingClientRect().left - bounds.left, title.getBoundingClientRect().top - bounds.top],
           summaryGap: summary.getBoundingClientRect().top - title.getBoundingClientRect().bottom,

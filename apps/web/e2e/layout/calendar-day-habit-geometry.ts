@@ -12,7 +12,7 @@ export async function expectCalendarDayHabitRows(
     await card.page().evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)))))
     await card.page().evaluate(async () => { await document.fonts.ready })
     const rows = await card.evaluate((element) => [...element.querySelectorAll<HTMLElement>('[data-personal-text]')].map((title) => {
-      const button = title.closest('button')!
+      const button = (title.closest('[data-personal-text-action]')?.querySelector('button') ?? title.closest('button'))!
       const row = button.closest('[data-slot="list-row-body"]') ?? button
       const rowBox = row.getBoundingClientRect()
       const titleBox = title.getBoundingClientRect()

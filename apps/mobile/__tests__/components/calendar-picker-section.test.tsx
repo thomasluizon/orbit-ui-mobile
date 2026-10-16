@@ -1,5 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
 import { ApiClientError } from '@orbit/shared'
@@ -65,7 +66,7 @@ function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
   }
 }
 
-type TestNode = { props: Record<string, unknown>; type?: unknown }
+type TestNode = { parent: TestNode | null; props: Record<string, unknown>; type?: unknown }
 
 function render(enabled: boolean) {
   let tree: {
@@ -147,10 +148,26 @@ describe('mobile CalendarPickerSection', () => {
     const title = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === name)[0]!
     expect(title.props.numberOfLines).toBe(1)
     const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingHorizontal: 16, marginHorizontal: -16 })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)
     expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(1)
+    const scrollers = tree.root.findAll((node) => node.type === 'ScrollView')
+    expect(scrollers.length).toBeGreaterThan(0)
+    const primaryLabel = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.calendars.primaryLabel')[0]!
+    expect(primaryLabel).toBeDefined()
+    let supportingTextPassesPointer = false
+    for (let ancestor = primaryLabel.parent; ancestor; ancestor = ancestor.parent) {
+      if (ancestor.props.pointerEvents === 'none') supportingTextPassesPointer = true
+    }
+    expect(supportingTextPassesPointer).toBe(true)
+    for (const scroller of scrollers) {
+      for (let ancestor = scroller.parent; ancestor; ancestor = ancestor.parent) {
+        expect(ancestor.type).not.toBe('Pressable')
+      }
+    }
     expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(0)

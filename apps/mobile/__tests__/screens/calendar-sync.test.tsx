@@ -73,6 +73,7 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
+    neverSynced: false,
     apiClient: vi.fn(),
     login: vi.fn(),
     openBrowser: vi.fn(),
@@ -159,7 +160,7 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     data: {
       enabled: false,
       status: mocks.autoSyncStatus,
-      lastSyncedAt: '2026-09-12T09:12:00Z',
+      lastSyncedAt: mocks.neverSynced ? null : '2026-09-12T09:12:00Z',
       hasGoogleConnection: mocks.hasGoogleConnection,
     },
     isLoading: false,
@@ -339,6 +340,7 @@ describe("CalendarSyncScreen", () => {
     mocks.runSyncNowMutate.mockReset();
     mocks.startGoogleAuth.mockReset();
     mocks.autoSyncStatus = "Idle";
+    mocks.neverSynced = false;
     mocks.autoSyncError = false;
     mocks.isSetPending = false;
     mocks.isRunPending = false;
@@ -447,6 +449,15 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.bulkMutateAsync.mock.calls[0]![0].habits[0].title).toBe('Event 1');
   });
 
+  it('opens an event beyond the first page in place', async () => {
+    mocks.initialEventId = 'ev-25';
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(45) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === 'Event 25' && node.props.expanded === true)).toHaveLength(1);
+    expect(tree.root.find((node) => node.props.children === 'calendar.importButton({"count":1})' && typeof node.props.onClick === 'function').props.disabled).toBe(false);
+  });
+
   it('discloses an imported event title without selecting other events', async () => {
     const title = 'Already imported event ' + 'long title '.repeat(30);
     mocks.initialEventId = 'ev-0';
@@ -460,6 +471,58 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.bulkMutateAsync).not.toHaveBeenCalled();
   });
 
+  it('keeps one title in place and hides the provider description', async () => {
+    const event = { ...buildEvents(1)[0]!, description: 'Event Name / Interview Calendar / Location: Google Meet' };
+    mocks.eventsQuery.data = { status: 'connected', events: [event] };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0);
+    const disclosure = tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails');
+    TestRenderer.act(() => { (disclosure.props.onPress as () => void)(); });
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === event.title)).toHaveLength(1);
+  });
+
+  it('shows the automatic sync Pro gate before attempting any mutation', async () => {
+    mocks.profile = createMockProfile({ hasProAccess: false });
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
+    expect(mocks.runSyncNowMutate).not.toHaveBeenCalled();
+    expect(mocks.setAutoSyncMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows a Pro gate if access expires during sync', async () => {
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
+    mocks.runSyncNowMutate.mockRejectedValueOnce(new ApiClientError(403, 'Calendar integration is a Pro feature.', { code: 'PAY_GATE' }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    const refresh = tree.root.find((node) => (node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow') || (node.props.children === 'calendar.autoSync.syncNow' && typeof node.props.onClick === 'function'));
+    await TestRenderer.act(async () => { ((refresh.props.onPress ?? refresh.props.onClick) as () => void)(); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'ListRow' && node.props.accessibilityRole === 'switch')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
+  });
+
+  it('keeps a never-synced conflict retryable and prevents another sync while pending', async () => {
+    mocks.neverSynced = true;
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
+    let rejectSync!: (failure: Error) => void;
+    mocks.runSyncNowMutate.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectSync = reject; }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.autoSync.lastSyncedNever')).toHaveLength(1);
+    const refresh = () => tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow');
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(refresh().props.disabled).toBe(true);
+    expect(refresh().props.accessibilityState).toMatchObject({ busy: true });
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(1);
+    await TestRenderer.act(async () => { rejectSync(new ApiClientError(409, 'Concurrent update', { code: 'CONCURRENT_UPDATE_CONFLICT' })); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'toast.errors.conflict')).toHaveLength(1);
+    await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(2);
+  });
+
   it('owns dated sync controls and keeps sync failures in the sheet', async () => {
     mocks.eventsQuery.data = { status: 'connected', events: buildEvents(1) };
     mocks.runSyncNowMutate.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'));
@@ -470,11 +533,11 @@ describe("CalendarSyncScreen", () => {
     const toggle = tree.root.find((node) => node.type === 'ListRow' && node.props.accessibilityRole === 'switch' && typeof node.props.onPress === 'function');
     await TestRenderer.act(async () => { (toggle.props.onPress as () => void)(); await Promise.resolve(); });
     expect(mocks.setAutoSyncMutate).toHaveBeenCalledWith({ enabled: true });
-    const sync = () => tree.root.find((node) => node.props.children === 'calendar.autoSync.syncNow' && typeof node.props.onClick === 'function');
-    await TestRenderer.act(async () => { (sync().props.onClick as () => void)(); await Promise.resolve(); });
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlocked')).toHaveLength(1);
+    const sync = () => tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow' && typeof node.props.onPress === 'function');
+    await TestRenderer.act(async () => { (sync().props.onPress as () => void)(); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1);
     expect(mocks.showError).not.toHaveBeenCalled();
-    await TestRenderer.act(async () => { (sync().props.onClick as () => void)(); await Promise.resolve(); });
+    await TestRenderer.act(async () => { (sync().props.onPress as () => void)(); await Promise.resolve(); });
     expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(2);
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
   });
@@ -499,10 +562,11 @@ describe("CalendarSyncScreen", () => {
       tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
       await Promise.resolve();
     });
-    for (const value of [event.title, event.calendarName, event.description]) {
+    for (const value of [event.title, event.calendarName]) {
       const text = tree.root.find((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value);
-      expect(text.props.numberOfLines ?? 0, value).toBe(value === event.description ? 0 : 1);
+      expect(text.props.numberOfLines ?? 0, value).toBe(1);
     }
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === event.description)).toHaveLength(0);
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!;
     expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
     const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!;
@@ -511,8 +575,9 @@ describe("CalendarSyncScreen", () => {
     for (const value of [event.title, event.calendarName]) {
       expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === value && node.props.expanded === true)).toHaveLength(1);
     }
-    for (const value of [event.title, event.calendarName, event.description]) {
-      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
+    for (const value of [event.title, event.calendarName]) {
+      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(0);
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
     }
     if (blocked) {
       expect(row.props.disabled).toBe(true);
@@ -683,16 +748,18 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/auth-callback");
   });
 
-  it("replaces to upgrade instead of pushing when a free user opens the screen", async () => {
+  it("shows the Pro gate without navigating when a free account opens the sheet", async () => {
     mocks.profile = createMockProfile({ hasProAccess: false });
 
+    let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => {
-      TestRenderer.create(<CalendarSyncScreen />);
+      tree = TestRenderer.create(<CalendarSyncScreen />);
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.children === 'calendar.autoSync.proRequired')).toHaveLength(1);
     expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
     expect(mocks.eventsQuery.refetch).not.toHaveBeenCalled();
   });

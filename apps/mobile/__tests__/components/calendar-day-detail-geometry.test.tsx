@@ -19,7 +19,7 @@ function replayTextLayout(tree: ReturnType<typeof TestRenderer.create>, width: n
   const texts = tree.root.findAllByType('Text').filter((text: { props: { onTextLayout?: unknown } }) => text.props.onTextLayout).map((text: { props: { onTextLayout: (event: unknown) => void; children: string; style: Parameters<typeof StyleSheet.flatten>[0] } }) => text.props)
   for (const text of texts) {
     const label = text.children
-    const available = measured.texts.find((text) => text.label === label)?.width ?? measured.controls.find((control) => control.labels.includes(label))!.width - 32
+    const available = measured.texts.find((text) => text.label === label)?.width ?? measured.controls.find((control) => control.labels.includes(label) || control.accessibilityLabel === label)!.width - 32
     const style = { ...StyleSheet.flatten(text.style), opacity: 1, width: undefined, position: undefined }
     const lines: string[] = []
     let current = ''
@@ -178,7 +178,7 @@ describe('Android day card geometry', () => {
         }
         const eventRow = measured.controls.find((control) => control.labels.includes(events[0]!.title))!
         const eventTexts = measured.texts.filter((text) => text.top >= eventRow.top && text.bottom <= eventRow.bottom && events[0]!.title.includes(text.label.trim()))
-        const habitRow = measured.controls.find((control) => control.labels.includes('Caminhar pelo bairro depois do trabalho'))!
+        const habitRow = measured.controls.find((control) => control.accessibilityLabel === 'Caminhar pelo bairro depois do trabalho' || control.labels.includes('Caminhar pelo bairro depois do trabalho'))!
         const habitTexts = measured.texts.filter((text) => text.top >= habitRow.top && text.bottom <= habitRow.bottom && 'Caminhar pelo bairro depois do trabalho'.includes(text.label.trim()))
         expect(measured.texts.find((text) => text.label === 'Hoje, 12 de setembro')!.left).toBe(24)
         expect(measured.texts.find((text) => text.label === 'Hoje, 12 de setembro')!.top).toBe(24)

@@ -105,7 +105,7 @@ for (const width of [320, 360, 384, 412, 600]) {
         const openName = sheet.getByRole('button', { name: calendarName, exact: true })
         await expectInteractionFill(sheet.getByRole('checkbox', { name: calendarName, exact: true }))
         await openName.click()
-        const fullName = sheet.locator(`[id="${await openName.getAttribute('aria-controls')}"] [data-personal-text]`)
+        const fullName = sheet.locator(`[id="${await openName.getAttribute('aria-controls')}"][data-personal-text-expanded]`)
         await expect(fullName).toBeVisible()
         await expect(openName).toHaveAttribute('aria-expanded', 'true')
         await expect(page.getByRole('dialog')).toHaveCount(1)
