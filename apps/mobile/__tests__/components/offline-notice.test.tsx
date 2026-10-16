@@ -1,10 +1,12 @@
 import React from 'react'
+import { QueryClient } from '@tanstack/react-query'
 import { Pressable, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import HabitCreateRoute from '@/app/habits/new'
+import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { OfflineNotice } from '@/components/offline-notice'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Toast } from '@/components/ui/app-toast'
@@ -12,7 +14,7 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
-import { accountTimezoneDependency, buildQueuedMutation } from '@/lib/offline-mutations'
+import { accountTimezoneDependency, buildQueuedMutation, flushQueuedMutations, cancelScheduledFlush } from '@/lib/offline-mutations'
 import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
@@ -20,6 +22,7 @@ interface RenderTree {
   update: (element: React.ReactNode) => void
   unmount: () => void
   root: {
+    findAllByProps: (props: Record<string, unknown>) => { props: Record<string, unknown> }[]
     findByType: (type: unknown) => { props: Record<string, unknown> }
     findAllByType: (type: unknown) => { props: Record<string, unknown> }[]
   }
@@ -29,7 +32,8 @@ const mocks = vi.hoisted(() => {
   return ({
   storage: new Map<string, string>(),
   queue: { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false },
-  enqueue: vi.fn(),
+  enqueue: vi.fn((mutation: PersistedQueuedMutation) => { mocks.queued.push(mutation); return mutation.id }),
+  apiClient: vi.fn((_endpoint: string) => Promise.resolve(null)),
   queued: [] as PersistedQueuedMutation[],
   push: vi.fn(),
   back: vi.fn(),
@@ -46,13 +50,22 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   enqueueWithCompaction: (mutation: PersistedQueuedMutation) => ({ id: mutation.id, compactedCreate: null }),
-  getAll: () => mocks.queued,
+  getAll: () => [...mocks.queued],
+  getById: (id: string) => mocks.queued.find((mutation) => mutation.id === id) ?? null,
+  count: () => mocks.queued.length,
+  remove: (id: string) => { mocks.queued.splice(mocks.queued.findIndex((mutation) => mutation.id === id), 1) },
+  update: (id: string, patch: Partial<PersistedQueuedMutation>) => {
+    const mutation = mocks.queued.find((entry) => entry.id === id)
+    if (mutation) Object.assign(mutation, patch)
+  },
+  ACCOUNT_TIMEZONE_DEPENDENCY: 'offline-account-timezone',
   subscribeQueueClear: () => () => {},
   accountTimezoneDependency: (timezoneMutationId: string) => `offline-account-timezone:${timezoneMutationId}`,
 }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
-vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
-vi.mock('@/lib/query-client', () => ({ queryClient: {}, persistQueryCache: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('@/lib/query-client', () => ({ queryClient: new QueryClient(), persistQueryCache: vi.fn() }))
+vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
 vi.mock('@/lib/offline-state', () => ({}))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: vi.fn() }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
@@ -80,6 +93,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     mocks.translate = (key, values) => language.t(key, values)
     Object.assign(mocks.queue, { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false })
     mocks.enqueue.mockClear()
+    mocks.apiClient.mockClear()
     mocks.queued.length = 0
     mocks.push.mockClear()
     mocks.back.mockClear()
@@ -93,6 +107,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
   afterEach(() => {
     TestRenderer.act(() => tree.unmount())
     unsubscribeToasts()
+    cancelScheduledFlush()
     vi.useRealTimers()
   })
   function update(patch: Partial<typeof mocks.queue>) {
@@ -138,7 +153,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     update({ pendingCount: 1 })
     TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop(droppedLog) })
     expect(toast()).toMatchObject({ kind: 'lost', message: language.t('common.syncDropped', { item: 'Walk' }), detail: language.t('common.syncDroppedPending') })
-    TestRenderer.act(() => vi.advanceTimersByTime(60_000))
+    TestRenderer.act(() => vi.advanceTimersByTime(4_999))
     expect(toast().kind).toBe('lost')
     update({ pendingCount: 0 })
     expect(toast().detail).toBe(language.t('common.syncDroppedDetail'))
@@ -147,7 +162,19 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(useOfflineSyncStore.getState().drops).toEqual([])
   })
 
-  it('keeps timezone recovery visible while an onboarding habit depends on it', async () => {
+  it('keeps dropped feedback and its explicit discard control past expiry', () => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop(droppedLog) })
+    TestRenderer.act(() => vi.advanceTimersByTime(10_000))
+    const close = tree.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === language.t('common.close'))
+    expect(close).toBeDefined()
+    expect(tree.root.findAllByProps({ testID: 'toast-action' }).length).toBeGreaterThan(0)
+    TestRenderer.act(() => (close!.props.onPress as () => void)())
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(JSON.parse(mocks.storage.get('@orbit/offline-sync-notices')!).state.drops).toEqual([])
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+  })
+
+  it.each(['timeout', 'navigation', 'dismiss control'] as const)('keeps timezone recovery after %s and replays its dependent habit', async (transition) => {
     const timezoneMutation = buildQueuedMutation({
       type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone',
       method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
@@ -165,10 +192,44 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
       await Promise.resolve()
     })
 
-    expect(toast().actionLabel).toBe(language.t('common.syncRetryAction'))
-    expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === language.t('common.dismiss'))).toBe(false)
-    TestRenderer.act(() => (toast().onAction as () => void)())
+    function RecoveryRoot({ pathname }: Readonly<{ pathname: string }>) {
+      useAppToastNavigation(pathname)
+      return <OfflineNotice />
+    }
+    TestRenderer.act(() => tree.update(<RecoveryRoot pathname="/calendar" />))
+    if (transition === 'timeout') TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    if (transition === 'navigation') TestRenderer.act(() => tree.update(<RecoveryRoot pathname="/profile" />))
+    const controls = tree.root.findAllByType(Pressable)
+    const retry = controls.find((node) => node.props.accessibilityLabel === language.t('common.syncRetryAction'))
+    expect(retry).toBeDefined()
+    expect(controls.filter((node) => node.props.accessibilityLabel === language.t('common.close'))).toHaveLength(0)
+    await TestRenderer.act(async () => { await flushQueuedMutations() })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => { (retry!.props.onPress as () => void)() })
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', id: timezoneMutation.id }))
+    await TestRenderer.act(async () => { await flushQueuedMutations() })
+    expect(mocks.apiClient.mock.calls.map((call) => call[0])).toEqual(['/api/profile/timezone', '/api/habits'])
+    expect(mocks.queued).toEqual([])
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+  })
+
+  it.each(['timeout', 'navigation'] as const)('dismisses Undo on %s while preserving dropped feedback', (transition) => {
+    function RecoveryRoot({ pathname }: Readonly<{ pathname: string }>) {
+      useAppToastNavigation(pathname)
+      return <OfflineNotice />
+    }
+    TestRenderer.act(() => {
+      tree.update(<RecoveryRoot pathname="/calendar" />)
+      useOfflineSyncStore.getState().addDrop(droppedLog)
+      useAppToastStore.getState().showQueued('Deleted habit', 'Undo', vi.fn())
+    })
+    expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === 'Undo')).toBe(true)
+    if (transition === 'timeout') TestRenderer.act(() => vi.advanceTimersByTime(5000))
+    else TestRenderer.act(() => tree.update(<RecoveryRoot pathname="/profile" />))
+    expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === 'Undo')).toBe(false)
+    expect(tree.root.findAllByProps({ testID: 'toast-action' }).length).toBeGreaterThan(0)
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(useOfflineSyncStore.getState().drops).toEqual([droppedLog])
   })
 
   it('keeps Undo operable alongside pending queue status and removes the empty host', () => {
@@ -184,6 +245,26 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     TestRenderer.act(() => vi.advanceTimersByTime(5_000))
     expect(tree.root.findAllByType(Toast)).toHaveLength(0)
     expect(tree.root.findAllByType('View')).toHaveLength(0)
+  })
+
+  it('keeps the notice on recovery navigation while retaining the destination context', () => {
+    function RecoveryRoot({ pathname }: Readonly<{ pathname: string }>) {
+      useAppToastNavigation(pathname)
+      return <><OfflineNotice />{pathname === '/habits/new' ? <HabitCreateRoute /> : null}</>
+    }
+    const orphan = { ...droppedLog, id: 'orphan-navigation', mutation: { ...droppedLog.mutation, targetEntityId: 'offline-habit-orphan' } }
+    TestRenderer.act(() => {
+      useOfflineSyncStore.getState().addDrop(orphan)
+      tree.update(<RecoveryRoot pathname="/" />)
+    })
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    const href = mocks.push.mock.calls.at(-1)?.[0]
+    if (typeof href !== 'string') throw new Error('Expected a recovery destination')
+    mocks.params = Object.fromEntries(new URL(href, 'https://orbit.test').searchParams)
+    TestRenderer.act(() => tree.update(<RecoveryRoot pathname="/habits/new" />))
+    expect(tree.root.findAllByProps({ testID: 'toast-lost' }).length).toBeGreaterThan(0)
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toContain('orphan-navigation')
+    expect(tree.root.findByType(CreateHabitModal).props.recoveryMessage).toBe(language.t('common.syncOrphaned', { date: '2026-09-05' }))
   })
 
   it('retains orphan recovery when creation closes without success', () => {

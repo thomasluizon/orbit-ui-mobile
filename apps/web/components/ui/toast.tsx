@@ -2,46 +2,12 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-import { Check } from '@/components/ui/icons'
-
-const MINIMUM_TOAST_LIFE_MS = 5000
-
-function useToastLife(
-  kind: ToastProps['kind'],
-  message: string,
-  doneAfterMs: number | undefined,
-  onDone: (() => void) | undefined,
-  paused: boolean,
-) {
-  const remainingMs = useRef(MINIMUM_TOAST_LIFE_MS)
-  const completed = useRef(false)
-
-  useEffect(() => {
-    remainingMs.current = Math.max(MINIMUM_TOAST_LIFE_MS, doneAfterMs ?? MINIMUM_TOAST_LIFE_MS)
-    completed.current = false
-  }, [doneAfterMs, kind, message, onDone])
-
-  useEffect(() => {
-    if (!onDone || paused || completed.current) return
-
-    const startedAt = Date.now()
-    const timer = window.setTimeout(() => {
-      if (completed.current) return
-      completed.current = true
-      remainingMs.current = 0
-      onDone()
-    }, remainingMs.current)
-
-    return () => {
-      window.clearTimeout(timer)
-      if (!completed.current) {
-        remainingMs.current = Math.max(0, remainingMs.current - (Date.now() - startedAt))
-      }
-    }
-  }, [kind, onDone, paused])
-}
+import { Check, X } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 
 export function WorkingMark() {
   return (
@@ -66,14 +32,12 @@ function DoneMark() {
 }
 
 /** Stable live-region feedback. It owns no portal, position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
+  const t = useTranslations()
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
-  const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
-
-  useToastLife(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setAnnouncedMessage(props.message), 0)
@@ -89,6 +53,8 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
   const lossColors = { background: 'bg-[var(--bg)]', action: 'text-[var(--primary-soft)]' }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
+  if (dismissed) return null
+
   return (
     <div
       role={role}
@@ -96,7 +62,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
       aria-atomic="true"
       data-kind={props.kind}
       tabIndex={-1}
-      className={`flex items-center gap-3 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -110,7 +76,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
         </span>
       ) : null}
 
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex min-w-0 flex-1 flex-col gap-1" style={props.actionLabel ? { flexBasis: '50%' } : undefined}>
         <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
           {announcedMessage}
         </span>
@@ -121,16 +87,21 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
         ) : null}
       </span>
 
-      {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
-        <button
-          type="button"
-          className={`cursor-pointer border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
-          style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -4 }}
-          onFocus={() => setFocused(true)}
-          onClick={props.onAction}
-        >
-          {props.actionLabel}
-        </button>
+      {props.actionLabel ? (
+        <div className="ms-auto flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
+            style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -4 }}
+            onFocus={() => setFocused(true)}
+            onClick={props.onAction}
+          >
+            {props.actionLabel}
+          </button>
+          <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss}>
+            <X size={20} aria-hidden="true" />
+          </PillButton>
+        </div>
       ) : null}
     </div>
   )

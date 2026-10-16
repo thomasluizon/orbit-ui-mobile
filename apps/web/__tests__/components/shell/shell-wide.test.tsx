@@ -10,7 +10,8 @@ const media = vi.hoisted(() => ({ width: 1023 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
-vi.mock('@/components/ui/pill-button', () => ({
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/pill-button')>(),
   Button: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>{children}</button>
   ),

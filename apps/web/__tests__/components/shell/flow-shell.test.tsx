@@ -10,6 +10,7 @@ import {
 
 const mocks = vi.hoisted(() => ({ wide: false }))
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/components/shell/shell-wide', () => ({
   ShellWide: ({ action, children, nav, notice }: { action?: ReactNode; children: ReactNode; nav: false; notice?: ReactNode }) => (

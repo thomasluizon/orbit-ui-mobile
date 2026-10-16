@@ -20,10 +20,16 @@ const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
 let failedDeleteSnapshot: string[] = []
+let visiblePendingDeleteSnapshot: string[] = []
+const dismissedPendingDeleteNotices = new Set<string>()
 
 function syncPendingDeleteSnapshot(): void {
   pendingDeleteSnapshot = Array.from(pendingDeleteEntries.keys())
   failedDeleteSnapshot = Array.from(failedDeleteEntries.keys())
+  for (const id of dismissedPendingDeleteNotices) {
+    if (!pendingDeleteEntries.has(id)) dismissedPendingDeleteNotices.delete(id)
+  }
+  visiblePendingDeleteSnapshot = pendingDeleteSnapshot.filter((id) => !dismissedPendingDeleteNotices.has(id))
 }
 
 function emitPendingDeleteChange(): void {
@@ -44,6 +50,23 @@ export function subscribePendingNotificationDeleteIds(subscriber: () => void): (
 /** Returns the current pending-delete notification ids as a stable snapshot. */
 export function getPendingNotificationDeleteIdsSnapshot(): string[] {
   return pendingDeleteSnapshot
+}
+
+export function getVisiblePendingNotificationDeleteIdsSnapshot(): string[] {
+  return visiblePendingDeleteSnapshot
+}
+
+export function dismissPendingNotificationDeleteNotice(notificationId: string): void {
+  dismissedPendingDeleteNotices.add(notificationId)
+  syncPendingDeleteSnapshot()
+  emitPendingDeleteChange()
+}
+
+export function dismissNotificationDeleteNotices(): void {
+  for (const id of pendingDeleteEntries.keys()) dismissedPendingDeleteNotices.add(id)
+  failedDeleteEntries.clear()
+  syncPendingDeleteSnapshot()
+  emitPendingDeleteChange()
 }
 
 /** Returns failed delayed deletes that remain available for retry. */
@@ -86,6 +109,7 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
   }
 
   takeFailedDelete(notificationId)
+  dismissedPendingDeleteNotices.delete(notificationId)
   activeDeleteAttempts.delete(notificationId)
 
   const timer = setTimeout(() => {

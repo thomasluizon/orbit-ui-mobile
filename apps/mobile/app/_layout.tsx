@@ -1,3 +1,4 @@
+import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
@@ -131,6 +132,7 @@ function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
+  useAppToastNavigation(pathname)
   const includeGeneral = useComposerGeneralPreference(pathname)
   const { from, date } = useGlobalSearchParams<{ from?: string | string[]; date?: string | string[] }>()
   const linkingUrl = Linking.useLinkingURL()
