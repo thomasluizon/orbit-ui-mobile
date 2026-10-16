@@ -1,10 +1,11 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { Badge } from '@/components/ui/badge'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
@@ -97,7 +98,7 @@ function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: N
   const [quantityFocused, setQuantityFocused] = useState(false)
   return (
     <FieldWell tokens={tokens}>
-      <TextInput value={quantity} keyboardType="number-pad" accessibilityLabel={t('habits.form.frequencyRequired')} style={[styles.quantity, { backgroundColor: tokens.bg, borderColor: quantityFocused ? tokens.primary : tokens.borderControl, borderWidth: quantityFocused ? 2 : 1, color: tokens.fg1 }]} onChangeText={setQuantity} onFocus={() => setQuantityFocused(true)} onBlur={() => setQuantityFocused(false)} />
+      <TypedTextInput value={quantity} keyboardType="number-pad" accessibilityLabel={t('habits.form.frequencyRequired')} style={[styles.quantity, { backgroundColor: tokens.bg, borderColor: quantityFocused ? tokens.primary : tokens.borderControl, borderWidth: quantityFocused ? 2 : 1, color: tokens.fg1 }]} onChangeText={setQuantity} onFocus={() => setQuantityFocused(true)} onBlur={() => setQuantityFocused(false)} />
       <FrequencyUnitChips unit={unit} tokens={tokens} onChange={setUnit} />
       {unit === 'Day' && Number(quantity) === 1 ? <WeekdayChips days={days} tokens={tokens} onChange={setDays} /> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, Number(quantity), days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
