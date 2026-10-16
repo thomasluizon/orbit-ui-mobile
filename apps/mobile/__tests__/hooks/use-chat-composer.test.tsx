@@ -1906,6 +1906,116 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
+  it.each([
+    ['/', 'today.buildMorningRoutine'],
+    ['/calendar', 'today.logYesterday'],
+    ['/progress', 'progress.stuckThisWeek'],
+    ['/profile', 'profile.changeTimezone'],
+    ['/habits/reading', 'habitDetail.pauseThisWeek'],
+  ])('restores %s suggestions after successfully handling the selected goal request', async (pathname, expectedChip) => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    const request = useChatStore.getState().contextualSuggestion
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const options = { pathname: '/progress' }
+    const composer = await renderComposer(options)
+    TestRenderer.act(() => { composer.current.composerProps.suggestions[0]?.onSelect() })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(useChatStore.getState().contextualSuggestion).toBe(request)
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    options.pathname = pathname
+    composer.rerender()
+    const chips = composer.current.composerProps.suggestions.map(chip => chip.id)
+    expect(chips).toContain(expectedChip)
+    expect(chips).not.toContain('goal-detail:reading')
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
+  it('retains the failed selected goal request until retry succeeds', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    const request = useChatStore.getState().contextualSuggestion
+    mocks.openChatStream
+      .mockResolvedValueOnce(sseStreamResponse(frame('{"type":"error","status":500,"error":"Unavailable"}')))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const options = { pathname: '/progress' }
+    const composer = await renderComposer(options)
+    await TestRenderer.act(async () => { composer.current.composerProps.suggestions[0]?.onSelect(); await Promise.resolve() })
+    await vi.waitFor(() => expect(composer.current.canRetryLastSend).toBe(true))
+    expect(useChatStore.getState().contextualSuggestion).toBe(request)
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+    expect(composer.current.composerProps.suggestions[0]?.id).toBe('goal-detail:reading')
+    await TestRenderer.act(async () => { await composer.current.retryLastSend() })
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it.each(['goal-detail:running', 'goal-detail:reading'])('preserves the newer %s request when an earlier selected goal send settles', async id => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    const request = useChatStore.getState().contextualSuggestion
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const options = { pathname: '/progress' }
+    const composer = await renderComposer(options)
+    TestRenderer.act(() => { composer.current.composerProps.suggestions[0]?.onSelect() })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => prepareChatRequest(useChatStore.getState(), {
+      id, label: 'Astra', prompt: 'Help me with the newly selected goal',
+    }))
+    const newerRequest = useChatStore.getState().contextualSuggestion
+    expect(newerRequest).not.toBe(request)
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(useChatStore.getState().contextualSuggestion).toBe(newerRequest)
+    expect(composer.current.composerProps.suggestions[0]?.id).toBe(id)
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
+  it('keeps the selected goal request pending when another suggestion succeeds', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+    })
+    const request = useChatStore.getState().contextualSuggestion
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const options = { pathname: '/progress' }
+    const composer = await renderComposer(options)
+    await TestRenderer.act(async () => { composer.current.composerProps.suggestions[1]?.onSelect(); await Promise.resolve() })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+    expect(useChatStore.getState().contextualSuggestion).toBe(request)
+    expect(composer.current.composerProps.suggestions[0]?.id).toBe('goal-detail:reading')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
   it('keeps a Progress goal request available beside an existing draft', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {
