@@ -20,77 +20,59 @@ class OrbitWidgetDayStateTest {
         assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString("unrecognised"))
     }
 
-    @Test
-    fun `derives capacity for all four launcher sizes`() {
-        assertEquals(1, calculateWidgetGeometry(96f, 7).visibleRowCount)
-        assertEquals(3, calculateWidgetGeometry(192f, 3).visibleRowCount)
-        assertEquals(5, calculateWidgetGeometry(288f, 5).visibleRowCount)
-        assertEquals(2, calculateWidgetGeometry(192f, 4).visibleRowCount)
-    }
+    private val cardSpacing = WidgetSpacing(24f, 48f, 68f, 8f, 16f, 96f)
+    private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 64f)
 
     @Test
-    fun `reserves one fitted row when a remainder can be stated`() {
-        val fourByTwo = calculateWidgetGeometry(192f, 5)
-        assertEquals(2, fourByTwo.visibleRowCount)
-        assertEquals(3, fourByTwo.remainderCount)
-        assertEquals(true, fourByTwo.canStateRemainder)
+    fun `reserves card insets and whole padded rows at every declared size`() {
+        val fourByOne = calculateWidgetGeometry(96f, 7, cardSpacing)
+        assertEquals(true, fourByOne.compact)
+        assertEquals(0, fourByOne.visibleRowCount)
+        assertEquals(0f, fourByOne.contentHeightDp)
+        assertEquals(96f, fourByOne.cardHeightDp)
 
-        val fourByThree = calculateWidgetGeometry(288f, 7)
-        assertEquals(4, fourByThree.visibleRowCount)
-        assertEquals(3, fourByThree.remainderCount)
+        val fourByTwo = calculateWidgetGeometry(192f, 7, cardSpacing)
+        assertEquals(1, fourByTwo.visibleRowCount)
+        assertEquals(68f, fourByTwo.contentHeightDp)
+        assertEquals(180f, fourByTwo.cardHeightDp)
+
+        val fourByThree = calculateWidgetGeometry(288f, 7, cardSpacing)
+        assertEquals(1, fourByThree.visibleRowCount)
+        assertEquals(6, fourByThree.remainderCount)
         assertEquals(true, fourByThree.canStateRemainder)
+        assertEquals(144f, fourByThree.contentHeightDp)
+        assertEquals(256f, fourByThree.cardHeightDp)
 
-        val twoByTwo = calculateWidgetGeometry(192f, 4)
-        assertEquals(2, twoByTwo.visibleRowCount)
-        assertEquals(2, twoByTwo.remainderCount)
-        assertEquals(true, twoByTwo.canStateRemainder)
+        val twoByTwo = calculateWidgetGeometry(192f, 4, narrowSpacing)
+        assertEquals(1, twoByTwo.visibleRowCount)
+        assertEquals(172f, twoByTwo.cardHeightDp)
     }
 
     @Test
-    fun `four by one never states a remainder`() {
-        for (rowCount in 2..20) {
-            val geometry = calculateWidgetGeometry(96f, rowCount)
-            assertEquals(1, geometry.visibleRowCount)
-            assertEquals(rowCount - 1, geometry.remainderCount)
-            assertEquals(false, geometry.canStateRemainder)
-        }
-    }
-
-    @Test
-    fun `empty and single habit cards hug one body row at every supported size`() {
-        for (height in listOf(96f, 192f, 288f, 192f)) {
+    fun `empty and single habit cards keep padded body space in the tall variants`() {
+        for (height in listOf(192f, 288f)) {
             for (count in listOf(0, 1)) {
-                val geometry = calculateWidgetGeometry(height, count)
+                val geometry = calculateWidgetGeometry(height, count, cardSpacing)
                 assertEquals(count, geometry.visibleRowCount)
                 assertEquals(0, geometry.remainderCount)
                 assertEquals(false, geometry.canStateRemainder)
-                assertEquals(48f, geometry.contentHeightDp)
+                assertEquals(68f, geometry.contentHeightDp)
+                assertEquals(180f, geometry.cardHeightDp)
             }
         }
     }
 
     @Test
-    fun `five habits fill only the available whole rows`() {
-        for ((height, visible, remaining, contentHeight) in listOf(
-            listOf(96, 1, 4, 48),
-            listOf(192, 2, 3, 144),
-            listOf(288, 5, 0, 240),
-            listOf(192, 2, 3, 144)
-        )) {
-            val geometry = calculateWidgetGeometry(height.toFloat(), 5)
-            assertEquals(visible, geometry.visibleRowCount)
-            assertEquals(remaining, geometry.remainderCount)
-            assertEquals(remaining > 0 && height > 96, geometry.canStateRemainder)
-            assertEquals(contentHeight.toFloat(), geometry.contentHeightDp)
-        }
-    }
-
-    @Test
-    fun `intermediate heights never reserve a partial body row`() {
-        for (height in 96..400) {
-            val geometry = calculateWidgetGeometry(height.toFloat(), 20)
-            assertEquals(0f, geometry.contentHeightDp % ROW_HEIGHT_DP)
-            assertEquals(true, HEADER_HEIGHT_DP + geometry.contentHeightDp <= height)
+    fun `intermediate heights fit every inset and gap without partial rows`() {
+        for (spacing in listOf(cardSpacing, narrowSpacing)) {
+            for (height in 96..400) {
+                val geometry = calculateWidgetGeometry(height.toFloat(), 20, spacing)
+                if (!geometry.compact) {
+                    assertEquals(0f, (geometry.contentHeightDp + spacing.rowGapDp) %
+                        (spacing.rowHeightDp + spacing.rowGapDp))
+                }
+                assertEquals(true, geometry.cardHeightDp <= height)
+            }
         }
     }
 

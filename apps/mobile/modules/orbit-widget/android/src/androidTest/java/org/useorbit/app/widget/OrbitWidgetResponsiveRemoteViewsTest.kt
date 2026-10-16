@@ -6,6 +6,11 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.graphics.Rect
+import android.util.SizeF
+import android.view.ViewGroup
+import android.view.LayoutInflater
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -82,6 +87,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             .putInt("habit_count", 7)
             .putInt("completed_count", 3)
             .putInt("user_streak", 12)
+            .putInt("row_count", 5)
             .putString("lang", "en")
             .putLong("habits_updated_at", 1L)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
@@ -186,6 +192,112 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                     val freshSubtitle = signedOut.apply(context, hostView)
                         .findViewById<TextView>(R.id.widget_subtitle)
                     assertEquals(signInInstruction, freshSubtitle.contentDescription.toString())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun fourByOneKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 96f, 24f)
+
+    @Test
+    fun fourByTwoKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 192f, 24f)
+
+    @Test
+    fun fourByThreeKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 288f, 24f)
+
+    @Test
+    fun twoByTwoStepsInsetAndKeepsRefreshTarget() = assertSpacing(160f, 192f, 12f)
+
+    @Test
+    fun compactHabitNameAppearsOnlyWhenItsWholeLineFits() {
+        val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        for (title in listOf("Ler", "Um nome de hábito que ocupa mais espaço do que a linha do widget permite")) {
+            val habit = ApiHabit("habit", title, false, false, "21:00", null, null, false, null)
+            val nextTitle = prepareWidgetDay(listOf(habit), 0).habits.first().title
+            preferences.edit().putString("next_habit_title", nextTitle)
+                .putString("header_label", "Hoje").putString("lang", "pt-BR").putInt("user_streak", 1).commit()
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val density = context.resources.displayMetrics.density
+                val views = OrbitWidgetProvider.buildWidgetRemoteViews(
+                    context, appWidgetId, (336 * density).toInt(), (96 * density).toInt(), false,
+                    listOf(SizeF(336f, 96f))
+                )
+                hostView.updateAppWidgetSize(Bundle(), 336, 96, 336, 96)
+                layoutHost((336 * density).toInt(), (96 * density).toInt())
+                hostView.updateAppWidget(views)
+                layoutHost((336 * density).toInt(), (96 * density).toInt())
+                val nextHabit = hostView.findViewById<TextView>(R.id.widget_next_habit)
+                assertEquals(if (title == "Ler") View.VISIBLE else View.GONE, nextHabit.visibility)
+                if (nextHabit.visibility == View.VISIBLE) {
+                    assertEquals(title, nextHabit.text.toString())
+                    val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
+                    val titleBounds = Rect(0, 0, nextHabit.width, nextHabit.height)
+                    root.offsetDescendantRectToMyCoords(nextHabit, titleBounds)
+                    val refresh = root.findViewById<View>(R.id.widget_refresh)
+                    val refreshBounds = Rect(0, 0, refresh.width, refresh.height)
+                    root.offsetDescendantRectToMyCoords(refresh, refreshBounds)
+                    assertTrue(titleBounds.right + (8 * density).toInt() <= refreshBounds.left)
+                }
+            }
+        }
+    }
+
+    private fun assertSpacing(widthDp: Float, heightDp: Float, insetDp: Float) {
+        val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        for (nightMode in listOf(Configuration.UI_MODE_NIGHT_NO, Configuration.UI_MODE_NIGHT_YES)) {
+            val configuration = Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+            }
+            val themedContext = context.createConfigurationContext(configuration)
+            for ((language, units) in listOf("en" to listOf("day", "days"), "pt-BR" to listOf("dia", "dias"))) {
+                for (streak in 1..2) {
+                    preferences.edit().putString("lang", language).putInt("user_streak", streak)
+                        .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã").commit()
+                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                        val manager = AppWidgetManager.getInstance(themedContext)
+                        val provider = manager.getAppWidgetInfo(appWidgetId)
+                        hostView = appWidgetHost.createView(themedContext, appWidgetId, provider)
+                        val density = themedContext.resources.displayMetrics.density
+                        val views = OrbitWidgetProvider.buildWidgetRemoteViews(
+                            themedContext, appWidgetId, (widthDp * density).toInt(),
+                            (heightDp * density).toInt(), false, listOf(SizeF(widthDp, heightDp))
+                        )
+                        hostView.updateAppWidgetSize(Bundle(), widthDp.toInt(), heightDp.toInt(),
+                            widthDp.toInt(), heightDp.toInt())
+                        layoutHost((widthDp * density).toInt(), (heightDp * density).toInt())
+                        hostView.updateAppWidget(views)
+                        layoutHost((widthDp * density).toInt(), (heightDp * density).toInt())
+                        val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
+                        val insetPx = (insetDp * density).toInt()
+                        assertEquals(listOf(insetPx, insetPx, insetPx, insetPx),
+                            listOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom))
+                        val refresh = hostView.findViewById<View>(R.id.widget_refresh)
+                        assertEquals((48 * density).toInt(), refresh.width)
+                        assertEquals((48 * density).toInt(), refresh.height)
+                        val refreshBounds = Rect(0, 0, refresh.width, refresh.height)
+                        root.offsetDescendantRectToMyCoords(refresh, refreshBounds)
+                        assertTrue(refreshBounds.left >= insetPx)
+                        assertTrue(refreshBounds.top >= insetPx)
+                        assertTrue(refreshBounds.right <= root.width - insetPx)
+                        assertTrue(refreshBounds.bottom <= root.height - insetPx)
+                        assertEquals(units[streak - 1], text(R.id.widget_streak_unit))
+                        val dayLabel = root.findViewById<TextView>(R.id.widget_header)
+                        assertEquals(0, dayLabel.layout.getEllipsisCount(0))
+                        val content = root.findViewById<View>(R.id.widget_content)
+                        assertEquals(if (heightDp == 96f) View.GONE else View.VISIBLE, content.visibility)
+                        if (heightDp > 96f) {
+                            val header = root.findViewById<View>(R.id.widget_header_container)
+                            assertEquals((16 * density).toInt(), content.top - header.bottom)
+                            val row = LayoutInflater.from(themedContext).inflate(R.layout.widget_item, root, false)
+                            row.measure(View.MeasureSpec.makeMeasureSpec(root.width - 2 * insetPx, View.MeasureSpec.EXACTLY),
+                                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+                            val rowContent = row.findViewById<View>(R.id.widget_item_content)
+                            assertEquals((68 * density).toInt(), row.measuredHeight)
+                            assertEquals((16 * density).toInt(), rowContent.paddingLeft)
+                            assertEquals((12 * density).toInt(), rowContent.paddingTop)
+                        }
+                    }
                 }
             }
         }

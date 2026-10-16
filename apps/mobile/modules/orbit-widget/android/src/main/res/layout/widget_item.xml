@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_item_container"
     android:layout_width="match_parent"
-    android:layout_height="48dp">
+    android:layout_height="@dimen/widget_row_height">
 
     <ImageView
         android:id="@+id/item_bg"
@@ -15,16 +15,18 @@
     <LinearLayout
         android:id="@+id/widget_item_content"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="@dimen/widget_row_height"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:paddingStart="@dimen/widget_row_inset_inline"
+        android:paddingEnd="@dimen/widget_row_inset_inline"
+        android:paddingTop="@dimen/widget_row_inset_block"
+        android:paddingBottom="@dimen/widget_row_inset_block">
 
         <ImageView
             android:id="@+id/item_status_icon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="@dimen/widget_status_size"
+            android:layout_height="@dimen/widget_status_size"
             android:contentDescription="@null"
             android:src="@drawable/widget_status_pending" />
 
@@ -32,8 +34,8 @@
             android:id="@+id/item_title_time_col"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_marginEnd="8dp"
+            android:layout_marginStart="@dimen/widget_inline_gap"
+            android:layout_marginEnd="@dimen/widget_inline_gap"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -52,38 +54,38 @@
                     android:fontFamily="sans-serif"
                     android:maxLines="1"
                     android:textColor="@color/widget_item_title"
-                    android:textSize="15sp" />
+                    android:textSize="@dimen/widget_title_text_size" />
 
                 <TextView
                     android:id="@+id/item_children_badge"
                     android:layout_width="wrap_content"
-                    android:layout_height="18dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="@dimen/widget_badge_height"
+                    android:layout_marginStart="@dimen/widget_badge_inset"
                     android:background="@drawable/widget_badge_bg"
                     android:fontFamily="sans-serif"
                     android:fontFeatureSettings="tnum"
                     android:gravity="center"
                     android:maxLines="1"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
+                    android:paddingStart="@dimen/widget_badge_inset"
+                    android:paddingEnd="@dimen/widget_badge_inset"
                     android:textColor="@color/widget_fg_2"
-                    android:textSize="12sp"
+                    android:textSize="@dimen/widget_label_text_size"
                     android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/item_checklist_badge"
                     android:layout_width="wrap_content"
-                    android:layout_height="18dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="@dimen/widget_badge_height"
+                    android:layout_marginStart="@dimen/widget_badge_inset"
                     android:background="@drawable/widget_badge_bg"
                     android:fontFamily="sans-serif"
                     android:fontFeatureSettings="tnum"
                     android:gravity="center"
                     android:maxLines="1"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
+                    android:paddingStart="@dimen/widget_badge_inset"
+                    android:paddingEnd="@dimen/widget_badge_inset"
                     android:textColor="@color/widget_fg_2"
-                    android:textSize="12sp"
+                    android:textSize="@dimen/widget_label_text_size"
                     android:visibility="gone" />
             </LinearLayout>
 
@@ -96,7 +98,7 @@
                 android:letterSpacing="0.02"
                 android:maxLines="1"
                 android:textColor="@color/widget_fg_3"
-                android:textSize="12sp"
+                android:textSize="@dimen/widget_label_text_size"
                 android:visibility="gone" />
 
             <TextView
@@ -108,7 +110,7 @@
                 android:letterSpacing="0.02"
                 android:maxLines="1"
                 android:textColor="@color/widget_overdue"
-                android:textSize="12sp"
+                android:textSize="@dimen/widget_label_text_size"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -120,7 +122,7 @@
             android:fontFeatureSettings="tnum"
             android:maxLines="1"
             android:textColor="@color/widget_fg_3"
-            android:textSize="12sp"
+            android:textSize="@dimen/widget_label_text_size"
             android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

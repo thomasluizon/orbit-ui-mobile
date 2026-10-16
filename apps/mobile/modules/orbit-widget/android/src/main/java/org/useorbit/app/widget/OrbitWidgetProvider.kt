@@ -5,6 +5,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -35,6 +37,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         internal const val FOUR_BY_TWO_HEIGHT_DP = 192f
         internal const val FOUR_BY_THREE_HEIGHT_DP = 288f
         internal const val TWO_BY_TWO_HEIGHT_DP = 192f
+        internal const val EXTRA_WIDGET_WIDTH_DP = "widget_width_dp"
         internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
         // The widget's own minResizeWidth. A compact key sitting on the breakpoint would
         // win the nearest-distance tie just above it and hide the unit there.
@@ -161,7 +164,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 appWidgetId,
                 bgWidth,
                 bgHeight,
-                isSignedOut(context)
+                isSignedOut(context),
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES).orEmpty()
+                } else emptyList()
             )
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -176,7 +182,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int,
             bgWidth: Int,
             bgHeight: Int,
-            signedOut: Boolean
+            signedOut: Boolean,
+            hostSizes: List<SizeF> = emptyList()
         ): RemoteViews {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                 return buildWidgetViews(
@@ -185,7 +192,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     bgWidth,
                     signedOut,
                     View.VISIBLE,
-                    bgHeight / context.resources.displayMetrics.density
+                    bgHeight / context.resources.displayMetrics.density,
+                    bgWidth / context.resources.displayMetrics.density
                 )
             }
 
@@ -229,15 +237,21 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 View.GONE,
                 TWO_BY_TWO_HEIGHT_DP
             )
-            return RemoteViews(
-                mapOf(
-                    SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews,
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews,
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews,
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews,
-                    SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews
-                )
+            val layouts = mutableMapOf(
+                SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews,
+                SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews,
+                SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews,
+                SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews,
+                SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews
             )
+            for (size in hostSizes) {
+                layouts[size] = buildWidgetViews(
+                    context, appWidgetId, (size.width * context.resources.displayMetrics.density).toInt(),
+                    signedOut, if (size.width > STREAK_UNIT_BREAKPOINT_DP) View.VISIBLE else View.GONE,
+                    size.height, size.width
+                )
+            }
+            return RemoteViews(layouts)
         }
 
         private fun applyProgressRing(
@@ -264,15 +278,71 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        private fun applyNextHabit(
+            context: Context,
+            views: RemoteViews,
+            widthDp: Float,
+            spacing: WidgetSpacing,
+            label: String,
+            count: String,
+            streak: Int,
+            lang: String,
+            showUnit: Boolean,
+            ownsRows: Boolean
+        ) {
+            val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            val title = if (ownsRows) preferences.getString("next_habit_title", null) else null
+            val resources = context.resources
+            val density = resources.displayMetrics.density
+            fun dimension(resource: Int) = resources.getDimension(resource)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = dimension(R.dimen.widget_label_text_size)
+            }
+            val gap = dimension(R.dimen.widget_inline_gap)
+            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            val labelWidth = paint.measureText(label)
+            paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            val headerWidth = labelWidth + paint.measureText(count) + gap * 3
+            val unitWidth = if (streak > 0 && showUnit) {
+                paint.measureText(OrbitWidgetFactory.streakUnit(context, lang, streak)) +
+                    dimension(R.dimen.widget_unit_gap)
+            } else 0f
+            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            paint.textSize = dimension(R.dimen.widget_streak_text_size)
+            val streakWidth = if (streak > 0) paint.measureText("$streak") + gap + unitWidth else 0f
+            paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            paint.textSize = dimension(R.dimen.widget_label_text_size)
+            val availableWidth = (widthDp - 2 * spacing.insetDp) * density -
+                dimension(R.dimen.widget_ring_size) - gap - dimension(R.dimen.widget_touch_target) -
+                headerWidth - streakWidth
+            val showTitle = title != null && !title.contains('\n') && !title.contains('\r') && paint.measureText(title) <= availableWidth
+            views.setTextViewText(R.id.widget_next_habit, if (showTitle) title else "")
+            views.setViewVisibility(R.id.widget_next_habit, if (showTitle) View.VISIBLE else View.GONE)
+            views.setModeAwareColor(R.id.widget_next_habit, "setTextColor", OrbitWidgetFactory.getThemeColorModes(context)) {
+                it.textPrimary
+            }
+        }
+
         private fun buildWidgetViews(
             context: Context,
             appWidgetId: Int,
             bgWidth: Int,
             signedOut: Boolean,
             streakUnitVisibility: Int,
-            widgetHeightDp: Float
+            widgetHeightDp: Float,
+            widgetWidthDp: Float = if (streakUnitVisibility == View.GONE) NARROW_WIDTH_DP else STREAK_UNIT_BREAKPOINT_DP + 1f
         ): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            val spacing = WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
+            val compact = calculateWidgetGeometry(widgetHeightDp, 0, spacing).compact
+            val layout = when {
+                widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP -> R.layout.widget_layout_narrow
+                compact && !signedOut -> R.layout.widget_layout_compact
+                else -> R.layout.widget_layout
+            }
+            val views = RemoteViews(context.packageName, layout)
+            val inset = (spacing.insetDp * context.resources.displayMetrics.density).toInt()
+            views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
+            views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
@@ -296,7 +366,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val showSkeleton = !signedOut && (!ownsRows || prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce))
 
             val rowCount = if (showSkeleton) 5 else if (ownsRows) prefs.getInt("row_count", 0) else 0
-            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount)
+            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount, spacing)
             views.setInt(
                 R.id.widget_content, "setMinimumHeight", (geometry.contentHeightDp * density).toInt()
             )
@@ -308,11 +378,11 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Widget background: flat surface with a hairline border (lift, not gradient).
             val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
-                bgWidth, ((HEADER_HEIGHT_DP + geometry.contentHeightDp) * density).toInt(), colorModes.light.background,
+                bgWidth, (geometry.cardHeightDp * density).toInt(), colorModes.light.background,
                 24f * density, 1f * density, colorModes.light.border
             )
             val darkBackground = OrbitWidgetFactory.createRoundedBitmap(
-                bgWidth, ((HEADER_HEIGHT_DP + geometry.contentHeightDp) * density).toInt(), colorModes.dark.background,
+                bgWidth, (geometry.cardHeightDp * density).toInt(), colorModes.dark.background,
                 24f * density, 1f * density, colorModes.dark.border
             )
             views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
@@ -386,10 +456,16 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp)
+                putExtra(EXTRA_WIDGET_WIDTH_DP, widgetWidthDp)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
 
+            if (compact && !signedOut && widgetWidthDp > STREAK_UNIT_BREAKPOINT_DP) {
+                applyNextHabit(context, views, widgetWidthDp, spacing, safeHeaderLabel,
+                    if (syncedOnce) "$completedCount/$habitCount" else "", streak, lang,
+                    streakUnitVisibility == View.VISIBLE, ownsRows && !showSkeleton)
+            }
             applyOpenAppActions(context, views)
             views.setViewVisibility(
                 R.id.widget_empty,

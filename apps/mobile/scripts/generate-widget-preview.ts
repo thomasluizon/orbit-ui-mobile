@@ -56,7 +56,7 @@ export const PICKER_PREVIEW_OUTPUTS = [
   directory: string
 }>[]
 
-function parseNamedResources(source: string, elementName: 'color' | 'string') {
+function parseNamedResources(source: string, elementName: 'color' | 'string' | 'dimen') {
   const resources = new Map<string, string>()
   let currentName: string | undefined
   let currentText = ''
@@ -129,63 +129,65 @@ function previewSvg(
   strings: ReadonlyMap<string, string>,
   colors: ReadonlyMap<string, string>,
   embeddedFonts: string,
+  dimensions: ReadonlyMap<string, string>,
 ) {
   const fixture = PICKER_PREVIEW_FIXTURE
   const card = requiredResource(colors, 'widget_card')
   const well = requiredResource(colors, 'widget_well')
   const hairline = requiredResource(colors, 'widget_hairline')
   const fg1 = requiredResource(colors, 'widget_fg_1')
-  const fg2 = requiredResource(colors, 'widget_fg_2')
   const fg3 = requiredResource(colors, 'widget_fg_3')
   const streak = requiredResource(colors, 'widget_streak_text')
   const overdue = requiredResource(colors, 'widget_overdue')
   const today = requiredResource(strings, 'widget_today')
   const subtitle = `${fixture.completed}/${fixture.total}`
   const streakUnit = requiredResource(strings, 'widget_streak_unit')
-  const deeper = requiredResource(strings, 'widget_deeper_count').replace('%1$d', '2')
+  const dimension = (name: string) => Number.parseFloat(requiredResource(dimensions, name))
+  const inset = dimension('widget_inset_card')
+  const headerHeight = dimension('widget_touch_target')
+  const headerGap = dimension('widget_header_list_gap')
+  const rowHeight = dimension('widget_row_height')
+  const rowGap = dimension('widget_row_gap')
+  const available = fixture.height - 2 * inset - headerHeight - headerGap
+  const rowCount = Math.floor((available + rowGap) / (rowHeight + rowGap))
+  const cardHeight = 2 * inset + headerHeight + headerGap + rowCount * (rowHeight + rowGap) - rowGap
 
-  const rows = fixture.rows.map((row, index) => {
-    const rowTop = 48 + index * 48
-    const centerY = rowTop + 24
+  const rows = fixture.rows.slice(0, rowCount).map((row, index) => {
+    const rowTop = inset + headerHeight + headerGap + index * (rowHeight + rowGap)
+    const centerY = rowTop + rowHeight / 2
     const titleColor = row.status === 'done' ? fg3 : fg1
     const timeColor = row.status === 'overdue' ? overdue : fg3
     const rowBorder = row.status === 'done' ? '' : ` stroke="${hairline}" stroke-width="1"`
-    const rowBackground = `<rect x="0.5" y="${rowTop + 0.5}" width="335" height="47" ` +
-      `rx="16" fill="${well}"${rowBorder}/>`
-    const extra = index === 2
-      ? `<rect x="210" y="${rowTop + 9}" width="34" height="18" rx="8" fill="${well}"/>` +
-        `<text x="227" y="${rowTop + 22}" text-anchor="middle" fill="${fg2}" ` +
-        'font-size="12">2/3</text>' +
-        `<text x="324" y="${rowTop + 28}" text-anchor="end" fill="${fg3}" ` +
-        `font-size="12">${escaped(deeper)}</text>`
-      : ''
-    return rowBackground + statusMark(row.status, centerY, colors) +
-      `<text x="42" y="${rowTop + 20}" fill="${titleColor}" font-size="15">` +
+    const rowBackground = `<rect x="${inset + 0.5}" y="${rowTop + 0.5}" width="${fixture.width - 2 * inset - 1}" ` +
+      `height="${rowHeight - 1}" rx="16" fill="${well}"${rowBorder}/>`
+    return rowBackground + `<g transform="translate(${inset + 4} 0)">` +
+      statusMark(row.status, centerY, colors) + '</g>' +
+      `<text x="${inset + 44}" y="${rowTop + 28}" fill="${titleColor}" font-size="15">` +
       `${escaped(requiredResource(strings, row.nameKey))}</text>` +
-      `<text x="42" y="${rowTop + 36}" fill="${timeColor}" font-size="12" ` +
-      `letter-spacing="0.22">${row.time}</text>${extra}`
+      `<text x="${inset + 44}" y="${rowTop + 46}" fill="${timeColor}" font-size="12" ` +
+      `letter-spacing="0.22">${row.time}</text>`
   }).join('')
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fixture.width * 4}" ` +
     `height="${fixture.height * 4}" viewBox="0 0 ${fixture.width} ${fixture.height}">` +
     `<defs><style>${embeddedFonts}</style>` +
-    '<clipPath id="card"><rect width="336" height="192" rx="24"/></clipPath></defs>' +
+    `<clipPath id="card"><rect width="336" height="${cardHeight}" rx="24"/></clipPath></defs>` +
     '<g clip-path="url(#card)" font-family="Roboto">' +
-    `<rect width="336" height="192" fill="${card}"/>` +
-    `<rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" ` +
+    `<rect width="336" height="${cardHeight}" fill="${card}"/>` +
+    `<rect x="0.5" y="0.5" width="335" height="${cardHeight - 1}" rx="23.5" fill="none" ` +
     `stroke="${hairline}" stroke-width="1"/>` +
-    `<circle cx="24" cy="24" r="10" fill="none" ` +
+    `<circle cx="36" cy="48" r="10" fill="none" ` +
     `stroke="${requiredResource(colors, 'widget_track_empty')}" stroke-width="2"/>` +
-    `<circle cx="24" cy="24" r="10" fill="none" stroke="${fg1}" stroke-width="2" ` +
+    `<circle cx="36" cy="48" r="10" fill="none" stroke="${fg1}" stroke-width="2" ` +
     `stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 10 * fixture.completed / fixture.total} ` +
-    `${2 * Math.PI * 10}" transform="rotate(-90 24 24)"/>` +
-    `<text x="44" y="18" fill="${fg3}" font-size="13" font-weight="500">${escaped(today)}</text>` +
-    `<text x="44" y="35" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
-    `<text x="70" y="35" fill="${streak}" font-size="15" ` +
+    `${2 * Math.PI * 10}" transform="rotate(-90 36 48)"/>` +
+    `<text x="56" y="42" fill="${fg3}" font-size="12" font-weight="500">${escaped(today)}</text>` +
+    `<text x="56" y="59" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
+    `<text x="84" y="59" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
-    `<text x="90" y="35" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
-    `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
-    `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
+    `<text x="106" y="59" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
+    `<path d="M296 48a8 8 0 1 1-2.3-5.7M296 40v6h-6" fill="none" ` +
+    `stroke="${fg3}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
     `${rows}</g></svg>`
 
   return svg.replaceAll('><', '>\n<')
@@ -225,13 +227,15 @@ async function renderPreviewsWithBundledFonts(previews: Awaited<ReturnType<typeo
 async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
   const stringsDirectory = locale === 'en' ? 'values' : 'values-pt-rBR'
   const colorsDirectory = mode === 'light' ? 'values' : 'values-night'
-  const [stringsSource, colorsSource] = await Promise.all([
+  const [stringsSource, colorsSource, dimensionsSource] = await Promise.all([
     readFile(path.join(widgetResourceDirectory, stringsDirectory, 'widget_strings.xml'), 'utf8'),
     readFile(path.join(widgetResourceDirectory, colorsDirectory, 'widget_colors.xml'), 'utf8'),
+    readFile(path.join(widgetResourceDirectory, 'values', 'widget_dimens.xml'), 'utf8'),
   ])
   return {
     strings: parseNamedResources(stringsSource, 'string'),
     colors: parseNamedResources(colorsSource, 'color'),
+    dimensions: parseNamedResources(dimensionsSource, 'dimen'),
   }
 }
 
@@ -243,10 +247,10 @@ export async function generateWidgetPreview() {
 export async function buildWidgetPreviewSvgs() {
   const embeddedFonts = await loadEmbeddedFonts()
   return await Promise.all(PICKER_PREVIEW_OUTPUTS.map(async output => {
-    const { strings, colors } = await loadPreviewInputs(output.locale, output.mode)
+    const { strings, colors, dimensions } = await loadPreviewInputs(output.locale, output.mode)
     return {
       output,
-      svg: previewSvg(strings, colors, embeddedFonts),
+      svg: previewSvg(strings, colors, embeddedFonts, dimensions),
     }
   }))
 }
