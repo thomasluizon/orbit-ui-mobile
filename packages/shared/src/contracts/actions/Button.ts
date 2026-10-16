@@ -26,6 +26,7 @@ interface ButtonBase {
 /** The ordinary button: its visible text is its accessible name. */
 export interface LabelledButtonProps extends ButtonBase {
   children: string
+  brand?: 'google'
   /** Decorative leading glyph; the visible label remains the accessible name. */
   leadingIcon?: React.ReactNode
   /** Optional fuller name when nearby context is not part of the control's accessible name. */
@@ -41,6 +42,7 @@ export interface IconOnlyButtonProps extends ButtonBase {
   label: string
   accessibleName?: never
   leadingIcon?: never
+  brand?: never
 }
 
 /** Discriminated on `iconOnly`: a nameless icon-only button does not compile. */

@@ -5,7 +5,7 @@ import { useContext, type CSSProperties, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
@@ -85,6 +85,7 @@ export function Button({
   matchedWidth = false,
   label,
   leadingIcon,
+  brand,
   formId,
   descriptionId,
   buttonRef,
@@ -110,7 +111,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
-      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight), ...(brand === 'google' ? { paddingInlineStart: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingInlineEnd: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : undefined), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />

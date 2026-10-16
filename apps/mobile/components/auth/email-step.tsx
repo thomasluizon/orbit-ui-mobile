@@ -1,3 +1,4 @@
+import { GoogleMark } from '@/components/auth/google-mark'
 import { Text, View } from 'react-native'
 import type { ReactNode } from 'react'
 import { Trans } from 'react-i18next'
@@ -52,7 +53,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
     </View>
     <View style={styles.titleBlock}>
       {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-      <PillButton variant="ghost" onClick={onSignInWithGoogle} disabled={isGoogleLoading || isSubmitting || !isOnline}
+      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isGoogleLoading || isSubmitting || !isOnline}
         loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
       {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}
       {googleError && <Text accessibilityRole="alert" style={styles.error}>{googleError}</Text>}

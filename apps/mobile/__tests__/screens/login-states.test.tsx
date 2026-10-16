@@ -267,7 +267,21 @@ it('lets a callback failure yield to the next email validation result', () => {
 
 function assertEmailState(root: Node, state: Parameters<typeof setFixture>[0], fixture: ReturnType<typeof setFixture>) {
   const { t } = fixture
-        expect(button(root, t('auth.signInWithGoogle'))).toBeDefined()
+        const googleButton = button(root, t('auth.signInWithGoogle'))!
+        expect(googleButton).toBeDefined()
+        const marks = googleButton.findAll((node) => node.type === 'Svg' && node.props.testID === 'google-mark')
+        if (fixture.isGoogleLoading) {
+          expect(googleButton.props.accessibilityState).toMatchObject({ busy: true })
+          expect(marks).toHaveLength(0)
+        } else {
+          expect(marks).toHaveLength(1)
+          expect(marks[0]!.props).toMatchObject({ accessible: false, importantForAccessibility: 'no-hide-descendants', width: 20, height: 20 })
+          expect(marks[0]!.props.accessibilityLabel).toBeUndefined()
+          expect(marks[0]!.props.accessibilityRole).toBeUndefined()
+          expect(host(marks[0]!, 'Path')).toHaveLength(4)
+          const buttonStyle = StyleSheet.flatten((googleButton.props.style as (state: { pressed: boolean }) => unknown)({ pressed: false }))
+          expect(buttonStyle).toMatchObject({ paddingHorizontal: 12, paddingStart: 12, gap: 10 })
+        }
         const submit = button(root, t(fixture.fromOnboarding ? 'auth.onboarding.continue' : 'auth.sendCode'))!
         if (['sending', 'google', 'offline', 'email'].includes(state)) expect(submit.props.disabled).toBe(true)
         expect(host(root, 'Text').filter((node) => node.props.accessibilityRole === 'link')).toHaveLength(2)

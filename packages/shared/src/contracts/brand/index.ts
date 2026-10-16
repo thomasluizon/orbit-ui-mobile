@@ -11,3 +11,4 @@ export {
   ORBIT_MARK_PATHS,
   type BrandPath,
 } from './BrandPaths'
+export { GOOGLE_MARK_SIZE, GOOGLE_MARK_PATHS } from './GoogleMark'
