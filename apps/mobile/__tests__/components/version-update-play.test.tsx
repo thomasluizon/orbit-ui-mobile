@@ -69,7 +69,7 @@ vi.mock('react-native', async () => ({
 }))
 vi.mock('sp-react-native-in-app-updates', async () => {
   const android = await vi.importActual<{ default: typeof import('sp-react-native-in-app-updates')['default'] }>('sp-react-native-in-app-updates/src/InAppUpdates.android')
-  const types = await import('../../../../node_modules/sp-react-native-in-app-updates/src/types')
+  const types = await import('sp-react-native-in-app-updates/src/types')
   return {
     default: android.default,
     IAUInstallStatus: types.AndroidInstallStatus,
