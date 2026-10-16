@@ -317,6 +317,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
     const composer = composerRef.current
     const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]:not([disabled])')
     ;(input ?? composer)?.focus()
+    input?.setSelectionRange(input.value.length, input.value.length)
   }, [props.autoFocus])
   useEffect(() => {
     if (!props.autoFocus) return
