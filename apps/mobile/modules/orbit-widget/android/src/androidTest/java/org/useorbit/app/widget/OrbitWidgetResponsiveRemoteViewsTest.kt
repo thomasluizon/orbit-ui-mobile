@@ -3,7 +3,9 @@ package org.useorbit.app.widget
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -25,11 +27,24 @@ import org.junit.runner.RunWith
 class OrbitWidgetResponsiveRemoteViewsTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val appWidgetHost = AppWidgetHost(context, HOST_ID)
+    private val widgetService = ComponentName(context, OrbitWidgetService::class.java)
+    private var previousServiceState: Int? = null
     private lateinit var hostView: AppWidgetHostView
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     @Before
     fun setUp() {
+        // Header-only tests must not let the list factory fetch or replace fixture ownership (#1392).
+        previousServiceState = context.packageManager.getComponentEnabledSetting(widgetService)
+        context.packageManager.setComponentEnabledSetting(
+            widgetService,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        )
+        assertEquals(
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            context.packageManager.getComponentEnabledSetting(widgetService)
+        )
         val appWidgetManager = AppWidgetManager.getInstance(context)
         // The instrumentation APK declares this provider too, and it is the one to bind. Binding the
         // installed app's provider makes the host inflate app-package resources while the test builds
@@ -84,17 +99,26 @@ class OrbitWidgetResponsiveRemoteViewsTest {
 
     @After
     fun tearDown() {
-        InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
-        OrbitWidgetModule.getEncryptedPrefs(context).edit()
-            .remove(AUTH_TOKEN_KEY)
-            .commit()
-        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
-        appWidgetHost.stopListening()
-        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            appWidgetHost.deleteAppWidgetId(appWidgetId)
+        try {
+            InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
+            OrbitWidgetModule.getEncryptedPrefs(context).edit()
+                .remove(AUTH_TOKEN_KEY)
+                .commit()
+            context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+            appWidgetHost.stopListening()
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                appWidgetHost.deleteAppWidgetId(appWidgetId)
+            }
+        } finally {
+            previousServiceState?.let { state ->
+                context.packageManager.setComponentEnabledSetting(
+                    widgetService, state, PackageManager.DONT_KILL_APP
+                )
+                assertEquals(state, context.packageManager.getComponentEnabledSetting(widgetService))
+            }
         }
     }
 
