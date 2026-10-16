@@ -4,6 +4,7 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
@@ -294,9 +295,10 @@ describe('UpgradePage', () => {
       const { container } = render(<UpgradePage />)
       if (pitch) await waitFor(() => expect(container.querySelectorAll('[data-tier]')).toHaveLength(2))
       assertSubscriptionContent(container, example)
+      const themeVariables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}:${value}`).join(';')
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style><div class="${mode}" data-mode="${mode}" style="background:var(--bg);color:var(--fg-1)">${container.innerHTML}</div>`)
+        await page.setContent(`<style>${stylesheet}</style><div class="${mode}" data-mode="${mode}" style="${themeVariables};background:var(--bg);color:var(--fg-1)">${container.innerHTML}</div>`)
         await loadAppFonts(page)
         const geometry = await page.locator('[data-upgrade-screen]').evaluate((element) => {
           const frame = element.getBoundingClientRect()
@@ -307,9 +309,14 @@ describe('UpgradePage', () => {
             return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size,
               fits: range.getBoundingClientRect().width <= bounds.width + 1 }
           })
-          return { left: frame.left, width: frame.width, overflow: element.scrollWidth > element.clientWidth, headings }
+          return { left: frame.left, width: frame.width, overflow: element.scrollWidth > element.clientWidth, headings,
+            backgroundToken: getComputedStyle(element).getPropertyValue('--bg').trim(),
+            foregroundToken: getComputedStyle(element).getPropertyValue('--fg-1').trim() }
         })
         const frameWidth = width < 1024 ? width : (pitch ? 652 : 560) + 32
+        const tokens = resolveWebThemeVariables('orange', mode)
+        expect(geometry.backgroundToken).toBe(tokens['--bg'])
+        expect(geometry.foregroundToken).toBe(tokens['--fg-1'])
         expect(geometry.width).toBe(frameWidth)
         expect(geometry.left).toBe((width - frameWidth) / 2)
         expect(geometry.overflow).toBe(false)
