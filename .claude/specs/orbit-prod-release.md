@@ -45,7 +45,7 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - The failed-delete toast pauses on hover and focus; Retry remains its sole action.
 - Keep the Mac awake while a session runs. A closed lid still sleeps it.
 - A sleep run does its visible Chrome work (width sweeps, Play Console wizards, Google account steps, bringing the automation window forward) whether or not the owner is using the Mac or talking to the session; sleep mode lasts until the owner turns it off.
-- Chrome work, the run's own and every subagent's, happens in one tab of the Chrome window that is already open: never a new window, never a popup, never `window.open`, never `resize_window`; measure at the window's current width and record it. A `claude-in-chrome` tab group created from nothing opens a new window, so when this session has no group, drive a new tab in the open window through `orca computer` (window id from `list-windows`), and stop if the owner switches that window's tab. A subagent's click on an in-app delete can be refused by the permission classifier; the orchestrating session does those deletions itself.
+- Chrome work, the run's own and every subagent's, happens in one tab of the Chrome window that is already open: never a new window, never a popup, never `window.open`, never `resize_window`; measure at the window's current width and record it. Page reads and browser steps go through the `claude-in-chrome` tools, never `orca computer` keystrokes (owner instruction); when this session has no tab group, create one, use its one tab and close it after. `orca computer get-app-state --restore-window` remains only to bring a hidden Chrome window forward. A subagent's click on an in-app delete can be refused by the permission classifier; the orchestrating session does those deletions itself.
 - Buttons follow the drawings: every pill is `sm` except the single primary action that ends a flow (a form submit, the Wrapped player actions, the full-width action of a mobile overlay), and two or more pills acting on one section form one trailing action row of one size with a 12px gap; an action on one list item is that row's own action slot (`#1123` brings `DESIGN.md`, `PillButton`, an `ActionRow` primitive and the guards in line).
 - Turnstile enforcement starts only after web and Android sign-in send a token.
 - Keep locale out of auth and deep-link URLs.
@@ -61,6 +61,8 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - A pull request behind `redesign/main` may merge at its approved head after the merge result passes locally: both type checks, three Vitest suites and i18n usage for `orbit-ui-mobile` (`tools/check-i18n-usage.mjs` exists only on `redesign/main`); `dotnet build` and `dotnet test` for `orbit-api` (D115). Read test results by exit code, never by grepping summary text, because the unset locale prints the summary in Portuguese. When the base moved after the test, the result still counts if the files the base changed do not overlap the pull request's files.
 - A Pullfrog approval counts only at the exact current head and only if submitted after that head's push. When a push that changes only generated or mechanical files dismisses an approval and Pullfrog's incremental review posts none, request a fresh one with `node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900 --re-review`; never push an empty commit to force a review.
 - Pullfrog and Codex share one OpenAI allowance. When exhausted, use Claude headless through the same launcher under `.claude/skills/orchestrate/SKILL.md` §5.4.1, never a subagent.
+- Codex capacity plan (owner-approved): spend the weekly limit on development until 0 before 22 Oct, then use the one full reset before the move from Pro to Plus on 27 Oct; keep the 62,500 credits for after 27 Oct (they stay on the account, valid 12 months from purchase); idle capacity runs read-only Codex audit finder passes (`audit-run.sh`), each finding verified before it is filed; Codex Cloud stays off. Large tickets and a review round after one failed round run at `xhigh` (`max` after a second failed round, never `ultra`); until `#1412` lands, `xhigh` launches go through the scratchpad `xhigh-launch.sh`, which edits the default tier only while it holds the launch lock.
+- Feature flags are agent first: the owner asks in plain English and the agent changes the flag through the admin-only Orbit MCP tool `manage_feature_flags` (`/flag` once `#1420` lands), lists before and after, and reports the change. The owner never sets a flag by hand. A plain flag gates code inside one build through `useFlag`; a version flag (`redesign`) picks the build: the edge router on web, the update channel on Android, and that build calls API v2.
 - The worker is Codex on `gpt-6.1-sol` (high effort default tier, medium mechanical) with both Claude fallback tiers on `claude-opus-5-5`, committed in `.claude/orchestrator.json` with its calibration and test pins. The Pullfrog review step runs `openai/gpt-6.1-sol` as a raw model on the stored Codex credential and the default opencode harness (the Codex CLI harness drops the reviewfrog specialist); a raw model gets no effort rung, so it runs at OpenAI's default, medium. When a published Pullfrog alias carries `gpt-6.1-sol`, bump the pin and use the alias.
 - The Pullfrog console model stays "Custom (set in workflow)" in all three repositories. A model stored in the console overrides the workflow's `model` input (a stored pick resolves to `openai/gpt-6-sol` whatever the workflow says); with the console on Custom, each review logs `model: openai/gpt-6.1-sol` and `agent: opencode`. The console then shows the Smart tab with no provider, which is how it renders no stored model.
 - Start every `tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs` and local check as a background task with the Bash `timeout` set to 7200000. The default background limit is 30 minutes, and reaching it kills the launcher and its worker mid-run, leaving unpushed commits or a half-finished cherry-pick.
@@ -150,6 +152,25 @@ Owner rules for Batch M: the production copy loses zero rows (writes frozen duri
 Tickets, in dependency order (every other Batch M ticket is closed):
 
 - DONE. Email runs on Amazon SES only, Resend is retired and its account deleted, and the paused Supabase project and the two Vercel Orbit projects are deleted.
+
+### Batch L: the owner's order, ahead of the rest
+
+The owner set this order: the landing page first, then the 1.3.81 retest fixes in Batch R, then feature flags and API versioning. Run at most five workers at once, so the machine stays responsive.
+
+1. The landing page, one pull request on the landing `redesign/main` that carries five tickets by the owner's instruction: `#78` Redesign the landing page against the new canon (L2), carrying `#204` (false numbers, badge, missing spaces), `#209` (pricing and FAQ for the shipped packaging, prices and JSON-LD), `#328` (goals move to the free plan) and `#212` (`llms.txt`). `#78`'s body states the whole page and the state-of-the-art mandate kept from `orbit-landing-page#43` without its glow exemption. It runs at `xhigh`. When its worker delivers a build, serve the landing locally (a free port, never 3000) and send the owner the URL.
+2. Batch R's 1.3.81 retest tickets, below.
+3. Feature flags and API versioning, owner-approved. The `orbit-api` redesign work reaches `main` ahead of the gate for this, API only; the gate still holds for the web, Android and landing builds.
+   - `#1413` Bring the orbit-api redesign work to main with a compatibility proof
+   - `#1414` Per-account feature flags resolved by the API and managed through an admin MCP tool
+   - `#1415` useFlag on web and mobile, reading each account's resolved flags
+   - `#1416` API versioning: unversioned calls are v1 and the redesign builds call v2
+   - `#1417` Serve the redesign web build to flagged accounts on app.useorbit.org
+   - `#1418` Both web builds keep the design cookie in step with the redesign flag
+   - `#1419` Android loads the old or the new design bundle from the redesign flag
+   - `#1420` Agent-first feature flags: the /flag skill and the flag guide
+
+   When the wave is live, turn `redesign` on for the owner's production account through `manage_feature_flags` and confirm it on web and Android.
+4. `#1412` Worker tiers for xhigh and max reasoning effort (harness, `main`).
 
 ### Batch R: the owner's redesign review, and sweeps until nothing is wrong
 
@@ -414,9 +435,7 @@ analytics work.
 - `#197` Retrospective unlocks on any Pro plan; remove the yearlyPro entitlement
 - `#237` Sub-habits leave Pro: remove the server gate and unseed the flag
 - `#238` Sub-habits leave Pro (UI): drop the matrix row and the copy that sells depth (with `#237`)
-- `#82` Migrate feature flags to a PostHog-backed provider behind a switch (expand phase)
 - `#213` Define the retention cohort and stand up the recurring read
-- `#25` Consume PostHog feature flags on web and mobile and wire the Astra kill switch
 - `#1205` Refresh the shared validation fixtures from the API's rewritten messages and align the client validation keys (the UI half of `#1204`; open as `ui#1575`, driven with the Batch R pull requests)
 - `#1355` Keep the Progresso streak section the same height for every freeze bank state while it loads (the polish residual of `#1347` under the freeze: protected-day rows, a full bank and the streak notices still change the section's height when the response lands)
 - `#1356` Keep the Astra thread following the latest block when a scroll lands with the answer tap (the root cause of the `conversation-thread-scroll.spec.ts:24` flake: a follow request keeps its pre-tap scroll baseline, so a late scroll event cancels it; the actions stay reachable by scrolling, so it waits past the freeze)
@@ -431,10 +450,6 @@ analytics work.
 
 ### Batch 3: the landing page and the Play listing, together
 
-- `#78` Redesign the landing page against the new canon (L2)
-- `#204` Fix the landing today: real numbers, drop the payer stat, drop the badge and the two missing spaces
-- `#209` Landing pricing and FAQ copy realigned to the new packaging
-- `#212` Add llms.txt to the landing for the AI crawlers robots.txt already invites
 - `#269` Waitlist Turnstile can render two widgets into one container, orphaning the first
 - `#270` A transient Turnstile script-load failure disables the waitlist form with no retry path
 - `#271` Waitlist Turnstile receives pt-BR where Cloudflare documents pt-br, so the widget may render in English
@@ -451,7 +466,6 @@ analytics work.
 - `#286` The 404 Lighthouse carve-out records what it excludes but not the measurement that justifies it
 - `#292` A failed Turnstile script load re-appends a script tag on every input event, with no backoff or attempt cap
 - `#313` Turnstile error codes are discarded, so a hard failure like 400020 reaches no log and no human
-- `#328` Move goals to the free plan on the landing pricing table
 - `#249` BRAND.md copy and format cleanups from the ORB-209 review
 
 ### Batch 4: the component-library migration
@@ -761,6 +775,8 @@ Current operational rules above take precedence when a record conflicts.
 ## Current state
 
 The inventory below is a snapshot taken at a context relay. Every CI result, approval and staging figure in it may be hours old: refresh it before acting with `gh pr list` in each repository, `node tools/run-status.mjs --session <id>` and `node tools/release-plan.mjs --environment staging --branch redesign/main`.
+
+The current wave, in the owner's order (Batch L). The landing pull request (`#78` with `#204`, `#209`, `#212` and `#328`) has its worktree `ticket-78-landing-redesign` on the landing `redesign/main` (branch `feature/ticket-78-landing-redesign`) and a composed order; it launches first, at `xhigh`. The owner's 1.3.81 retest tickets `#1399` to `#1411` follow: `#1400` is merged into `orbit-api` `redesign/main` and waits for the staging API release; `#1399`, `#1401` and `#1402` have pull requests in CI; `#1407`, `#1409`, `#1410` and `#1411` have workers or their results; `#1403` to `#1406` have worktrees and orders; `#1408` waits for `#1402` to merge because its avatar change must agree with `#1402`'s typing indicator. The feature flag and API versioning tickets `#1413` to `#1420` come next, then `#1412`. Orbit Staging 1.3.82 (141) ships once the 1.3.81 tickets merge, and the owner's gate retest follows it.
 
 THE REDESIGN GATE review: the owner retested Orbit Staging 1.3.80 (139) on a Galaxy Z Fold 8 and sent nineteen screenshots with the instruction to fix every finding. They are the Batch R tickets `#1381` to `#1392`, plus `#1393` (a web onboarding test flake a worker filed), `#1394` (the API sync conflict a worker traced), `#1395` and `#1397`. The owner's sub-habit "Fazer upgrade" screenshots predate the staging account's lifetime Pro (set directly on the staging database row, `IsLifetimePro = true`), so they are not a defect: the gate reads `hasProAccess`, and the API's `HasProAccess` includes lifetime Pro. The login mark is the Google "G", not the Gmail envelope, because Google's sign-in branding requires it. The owner approves the gate after he retests Orbit Staging 1.3.81 (140). Merged and closed: `#1386` (`ui#1741`), `#1394` (`orbit-api#719` on `main`), `#1388` (`ui#1740`), `#1382` (`ui#1743`), `#1389` (`ui#1745`), `#1393` (`ui#1751`), `#1397` (`orbit-api#721` on `main`, carried by `orbit-api#720`, `d83cfde3`), `#1383` (`ui#1739`), `#1390` (`ui#1749`), harness `#1396` (`ui#1753`), on combined check k4 `#1392` (`ui#1744`, `521be28e`), `#1395` (`ui#1752`, `f16da467`) and `#1391` (`ui#1750`, `d812da9f`), on combined check k5s `#1387` (`ui#1747`, `aeeca8dc`) and `#1384` (`ui#1748`, `c7559e7c`), and on combined check k6 (every step and the whole layout project, 2080 of 2080) `#1381` (`ui#1746`, `2e718039`) and `#1385` (`ui#1742`, `60cf0960`). The owner's 1.3.81 retest left thirteen redesign tickets, `#1399` to `#1411`. In flight: `#1399` (`ui#1754`, Pullfrog approved; the fix compares Play version codes as integers and adds the local Expo module `apps/mobile/modules/orbit-app-update` to read a downloaded update; CI was still running) and `#1400` (`orbit-api#722`, approved; Astra's chat instructions put copy-ready text in one fenced block). Workers for `#1401` (block copy control) and `#1402` (typing indicator) were running at the relay with one commit each and no pull request yet. `#1403` to `#1411` have no worker yet. All of it ships in Orbit Staging 1.3.82 (141), with a staging API release for `orbit-api#722`. The owner's test list for the next build lives in the brain at `0 Inbox/Orbit staging test.md`; update it when a fix changes what to check. `redesign/main` is at `60cf0960` plus docs; staging web serves `60cf0960` (`/api/health` verified); the staging API runs `d83cfde3`, which carries `#1394` and `#1397`. Orbit Staging 1.3.81 (140) is on the internal track, built from `60cf0960` (run `38904266036`, Play upload step green). The owner retests it and then approves the gate or reports findings; file each finding as a Batch R ticket and start its worker at once.
 Every hermetic layout spec that reads a status inside a sheet scopes it to its text, because every sheet renders the update banner's empty status region (`apps/web/components/ui/sheet.tsx`). A layout spec that reads a row's text, padding or siblings goes through the `[data-personal-text-action]` wrapper: `PersonalTextAction` renders the control with only its decoration and puts the text in the sibling `[data-personal-text-content]` span, so a locator that searches inside the button finds nothing. In the owner's Chrome on the Mac, `navigator.onLine` can read false while every request succeeds; the web then shows the offline refusals (Criar hábito, the Calendários sync and import actions). That is the browser's flag, not an Orbit defect: test those actions in a fresh window or on the phone.
