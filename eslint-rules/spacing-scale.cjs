@@ -7,7 +7,7 @@
 // and 56, which are the values the existing violations cluster around, so there is
 // less to choose wrongly between, and its jumps widen at the top to serve the
 // spacious direction. https://github.com/thomasluizon/orbit-tickets/issues/36
-const DEFAULT_SCALE = [0, 4, 8, 12, 16, 24, 32, 48, 64, 96]
+const DEFAULT_SCALE = Object.values(require('../packages/shared/src/theme/spacing.json').scale)
 
 const INSET_PROPS = new Set([
   'top', 'right', 'bottom', 'left', 'start', 'end',
@@ -130,7 +130,7 @@ module.exports = {
     ],
     messages: {
       offScaleStyle:
-        '{{value}}px is off the spacing scale ({{prop}}). DESIGN.md allows {{scale}}. Use {{nearest}}, or add a named exemption to the rule options - never widen the scale.',
+        '{{value}}px is off the spacing scale ({{prop}}). DESIGN.md allows {{scale}}. Use {{nearest}} from SPACING. Regenerate web aliases with npm run spacing:generate -w @orbit/eslint-rules; named exemptions use the allow option.',
       offScaleClass:
         '`{{token}}` resolves to {{value}}px, off the spacing scale. DESIGN.md allows {{scale}}. Use `{{suggestion}}`, or add a named exemption to the rule options - never widen the scale.',
     },
@@ -230,6 +230,11 @@ module.exports = {
     }
 
     function reportStyleValue(valueNode, prop) {
+      if (valueNode.type === 'ConditionalExpression') {
+        reportStyleValue(valueNode.consequent, prop)
+        reportStyleValue(valueNode.alternate, prop)
+        return
+      }
       const px = pxFromStyleValue(valueNode)
       if (px !== null) {
         reportSingleStyleValue(valueNode, prop, px)
@@ -531,6 +536,12 @@ module.exports = {
     }
 
     return {
+      Property(node) {
+        const name = propertyName(node)
+        if (!name || !/^(padding|margin)/.test(name) || !BOX_PROPS.has(name) || reportedLiterals.has(node.value)) return
+        reportedLiterals.add(node.value)
+        reportStyleValue(node.value, name)
+      },
       JSXAttribute(node) {
         const name = node.name.type === 'JSXIdentifier' ? node.name.name : null
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {

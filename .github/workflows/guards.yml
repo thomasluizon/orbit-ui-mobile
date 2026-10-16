@@ -103,6 +103,14 @@ jobs:
           else
             echo "Workspace overrides skipped: no owned path changed."
           fi
+      - name: Shared padding aliases and source CSS stay on scale
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             grep -Eq '^apps/(web|mobile)/|^packages/shared/src/theme/|^eslint-rules/' "$RUNNER_TEMP/changed-paths.txt"; then
+            node eslint-rules/_spacing-contract.cjs
+          else
+            echo "Padding contract skipped: no owned path changed."
+          fi
       - name: Docker base images name an explicit registry
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \

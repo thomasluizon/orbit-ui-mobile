@@ -1,0 +1,19 @@
+{
+  "scale": { "s0": 0, "s4": 4, "s8": 8, "s12": 12, "s16": 16, "s24": 24, "s32": 32, "s48": 48, "s64": 64, "s96": 96 },
+  "roles": {
+    "screenGutter": "s16",
+    "cardInset": "s24",
+    "recordInset": "s16",
+    "sectionTitleGap": "s12",
+    "sectionGap": "s24",
+    "sectionStackGap": "s32",
+    "rowInline": "s16",
+    "rowBlock": "s12",
+    "sheetInline": "s24",
+    "sheetTop": "s8",
+    "sheetBottom": "s24",
+    "sheetHeaderTop": "s16",
+    "sheetHeaderBottom": "s8",
+    "sheetFooterTop": "s16"
+  }
+}

@@ -9,6 +9,7 @@ import RNMarkdown, {
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { getMarkdownImageLabel } from '@orbit/shared/utils'
+import { SPACING } from '@orbit/shared/theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -172,13 +173,13 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
       color: heading,
       fontFamily: 'Geist_500Medium',
       fontSize: 28,
-      marginVertical: 6,
+      marginVertical: SPACING.s8,
     },
     h2: {
       color: heading,
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
-      marginVertical: 6,
+      marginVertical: SPACING.s8,
     },
     h3: {
       color: heading,

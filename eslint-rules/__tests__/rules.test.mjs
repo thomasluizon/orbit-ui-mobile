@@ -510,6 +510,9 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    { code: 'export function styles() { return { marginVertical: 6 } }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<ScrollView contentContainerStyle={{ padding: wide ? 20 : 16 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const sheet = { padding: "8px 20px 24px" }; consume(sheet)', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = runtimeFlag && { gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: '<div style={runtimeFlag && { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const { fallback } = { fallback: null }; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
