@@ -702,6 +702,8 @@ describe("CalendarScreen views (mobile)", () => {
         const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
         const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
         expect(segments).toHaveLength(4);
+        expect(Math.min(...segments.map((segment) => segment.left)) - VIEW_TRACK_INSET).toBeCloseTo(16);
+        expect(Math.max(...segments.map((segment) => segment.right)) + VIEW_TRACK_INSET).toBeCloseTo(width - 16);
         const top = Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET;
         const bottom = Math.max(...segments.map((segment) => segment.bottom)) + VIEW_TRACK_INSET;
         if (switchTop === undefined) switchTop = top;

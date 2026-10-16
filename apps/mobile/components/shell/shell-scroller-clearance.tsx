@@ -1,8 +1,9 @@
+import { SPACING } from '@orbit/shared/theme'
 import { createContext, useContext } from 'react'
 import type { Edge } from 'react-native-safe-area-context'
 
 export const SHELL_SCROLLER_CLEARANCE = 96
-export const SHELL_PAGE_END_INSET = 24
+export const SHELL_PAGE_END_INSET = SPACING.s24
 export const ShellScrollerClearanceContext = createContext(0)
 
 export function useShellScrollerClearance() {

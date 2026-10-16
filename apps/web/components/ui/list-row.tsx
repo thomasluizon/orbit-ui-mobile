@@ -11,6 +11,9 @@ import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { SwitchTrack } from '@/components/ui/switch'
 import { Icon } from '@/components/ui/icon'
 
+const ROW_TOGGLE_HEIGHT = 28
+const ROW_TEXT_LINE = '1.4875rem'
+
 type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   onClick?: MouseEventHandler<HTMLElement>
   titleTranslate?: 'no'
@@ -26,7 +29,7 @@ function alignsFirstLine({ textMode, description, value, toggle, trailing, readO
 }
 
 function getBodyStyle(hasDescription: boolean, column: boolean) {
-  return { minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: PADDING.rowBlock, ...(column ? { position: 'relative' as const } : { paddingInline: PADDING.rowInline }) }
+  return { '--orbit-row-toggle-height': `${ROW_TOGGLE_HEIGHT}px`, '--orbit-row-text-line': ROW_TEXT_LINE, minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: PADDING.rowBlock, ...(column ? { position: 'relative' as const } : { paddingInline: PADDING.rowInline }) }
 }
 
 function getActionStyle(hasDescription: boolean) {
@@ -44,7 +47,7 @@ function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebLi
 }
 
 function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebListRowProps['wrapValue'], inlineControl: boolean, switchRow: boolean) {
-  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'var(--orbit-list-row-text-basis, auto)', flexShrink: inlineControl ? 1 : 'var(--orbit-list-row-text-shrink, 0)', maxWidth: '100%', minHeight: switchRow ? 28 : 24, paddingBlockStart: switchRow ? 'max(0px, (28px - 1.4875rem) / 2)' : undefined, justifyContent: switchRow ? undefined : 'center' } : {}) }
+  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'var(--orbit-list-row-text-basis, auto)', flexShrink: inlineControl ? 1 : 'var(--orbit-list-row-text-shrink, 0)', maxWidth: '100%', minHeight: switchRow ? ROW_TOGGLE_HEIGHT : 24, paddingBlockStart: switchRow ? 'max(0px, (var(--orbit-row-toggle-height) - var(--orbit-row-text-line)) / 2)' : undefined, justifyContent: switchRow ? undefined : 'center' } : {}) }
 }
 
 function personalTextProps(textMode: WebListRowProps['textMode'], expanded: boolean | undefined) {
@@ -87,13 +90,13 @@ function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedContro
 }
 
 function iconLineHeight(props: WebListRowProps) {
-  if (props.toggle) return 'max(28px, 1.4875rem)'
+  if (props.toggle) return `max(${ROW_TOGGLE_HEIGHT}px, ${ROW_TEXT_LINE})`
   return props.textMode === 'label' ? 'max(24px, 1.4875rem)' : undefined
 }
 
 function trailingLineStyle(props: WebListRowProps) {
   if (props.textMode !== 'label') return undefined
-  return { minHeight: props.toggle ? 'max(28px, 1.4875rem)' : '1.4875rem', height: props.description && !props.toggle ? 'max(24px, 1.4875rem)' : undefined }
+  return { minHeight: props.toggle ? `max(${ROW_TOGGLE_HEIGHT}px, ${ROW_TEXT_LINE})` : ROW_TEXT_LINE, height: props.description && !props.toggle ? 'max(24px, 1.4875rem)' : undefined }
 }
 
 function RowBody(props: Readonly<WebListRowProps>) {

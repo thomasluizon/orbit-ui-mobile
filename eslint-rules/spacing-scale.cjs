@@ -58,6 +58,12 @@ function stripVariants(token) {
   return token.slice(cut + 1)
 }
 
+function literalLengths(text) {
+  const expression = text.replaceAll('_', ' ').replace(/var\(\s*--[\w-]+/g, 'var(')
+  return [...expression.matchAll(/(?<![\w.-])(-?\d*\.?\d+)(px|rem|em)(?![\w.-])/g)]
+    .map((match) => ({ raw: match[0], unit: match[2], px: Number(match[1]) * (match[2] === 'rem' ? 16 : 1) }))
+}
+
 function pxFromArbitrary(raw) {
   const body = raw.slice(1, -1)
   if (/^-?\d+(\.\d+)?px$/.test(body)) return Number(body.slice(0, -2))
@@ -129,6 +135,7 @@ module.exports = {
       },
     ],
     messages: {
+      relativeSpacing: '{{value}} depends on the text size ({{prop}}). Use a shared SPACING value or padding role.',
       offScaleStyle:
         '{{value}}px is off the spacing scale ({{prop}}). DESIGN.md allows {{scale}}. Use {{nearest}} from SPACING. Regenerate web aliases with npm run spacing:generate -w @orbit/eslint-rules; named exemptions use the allow option.',
       offScaleClass:
@@ -184,14 +191,14 @@ module.exports = {
       return String(nearest)
     }
 
-    function reportSingleStyleValue(valueNode, prop, px) {
+    function reportSingleStyleValue(valueNode, prop, px, canFix = true) {
       if (isOnScale(px, prop)) return
       const nearest = nearestStep(px)
       context.report({
         node: valueNode,
         messageId: 'offScaleStyle',
         data: { value: String(px), prop, scale: scaleLabel, nearest: String(nearest) },
-        fix: isUnambiguous(px)
+        fix: canFix && isUnambiguous(px)
           ? (fixer) => {
               if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
                 const unit = valueNode.value.trim().endsWith('rem') ? 'rem' : 'px'
@@ -231,6 +238,7 @@ module.exports = {
     }
 
     function reportStyleValue(valueNode, prop) {
+      valueNode = unwrapStyleExpression(valueNode)
       if (valueNode.type === 'ConditionalExpression') {
         reportStyleValue(valueNode.consequent, prop)
         reportStyleValue(valueNode.alternate, prop)
@@ -241,8 +249,27 @@ module.exports = {
         reportSingleStyleValue(valueNode, prop, px)
         return
       }
-      if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
-        reportShorthandStyleValue(valueNode, prop)
+      if (valueNode.type === 'TemplateLiteral') {
+        for (const quasi of valueNode.quasis) reportCompoundStyleValue(quasi, prop, quasi.value.raw)
+      } else if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
+        if (shorthandTokens(valueNode.value.trim()) !== null) reportShorthandStyleValue(valueNode, prop)
+        else reportCompoundStyleValue(valueNode, prop, valueNode.value)
+      }
+    }
+
+    function reportCompoundStyleValue(node, prop, text) {
+      for (const length of literalLengths(text)) {
+        if (length.unit === 'em' && length.px !== 0) context.report({ node, messageId: 'relativeSpacing', data: { value: length.raw, prop } })
+        else reportSingleStyleValue(node, prop, length.px, false)
+      }
+    }
+
+    function reportCompoundClassValue(node, token, prop, text) {
+      for (const length of literalLengths(text)) {
+        if (length.unit === 'em' && length.px !== 0) context.report({ node, messageId: 'relativeSpacing', data: { value: length.raw, prop } })
+        else if (!isOnScale(length.px, prop)) context.report({ node, messageId: 'offScaleClass', data: {
+          token, value: String(length.px), scale: scaleLabel, suggestion: 'a shared padding role',
+        } })
       }
     }
 
@@ -470,14 +497,24 @@ module.exports = {
         cursor += raw.length
         const token = raw.trim()
         if (!token) continue
-        const bare = stripVariants(token)
+        const important = stripVariants(token)
+        const bare = important.replace(/^!|!$/g, '')
+        const arbitrary = /^\[((?:padding|margin)(?:-[a-z-]+)?):(.+)\]$/.exec(bare)
+        if (arbitrary) {
+          reportCompoundClassValue(node, token, arbitrary[1], arbitrary[2])
+          continue
+        }
         const match = CLASS_TOKEN.exec(bare)
         if (!match) continue
         const [, sign, utility, value] = match
         const prop = UTILITY_TO_PROP.get(utility)
         if (!prop) continue
         const magnitude = value === 'px' ? 1 : value.startsWith('[') ? pxFromArbitrary(value) : Number(value) * TAILWIND_STEP_PX
-        if (magnitude === null || !Number.isFinite(magnitude)) continue
+        if (magnitude === null) {
+          reportCompoundClassValue(node, token, prop, value.slice(1, -1))
+          continue
+        }
+        if (!Number.isFinite(magnitude)) continue
         const px = sign === '-' ? -magnitude : magnitude
         if (isOnScale(px, prop)) continue
         const nearest = nearestStep(px)
@@ -491,7 +528,8 @@ module.exports = {
           fix:
             canFix && isUnambiguous(px) && Math.abs(nearest) % TAILWIND_STEP_PX === 0
               ? (fixer) => {
-                  const replacement = token.slice(0, token.length - bare.length) + suggestion
+                  const replacement = token.slice(0, token.length - important.length)
+                    + (important.startsWith('!') ? '!' : '') + suggestion + (important.endsWith('!') ? '!' : '')
                   return fixer.replaceTextRange([tokenStart, tokenStart + token.length], replacement)
                 }
               : undefined,
@@ -540,12 +578,12 @@ module.exports = {
 
     return {
       Literal(node) {
-        if (typeof node.value === 'string' && /\b[pm][xytrblse]?-(?:\[|px|\d)/.test(node.value)) {
+        if (typeof node.value === 'string' && /\b[pm][xytrblse]?-(?:\[|px|\d)|\[(?:padding|margin)(?:-|:)/.test(node.value)) {
           scanClassString(node, node.value, node.range[0] + 1)
         }
       },
       TemplateElement(node) {
-        if (/\b[pm][xytrblse]?-(?:\[|px|\d)/.test(node.value.raw)) {
+        if (/\b[pm][xytrblse]?-(?:\[|px|\d)|\[(?:padding|margin)(?:-|:)/.test(node.value.raw)) {
           scanClassString(node, node.value.raw, node.range[0] + 1)
         }
       },

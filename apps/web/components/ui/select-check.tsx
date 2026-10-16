@@ -10,7 +10,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
-const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
+const ROW_INDENTS = [SPACING.s16, SPACING.s24, SPACING.s32, SPACING.s48, SPACING.s64, SPACING.s96] as const
 
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {

@@ -78,6 +78,13 @@ describe('Android day card geometry', () => {
         replayTextLayout(tree, Math.min(width, 740) - 32, scale)
         const hostRows = tree.toJSON().children[1].children
         const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+        const title = measured.texts.find((text) => text.label === 'Hoje')!
+        expect(title.left).toBe(24)
+        expect(title.top).toBe(24)
+        const route = measured.controls.find((control) => control.accessibilityLabel === i18n.t('calendar.goToDay'))!
+        expect(route.left).toBe(24)
+        expect(route.right).toBe(Math.min(width, 740) - 32 - 24)
+        expect(StyleSheet.flatten(tree.toJSON().props.style).paddingVertical).toBe(24)
         heights.push(hostRows.map((host: Parameters<typeof measureProfileRow>[0]) => measureProfileRow(host, Math.min(width, 740) - 80, scale).height))
         hostRows.forEach((host: { props: { style: object | ((state: { pressed: boolean }) => object) } }, index: number) => {
           const style = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style

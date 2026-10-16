@@ -74,7 +74,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, tokens }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2 }>) {
-  return <View style={styles.section}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>{children}</View>
+  return <View testID="progress-achievements-section" style={styles.section}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>{children}</View>
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
@@ -115,7 +115,7 @@ function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
   statusText?: string
 }>) {
   return (
-    <View style={styles.windowSection}>
+    <View testID="progress-window-section" style={styles.windowSection}>
       <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.screenReaderTitle} testID="progress-window-status">{statusText}</Text>
       {children}
@@ -375,7 +375,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
     return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} onRegister={onRegisterGoal} tokens={tokens} />
   }
   return (
-    <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
+    <View testID="progress-goals-section" style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <>
         <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"

@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
 const { offScaleCss, checkSpacing } = require('../_spacing-contract.cjs')
 
 describe('padding contract CSS guard', () => {
+  it('keeps the shared scale equal to the granted canvas spacing tokens', () => {
+    const definition = require('../../packages/shared/src/theme/spacing.json')
+    const canvas = readFileSync(new URL('../../design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/spacing.css', import.meta.url), 'utf8')
+    const values = [...canvas.matchAll(/--s-\d+:(\d+)(?:px)?;/g)].map((match) => Number(match[1]))
+    expect(Object.values(definition.scale)).toEqual(values)
+    for (const role of Object.values(definition.roles)) expect(definition.scale).toHaveProperty(role)
+  })
   it.each([
     ['.card { padding: 20px }', ['padding: 20px']],
     ['.row { margin: 0 0.375rem }', ['margin: 0.375rem']],

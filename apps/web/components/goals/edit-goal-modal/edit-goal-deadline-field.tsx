@@ -21,7 +21,7 @@ export function EditGoalDeadlineField({
   const t = useTranslations()
   return (
     <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-16)" }}>
-      <GoalGroupLabel top={0}>
+      <GoalGroupLabel top={SPACING.s0}>
         {t('goals.form.deadline')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})

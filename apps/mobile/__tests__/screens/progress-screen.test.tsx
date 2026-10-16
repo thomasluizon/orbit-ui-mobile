@@ -335,30 +335,25 @@ describe('mobile ProgressContent', () => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 2400, scale: 1, fontScale: 1 })
     mocks.goals.data.allGoals = [createMockGoal()]
     const tree = await renderProgress()
-    const sections = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-sections')[0]!
-    const sectionStyle = StyleSheet.flatten(sections.props.style as ViewStyle)
-    const heading = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.sections.achievements')[0]!
-    let titleSection = heading.parent!
-    while (titleSection.type !== 'View') titleSection = titleSection.parent!
-    const titleStyle = StyleSheet.flatten(titleSection.props.style as ViewStyle)
-    const cardStyle = StyleSheet.flatten(findGoalCard(tree.root, 'Read 12 Books').props.style as ViewStyle)
-    const column = Yoga.Node.create()
-    const first = Yoga.Node.create()
-    const second = Yoga.Node.create()
     try {
-      column.setWidth(Math.min(width, 740))
-      column.setPadding(Yoga.EDGE_HORIZONTAL, Number(sectionStyle.paddingHorizontal))
-      column.setGap(Yoga.GUTTER_ALL, Number(sectionStyle.gap))
-      first.setHeight(80)
-      second.setHeight(80)
-      column.insertChild(first, 0)
-      column.insertChild(second, 1)
-      column.calculateLayout(undefined, undefined)
-      expect(first.getComputedLeft()).toBe(16)
-      expect(second.getComputedTop() - first.getComputedTop() - first.getComputedHeight()).toBe(32)
-      expect(cardStyle.padding).toBe(16)
-      expect(titleStyle.gap).toBe(12)
-    } finally { column.freeRecursive(); dimensions.mockRestore() }
+      const measured = measureProfileRow(tree.toJSON() as HabitRowHost, Math.min(width, 740), 1)
+      const box = (testID: string) => measured.boxes.find((entry) => entry.testID === testID)!
+      const goals = box('progress-goals-section')
+      const window = box('progress-window-section')
+      const achievements = box('progress-achievements-section')
+      expect(goals.left).toBe(16)
+      expect(goals.right).toBe(Math.min(width, 740) - 16)
+      expect(window.top - goals.bottom).toBeCloseTo(32)
+      const xp = box('progress-xp-summary')
+      expect(xp.top - window.bottom).toBeCloseTo(32)
+      expect(achievements.top - xp.bottom).toBeCloseTo(32)
+      const title = measured.texts.find((text) => text.label === 'progressScreen.sections.achievements')!
+      expect(box('empty-state').top - title.bottom).toBeCloseTo(12)
+      const card = box('goal-card-goal-1')
+      const cardTitle = measured.texts.find((text) => text.label === 'Read 12 Books')!
+      expect(cardTitle.left - card.left).toBeCloseTo(16)
+      expect(cardTitle.top - card.top).toBeCloseTo(16)
+    } finally { dimensions.mockRestore() }
   })
   it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })

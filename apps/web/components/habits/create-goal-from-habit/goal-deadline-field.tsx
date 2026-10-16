@@ -21,7 +21,7 @@ export function GoalDeadlineField({
   const t = useTranslations()
   return (
     <>
-      <GoalGroupLabel top={16}>
+      <GoalGroupLabel top={SPACING.s16}>
         {t('goals.form.deadline')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})

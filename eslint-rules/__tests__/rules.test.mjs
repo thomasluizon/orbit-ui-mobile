@@ -461,6 +461,8 @@ ruleTester.run('react19-api', rule('react19-api'), {
 
 ruleTester.run('spacing-scale', rule('spacing-scale'), {
   valid: [
+    '<div style={{ padding: "max(16px, env(safe-area-inset-left))", margin: "16px auto" }} />',
+    '<div className="md:!p-4 px-[max(var(--orbit-space-16),env(safe-area-inset-left))] [padding:var(--orbit-space-24)]" />',
     'const row = { gap: 12 } as const; <div style={row} />',
     'const row = { gap: 12 } satisfies React.CSSProperties; <div style={row!} />',
     'const row = { gap: 12 }; <div style={(row as React.CSSProperties)} />',
@@ -510,11 +512,24 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    { code: 'const row = { padding: `20px` }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { padding: `20px ${safeInset}px` }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: "0.15em 0.4em" }} />', output: null, errors: [{ messageId: 'relativeSpacing' }, { messageId: 'relativeSpacing' }] },
+    { code: '<div className="p-[0.15em]" />', output: null, errors: [{ messageId: 'relativeSpacing' }] },
+    { code: '<div style={{ padding: "15px auto" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const classes = `[margin:20px]`; <div className={classes} />', output: null, errors: [{ messageId: 'offScaleClass' }] },
     { code: 'export function styles() { return { marginVertical: 6 } }', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: '<ScrollView contentContainerStyle={{ padding: wide ? 20 : 16 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const sheet = { padding: "8px 20px 24px" }; consume(sheet)', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: '<div className="p-px" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
     { code: 'const cardClass = "p-5"; <div className={cardClass} />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div style={{ padding: "20px var(--safe-bottom)" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ margin: "20px auto" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: "calc(20px + env(safe-area-inset-bottom))" }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ padding: 20 as const }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div className="p-[20px]!" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div className="[padding:20px]" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
+    { code: '<div className="px-[max(20px,env(safe-area-inset-left))]" />', output: null, errors: [{ messageId: 'offScaleClass' }] },
     { code: 'const row = runtimeFlag && { gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: '<div style={runtimeFlag && { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const { fallback } = { fallback: null }; <div style={fallback ?? { gap: 14 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },

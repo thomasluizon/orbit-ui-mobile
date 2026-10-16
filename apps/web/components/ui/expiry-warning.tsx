@@ -43,8 +43,8 @@ export function ExpiryWarning() {
         style={{
           padding: "var(--orbit-space-8) var(--orbit-space-12)",
           marginTop: 'calc(var(--safe-top) + 0.25rem)',
-          marginLeft: 'max(10px, var(--safe-left))',
-          marginRight: 'max(10px, var(--safe-right))',
+          marginLeft: 'max(var(--orbit-space-12), var(--safe-left))',
+          marginRight: 'max(var(--orbit-space-12), var(--safe-right))',
           gap: 12,
           background: 'color-mix(in srgb, var(--status-overdue) 10%, var(--bg))',
           boxShadow:
