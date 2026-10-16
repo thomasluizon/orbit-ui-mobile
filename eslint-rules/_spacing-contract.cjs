@@ -31,6 +31,19 @@ function offScaleCss(source) {
       }
     }
   }
+  for (const application of clean.matchAll(/@apply\s+([^;{}]+)(?:;|$)/g)) {
+    for (const token of application[1].trim().split(/\s+/)) {
+      const utility = /(?:^|:)!?-?([pm][xytrblse]?)-(\[[^\]]+\]|px|\d+(?:\.\d+)?)(?:!)?$/.exec(token)
+      const arbitrary = /(?:^|:)!?\[((?:padding|margin)(?:-[\w-]+)?):([^\]]+)\]!?$/.exec(token)
+      if (!utility && !arbitrary) continue
+      const property = arbitrary ? arbitrary[1] : utility[1].startsWith('p') ? 'padding' : 'margin'
+      const amount = arbitrary ? arbitrary[2] : utility[2]
+      const value = arbitrary ? amount.replaceAll('_', ' ')
+        : amount.startsWith('[') ? amount.slice(1, -1).replaceAll('_', ' ')
+          : `${amount === 'px' ? 1 : Number(amount) * 4}px`
+      if (offScaleCss(`.utility { ${property}: ${value}; }`).length) findings.push(`@apply: ${token}`)
+    }
+  }
   return findings
 }
 

@@ -42,6 +42,7 @@ screen and Perfil frame at the same widths. The row and card suites use Yoga for
 preserve their enlarged-text cases. These renderer cases do not claim device-rendered text evidence.
 
 The spacing rule covers padding and margins in style factories, branches and class aliases. The
-CSS guard scans every source stylesheet without a violation baseline and checks generated aliases.
+CSS guard scans declarations and `@apply` utilities in every source stylesheet without a
+violation baseline and checks generated aliases.
 Regenerate aliases with `npm run spacing:generate -w @orbit/eslint-rules` and verify them with
 `npm run spacing:check -w @orbit/eslint-rules`.
