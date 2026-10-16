@@ -5,6 +5,10 @@ plugins {
 
 android {
   namespace "org.useorbit.app.update"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
 }
 
 dependencies {

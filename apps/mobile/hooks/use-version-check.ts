@@ -47,10 +47,9 @@ function compareVersionCodes(offered: string, installed: string): -1 | 0 | 1 {
   return offeredCode > installedCode ? 1 : offeredCode < installedCode ? -1 : 0
 }
 
-async function resolveVersionSources(bundleId: string | null): Promise<QueryResult> {
-  if (Platform.OS === 'android') {
+async function resolveVersionSources(bundleId: string | null, inAppUpdates: SpInAppUpdates | null): Promise<QueryResult> {
+  if (inAppUpdates) {
     try {
-      const inAppUpdates = new SpInAppUpdates(false)
       const installedCode = Number(nativeBuildVersion)
       const [result, downloaded] = await Promise.all([
         Number.isSafeInteger(installedCode) && installedCode > 0
@@ -81,6 +80,10 @@ async function resolveVersionSources(bundleId: string | null): Promise<QueryResu
 }
 
 export function useVersionCheck(): VersionNeedsUpdateResponse {
+  const inAppUpdates = useMemo(
+    () => Platform.OS === 'android' ? new SpInAppUpdates(false) : null,
+    [],
+  )
   const currentVersion = getAppVersion()
   const bundleId =
     Platform.OS === 'ios'
@@ -93,7 +96,7 @@ export function useVersionCheck(): VersionNeedsUpdateResponse {
     queryKey: enabled
       ? versionCheckKeys.latest(`${Platform.OS}:${bundleId ?? ''}`)
       : versionCheckKeys.all,
-    queryFn: () => resolveVersionSources(bundleId),
+    queryFn: () => resolveVersionSources(bundleId, inAppUpdates),
     enabled,
     staleTime: SIX_HOURS,
     gcTime: ONE_DAY,

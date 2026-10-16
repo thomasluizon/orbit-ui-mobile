@@ -165,4 +165,66 @@ describe('Play update sheet selection', () => {
     expect(mocks.installUpdate).toHaveBeenCalledOnce()
     expect(mocks.startUpdate).not.toHaveBeenCalled()
   })
+  it('rechecks Play on resume while the version query is still fresh', async () => {
+    await mount()
+    expect(sheetTitles()).toEqual(['versionUpdate.title'])
+    mocks.downloaded = true
+    await TestRenderer.act(() => {
+      for (const listener of mocks.resumeListeners) listener('active')
+    })
+    await flushQueries()
+    expect(sheetTitles()).toEqual(['versionUpdate.readyTitle'])
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+    await unmount()
+    expect(mocks.resumeListeners.size).toBe(0)
+  })
+  it('shows no sheet after completing an update and launching the offered build', async () => {
+    mocks.downloaded = true
+    await mount()
+    await press('versionUpdate.restartCta')
+    await unmount()
+    mocks.installedBuild = '141'
+    mocks.downloaded = false
+    await mount()
+    expect(sheetTitles()).toEqual([])
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+  })
+  it('keeps the Android store snooze for 24 hours across launches', async () => {
+    await mount()
+    await press('versionUpdate.laterCta')
+    const snoozedUntil = Date.now() + 24 * 60 * 60 * 1000
+    expect(mocks.setItem).toHaveBeenCalledWith('orbit:version-update-snoozed-until', String(snoozedUntil))
+    mocks.getItem.mockResolvedValue(String(snoozedUntil))
+    await unmount()
+    await mount()
+    expect(sheetTitles()).toEqual([])
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000) })
+    expect(sheetTitles()).toEqual(['versionUpdate.title'])
+  })
+  it.each([4, 5])('starts an immediate update at priority %s despite a snooze', async (priority) => {
+    mocks.priority = priority
+    mocks.getItem.mockResolvedValue(String(Date.now() + 24 * 60 * 60 * 1000))
+    await mount()
+    expect(sheetTitles()).toEqual([])
+    expect(mocks.startUpdate).toHaveBeenCalledExactlyOnceWith(1)
+  })
+  it('offers a restart for a downloaded high priority update', async () => {
+    mocks.downloaded = true
+    mocks.priority = 5
+    await mount()
+    expect(sheetTitles()).toEqual(['versionUpdate.readyTitle'])
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+  })
+  it('shows no store sheet if Play install status cannot be read', async () => {
+    mocks.readDownloaded.mockRejectedValue(new Error('Play unavailable'))
+    await mount()
+    expect(sheetTitles()).toEqual([])
+  })
+  it.each(['', 'unknown', '1.3.81', '0'])('never uses the version name when the build code is %s', async (build) => {
+    mocks.installedBuild = build
+    await mount()
+    expect(sheetTitles()).toEqual([])
+    expect(mocks.checkNeedsUpdate).not.toHaveBeenCalled()
+  })
+
 })
