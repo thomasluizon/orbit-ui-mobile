@@ -133,7 +133,7 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   return (
     <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
-      <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
+      <div className="flex w-full flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
       <div className="flex flex-wrap gap-4" aria-hidden="true">
@@ -534,7 +534,7 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <div className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
+    <div className="only:col-span-full flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
       <div className="flex items-center gap-3">
         <AchievementMark achievement={achievement} name={name} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">

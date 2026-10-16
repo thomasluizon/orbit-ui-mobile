@@ -22,7 +22,7 @@ function contentClassName(mode: FlowShellMode): string {
   if (mode === 'onboarding') {
     return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 pt-8 lg:max-w-[560px] lg:px-0 lg:pt-0'
   }
-  return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 pt-8 md:justify-center md:px-0'
+  return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col justify-center px-4 pt-8 md:px-0'
 }
 
 function contentFrameClassName(mode: FlowShellMode): string {

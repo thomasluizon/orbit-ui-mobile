@@ -86,7 +86,7 @@ function styleOf(node: ReactTestInstance): ViewStyle {
   return StyleSheet.flatten(node.props.style) ?? {}
 }
 
-describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
+describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (width) => {
   it('starts About at 16 with the gutter outside its wide content cap', async () => {
     const tree = await renderScreen(<AboutScreen />, width)
     try {
@@ -157,7 +157,7 @@ describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
         const root = firstView(scroll)
         const content = root.findAll((node) => node.type === View)[1]!
         const [box, body] = layout(width, [styleOf(root), styleOf(content)])
-        const frameWidth = width < 1024 ? width : (pitch ? 652 : 560) + 32
+        const frameWidth = width < 1024 ? width : (pitch ? 620 : 560) + 32
         expect.soft(body!.left).toBe(16)
         expect.soft(box!.left).toBe(0)
         expect.soft(box!.width).toBe(frameWidth)

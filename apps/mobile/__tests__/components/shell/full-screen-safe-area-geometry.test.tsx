@@ -86,7 +86,7 @@ const tokens = createTokensV2()
 const noop = () => {}
 const legalProps = { title: 'Legal document', headerTitle: 'Legal', lastUpdated: 'Version', sections: [], closingNote: { id: 'closing', title: 'Closing', paragraphs: [] }, backLabel: 'Back', onBack: noop }
 
-const surfaces: { name: string; content: () => ReactElement; modal?: boolean; aligned?: boolean; standalone?: boolean; headerOffset?: number }[] = [
+const surfaces: { name: string; content: () => ReactElement; modal?: boolean; aligned?: boolean; standalone?: boolean }[] = [
   { name: 'FlowShell for habit detail and step-up', content: () => <FlowShell nav={false} header={<Text accessibilityRole="header">Flow</Text>}><View /></FlowShell>, aligned: true },
   { name: 'Avisos inbox', content: () => <NotificationInbox /> },
   { name: 'legal layout', content: () => <LegalDocumentLayout {...legalProps} /> },
@@ -100,7 +100,7 @@ const surfaces: { name: string; content: () => ReactElement; modal?: boolean; al
   { name: 'onboarding final modal', content: () => <OnboardingFlow finalStepOnly />, modal: true },
   { name: 'throttle modal', content: () => { useThrottleStore.setState({ error: new Error('throttled') }); return <ThrottleScreen /> }, modal: true },
   { name: 'update-required modal', content: () => { useVersionGateStore.getState().markUpgradeRequired('2.0.0'); return <UpgradeRequiredScreen /> }, modal: true },
-  { name: 'root error screen', content: () => <AppErrorScreen error={new Error('failed')} retry={noop} standalone />, standalone: true, headerOffset: 64 },
+  { name: 'root error screen', content: () => <AppErrorScreen error={new Error('failed')} retry={noop} standalone />, standalone: true },
 ]
 
 afterEach(() => { useThrottleStore.getState().clear(); useVersionGateStore.setState({ upgradeRequired: false, minVersion: null }); useOnboardingDraftStore.getState().reset() })
@@ -125,7 +125,6 @@ it.each(surfaces)('keeps $name below the top inset; new full-screen owners must 
       for (const [key, box] of geometry) {
         if (key.startsWith('header-')) expect(box.top, `${surface.name} ${key}`).toBeGreaterThanOrEqual(top)
       }
-      if (surface.headerOffset !== undefined) expect(geometry.get('header-0')!.top).toBe(top + surface.headerOffset)
       const owner = geometry.get('wrapped') ?? geometry.get('login') ?? geometry.get('owner')
       expect(owner, surface.name).toBeDefined()
       expect(owner!.contentTop, surface.name).toBe(surface.name === 'Wrapped player' ? Math.max(8, top) : top)

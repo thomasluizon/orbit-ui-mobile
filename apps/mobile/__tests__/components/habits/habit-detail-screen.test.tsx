@@ -377,7 +377,7 @@ vi.mock('@/components/dates/day-cell', () => ({
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => React.createElement('DayStrip', { testID: 'detail-strip', size, dayCount: days.length }) }))
 vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('MonthGrid', { label }, children),
+  MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => React.createElement('MonthGrid', { label, loadingLabel }, children),
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
@@ -1099,11 +1099,12 @@ describe('HabitDetailScreen', () => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
     })
 
-    expect(tree!.root.findAllByType('Skeleton').map((node: { props: { label: string } }) => node.props.label)).toEqual([
-      'habits.detail.loading',
+    expect(tree!.root.findAllByType('Skeleton').map((node: { props: { label?: string } }) => node.props.label).filter(Boolean)).toEqual([
       'habits.detail.loading',
       'habits.detail.loading',
     ])
+    expect(tree!.root.findByType('MonthGrid').props.loadingLabel).toBe('habits.detail.loading')
+    expect(React.Children.count(tree!.root.findByType('MonthGrid').props.children)).toBe(42)
     expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
       typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
 

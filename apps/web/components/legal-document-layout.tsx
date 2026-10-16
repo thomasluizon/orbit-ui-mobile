@@ -26,7 +26,7 @@ function Section({ section }: Readonly<{ section: LegalDocumentSection }>) {
       </h2>
       <div className="flex min-w-0 flex-col gap-2">
         {section.paragraphs.map((paragraph) => (
-          <p key={paragraph} className="min-w-0 text-pretty font-sans text-base leading-[1.6] text-[var(--fg-2)] [overflow-wrap:anywhere]">
+          <p key={paragraph} className="min-w-0 max-w-[62ch] text-pretty font-sans text-base leading-[1.6] text-[var(--fg-2)] [overflow-wrap:anywhere]">
             {paragraph}
           </p>
         ))}
@@ -37,10 +37,10 @@ function Section({ section }: Readonly<{ section: LegalDocumentSection }>) {
 
 export function LegalDocumentLayout({ title, headerTitle, lastUpdated, sections, closingNote, backLabel, onBack }: LegalDocumentLayoutProps) {
   return (
-    <div data-legal-document="" data-measure="62ch" data-reflow="wrap" className="mx-auto flex min-w-0 max-w-[620px] flex-col">
+    <div data-legal-document="" data-measure="62ch" data-reflow="wrap" className="mx-auto flex min-w-0 max-w-[740px] flex-col">
       <PageHeader backLabel={backLabel} onBack={onBack} title={headerTitle} />
       <div data-legal-document-content="" className="min-h-0 min-w-0 flex-1 px-4 pb-6">
-        <div className="flex min-w-0 max-w-[62ch] flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <header className="flex min-w-0 flex-col gap-2 pt-4">
             <p className="text-pretty font-display text-[length:var(--fs-xl)] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)] sm:text-[length:var(--fs-2xl)] sm:leading-[1.15]">
               {title}
@@ -53,7 +53,7 @@ export function LegalDocumentLayout({ title, headerTitle, lastUpdated, sections,
           <section data-legal-document-closing="" className="flex min-w-0 flex-col gap-2">
             <h2 className="font-sans text-[length:var(--fs-md)] font-medium leading-[1.4] text-[var(--fg-1)]">{closingNote.title}</h2>
             {closingNote.paragraphs.map((paragraph) => (
-              <p key={paragraph} className="min-w-0 font-sans text-base leading-[1.55] text-[var(--fg-1)] [overflow-wrap:anywhere]">
+              <p key={paragraph} className="min-w-0 max-w-[62ch] font-sans text-base leading-[1.55] text-[var(--fg-1)] [overflow-wrap:anywhere]">
                 {paragraph}
               </p>
             ))}

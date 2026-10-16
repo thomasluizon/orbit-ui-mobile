@@ -1,4 +1,4 @@
-import { StyleSheet, type AppStateStatus } from 'react-native'
+import { StyleSheet, View, type AppStateStatus } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
@@ -111,6 +111,11 @@ vi.mock('react-native', async (importOriginal) => {
     Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) },
   }
 })
+
+vi.mock('react-native-safe-area-context', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-native-safe-area-context')>(),
+  SafeAreaView: (props: React.ComponentProps<typeof View>) => <View {...props} />,
+}))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
@@ -266,6 +271,37 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
 
 
 describe('UpgradeScreen', () => {
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+    'uses the drawn $plan body width at $width', async ({ width, plan }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      mocks.renderComposition = true
+      mocks.hasProAccess = plan !== 'free'
+      mocks.profile = createMockProfile({ hasProAccess: mocks.hasProAccess, isTrialActive: false, subscriptionSource: plan === 'play' ? 'play' : 'stripe' })
+      const tree = await renderScreen()
+      try {
+        const rendered = tree.toJSON()
+        const host: Parameters<typeof measureProfileRow>[0] = {
+          type: 'View', props: {}, children: Array.isArray(rendered) ? rendered : [rendered],
+        }
+        let count = 0
+        function markCards(element: typeof host) {
+          const declared = element.props.style
+          const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+          if (style.borderRadius === 20 || (style.gap === 16 && style.paddingVertical === 16) || style.gap === 24) element.props.testID = `content-card-${count++}`
+          for (const child of element.children ?? []) if (typeof child !== 'string') markCards(child)
+        }
+        markCards(host)
+        const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
+        expect(cards.length).toBeGreaterThan(0)
+        const cap = plan === 'free' ? 620 : 560
+        for (const card of [cards[0]!, cards.at(-1)!]) {
+          expect(card.left).toBe((width - Math.min(width, 740)) / 2 + 16)
+          expect(card.width).toBe(width < 1024 ? Math.min(width, 740) - 32 : cap)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
   const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
     .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
       ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
@@ -284,7 +320,7 @@ describe('UpgradeScreen', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each([600, 840, 1352].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
     'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
@@ -293,9 +329,9 @@ describe('UpgradeScreen', () => {
       const tree = await renderScreen()
       try {
         const rendered = tree.toJSON()
-        const host: Parameters<typeof measureProfileRow>[0] = Array.isArray(rendered)
-          ? { type: 'View', props: {}, children: rendered }
-          : rendered
+        const host: Parameters<typeof measureProfileRow>[0] = {
+          type: 'View', props: {}, children: Array.isArray(rendered) ? rendered : [rendered],
+        }
         function markFrame(element: typeof host) {
           const declared = element.props.style
           const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
@@ -305,9 +341,9 @@ describe('UpgradeScreen', () => {
         markFrame(host)
         const frame = measureProfileRow(host, width, 1).boxes.find((box) => box.testID === 'subscription-content-frame')!
         expect(frame).toBeDefined()
-        const cap = plan === 'free' ? 652 : 560
-        expect(frame.left).toBe(0)
-        expect(frame.width).toBe(width < 1024 ? width : cap + 32)
+        const cap = plan === 'free' ? 620 : 560
+        expect(frame.left).toBe((width - Math.min(width, 740)) / 2)
+        expect(frame.width).toBe(width < 1024 ? Math.min(width, 740) : cap + 32)
       } finally { TestRenderer.act(() => tree.unmount()) }
     },
   )

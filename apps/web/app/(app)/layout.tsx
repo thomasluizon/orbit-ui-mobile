@@ -370,7 +370,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           </>
         )}
       >
-        <RouteTransitionShell className="has-[[data-page-viewport]]:h-full">
+        <RouteTransitionShell className="flex flex-1 flex-col has-[[data-page-viewport]]:h-full">
           {children}
         </RouteTransitionShell>
       </DestinationShell>

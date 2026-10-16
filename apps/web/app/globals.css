@@ -2064,16 +2064,24 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .error-surface {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: flex-start;
   gap: 16px;
-  max-width: 560px;
-  padding: 64px 16px 32px;
+  width: 100%;
+  max-width: 740px;
+  min-height: 100%;
+  margin-inline: auto;
+  justify-content: center;
+  padding: 32px 16px;
   color: var(--fg-1);
   overflow-wrap: normal;
 }
 .error-surface--in-shell {
+  flex: initial;
   max-width: none;
+  min-height: auto;
+  justify-content: flex-start;
   padding: 64px 16px 0;
 }
 .error-surface--in-shell .error-surface-title {
@@ -2093,6 +2101,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .error-surface-body {
   font-size: 16px;
   line-height: 1.55;
+  max-width: 65ch;
   color: var(--fg-2);
   overflow-wrap: anywhere;
   text-wrap: pretty;
@@ -2315,7 +2324,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .orbit-content-frame[data-content-cap="pitch"] {
-    --orbit-content-cap: 652px;
+    --orbit-content-cap: 620px;
   }
 }
 

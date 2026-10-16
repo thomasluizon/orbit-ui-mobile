@@ -39,7 +39,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
   for (const subscriptionState of ['free', 'lapsed', 'stripe'] as const) {
     test.describe(`${subscriptionState} sub-screen edges in ${locale}`, () => {
       test.use({ appLocale: locale, subscriptionState })
-      for (const width of [412, 840, 1100, 1352]) {
+      for (const width of [412, 840, 1100, 1200, 1352, 1600]) {
         test(`aligns About, Support and upgrade at ${width}px`, async ({ page }) => {
           const words = locale === 'en' ? en : ptBR
           await page.setViewportSize({ width, height: 915 })
@@ -72,7 +72,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(body).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
           await assertStartEdge(body, back)
-          await assertContentWidth(body, back, width, subscriptionState === 'free' ? 652 : 560)
+          await assertContentWidth(body, back, width, subscriptionState === 'free' ? 620 : 560)
         })
       }
     })

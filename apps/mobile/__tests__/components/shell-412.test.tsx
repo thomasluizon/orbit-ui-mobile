@@ -65,7 +65,7 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
-  it.each([412, 840])('centres every shell surface in a capped column at %ipx', async (width) => {
+  it.each([412, 840, 1200, 1600])('centres every shell surface in a capped column at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

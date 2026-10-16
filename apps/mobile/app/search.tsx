@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
@@ -79,7 +80,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, columnInset: { paddingHorizontal: 16 }, field: { paddingVertical: 16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
+  screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, columnInset: { alignSelf: 'flex-start', width: '100%', maxWidth: 620, paddingHorizontal: 16 }, field: { paddingVertical: 16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
   list: { paddingTop: 16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 4 },
   heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: 12 },
   chip: { padding: 8, borderRadius: radius.sm, borderWidth: 1, fontFamily: 'Geist_500Medium', fontSize: 12 }, pagination: { flexDirection: 'row', gap: 12 },

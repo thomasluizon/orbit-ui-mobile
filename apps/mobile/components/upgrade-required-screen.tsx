@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useEffect, useId, useState } from 'react'
 import { Linking, Modal, ScrollView, Text, View } from 'react-native'
 import Constants from 'expo-constants'
@@ -44,14 +45,14 @@ export function UpgradeRequiredScreen() {
   return (
     <Modal visible animationType="none" onRequestClose={() => {}}>
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 24, padding: 32 }}>
+        <ScrollView contentContainerStyle={{ alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, flexGrow: 1, justifyContent: 'center', gap: 24, padding: 32 }}>
           <OrbitMark size={40} />
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('forceUpdate.title')}</Text>
           <Text style={[styles.body, { color: tokens.fg2 }]}>
             {currentVersion && minVersion ? t('forceUpdate.versions', { currentVersion, minVersion }) : t('forceUpdate.description')}
           </Text>
           {failed ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('forceUpdate.storeFailure')}</Text> : null}
-          <View><PillButton loading={busy} onClick={() => { void openStore() }}>{t('forceUpdate.cta')}</PillButton></View>
+          <View style={{ alignItems: 'flex-start' }}><PillButton loading={busy} onClick={() => { void openStore() }}>{t('forceUpdate.cta')}</PillButton></View>
         </ScrollView>
       </SafeAreaView>
     </Modal>

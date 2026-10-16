@@ -509,7 +509,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={achievements.filter((item) => item.category === category).length === 1 ? '100%' : tileWidth} />)}</View></View>)}
       </Section>
     </>
   )
@@ -623,11 +623,11 @@ export function ProgressContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32 }, sections: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%' },
   loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
-  error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
+  error: { width: '100%' }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
-  streakSection: { width: '100%', maxWidth: 560, gap: 16 },
+  streakSection: { width: '100%', gap: 16 },
   hidden: { opacity: 0 },
   streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
-  windowGrid: { gap: 16 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
+  windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
@@ -651,5 +651,5 @@ const styles = StyleSheet.create({
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
-  xpSummary: { gap: 12, maxWidth: 560, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
+  xpSummary: { gap: 12, width: '100%' }, xpRow: { alignItems: 'baseline', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, progressTitle: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 22 },
 })
