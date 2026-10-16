@@ -3,9 +3,12 @@ package org.useorbit.app.widget
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
+import android.widget.RemoteViews
 import android.widget.TextView
 import kotlin.math.floor
 import androidx.test.core.app.ApplicationProvider
@@ -24,11 +27,24 @@ import org.junit.runner.RunWith
 class OrbitWidgetResponsiveRemoteViewsTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val appWidgetHost = AppWidgetHost(context, HOST_ID)
+    private val widgetService = ComponentName(context, OrbitWidgetService::class.java)
+    private var previousServiceState: Int? = null
     private lateinit var hostView: AppWidgetHostView
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     @Before
     fun setUp() {
+        // Header-only tests must not let the list factory fetch or replace fixture ownership (#1392).
+        previousServiceState = context.packageManager.getComponentEnabledSetting(widgetService)
+        context.packageManager.setComponentEnabledSetting(
+            widgetService,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        )
+        assertEquals(
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            context.packageManager.getComponentEnabledSetting(widgetService)
+        )
         val appWidgetManager = AppWidgetManager.getInstance(context)
         // The instrumentation APK declares this provider too, and it is the one to bind. Binding the
         // installed app's provider makes the host inflate app-package resources while the test builds
@@ -52,8 +68,16 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         appWidgetHost.startListening()
         hostView = appWidgetHost.createView(context, appWidgetId, providerInfo)
 
-        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        assertTrue(
+            OrbitWidgetModule.getEncryptedPrefs(context).edit()
+                .putString(AUTH_TOKEN_KEY, SIGNED_IN_TOKEN)
+                .commit()
+        )
+        assertEquals(SIGNED_IN_TOKEN, OrbitWidgetModule.getToken(context))
+        val session = OrbitWidgetModule.sessionKey(SIGNED_IN_TOKEN)
+        val cacheEditor = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             .edit()
+            .clear()
             .putString("header_label", "Today")
             .putInt("habit_count", 7)
             .putInt("completed_count", 3)
@@ -62,19 +86,39 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             .putLong("habits_updated_at", 1L)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
-            .commit()
+        for (heightDp in setOf(
+            OrbitWidgetProvider.FOUR_BY_ONE_HEIGHT_DP,
+            OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP,
+            OrbitWidgetProvider.FOUR_BY_THREE_HEIGHT_DP,
+            OrbitWidgetProvider.TWO_BY_TWO_HEIGHT_DP
+        )) {
+            cacheEditor.putString(OrbitWidgetProvider.renderSessionKey(appWidgetId, heightDp), session)
+        }
+        assertTrue(cacheEditor.commit())
     }
 
     @After
     fun tearDown() {
-        InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
-        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
-        appWidgetHost.stopListening()
-        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            appWidgetHost.deleteAppWidgetId(appWidgetId)
+        try {
+            InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
+            OrbitWidgetModule.getEncryptedPrefs(context).edit()
+                .remove(AUTH_TOKEN_KEY)
+                .commit()
+            context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+            appWidgetHost.stopListening()
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                appWidgetHost.deleteAppWidgetId(appWidgetId)
+            }
+        } finally {
+            previousServiceState?.let { state ->
+                context.packageManager.setComponentEnabledSetting(
+                    widgetService, state, PackageManager.DONT_KILL_APP
+                )
+                assertEquals(state, context.packageManager.getComponentEnabledSetting(widgetService))
+            }
         }
     }
 
@@ -105,6 +149,48 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         assertHeaderAtContentSize(views, (breakpointPx + 1) / density, DEFAULT_HEIGHT_DP, View.VISIBLE)
     }
 
+    @Test
+    fun signedOutReapplicationReplacesThePreviousProgressDescription() {
+        val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        for (language in listOf("en", "pt-BR")) {
+            preferences.edit().putString("lang", language).commit()
+            val signInInstruction = OrbitWidgetFactory.tr(context, language, WidgetString.SIGN_IN)
+            for (fallback in listOf(false, true)) {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    val density = context.resources.displayMetrics.density
+                    val widthPx = (WIDE_WIDTH_DP * density).toInt()
+                    val heightPx = (DEFAULT_HEIGHT_DP * density).toInt()
+                    val signedIn = OrbitWidgetProvider.buildWidgetRemoteViews(
+                        context, appWidgetId, widthPx, heightPx, signedOut = false
+                    )
+                    val viewTree = signedIn.apply(context, hostView)
+                    val subtitle = viewTree.findViewById<TextView>(R.id.widget_subtitle)
+                    val progressDescription = "3 ${OrbitWidgetFactory.tr(context, language, WidgetString.OF)} " +
+                        "7 ${OrbitWidgetFactory.tr(context, language, WidgetString.COMPLETED)}"
+                    assertEquals(progressDescription, subtitle.contentDescription.toString())
+
+                    val signedOut = if (fallback) {
+                        RemoteViews(context.packageName, R.layout.widget_layout).also {
+                            OrbitWidgetProvider.applySignedOutCard(context, it)
+                        }
+                    } else {
+                        OrbitWidgetProvider.buildWidgetRemoteViews(
+                            context, appWidgetId, widthPx, heightPx, signedOut = true
+                        )
+                    }
+                    signedOut.reapply(context, viewTree)
+
+                    assertTrue(subtitle === viewTree.findViewById<TextView>(R.id.widget_subtitle))
+                    assertEquals(signInInstruction, subtitle.text.toString())
+                    assertEquals(signInInstruction, subtitle.contentDescription.toString())
+                    val freshSubtitle = signedOut.apply(context, hostView)
+                        .findViewById<TextView>(R.id.widget_subtitle)
+                    assertEquals(signInInstruction, freshSubtitle.contentDescription.toString())
+                }
+            }
+        }
+    }
+
     private fun assertHeaderAtContentSize(
         views: android.widget.RemoteViews,
         widthDp: Float,
@@ -133,7 +219,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                 hostView.findViewById<View>(R.id.widget_streak_unit).visibility
             )
             assertEquals("Today", text(R.id.widget_header))
-            assertEquals("3 of 7 completed", text(R.id.widget_subtitle))
+            assertEquals("3/7", text(R.id.widget_subtitle))
+            assertEquals("3 of 7 completed", contentDescription(R.id.widget_subtitle))
             assertEquals("12", text(R.id.widget_streak))
             assertEquals("Refresh", contentDescription(R.id.widget_refresh))
             assertEquals("Refreshing", contentDescription(R.id.widget_refresh_loading))
@@ -160,6 +247,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     companion object {
+        private const val AUTH_TOKEN_KEY = "auth_token"
+        private const val SIGNED_IN_TOKEN = "widget-instrumentation-session"
         private const val HOST_ID = 490
         private const val COMPACT_WIDTH_DP = 160f
         private const val EXPANDED_WIDTH_DP = 250f
