@@ -142,3 +142,23 @@ it('mounts an empty daily announcement before publishing the final streak', () =
   TestRenderer.act(() => tree!.unmount())
   vi.useRealTimers()
 })
+
+
+it('animates one daily change and leaves the next queued fact available after timeout', () => {
+  vi.useFakeTimers()
+  motion.reduced = false
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+  expect(tree!.root.findByProps({ testID: 'daily-streak-moment' }).props['data-motion']).toBe('animated')
+  expect(tree!.root.findByProps({ testID: 'daily-streak-previous' }).props.children).toBe(4)
+  TestRenderer.act(() => vi.advanceTimersByTime(2500))
+  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  TestRenderer.act(() => vi.advanceTimersByTime(5000))
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  TestRenderer.act(() => tree!.unmount())
+  vi.useRealTimers()
+})

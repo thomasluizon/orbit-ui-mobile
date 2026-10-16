@@ -263,7 +263,7 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: {
     getState: () => mocks.useRealUIStore ? actual.useUIStore.getState() : ({
       activeFilters: {},
-      showDailyStreakMoment: actual.useUIStore.getState().showDailyStreakMoment,
+      showStreakMoment: actual.useUIStore.getState().showStreakMoment,
       checkAllDoneCelebration: mocks.checkAllDoneCelebration,
       setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
@@ -3183,4 +3183,25 @@ it('keeps a bulk completion confirmed across midnight out of the next day receip
     mocks.useRealUIStore = false
     vi.useRealTimers()
   }
+})
+
+
+it.each([5, 7])('shows the streak extension to %i after an earlier slip', async (streak) => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit({ id: 'avoid', isBadHabit: true }), makeHabit({ id: 'build' })])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+  const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+  const slip = { habitId: 'avoid', intent: 'log' as const }
+  const slipContext = await mutation.onMutate?.(slip)
+  mutation.onSuccess?.({ logId: 'slip-log', isFirstCompletionToday: false, currentStreak: streak - 1 }, slip, slipContext)
+  expect(store.getState().activeCelebration).toBeNull()
+  const completion = { habitId: 'build', intent: 'log' as const }
+  const completionContext = await mutation.onMutate?.(completion)
+  mutation.onSuccess?.({ logId: 'positive-log', isFirstCompletionToday: false, currentStreak: streak }, completion, completionContext)
+  expect(store.getState().activeCelebration).toMatchObject({ kind: streak === 7 ? 'streak' : 'daily-streak', payload: { streak } })
+  expect(store.getState().queuedCelebrations).toEqual([])
+  mocks.useRealUIStore = false
 })

@@ -91,7 +91,7 @@ export interface UIStoreState {
   hasCelebrationInFlight: () => boolean;
 
   dailyStreakMomentDate: string;
-  showDailyStreakMoment: (
+  showStreakMoment: (
     streak: number,
     previousStreak: number | undefined,
     log: { date?: string; intent: "log" | "unlog"; countsTowardStreak: boolean },
@@ -214,15 +214,16 @@ export function createUIStoreState(
     setActiveView: (view) => set({ activeView: view }),
 
     dailyStreakMomentDate: "",
-    showDailyStreakMoment: (streak, previousStreak, log) => {
+    showStreakMoment: (streak, previousStreak, log) => {
       const today = formatAPIDate(new Date());
       if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
       if (previousStreak === undefined || streak !== previousStreak + 1) return;
       set((state) => {
         if (state.dailyStreakMomentDate === today) return {};
-        const moment = isStreakCelebrationMilestone(streak) ? {} : enqueueCelebrationItem(
+        const kind = isStreakCelebrationMilestone(streak) ? "streak" : "daily-streak";
+        const moment = enqueueCelebrationItem(
           state,
-          createCelebrationItem("daily-streak", { streak }, nextCelebrationSequence()),
+          createCelebrationItem(kind, { streak }, nextCelebrationSequence()),
         );
         return { ...moment, dailyStreakMomentDate: today };
       });

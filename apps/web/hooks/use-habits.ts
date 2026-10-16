@@ -165,7 +165,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const { showError } = useAppToast()
-  const { setStreakCelebration, showDailyStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
+  const { setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: ({
@@ -262,6 +262,11 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
+      showStreakMoment(
+        response.currentStreak,
+        context?.previousStreak,
+        { ...variables, date: context?.occurrenceDate ?? variables.date, countsTowardStreak },
+      )
       const startsStreak = countsTowardStreak
         && response.isFirstCompletionToday
         && response.currentStreak > 0
@@ -269,11 +274,6 @@ export function useLogHabit() {
         setStreakCelebration({ streak: response.currentStreak })
       }
       if (startsStreak) {
-        showDailyStreakMoment(
-          response.currentStreak,
-          context?.previousStreak,
-          { ...variables, date: context?.occurrenceDate ?? variables.date, countsTowardStreak },
-        )
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
@@ -811,7 +811,7 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
-  const { checkAllDoneCelebration, showDailyStreakMoment, setStreakCelebration } = useUIStore.getState()
+  const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: async (items: BulkLogItemRequest[], intendedAccountId): Promise<BulkLogResult> => {
@@ -893,8 +893,7 @@ export function useBulkLogHabits() {
         if (!context.account.stillCurrent() || !countsTowardStreak || today !== formatAPIDate(new Date())) return
         const streak = queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak
         if (streak === undefined || context.previousStreak === undefined || streak !== context.previousStreak + 1) return
-        if (isStreakCelebrationMilestone(streak)) setStreakCelebration({ streak })
-        showDailyStreakMoment(streak, context.previousStreak, { date: today, intent: 'log', countsTowardStreak })
+        showStreakMoment(streak, context.previousStreak, { date: today, intent: 'log', countsTowardStreak })
       })
     },
 

@@ -55,6 +55,8 @@ describe('daily streak rendering in Chromium', () => {
             const current = previous.nextElementSibling!
             const label = panel.querySelector('p')!
             const button = panel.querySelector('button')!
+            const numberRange = document.createRange()
+            numberRange.selectNodeContents(current)
             const labelRange = document.createRange()
             labelRange.selectNodeContents(label)
             return {
@@ -62,6 +64,7 @@ describe('daily streak rendering in Chromium', () => {
               currentOpacity: getComputedStyle(current).opacity,
               currentText: current.textContent,
               ringOffset: getComputedStyle(panel.querySelector('circle:last-of-type')!).strokeDashoffset,
+              numberFits: numberRange.getBoundingClientRect().width <= current.getBoundingClientRect().width + 1,
               labelWidth: label.getBoundingClientRect().width,
               rangeWidth: labelRange.getBoundingClientRect().width,
               labelFits: labelRange.getBoundingClientRect().width <= label.getBoundingClientRect().width + 1,
@@ -70,7 +73,7 @@ describe('daily streak rendering in Chromium', () => {
             }
           })
           expect(final.labelFits, JSON.stringify({ mode, width, final })).toBe(true)
-          expect(final).toMatchObject({ previousOpacity: '0', currentOpacity: '1', currentText: '1000', ringOffset: '0px', labelFits: true, withinViewport: true })
+          expect(final).toMatchObject({ previousOpacity: '0', currentOpacity: '1', currentText: '1000', ringOffset: '0px', numberFits: true, labelFits: true, withinViewport: true })
           expect(final.closeSize.every((size) => size >= 48)).toBe(true)
           await page.emulateMedia({ reducedMotion: 'reduce' })
           const movement = await page.locator('.daily-streak-number').evaluate((number) => getComputedStyle(number).animationName)
