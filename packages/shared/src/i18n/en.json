@@ -1206,6 +1206,7 @@
     }
   },
   "chat": {
+    "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
     "offline": {
       "title": "You’re offline"
