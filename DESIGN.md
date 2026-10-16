@@ -1335,7 +1335,7 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 - **Render the live region empty and stable before updating its text.** A region inserted together with its content is announced inconsistently.
 - **Default to polite.** Overusing `assertive` interrupts whatever the reader was on.
-- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus.
+- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus. The daily streak moment has its own 2500ms dwell.
 - **Anything moving, blinking or updating automatically for more than 5 seconds needs a visible pause control.**
 - **Under reduced motion**, replace slides, scales and parallax with opacity cross-fades, kill autoplay, and start carousels paused. Keep spinners, progress, instant state changes and brief press feedback. Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in; where a global kill switch is the only option, use `0.01ms` rather than `none` so `transitionend` still fires.
 - **The `.sr-only` pattern uses 1px boxes, not zero**, with `clip-path: inset(50%)` and `white-space: nowrap`. Never `display: none`.

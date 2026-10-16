@@ -265,20 +265,20 @@ describe('daily streak moment lifetime', () => {
     vi.setSystemTime(new Date(2026, 5, 15, 12));
     const store = createStoreHarness();
     const log = { intent: 'log' as const, countsTowardStreak: true };
-    store.getState().showDailyStreakMoment({ currentStreak: 5, isFirstCompletionToday: true }, 4, log);
+    store.getState().showDailyStreakMoment(5, 4, log);
     expect(store.getState().activeCelebration?.kind).toBe('daily-streak');
     const restored = createStoreHarness();
     restored.setState(migratePersistedUIState(getPersistedUIState(store.getState())));
-    restored.getState().showDailyStreakMoment({ currentStreak: 5, isFirstCompletionToday: true }, 4, log);
+    restored.getState().showDailyStreakMoment(5, 4, log);
     expect(restored.getState().activeCelebration).toBeNull();
     vi.setSystemTime(new Date(2026, 5, 16, 12));
-    restored.getState().showDailyStreakMoment({ currentStreak: 6, isFirstCompletionToday: true }, 5, log);
+    restored.getState().showDailyStreakMoment(6, 5, log);
     expect(restored.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } });
   });
 
   it('does not invent a previous streak when the profile has not loaded', () => {
     const store = createStoreHarness();
-    store.getState().showDailyStreakMoment({ currentStreak: 5, isFirstCompletionToday: true }, undefined, { intent: 'log', countsTowardStreak: true });
+    store.getState().showDailyStreakMoment(5, undefined, { intent: 'log', countsTowardStreak: true });
     expect(store.getState().activeCelebration).toBeNull();
   });
 });

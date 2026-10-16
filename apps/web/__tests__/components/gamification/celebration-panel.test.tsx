@@ -118,3 +118,21 @@ describe('daily streak presentation', () => {
     expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
   })
 })
+
+
+it('keeps the daily moment while its close button has focus', async () => {
+  vi.useFakeTimers()
+  motion.reduced = true
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  const { container, unmount } = render(<CelebrationPanel />)
+  const close = screen.getByRole('button', { name: 'celebration.close:{}' })
+  act(() => close.focus())
+  await act(() => vi.advanceTimersByTime(5000))
+  expect(container.querySelector('[data-daily-streak-moment]')).not.toBeNull()
+  act(() => close.blur())
+  await act(() => vi.advanceTimersByTime(2500))
+  expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
+  unmount()
+  vi.useRealTimers()
+})

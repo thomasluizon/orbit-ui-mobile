@@ -3111,15 +3111,76 @@ describe('daily streak moment after confirmed logging', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
     const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
-    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 }, { habitId: 'habit-1', intent: 'log' }, undefined)
+    const firstLog = { habitId: 'habit-1', intent: 'log' as const }
+    const firstContext = await mutation.onMutate?.(firstLog)
+    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 }, firstLog, firstContext)
     expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
     store.getState().completeActiveCelebration()
     if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
     seedHabitState([makeHabit({ id: 'habit-1', isBadHabit: scenario.bad ?? false })])
-    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
-    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak }, { habitId: 'habit-1', date: scenario.date, intent: scenario.intent ?? 'log' }, undefined)
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
+    const nextLog = { habitId: 'habit-1', date: scenario.date, intent: scenario.intent ?? 'log' as const }
+    const nextContext = await mutation.onMutate?.(nextLog)
+    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak }, nextLog, nextContext)
     expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
     expect(store.getState().queuedCelebrations).toEqual([])
     mocks.useRealUIStore = false
   })
+})
+
+
+describe('daily streak moment after bulk logging', () => {
+  it('uses the refreshed profile after a confirmed bulk completion', async () => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const invalidate = mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+      return Promise.resolve()
+    })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const items = [{ habitId: 'habit-1' }]
+    const context = await mutation.onMutate?.(items)
+    await Promise.resolve(mutation.onSuccess?.({ results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }, items, context))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    invalidate.mockImplementation(async () => {})
+    mocks.useRealUIStore = false
+  })
+})
+
+
+it('keeps a bulk completion confirmed across midnight out of the next day receipt', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit({ id: 'habit-1' })])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  vi.setSystemTime(new Date(2026, 5, 15, 23, 59))
+  let refreshedStreak = 5
+  mocks.queryClient.invalidateQueries.mockImplementation((filters) => {
+    if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: refreshedStreak })
+    return Promise.resolve()
+  })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const items = [{ habitId: 'habit-1' }]
+  const response = { results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }
+  try {
+    const context = await mutation.onMutate?.(items)
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
+    await Promise.resolve(mutation.onSuccess?.(response, items, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+    refreshedStreak = 6
+    const nextContext = await mutation.onMutate?.(items)
+    await Promise.resolve(mutation.onSuccess?.(response, items, nextContext))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
+  } finally {
+    mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
+    mocks.useRealUIStore = false
+    vi.useRealTimers()
+  }
 })

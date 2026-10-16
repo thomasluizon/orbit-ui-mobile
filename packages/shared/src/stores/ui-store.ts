@@ -1,4 +1,4 @@
-import type { HabitsFilter, NormalizedHabit, LogHabitResponse } from "../types/habit";
+import type { HabitsFilter, NormalizedHabit } from "../types/habit";
 import type { ShellDestinationId } from "../utils/shell-destinations";
 import { formatAPIDate } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
@@ -92,7 +92,7 @@ export interface UIStoreState {
 
   dailyStreakMomentDate: string;
   showDailyStreakMoment: (
-    response: Pick<LogHabitResponse, "currentStreak" | "isFirstCompletionToday">,
+    streak: number,
     previousStreak: number | undefined,
     log: { date?: string; intent: "log" | "unlog"; countsTowardStreak: boolean },
   ) => void;
@@ -214,15 +214,15 @@ export function createUIStoreState(
     setActiveView: (view) => set({ activeView: view }),
 
     dailyStreakMomentDate: "",
-    showDailyStreakMoment: (response, previousStreak, log) => {
+    showDailyStreakMoment: (streak, previousStreak, log) => {
       const today = formatAPIDate(new Date());
       if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
-      if (!response.isFirstCompletionToday || previousStreak === undefined || response.currentStreak !== previousStreak + 1) return;
+      if (previousStreak === undefined || streak !== previousStreak + 1) return;
       set((state) => {
         if (state.dailyStreakMomentDate === today) return {};
-        const moment = isStreakCelebrationMilestone(response.currentStreak) ? {} : enqueueCelebrationItem(
+        const moment = isStreakCelebrationMilestone(streak) ? {} : enqueueCelebrationItem(
           state,
-          createCelebrationItem("daily-streak", { streak: response.currentStreak }, nextCelebrationSequence()),
+          createCelebrationItem("daily-streak", { streak }, nextCelebrationSequence()),
         );
         return { ...moment, dailyStreakMomentDate: today };
       });

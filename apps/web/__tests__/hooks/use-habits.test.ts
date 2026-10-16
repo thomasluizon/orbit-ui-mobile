@@ -2471,6 +2471,7 @@ describe('daily streak moment after confirmed logging', () => {
     store.getState().completeActiveCelebration()
     if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
     queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
     vi.mocked(logHabit).mockResolvedValue({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak })
     await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: scenario.intent ?? 'log' }))
     expect(store.getState().activeCelebration).toBeNull()
@@ -2479,4 +2480,60 @@ describe('daily streak moment after confirmed logging', () => {
     unmount()
     queryClient.clear()
   })
+})
+
+
+describe('daily streak moment after bulk logging', () => {
+  it('uses the refreshed profile after a confirmed bulk completion', async () => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    unmount()
+    queryClient.clear()
+  })
+})
+
+
+it('keeps a bulk completion confirmed across midnight out of the next day receipt', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  vi.setSystemTime(new Date(2026, 5, 15, 23, 59))
+  const { bulkLogHabits } = await import('@/lib/actions/habits')
+  const response = { results: [{ index: 0, status: 'Success' as const, habitId: 'h-1', logId: 'confirmed-log', error: null }] }
+  vi.mocked(bulkLogHabits).mockImplementation(async () => {
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
+    return response
+  })
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  let refreshedStreak = 5
+  vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+    if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: refreshedStreak })
+  })
+  const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+  try {
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+    refreshedStreak = 6
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
+  } finally {
+    unmount()
+    queryClient.clear()
+    vi.useRealTimers()
+  }
 })

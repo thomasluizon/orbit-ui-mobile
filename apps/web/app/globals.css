@@ -2367,7 +2367,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 
+.daily-streak-previous { opacity: 0; }
+@keyframes daily-streak-ring {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
 @keyframes daily-streak-previous {
+  from { opacity: 1; }
   to { transform: translateY(-12px); opacity: 0; }
 }
 @keyframes daily-streak-number {
@@ -2375,6 +2381,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   to { transform: translateY(0); opacity: 1; }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .daily-streak-ring { animation: daily-streak-ring var(--dur-3) var(--ease-out) both; }
   .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
   .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
 }
