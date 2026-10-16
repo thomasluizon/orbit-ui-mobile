@@ -38,7 +38,7 @@ async function expectContentEdges(elements: Locator, reference: { left: number; 
 }
 
 for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
-  for (const width of [600, 840, 1352]) {
+  for (const width of [600, 840, 1200, 1352, 1600]) {
     for (const subscriptionState of ['stripe', 'free'] as const) {
       test.describe(`${locale} content caps at ${width}px with ${subscriptionState}`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 }, layoutProfile: { weekStartDay: 1 } })
@@ -79,7 +79,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           const upgrade = page.locator('[data-upgrade-screen]')
           await expect(upgrade).toHaveAttribute('aria-busy', 'false')
           await expect(upgrade.getByRole('heading', { level: 2 }).first()).toBeVisible()
-          await expectContentEdges(upgrade.locator(':scope > div > div > *'), reference, width, subscriptionState === 'free' ? 652 : 560)
+          await expectContentEdges(upgrade.locator(':scope > div > div > *'), reference, width, subscriptionState === 'free' ? 620 : 560)
 
           await page.goto('/about')
           const about = page.getByTestId('about-content')
