@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import {
   canNavigateToNextDay,
   formatAPIDate,
-  formatAPIDateInTimeZone,
+  getAccountDay,
   formatLocaleDate,
   formatLocaleDayMonth,
   millisecondsUntilNextDay,
@@ -21,10 +21,7 @@ function getMillisecondsUntilNextLocalMidnight(): number {
 }
 
 function getTodayDate(timeZone?: string | null): string {
-  const now = new Date()
-  return timeZone === undefined
-    ? formatAPIDate(now)
-    : formatAPIDateInTimeZone(now, timeZone)
+  return getAccountDay(new Date(), timeZone)
 }
 
 export interface TodayDate {

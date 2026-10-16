@@ -1,6 +1,6 @@
 import type { HabitsFilter, NormalizedHabit } from "../types/habit";
 import type { ShellDestinationId } from "../utils/shell-destinations";
-import { formatAPIDate, formatAPIDateInTimeZone } from "../utils/dates";
+import { getAccountDay } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
 import {
@@ -216,7 +216,7 @@ export function createUIStoreState(
 
     dailyStreakMomentDate: "",
     showStreakMoment: (streak, previousStreak, log) => {
-      const today = formatAPIDateInTimeZone(new Date(), log.timeZone);
+      const today = getAccountDay(new Date(), log.timeZone);
       if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
       if (previousStreak === undefined || streak !== previousStreak + 1) return;
       set((state) => {
@@ -291,7 +291,7 @@ export function createUIStoreState(
 
     checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone) => {
       const { allDoneCelebratedDate, enqueueCelebration } = get();
-      const today = timeZone === undefined ? formatAPIDate(new Date()) : formatAPIDateInTimeZone(new Date(), timeZone);
+      const today = getAccountDay(new Date(), timeZone);
 
       if (date !== today) return;
       if (allDoneCelebratedDate === today) return;

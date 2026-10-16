@@ -13,6 +13,7 @@ export {
   parseAPIDate,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAccountDay,
   getAccountDateTime,
   millisecondsUntilNextDay,
   nowDate,
