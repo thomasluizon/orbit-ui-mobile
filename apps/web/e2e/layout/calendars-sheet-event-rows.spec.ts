@@ -16,7 +16,7 @@ const calendars = userCalendarsSchema.parse([
 const events = calendarEventsResponseSchema.parse([
   createMockCalendarSyncEvent({ id: 'plain', title: 'Caminhar', calendarName: '', description: null, startDate: '2026-10-16', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }),
   createMockCalendarSyncEvent({ id: 'selected', title: 'Ler', calendarName: '', description: null, startDate: '2026-10-16', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }),
-  createMockCalendarSyncEvent({ id: 'blocked', title: 'Planejar', calendarName: '', description: null, startDate: '2026-10-16', startTime: null, endTime: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO', reminders: [] }),
+  createMockCalendarSyncEvent({ id: 'blocked', title: 'Planejar', calendarName: '', description: null, endTime: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z', startDate: '2026-01-01', startTime: '00:30', startUtc: '2026-01-01T05:30:00Z', recurrenceTimeZone: null, reminders: [] }),
 ])
 for (const width of [412, 1352]) {
   for (const colorScheme of ['dark', 'light'] as const) {
@@ -49,7 +49,7 @@ for (const width of [412, 1352]) {
         await expect(selected).toHaveAttribute('aria-pressed', 'true')
         await expect(blocked).toBeDisabled()
         await expect(blocked).toHaveAttribute('aria-pressed', 'false')
-        await expect(blocked).toHaveAccessibleDescription(ptBR.calendar.importIssue.ordinalWeekday)
+        await expect(blocked).toHaveAccessibleDescription(ptBR.calendar.importIssue.utcUntilOffsetShift)
         const rows = [plain, selected, blocked].map((button) => button.locator('..'))
         const list = rows[0]!.locator('..')
         for (const surface of [...rows, list]) {
