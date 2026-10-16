@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
+import { useState, useMemo } from 'react'
+import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
@@ -17,8 +17,6 @@ import {
 import { useChatStore } from '@/stores/chat-store'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
-import { PillButton } from '@/components/ui/pill-button'
-import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
@@ -65,13 +63,6 @@ export function MessageBubble({
   const t = useTranslations()
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
-  const [copied, setCopied] = useState(false)
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => () => {
-    if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
-  }, [])
-
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],
@@ -94,13 +85,6 @@ export function MessageBubble({
   const isUser = message.role === 'user'
   const sourceText = stripChatDirectives(message.content, isStreaming)
 
-  async function copySourceText() {
-    await globalThis.navigator.clipboard.writeText(sourceText)
-    setCopied(true)
-    if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
-    copyResetTimer.current = setTimeout(() => setCopied(false), 1600)
-  }
-
   return (
     <div
       className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
@@ -117,13 +101,12 @@ export function MessageBubble({
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
-        {(isUser || hasChatProse(sourceText) || message.imageUrl) && <div className={`flex max-w-full flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
-        <div
+        {(isUser || hasChatProse(sourceText) || message.imageUrl) && <div
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={
             isUser
-              ? 'inline-block max-w-full bg-[var(--bg-well)] text-[var(--fg-1)]'
-              : 'inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'
+              ? 'select-text inline-block max-w-full bg-[var(--bg-well)] text-[var(--fg-1)]'
+              : 'select-text inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'
           }
           style={{
             padding: isUser ? '12px 16px' : 0,
@@ -143,20 +126,6 @@ export function MessageBubble({
             className="thread-prose"
             content={isUser ? message.content : sourceText}
           />
-        </div>
-
-        {!isUser && hasChatProse(sourceText) && (
-          <PillButton
-            variant="ghost"
-            size="sm"
-            onClick={() => void copySourceText()}
-            leadingIcon={copied
-              ? <Check size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />
-              : <Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />}
-          >
-            {copied ? t('chat.copied') : t('chat.copy')}
-          </PillButton>
-        )}
         </div>}
 
         {!isUser && message.habitList && (

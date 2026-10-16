@@ -11,6 +11,7 @@ import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
+import { MessageBubble } from '@/components/chat/message-bubble'
 import { AstraConversation } from '@/components/chat/conversation'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -41,6 +42,35 @@ describe('Astra block layout in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352])('keeps three replies and a sent message natively selectable at %s', async width => {
+    const contents = ['First reply.', 'Second **reply** with a [link](https://example.com).', 'Third reply with `code`.', 'My sent message.']
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      {contents.map((content, index) => <MessageBubble key={content} message={makeHeldHabitMessage({
+        id: String(index), role: index === 3 ? 'user' : 'ai', content, pendingOperations: [],
+      })} />)}
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const bubbles = page.locator('[data-bubble-role]')
+      expect(await bubbles.count()).toBe(4)
+      expect(await page.getByRole('button').count()).toBe(0)
+      for (const bubble of await bubbles.all()) {
+        expect(await bubble.evaluate(element => getComputedStyle(element).userSelect)).toBe('text')
+        const selected = await bubble.evaluate(element => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const selection = window.getSelection()!
+          selection.removeAllRanges()
+          selection.addRange(range)
+          return selection.toString()
+        })
+        expect(selected).toBe(await bubble.innerText())
+        expect(selected.length).toBeGreaterThan(0)
+      }
+    } finally { await page.close() }
+  })
 
   it.each(['finish', 'cancel', 'replace'] as const)('settles a newly completed block-only outcome turn after %s before reading its geometry', async mode => {
     const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
@@ -117,23 +147,23 @@ describe('Astra block layout in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       await page.getByRole('article').last().evaluate(settleAnimations)
-      const geometry = await page.evaluate(copyLabel => {
+      const geometry = await page.evaluate(() => {
         const bounds = (element: Element) => {
           const rect = element.getBoundingClientRect()
           return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }
         }
         const turns = [...document.querySelectorAll('article')]
-        const copy = (turn: Element) => [...turn.querySelectorAll('button')].find(button => button.textContent.trim() === copyLabel)
-        return { previousCopy: bounds(copy(turns[0]!)!), currentCopy: copy(turns[1]!) ? bounds(copy(turns[1]!)!) : null,
+        const prose = (turn: Element) => turn.querySelector('[data-bubble-role="ai"]')
+        return { previousProse: bounds(prose(turns[0]!)!), currentProse: prose(turns[1]!) ? bounds(prose(turns[1]!)!) : null,
           turn: bounds(turns[1]!), blocks: [...turns[1]!.querySelectorAll('section[data-state]')].map(bounds),
           composer: bounds(document.querySelector('[data-composer-input-row]')!),
           chips: bounds(document.querySelector('[data-composer-root] [role="group"]')!),
           prose: [...turns[1]!.querySelectorAll('[data-bubble-role="ai"]')].map(bounds),
         }
-      }, messages.chat.copy)
+      })
       expect(geometry.blocks).toHaveLength(scenario.count)
-      expect.soft(geometry.turn.top - geometry.previousCopy.bottom).toBeCloseTo(16, 1)
-      expect.soft(geometry.blocks[0]!.top - (geometry.currentCopy?.bottom ?? geometry.previousCopy.bottom)).toBeCloseTo(16, 1)
+      expect.soft(geometry.turn.top - geometry.previousProse.bottom).toBeCloseTo(16, 1)
+      expect.soft(geometry.blocks[0]!.top - (geometry.currentProse?.bottom ?? geometry.previousProse.bottom)).toBeCloseTo(16, 1)
       for (const [index, block] of geometry.blocks.entries()) {
         expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
         expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)

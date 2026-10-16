@@ -36,6 +36,7 @@ type NativeHost = {
   props: HostProps
   ancestors: number[]
   focusableInTouchMode: boolean
+  selection?: { start: number; end: number }
 }
 const nativeHosts = new Map<number, NativeHost>()
 const HostAncestors = React.createContext<number[]>([])
@@ -66,6 +67,10 @@ export function __setTouchMode(value: boolean) {
 
 export function __getFocusedNativeTag() {
   return focusedNativeTag
+}
+
+export function __getFocusedInputSelection() {
+  return focusedNativeTag === null ? undefined : nativeHosts.get(focusedNativeTag)?.selection
 }
 
 function emitNativeFocusEvent(nativeTag: number, event: 'onFocus' | 'onBlur') {
@@ -127,6 +132,7 @@ function createHostComponent(name: string) {
       nativeHosts.set(nativeTag, {
         name, props, ancestors,
         focusableInTouchMode: existing?.focusableInTouchMode ?? name === 'TextInput',
+        selection: existing?.selection,
       })
     })
     React.useLayoutEffect(() => () => {
@@ -149,6 +155,10 @@ function createHostComponent(name: string) {
         }
       },
       focus: () => __focusHost(nativeTag),
+      setSelection: (start: number, end: number) => {
+        const host = nativeHosts.get(nativeTag)
+        if (host) host.selection = { start, end }
+      },
       blur: () => {
         if (focusedNativeTag !== nativeTag) return
         emitNativeFocusEvent(nativeTag, 'onBlur')
