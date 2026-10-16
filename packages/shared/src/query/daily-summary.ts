@@ -13,10 +13,20 @@ export interface DailySummaryOptions {
   aiSummaryEnabled: boolean
 }
 
+interface DailySummaryQueryConfiguration {
+  queryKey: ReturnType<typeof habitKeys.summary>
+  queryFn: () => Promise<DailySummaryResponse>
+  enabled: boolean
+  staleTime: number
+  refetchInterval: () => number
+  refetchIntervalInBackground: boolean
+  refetchOnWindowFocus: boolean
+}
+
 export function dailySummaryQueryOptions(
   { date, locale, hasProAccess, aiSummaryEnabled }: DailySummaryOptions,
   fetchSummary: (url: string) => Promise<DailySummaryResponse>,
-) {
+): DailySummaryQueryConfiguration {
   const params = new URLSearchParams({ dateFrom: date, dateTo: date, language: locale })
   return {
     queryKey: habitKeys.summary(date, date, locale, getDailySummaryTimeBucket()),

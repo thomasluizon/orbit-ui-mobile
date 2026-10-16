@@ -22,9 +22,9 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   </SummarySection>
 }
 
-function SummarySection({ children }: Readonly<{ children: React.ReactNode }>) {
+function SummarySection({ children, busy = false }: Readonly<{ children: React.ReactNode; busy?: boolean }>) {
   const t = useTranslations()
-  return <section aria-label={t('summary.title')} className="flex min-w-0 flex-col gap-3 px-4">
+  return <section aria-busy={busy} aria-label={t('summary.title')} className="flex min-w-0 flex-col gap-3 px-4">
     <div className="flex items-center gap-2 text-[var(--fg-3)]">
       <AstraGlyph size={20} color="var(--fg-3)" />
       <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('summary.title')}</h2>
@@ -43,8 +43,11 @@ function DailySummary({ date, language }: Readonly<{ date: string; language: str
   })
   if (!isLoading && !error && !summary) return null
   if (!isLoading && !error && summary) return <SummarySection><SummaryText summary={summary} busy={isFetching} /></SummarySection>
-  return <SummarySection>
-    <p id={messageId} aria-live="polite" className="max-w-[65ch] text-sm leading-[1.55] text-[var(--fg-2)]">{isLoading ? t('summary.loading') : t('summary.error')}</p>
+  return <SummarySection busy={isLoading || isFetching}>
+    <div className="flex max-w-[65ch] flex-col gap-2 text-sm" style={isLoading ? { minHeight: '4.65em' } : undefined}>
+      <p id={messageId} aria-live="polite" className="max-w-[65ch] text-sm leading-[1.55] text-[var(--fg-2)]">{isLoading ? t('summary.loading') : t('summary.error')}</p>
+      {isLoading ? <div aria-hidden="true" className="flex flex-col gap-2"><span className="h-[14px] rounded-[8px] bg-[var(--bg-well)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--bg-well)]" /></div> : null}
+    </div>
     <div className="flex">
       {error && !isLoading ? <PillButton variant="ghost" iconOnly label={t('summary.retry')} descriptionId={messageId} disabled={isFetching} onClick={() => void refetch()}><RefreshCw size={20} aria-hidden="true" /></PillButton>
         : <PillButton variant="ghost" iconOnly label={t('summary.askAstra')} descriptionId={messageId} disabled><AstraGlyph size={20} color="var(--fg-2)" /></PillButton>}

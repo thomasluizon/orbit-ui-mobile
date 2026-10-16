@@ -91,6 +91,8 @@ describe('daily summary on Hoje', () => {
     const tree = await renderSummary()
     try {
       expect(hasText(tree, 'summary.loading')).toBe(true)
+      const message = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'summary.loading')[0]!
+      expect(message.props.accessibilityState).toMatchObject({ busy: true })
       expect(action(tree, 'summary.askAstra').props.disabled).toBe(true)
       expect(action(tree, 'summary.askAstra').props.accessibilityState).toMatchObject({ disabled: true })
       await press(tree, 'summary.askAstra')

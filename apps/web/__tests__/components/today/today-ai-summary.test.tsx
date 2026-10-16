@@ -64,6 +64,7 @@ describe('daily summary on Hoje', () => {
     mocks.isFetching = true
     render(<TodayAISummary date="2026-08-29" />)
     expect(screen.getByText('summary.loading')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'summary.title' })).toHaveAttribute('aria-busy', 'true')
     const action = screen.getByRole('button', { name: 'summary.askAstra' })
     expect(action).toBeDisabled()
     fireEvent.click(action)

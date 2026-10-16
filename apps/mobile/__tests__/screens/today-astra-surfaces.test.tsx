@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: true,
   timeZone: 'UTC',
   today: '2026-08-29',
+  selectedDay: null as string | null,
   notifications: [] as NotificationItem[],
 }))
 
@@ -116,7 +117,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 vi.mock('@/app/(tabs)/use-today-date', () => ({
   useTodayDate: () => ({
-    dateStr: mocks.today,
+    dateStr: mocks.selectedDay ?? mocks.today,
     today: mocks.today,
     selectedDate: new Date('2026-08-29T12:00:00Z'),
     dayName: 'Saturday',
@@ -150,6 +151,28 @@ function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
 }
 
 describe('mobile Today Astra owned surfaces', () => {
+  it.each(['past day', 'create', 'edit', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', async (state) => {
+    mocks.hasProAccess = false
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    const upgrade = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.upgrade')
+    try {
+      expect(upgrade()).toHaveLength(1)
+      await TestRenderer.act(() => {
+        if (state === 'past day') mocks.selectedDay = '2026-08-28'
+        if (state === 'create') (mocks.habitListProps?.onCreatePress as () => void)()
+        if (state === 'edit') (mocks.habitListProps?.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)
+        if (state === 'select') useUIStore.setState({ isSelectMode: true })
+        if (state === 'list') (mocks.habitListProps?.onSurfaceOpenChange as (open: boolean) => void)(true)
+        mocks.hasData = state !== 'first load' && state !== 'load error'
+        mocks.isFetching = state === 'first load'
+        mocks.isError = state === 'load error'
+        tree.update(<TodayScreen />)
+      })
+      expect(upgrade()).toHaveLength(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('offers the daily summary upgrade from Hoje alongside the proactive line', async () => {
     mocks.hasProAccess = false
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
@@ -177,6 +200,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.profileReady = true
     mocks.timeZone = 'UTC'
     mocks.today = '2026-08-29'
+    mocks.selectedDay = null
     mocks.notifications = []
     useUIStore.setState({
       showCreateModal: false,

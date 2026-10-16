@@ -27,11 +27,11 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   </SummarySection>
 }
 
-function SummarySection({ children }: Readonly<{ children: React.ReactNode }>) {
+function SummarySection({ children, busy = false }: Readonly<{ children: React.ReactNode; busy?: boolean }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <View style={styles.section}>
+  return <View accessibilityState={{ busy }} style={styles.section}>
     <View style={styles.header}>
       <AstraGlyph size={20} color={tokens.fg3} />
       <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg2 }]}>{t('summary.title')}</Text>
@@ -50,8 +50,11 @@ function DailySummary({ date, language }: Readonly<{ date: string; language: str
   })
   if (!isLoading && !error && !summary) return null
   if (!isLoading && !error && summary) return <SummarySection><SummaryText summary={summary} busy={isFetching} /></SummarySection>
-  return <SummarySection>
-    <Text accessibilityLiveRegion="polite" style={[styles.message, { color: tokens.fg2 }]}>{isLoading ? t('summary.loading') : t('summary.error')}</Text>
+  return <SummarySection busy={isLoading || isFetching}>
+    <View style={isLoading ? styles.loading : undefined}>
+      <Text accessibilityState={{ busy: isLoading || isFetching }} accessibilityLiveRegion="polite" style={[styles.message, { color: tokens.fg2 }]}>{isLoading ? t('summary.loading') : t('summary.error')}</Text>
+      {isLoading ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.placeholders}><View style={[styles.placeholder, { backgroundColor: tokens.bgWell }]} /><View style={[styles.placeholder, { width: '66.67%', backgroundColor: tokens.bgWell }]} /></View> : null}
+    </View>
     <View style={styles.actions}>
       {error && !isLoading ? <PillButton variant="ghost" iconOnly label={t('summary.retry')} hint={t('summary.error')} disabled={isFetching} onClick={() => void refetch()}><RefreshCw size={20} color={tokens.fg2} /></PillButton>
         : <PillButton variant="ghost" iconOnly label={t('summary.askAstra')} hint={t('summary.loading')} disabled><AstraGlyph size={20} color={tokens.fg2} /></PillButton>}
@@ -88,6 +91,9 @@ function SummaryText({ summary, busy }: Readonly<{ summary: string; busy: boolea
 }
 
 const styles = StyleSheet.create({
+  loading: { minHeight: 14 * 1.55 * 3, gap: 8, maxWidth: 640 },
+  placeholders: { gap: 8 },
+  placeholder: { height: 14, borderRadius: 8 },
   section: { minWidth: 0, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   heading: { fontFamily: 'Geist_500Medium', fontSize: 14 },

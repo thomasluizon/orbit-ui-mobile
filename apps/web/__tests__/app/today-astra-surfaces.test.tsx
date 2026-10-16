@@ -120,6 +120,21 @@ vi.mock('motion/react', async () => {
 })
 
 describe('web Today Astra owned surfaces', () => {
+  it.each(['past day', 'create', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', (state) => {
+    mocks.hasProAccess = false
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('link', { name: 'summary.upgrade' })).toBeInTheDocument()
+    if (state === 'past day') mocks.view.nav.dateStr = '2026-08-28'
+    mocks.view.showCreateModal = state === 'create'
+    mocks.view.isSelectMode = state === 'select'
+    mocks.view.listSurfaceOpen = state === 'list'
+    mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
+    mocks.view.data.isFetching = state === 'first load'
+    mocks.view.data.showLoadError = state === 'load error'
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByRole('link', { name: 'summary.upgrade' })).not.toBeInTheDocument()
+  })
+
   it('offers the daily summary upgrade from Hoje alongside the proactive line', () => {
     mocks.hasProAccess = false
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
