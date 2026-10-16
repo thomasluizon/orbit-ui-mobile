@@ -1163,7 +1163,7 @@ describe('ProgressContent', () => {
     }
     mocks.retrospective.isError = true
     mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
-    render(<ProgressContent />)
+    const { container } = render(<ProgressContent />)
 
     expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
@@ -1180,9 +1180,16 @@ describe('ProgressContent', () => {
     expect(route[0]).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(3)
     for (const card of screen.getAllByTestId('progress-locked-card')) {
-      expect(card).toHaveClass('p-4', 'shadow-[inset_0_0_0_1px_var(--hairline-ghost)]')
+      expect(card).toHaveClass('shadow-[inset_0_0_0_1px_var(--hairline-ghost)]')
       expect(within(card).getAllByRole('link')).toHaveLength(1)
     }
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      expect(await page.getByTestId('progress-locked-card').evaluateAll((cards) =>
+        cards.map((card) => Number.parseFloat(getComputedStyle(card).paddingLeft)),
+      )).toEqual([16, 16, 16])
+    } finally { await page.close() }
   })
 
   it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', () => {
