@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   geometry: false,
   profileReady: true,
+  hasProAccess: true,
   timeZone: 'UTC',
   today: '2026-08-29',
   notifications: [] as NotificationItem[],
@@ -48,12 +49,13 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   parseShowGeneralOnTodayPreference: () => false,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
+vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/hooks/use-habits', () => ({
@@ -148,6 +150,20 @@ function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
 }
 
 describe('mobile Today Astra owned surfaces', () => {
+  it('offers the daily summary upgrade from Hoje alongside the proactive line', async () => {
+    mocks.hasProAccess = false
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    try {
+      const upgrade = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.upgrade')
+      expect(upgrade).toHaveLength(1)
+      await TestRenderer.act(() => (upgrade[0]!.props.onPress as () => void)())
+      expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+      expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in').length).toBeGreaterThan(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   beforeEach(() => {
     mocks.habitListProps = null
     mocks.routerPush.mockReset()
@@ -157,6 +173,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.isFetching = false
     mocks.isError = false
     mocks.geometry = false
+    mocks.hasProAccess = true
     mocks.profileReady = true
     mocks.timeZone = 'UTC'
     mocks.today = '2026-08-29'
