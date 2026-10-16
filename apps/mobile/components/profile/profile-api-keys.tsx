@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
+import { parseApiKeyExpiryUtc } from '@orbit/shared/validation'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
@@ -111,7 +112,7 @@ function ScopeSheet({
   const [scope, setScope] = useState('')
   async function submit() {
     const trimmedScope = scope.trim()
-    if (!trimmedScope) return
+    if (busy || !trimmedScope) return
     const result = await onCreate(
       trimmedScope,
       () => Promise.resolve(closeSheet(onCreateGrantRequired)),
@@ -126,13 +127,14 @@ function ScopeSheet({
       onClose={onClose}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
         </ActionRow>
       )}
     >
       <Input
         label={t('profile.apiKeys.scopeLabel')}
+        disabled={busy}
         value={scope}
         onChange={setScope}
         error={error ?? undefined}
@@ -299,12 +301,13 @@ function ApiKeyCreateControls({
   return (
     <View style={styles.actions}><ActionRow>
       {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
+      <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
         {t('profile.apiKeys.createScoped')}
       </PillButton>
       <PillButton
         variant="secondary"
         size="sm"
+        disabled={creating || stepUpBusy}
         loading={creating && !scopeOpen}
         onClick={onCreate}
       >
@@ -369,6 +372,9 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [expiresAt, setExpiresAt] = useState('')
+  const [expiryError, setExpiryError] = useState(false)
+  const [expiryFocusRequest, setExpiryFocusRequest] = useState(0)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
   const stepUp = useApiKeyStepUp()
 
@@ -379,13 +385,24 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     t,
   })
 
+  function validateExpiry() {
+    const parsed = parseApiKeyExpiryUtc(expiresAt)
+    const invalid = Boolean(expiresAt.trim()) && (!parsed || parsed.getTime() <= Date.now())
+    setExpiryError(invalid)
+    if (invalid) setExpiryFocusRequest((current) => current + 1)
+    return !invalid
+  }
+
   async function createKey(
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void> = stepUp.start,
   ) {
+    if (creating || !validateExpiry()) return null
     setCreating(true)
     try {
-      return await management.handleCreateKey(request, onCreateGrantRequired)
+      return await management.handleCreateKey({
+        ...request, expiresAtUtc: parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null,
+      }, onCreateGrantRequired)
     } finally {
       setCreating(false)
     }
@@ -429,16 +446,35 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             onRevoke={management.setRevokingKeyId}
             onRetry={() => void management.apiKeysQuery.refetch()}
           />
+          {management.canCreateKey ? (
+            <Input
+              label={t('orbitMcp.expiresAtLabel')}
+              name="api-key-expiry"
+              value={expiresAt}
+              onChange={(value) => { setExpiresAt(value); setExpiryError(false) }}
+              placeholder={t('common.never')}
+              hint={t('orbitMcp.expiryFormatExample')}
+              error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+              focusRequest={expiryFocusRequest}
+              autoComplete="off"
+              mono
+              disabled={creating || stepUp.busy}
+              onSubmit={() => void createSimpleKey()}
+            />
+          ) : null}
           <ApiKeyCreateControls
             canCreate={management.canCreateKey}
             creating={creating}
             onCreate={() => void createSimpleKey()}
-            onCreateScoped={() => openScopeOrStartStepUp(
-              management.createGrantAvailable,
-              management.clearCreateKeyError,
-              () => setScopeOpen(true),
-              stepUp.start,
-            )}
+            onCreateScoped={() => {
+              if (!validateExpiry()) return
+              openScopeOrStartStepUp(
+                management.createGrantAvailable,
+                management.clearCreateKeyError,
+                () => setScopeOpen(true),
+                stepUp.start,
+              )
+            }}
             scopeOpen={scopeOpen}
             stepUpBusy={stepUp.busy}
           />

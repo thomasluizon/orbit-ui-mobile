@@ -1358,6 +1358,57 @@ describe('ProfileScreen', () => {
     ).toHaveLength(1)
   })
 
+  it.each([
+    ['', null],
+    [' 2099-12-31T23:59 ', '2099-12-31T23:59:00.000Z'],
+  ])('submits API key expiry %j through simple creation', async (expiry, expiresAtUtc) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient.mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
+    const tree = await renderProfileSubscreen('astra')
+    const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
+    expect(field.props.placeholder).toBe('common.never')
+    TestRenderer.act(() => field.props.onChangeText(expiry))
+    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.create').props.onPress(); await Promise.resolve() })
+    expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', expiresAtUtc }),
+    }))
+    expect(nodeText(tree.root)).toContain('orb_secret')
+  })
+
+  it.each(['tomorrow', '2099-02-30T12:00', '2000-01-01T00:00'])('rejects invalid API key expiry %j before using a grant', async (expiry) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText(expiry))
+    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.create').props.onPress(); await Promise.resolve() })
+    expect(nodeText(tree.root)).toContain('orbitMcp.invalidExpiry')
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
+    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress(); await Promise.resolve() })
+    expect(tree.root.findAllByProps({ title: 'profile.apiKeys.scopeTitle' })).toHaveLength(0)
+    expect(mockApiClient).not.toHaveBeenCalled()
+    expect(mockCreateGrant.consumed).toBe(false)
+  })
+
+  it('disables expiry and both creation actions while creating a key', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    let finish!: () => void
+    mockApiClient.mockReturnValueOnce(new Promise((resolve) => { finish = () => resolve({ id: 'key-2', key: 'orb_secret' }) }))
+    const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.editable).toBe(false)
+    expect(findButtonByText(tree, 'profile.apiKeys.create').props.accessibilityState.disabled).toBe(true)
+    expect(findButtonByText(tree, 'profile.apiKeys.createScoped').props.accessibilityState.disabled).toBe(true)
+    await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+  })
+
   it('resets scoped creation after cancellation and successful creation', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
@@ -1370,6 +1421,7 @@ describe('ProfileScreen', () => {
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     const tree = await renderProfileSubscreen('astra')
 
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
       await Promise.resolve()
@@ -1399,6 +1451,9 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+    }))
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
 

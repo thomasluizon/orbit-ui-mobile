@@ -1116,6 +1116,7 @@ describe('ProfilePage', () => {
       expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).not.toBeInTheDocument()
     })
 
+    fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'habits:read' },
@@ -1126,8 +1127,63 @@ describe('ProfilePage', () => {
       expect(mockCreateApiKey).toHaveBeenCalledWith({
         name: 'profile.apiKeys.newKeyName',
         scopes: ['habits:read'],
+        expiresAtUtc: '2099-12-31T23:59:00.000Z',
       }, 'account-a')
     })
+  })
+
+  it.each([
+    ['', null],
+    [' 2099-12-31T23:59 ', '2099-12-31T23:59:00.000Z'],
+  ])('submits API key expiry %j through simple creation', async (expiry, expiresAtUtc) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateApiKey.mockResolvedValue({ success: true, response: { id: 'key-2', key: 'orb_secret' } })
+    render(<ProfileSubscreen screen="astra" />)
+    const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
+    expect(field).toHaveAttribute('placeholder', 'common.never')
+    fireEvent.change(field, { target: { value: expiry } })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    await waitFor(() => expect(mockCreateApiKey).toHaveBeenCalledWith({
+      name: 'profile.apiKeys.newKeyName', expiresAtUtc,
+    }, 'account-a'))
+    expect(await screen.findByText('orb_secret')).toBeInTheDocument()
+  })
+
+  it.each(['tomorrow', '2099-02-30T12:00', '2000-01-01T00:00'])('rejects invalid API key expiry %j before using a grant', async (expiry) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    render(<ProfileSubscreen screen="astra" />)
+    const field = screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
+    fireEvent.change(field, { target: { value: expiry } })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(field).toHaveAccessibleDescription(/orbitMcp.invalidExpiry/)
+    expect(field).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.scopeTitle' })).not.toBeInTheDocument()
+    expect(mockCreateApiKey).not.toHaveBeenCalled()
+    expect(mockCreateGrant.consumed).toBe(false)
+  })
+
+  it('disables expiry and both creation actions while creating a key', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
+    }
+    mockStepUpVerified.current = true
+    let finish!: () => void
+    mockCreateApiKey.mockReturnValueOnce(new Promise((_resolve, reject) => { finish = () => reject(new Error('offline')) }))
+    render(<ProfileSubscreen screen="astra" />)
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'profile.apiKeys.create' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' })).toBeDisabled()
+    await act(async () => finish())
+    expect(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })).toBeEnabled()
   })
 
   it('resets scoped creation after cancellation and successful creation', async () => {
