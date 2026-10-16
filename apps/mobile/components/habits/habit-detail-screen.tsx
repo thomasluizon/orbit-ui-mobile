@@ -1,8 +1,9 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -208,7 +209,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
+          {editing ? <TypedTextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
             {({ pressed }) => <>
               <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -6, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
               <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>

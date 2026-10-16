@@ -68,7 +68,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/habit-detail-screen.tsx` | 187 | `TextInput` | heading | 0; title alignment |
 | `apps/mobile/components/habits/habit-form-fields/buffered-sheet-input.tsx` | 68 | `BottomSheetAppTextInput` | forwarder | 16 default; caller style forwarded |
 | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 108 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 68 | `TextInput` | sentence | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 69 | `TypedTextInput` | sentence | 16 |
 | `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx` | 198 | `BottomSheetAppTextInput` | inline add | 12 |
 | `apps/mobile/components/habits/habit-form-fields/tag-editor-row.tsx` | 37 | `BottomSheetAppTextInput` | inline add | 12 |
 | `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 60 | `BottomSheetAppTextInput` | standard | 16 |
@@ -82,6 +82,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/ui/input.tsx` | 32 | `TextInput` | standard | 16 |
 | `apps/mobile/components/ui/otp-input.tsx` | 43 | `TextInput` | otp | centred |
 | `apps/mobile/components/ui/time-field.tsx` | 234 | `TextInput` | time | 16 |
+| `apps/mobile/components/ui/typed-text-input.tsx` | 10 | `TextInput` | foreground adapter | caller-owned |
 | `apps/web/app/(app)/layout.tsx` | 376 | `input` | file | glyphless |
 | `apps/web/app/(app)/layout.tsx` | 383 | `input` | file | glyphless |
 | `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 85 | `input` | standard | 16 |
@@ -126,7 +127,29 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/ui/input.tsx` | 47 | `textarea` | standard | 16 |
 | `apps/web/components/ui/input.tsx` | 48 | `input` | standard | 16 |
 | `apps/web/components/ui/otp-input.tsx` | 38 | `input` | otp | centred |
+| `apps/web/components/ui/picker-list.tsx` | 51 | `input` | standard | 16 |
 | `apps/web/components/ui/time-field.tsx` | 141 | `input` | time | 16 |
+| `apps/web/components/ui/typed-textarea.tsx` | 6 | `textarea` | foreground adapter | caller-owned |
+
+## Typed foreground ownership
+
+Visible native text controls use `TypedTextInput`, which applies `fg1` after caller styles in both themes. `Input`, `AppTextInput` and `BottomSheetAppTextInput` compose it. The hidden OTP capture remains a native input; its visible digits use the foreground token.
+
+| Surface | Native owner | Web owner | Foreground path |
+| --- | --- | --- | --- |
+| Habit create and edit name | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea`; mirrors retain consumed-word backgrounds and underlines, while the editable controls draw foreground letters and placeholders. Native consumed spans use `hairlineStrong` foreground to paint Android underlines beneath the editable glyphs; web uses an independent inset shadow with transparent mirror glyphs |
+| Habit rename | `habits/habit-detail-screen.tsx` | same relative component | Native `TypedTextInput`, web input with `--fg-1` |
+| Checklist add and description | `habits/habit-form-fields.tsx`, `habits/habit-detail-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
+| Checklist and subhabit edit | `habits/habit-checklist.tsx`, `habits/create-habit-modal/sub-habit-editor.tsx` | same relative components | Native `BottomSheetAppTextInput`, web input with `--fg-1` |
+| Astra and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
+| Astra record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
+| Search and move-parent search | `app/search.tsx`, `habit-list/move-parent-dialog.tsx` | `app/(app)/search/page.tsx`, `habits/habit-list/move-parent-overlay.tsx` | Shared `Input` |
+| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `habits/create-goal-from-habit-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
+| Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |
+| Profile time-zone search and key name | `profile/preferences-sections.tsx`, `profile/profile-api-keys.tsx` | preferences picker and `profile/profile-api-keys.tsx` | Native `BottomSheetAppTextInput` or `Input`, web explicit `--fg-1` |
+| Virtualized picker search | No additional native producer | `ui/picker-list.tsx` | Web `form-input` resolves to `--fg-1` |
+| Emoji, tag, goal and reminder fields | Habit form field owners listed above | Mirrored habit form field owners | Native `BottomSheetAppTextInput` or `TypedTextInput`, web explicit `--fg-1` |
+| Time entry | `ui/time-field.tsx` | same relative component | Native `TypedTextInput`, web explicit `--fg-1` |
 
 ## Verification boundary
 

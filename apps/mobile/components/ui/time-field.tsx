@@ -1,3 +1,4 @@
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
@@ -6,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type StyleProp,
   type ViewStyle,
@@ -230,7 +230,7 @@ function TimeEntry({
           disabled ? styles.disabled : null,
         ]}
       >
-        <TextInput
+        <TypedTextInput
           value={inputValue}
           onChangeText={onChange}
           editable={!disabled}

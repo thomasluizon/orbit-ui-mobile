@@ -30,8 +30,7 @@ class OrbitWidgetService : RemoteViewsService() {
             intent.getFloatExtra(
                 OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
                 OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
-            ),
-            intent.getBooleanExtra(OrbitWidgetProvider.EXTRA_SHOW_TIME, true)
+            )
         )
     }
 }
@@ -43,7 +42,8 @@ internal const val REMAINDER_HEIGHT_DP = 48f
 internal data class WidgetGeometry(
     val visibleRowCount: Int,
     val remainderCount: Int,
-    val canStateRemainder: Boolean
+    val canStateRemainder: Boolean,
+    val contentHeightDp: Float
 )
 
 internal fun calculateWidgetGeometry(heightDp: Float, totalRows: Int): WidgetGeometry {
@@ -56,7 +56,8 @@ internal fun calculateWidgetGeometry(heightDp: Float, totalRows: Int): WidgetGeo
     return WidgetGeometry(
         visibleRowCount = visibleRowCount,
         remainderCount = totalRows - visibleRowCount,
-        canStateRemainder = canStateRemainder
+        canStateRemainder = canStateRemainder,
+        contentHeightDp = maxOf(1, visibleRowCount + if (canStateRemainder) 1 else 0) * ROW_HEIGHT_DP
     )
 }
 
@@ -254,11 +255,10 @@ internal fun RemoteViews.setModeAwareBitmap(
 class OrbitWidgetFactory(
     private val context: Context,
     appWidgetId: Int,
-    private val widgetHeightDp: Float,
-    private val showTime: Boolean
+    private val widgetHeightDp: Float
 ) : RemoteViewsService.RemoteViewsFactory {
 
-    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)
+    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp)
     private var habits: List<HabitItem> = emptyList()
     private var habitsSession: String? = null
     private var headerLabel: String = "Today"
@@ -534,6 +534,7 @@ class OrbitWidgetFactory(
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             prefs.edit()
                 .putString("header_label", headerLabel)
+                .putInt("row_count", habits.size)
                 .putInt("habit_count", dayState.totalCount)
                 .putInt("completed_count", dayState.completedCount)
                 .putInt("user_streak", streak)
@@ -816,11 +817,6 @@ class OrbitWidgetFactory(
     }
 
     private fun applyDueTime(views: RemoteViews, habit: HabitItem) {
-        if (!showTime) {
-            views.setViewVisibility(R.id.item_time, android.view.View.GONE)
-            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
-            return
-        }
         val dueTime = habit.dueTime
         if (dueTime.isNullOrEmpty()) {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)

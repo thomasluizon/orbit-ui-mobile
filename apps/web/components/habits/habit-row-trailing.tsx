@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -106,7 +107,7 @@ function SelectionStatusGlyph({
   completionReadOnly, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
-  const statusName = t(`habits.statusDot.${state}`)
+  const statusName = t(`habits.statusDot.${resolveHabitAccessibleStatus(state, isDone)}`)
   const dimmed = completionIsDisabled(completionReadOnly, canLog, isDone)
   if (showParentRing(hasChildren, completionStatusUnavailable)) {
     return (
@@ -130,7 +131,7 @@ function InteractiveParentRing({
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
   const reasonId = useId()
-  const statusLabel = availableStatusLabel(completionStatusUnavailable, t(`habits.statusDot.${state}`))
+  const statusLabel = availableStatusLabel(completionStatusUnavailable, t(`habits.statusDot.${resolveHabitAccessibleStatus(state, isDone)}`))
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   const disabled = completionIsDisabled(completionReadOnly, canLog, isDone)
   return (
@@ -155,7 +156,7 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   if (showParentRing(props.hasChildren, props.completionStatusUnavailable)) {
     return <InteractiveParentRing {...props} />
   }
-  const statusLabel = availableStatusLabel(props.completionStatusUnavailable, t(`habits.statusDot.${props.state}`))
+  const statusLabel = availableStatusLabel(props.completionStatusUnavailable, t(`habits.statusDot.${resolveHabitAccessibleStatus(props.state, props.isDone)}`))
   const toggleLabel = props.isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   return <CheckCircle state={props.state} unavailable={props.completionStatusUnavailable}
     onToggle={props.onToggleStatus}

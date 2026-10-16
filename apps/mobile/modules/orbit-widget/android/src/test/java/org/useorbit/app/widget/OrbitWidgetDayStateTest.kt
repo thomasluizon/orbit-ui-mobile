@@ -57,6 +57,44 @@ class OrbitWidgetDayStateTest {
     }
 
     @Test
+    fun `empty and single habit cards hug one body row at every supported size`() {
+        for (height in listOf(96f, 192f, 288f, 192f)) {
+            for (count in listOf(0, 1)) {
+                val geometry = calculateWidgetGeometry(height, count)
+                assertEquals(count, geometry.visibleRowCount)
+                assertEquals(0, geometry.remainderCount)
+                assertEquals(false, geometry.canStateRemainder)
+                assertEquals(48f, geometry.contentHeightDp)
+            }
+        }
+    }
+
+    @Test
+    fun `five habits fill only the available whole rows`() {
+        for ((height, visible, remaining, contentHeight) in listOf(
+            listOf(96, 1, 4, 48),
+            listOf(192, 2, 3, 144),
+            listOf(288, 5, 0, 240),
+            listOf(192, 2, 3, 144)
+        )) {
+            val geometry = calculateWidgetGeometry(height.toFloat(), 5)
+            assertEquals(visible, geometry.visibleRowCount)
+            assertEquals(remaining, geometry.remainderCount)
+            assertEquals(remaining > 0 && height > 96, geometry.canStateRemainder)
+            assertEquals(contentHeight.toFloat(), geometry.contentHeightDp)
+        }
+    }
+
+    @Test
+    fun `intermediate heights never reserve a partial body row`() {
+        for (height in 96..400) {
+            val geometry = calculateWidgetGeometry(height.toFloat(), 20)
+            assertEquals(0f, geometry.contentHeightDp % ROW_HEIGHT_DP)
+            assertEquals(true, HEADER_HEIGHT_DP + geometry.contentHeightDp <= height)
+        }
+    }
+
+    @Test
     fun `bad parent keeps its non-bad child in header progress`() {
         val child = habit(id = "child", isCompleted = true, isBadHabit = false)
         val badChild = habit(id = "bad-child", isCompleted = true, isBadHabit = true)

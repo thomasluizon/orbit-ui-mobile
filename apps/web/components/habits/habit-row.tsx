@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, type KeyboardEvent, type ReactNode } from 'react'
+import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
@@ -168,7 +169,8 @@ export function HabitRow({
   const canDrillInto = hasSubHabits && !!onDrillInto
   const hasMenuActions = hasHabitMenuActions(actions, canSelect, canDrillInto)
 
-  const isDone = state === 'done'
+  const isDone = state === 'done' || isHabitDoneForRange(habit)
+  const graphicState = habit.isBadHabit ? 'bad' : state
   const isChild = child || depth === 1
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
@@ -236,7 +238,7 @@ export function HabitRow({
         hasChildren={hasChildren}
         childProgress={childProgress}
         depth={depth}
-        state={state}
+        state={graphicState}
         isDone={isDone}
         canLog={canLog}
         hasMenuActions={hasMenuActions}
@@ -263,7 +265,7 @@ export function HabitRow({
   )
 
   return (
-    <HabitRowLayout habitTitle={habit.title} depth={depth} state={state} selected={selected}
+    <HabitRowLayout habitTitle={habit.title} depth={depth} state={graphicState} selected={selected}
       largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
