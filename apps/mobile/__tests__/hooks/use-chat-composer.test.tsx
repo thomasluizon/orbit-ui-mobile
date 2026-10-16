@@ -1,4 +1,5 @@
 import React from 'react'
+import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
@@ -404,7 +405,7 @@ describe('mobile useChatComposer', () => {
     TestRenderer.act(() => { for (const listener of listeners) listener(true) })
     const pending = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'astra-pending')
     expect(pending).toHaveLength(1)
-    expect(pending[0].findAll((node: { type: unknown }) => node.type === 'AnimatedView')).toHaveLength(0)
+    expect(pending[0].findAll((node: { type: unknown }) => node.type === Animated.View)).toHaveLength(0)
     expect(pending[0].props.importantForAccessibility).toBe('no-hide-descendants')
   })
 

@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 220,
-  "cellCount": 1020,
+  "surfaceCount": 221,
+  "cellCount": 1024,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -9983,6 +9983,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
       ],
       "state": "default",
       "theme": "dark",

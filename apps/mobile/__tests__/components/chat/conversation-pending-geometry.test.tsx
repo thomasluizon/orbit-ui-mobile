@@ -1,6 +1,6 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
-import React from 'react'
-import { Text, View, type FlatListProps } from 'react-native'
+import React, { Profiler } from 'react'
+import { Animated, FlatList, Text, View, type FlatListProps } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -45,6 +45,41 @@ await vi.hoisted(async () => {
 })
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+it('does not render the conversation while scrolling across the pending visibility boundary', async () => {
+  const chat = {
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null },
+    messages: [{ id: 'question', role: 'user', content: 'Plan my morning', timestamp: new Date() }],
+    activeSteps: [], canShowFollowUps: false, isTyping: true, streamingMessageId: null,
+    showSuggestions: false, sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
+  } as unknown as ChatController
+  const onRender = vi.fn()
+  let tree!: GeometryTree
+  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><AstraConversation chat={chat} /></Profiler>) as GeometryTree })
+  try {
+    const pending = tree.root.findAll(node => node.type === Animated.View)[0]!
+    const opacity = (pending.props.style as { opacity: Animated.Value }).opacity
+    const expectOpacity = (value: number) => {
+      const observed = vi.fn()
+      opacity.stopAnimation(observed)
+      expect(observed).toHaveBeenCalledWith(value)
+    }
+    expectOpacity(1)
+    onRender.mockClear()
+    for (const offset of [900, 100, 101, 860, 861, 899, 900]) {
+      await act(() => {
+        const list = tree.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+        list.onScroll?.({ nativeEvent: {
+          contentOffset: { x: 0, y: offset }, contentSize: { width: 412, height: 1400 },
+          layoutMeasurement: { width: 412, height: 500 },
+        } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onScroll']>>[0])
+      })
+      expect(onRender).not.toHaveBeenCalled()
+      expectOpacity(900 - offset < 40 ? 1 : 0)
+    }
+    expect(chat.threadScroll.isFollowing()).toBe(true)
+  } finally { await act(() => tree.unmount()) }
+})
+
 it.each([412, 1352])('replaces the native pending line at the same reply origin at %s', async (width) => {
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null },

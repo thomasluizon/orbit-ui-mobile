@@ -21,7 +21,7 @@ import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
-import { PendingReply } from "@/components/chat/pending-reply";
+import { PendingReply, type PendingReplyHandle } from "@/components/chat/pending-reply";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
@@ -122,7 +122,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = chat;
-  const [pendingVisible, setPendingVisible] = useState(true);
+  const pendingVisible = useRef(true);
+  const pendingReplyRef = useRef<PendingReplyHandle | null>(null);
+  const attachPendingReply = useCallback((reply: PendingReplyHandle | null) => {
+    pendingReplyRef.current = reply;
+    reply?.setVisible(pendingVisible.current);
+  }, []);
   const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit;
   const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0;
   const [announcingWork, setAnnouncingWork] = useState(false)
@@ -269,14 +274,18 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onScroll={(event) => {
                 const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
                 threadScroll.recordScroll(contentOffset.y, contentSize.height - layoutMeasurement.height);
-                setPendingVisible(contentSize.height - layoutMeasurement.height - contentOffset.y < 40);
+                const visible = contentSize.height - layoutMeasurement.height - contentOffset.y < 40;
+                if (pendingVisible.current !== visible) {
+                  pendingVisible.current = visible;
+                  pendingReplyRef.current?.setVisible(visible);
+                }
               }}
               scrollEventThrottle={16}
               onLayout={() => {
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={showPendingReply ? <PendingReply visible={pendingVisible} /> : activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+              ListFooterComponent={showPendingReply ? <PendingReply ref={attachPendingReply} /> : activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />
