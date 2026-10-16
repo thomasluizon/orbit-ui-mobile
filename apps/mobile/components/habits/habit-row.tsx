@@ -8,6 +8,7 @@ import {
   formatAPIDate,
   getTodayBoundary,
   isHabitDoneForRange,
+  resolveHabitAccessibleStatus,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -339,7 +340,7 @@ export const HabitRow = memo(function HabitRow({
 
   const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
     title: habit.title,
-    dotState,
+    dotState: resolveHabitAccessibleStatus(dotState, isDoneForRange),
     metaParts,
     linkedGoal: false,
     showStreak: false,

@@ -907,18 +907,18 @@ describe('HabitList', () => {
 
   it.each([
     { label: 'ordinary', isOverdue: false, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
-      words: [] },
+      words: [], status: 'empty', action: 'logHabit' },
     { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
-      words: ['habits.overdue'] },
+      words: ['habits.overdue'], status: 'overdue', action: 'logHabit' },
     { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
-      words: ['habits.statusDot.bad'] },
+      words: ['habits.statusDot.bad'], status: 'bad', action: 'actions.unlog' },
     { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
-      words: ['habits.overdue', 'habits.statusDot.bad'] },
+      words: ['habits.overdue', 'habits.statusDot.bad'], status: 'bad', action: 'actions.unlog' },
     { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
-      words: [] },
+      words: [], status: 'empty', action: 'logHabit' },
     { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
-      words: [] },
-  ])('preserves parent progress and applicable state words for $label', ({ label, words, ...flags }) => {
+      words: [], status: 'done', action: 'actions.unlog' },
+  ])('preserves parent progress and applicable state words for $label', ({ label, words, status, action, ...flags }) => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: label, hasSubHabits: true,
       dueTime: '21:00', scheduledDates: [TODAY], ...flags })
@@ -942,9 +942,8 @@ describe('HabitList', () => {
     expect(within(row).getByRole('button', {
       name: (name) => name.replaceAll(' ', '') === bodyName.replaceAll(' ', ''),
     })).toBe(body)
-    const state = flags.isBadHabit ? 'bad' : flags.isCompleted ? 'done' : flags.isOverdue ? 'overdue' : 'empty'
     expect(within(row).getByRole('button', {
-      name: `habits.statusDot.${state}, habits.${state === 'done' ? 'actions.unlog' : 'logHabit'}: ${label}, 1/2`,
+      name: `habits.statusDot.${status}, habits.${action}: ${label}, 1/2`,
     })).toBeEnabled()
     expect(within(row).getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
   })

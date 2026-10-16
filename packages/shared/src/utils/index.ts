@@ -785,3 +785,5 @@ export type { DestinationIconName } from './destination-icons'
 export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 
 export { formatWeekdaySchedule } from './weekday-schedule'
+
+export { resolveHabitAccessibleStatus } from './habit-row-status'
