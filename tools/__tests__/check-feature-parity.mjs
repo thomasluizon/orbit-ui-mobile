@@ -142,6 +142,31 @@ export const cases = () => {
 
   const rules = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/feature-parity-rules.json'), 'utf8'))
   const inventory = JSON.parse(readFileSync(join(REPO_ROOT, '.claude/manifests/feature-parity.json'), 'utf8'))
+  for (const platform of ['web', 'mobile']) {
+    for (const document of ['privacy', 'terms']) {
+      const path = platform === 'web' ? `apps/web/app/(public)/${document}/page.tsx` : `apps/mobile/app/${document}.tsx`
+      // Production legal pages render section labels above always-visible bodies.
+      const source = platform === 'web' ? `export default function LegalPage() {
+        const sections = [{ label: t('${document}.intro.title'), body: t('${document}.intro.body') }];
+        return <main>{sections.map(({ label, body }) => <div><SectionLabel>{label}</SectionLabel><p>{body}</p></div>)}</main>
+      }` : `export default function LegalPage() {
+        return <ScrollView><SectionLabel>{t('${document}.intro.title')}</SectionLabel><Text>{t('${document}.intro.body')}</Text></ScrollView>
+      }`
+      const files = { 'packages/shared/src/i18n/en.json': catalog, [path]: source }
+      const current = { paths: new Set(Object.keys(files)), read: (file) => files[file] }
+      const headings = scan(current, platform, rules).filter((entry) => entry.key === `${document}.intro.title`)
+      T(`${platform} ${document} static section headings are content, not capabilities`, headings.length === 1 && headings[0].kind === 'content')
+      T(`${platform} ${document} inventory excludes static section heading capabilities`, !inventory.entries.some((entry) => entry.platform === platform && new RegExp(`^${document}\\.[^.]+\\.title$`).test(entry.key)))
+      files[path] = `export default function LegalPage() { return <button onClick={open}>{t('${document}.intro.title')}</button> }`
+      T(`${platform} ${document} real actions still enter the inventory`, scan(current, platform, rules).some((entry) => entry.id === `${platform}:control:${document}.intro.title`))
+      if (platform === 'web') {
+        files[path] = source.replace(`label: t('${document}.intro.title')`, `label: '${document}.intro.title'`)
+        T(`${document} literal heading keys are also content`, scan(current, platform, rules).filter((entry) => entry.key === `${document}.intro.title`).every((entry) => entry.kind === 'content'))
+        const elsewhere = snapshot(source)
+        T(`${document} label bindings outside legal pages remain capabilities`, scan(elsewhere, platform, rules).some((entry) => entry.id === `${platform}:control:${document}.intro.title`))
+      }
+    }
+  }
   for (const platform of ['mobile', 'web']) {
     const files = { 'packages/shared/src/i18n/en.json': catalog }
     function load(directory) {

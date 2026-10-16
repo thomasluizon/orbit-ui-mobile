@@ -183,6 +183,8 @@ The owner reviewed staging (`redesign/main`) and his phone build and found the r
 The generated report at `.claude/manifests/feature-parity.json` records every production source
 location, redesign location, owner-approved removal citation and pending restoration ticket.
 Regenerate it with `git fetch origin main && node tools/check-feature-parity.mjs --write`.
+Static legal section headings are document content, not capabilities. The scanner rules document
+the production heading renderers; actual actions on legal pages remain capability-bound.
 These are Batch R behavior gaps, including the existing habit-view ticket:
 
 | Ticket | Behavior to restore |
@@ -202,7 +204,6 @@ These are Batch R behavior gaps, including the existing habit-view ticket:
 | `#1437` | expiration when creating an API key |
 | `#1438` | naming an API key before creation |
 | `#1439` | the read-only API key creation choice |
-| `#1440` | legal document section disclosures |
 | `#1441` | the standalone progress sharing sheet |
 | `#1442` | collapsing and expanding the web sidebar |
 | `#1443` | the on-demand daily Astra summary |

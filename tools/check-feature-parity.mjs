@@ -442,14 +442,14 @@ function evidence(source, node) {
   return { file: source.fileName, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 }
 }
 
-function interaction(node) {
+function interaction(node, staticHeading = false) {
   for (let owner = node.parent; owner; owner = owner.parent) {
     if (ts.isJsxElement(owner) || ts.isJsxSelfClosingElement(owner)) {
       const opening = ts.isJsxElement(owner) ? owner.openingElement : owner
       const attributes = opening.attributes.properties.filter(ts.isJsxAttribute).map((item) => item.name.getText())
       if (attributes.some((name) => /^(?:on(?!Close$|OpenChange$|Dismiss$|Cancel$|RequestClose$|Layout$|ContentSizeChange$)[A-Z]|toggle$|href$)/.test(name))) return true
     }
-    if (ts.isPropertyAssignment(owner) && /^(?:label|labelKey|textKey|ariaLabel)$/.test(owner.name.getText())) return true
+    if (ts.isPropertyAssignment(owner) && /^(?:label|labelKey|textKey|ariaLabel)$/.test(owner.name.getText()) && !(staticHeading && owner.name.getText() === 'label')) return true
     if (ts.isBinaryExpression(owner) && /(?:label|Label)$/.test(owner.left.getText())) return true
     if (ts.isVariableDeclaration(owner) && /^(?:label|ariaLabel)$/.test(owner.name.getText())) return true
     if (ts.isFunctionDeclaration(owner) || ts.isArrowFunction(owner)) break
@@ -476,7 +476,12 @@ function displayedValue(node) {
   return false
 }
 
-export function scan(snapshot, platform) {
+function staticHeadingLabel(path, key, rules) {
+  const namespace = rules.staticHeadingLabels?.[path]?.namespace
+  return Boolean(namespace && key.startsWith(`${namespace}.`) && /^[^.]+\.title$/.test(key.slice(namespace.length + 1)))
+}
+
+export function scan(snapshot, platform, rules = {}) {
   const catalog = flatten(JSON.parse(snapshot.read('packages/shared/src/i18n/en.json')))
   const graph = sourceTree(snapshot, platform)
   const entries = new Map()
@@ -504,12 +509,13 @@ export function scan(snapshot, platform) {
         const qualified = namespace ? `${namespace}.${literal}` : literal
         const key = catalog[qualified] ? qualified : literal
         if (catalog[key]) {
-          add(interaction(node) ? 'control' : displayedValue(node) ? 'display' : 'content', key, evidence(source, node))
+          add(interaction(node, staticHeadingLabel(path, key, rules)) ? 'control' : displayedValue(node) ? 'display' : 'content', key, evidence(source, node))
           origins.set(node, `${platform}:content:${key}`)
         }
       }
       if (ts.isStringLiteral(node) && catalog[node.text] && ts.isPropertyAssignment(node.parent) && /(?:Key|^label)$/.test(node.parent.name.getText(source))) {
-        add(/^(?:labelKey|label|textKey)$/.test(node.parent.name.getText(source)) ? 'control' : 'content', node.text, evidence(source, node))
+        const property = node.parent.name.getText(source)
+        add(/^(?:labelKey|label|textKey)$/.test(property) && !(property === 'label' && staticHeadingLabel(path, node.text, rules)) ? 'control' : 'content', node.text, evidence(source, node))
       }
       if (ts.isStringLiteral(node) && !(ts.isCallExpression(node.parent) && namespaces.names.has(node.parent.expression.getText(source)) && node.parent.arguments[0] === node)) {
         const prefixes = namespaces.prefixes
@@ -556,7 +562,10 @@ function scanWidget(snapshot, add) {
 export function validateRules(capabilities, rules, read) {
   const ids = new Set(capabilities.map((entry) => entry.id))
   for (const section of Object.keys(rules)) {
-    if (!['mappings', 'removals', 'tickets', 'policies'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+    if (!['mappings', 'removals', 'tickets', 'policies', 'staticHeadingLabels'].includes(section)) throw new Error(`unknown rules section: ${section}`)
+  }
+  for (const [path, rule] of Object.entries(rules.staticHeadingLabels ?? {})) {
+    if (!/^apps\/(?:web|mobile)\/app\/.+\.tsx$/.test(path) || typeof rule.namespace !== 'string' || !/^[a-zA-Z]+$/.test(rule.namespace) || typeof rule.reason !== 'string' || !rule.reason.trim()) throw new Error(`${path}: static heading labels require a source path, namespace and rationale`)
   }
   for (const [name, policy] of Object.entries(rules.policies ?? {})) {
     if (!['DESIGN.md', '.claude/specs/orbit-prod-release.md'].includes(policy.citation) || !policy.rule || !read(policy.citation).includes(policy.rule)) throw new Error(`${name}: missing standing removal citation`)
@@ -603,9 +612,9 @@ function run(options) {
   const production = tree(options.root, options.production)
   const current = tree(options.root, null)
   current.root = options.root
-  const observations = ['web', 'mobile'].flatMap((platform) => scan(production, platform))
+  const observations = ['web', 'mobile'].flatMap((platform) => scan(production, platform, rules))
   const capabilities = observations.filter((entry) => entry.kind !== 'content')
-  const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform))
+  const redesign = ['web', 'mobile'].flatMap((platform) => scan(current, platform, rules))
   validateRules(capabilities, rules, current.read)
   const entries = compare(capabilities, redesign, rules)
   const inventory = { regenerate: 'git fetch origin main && node tools/check-feature-parity.mjs --write', production: production.revision, standingRemovals: rules.policies, allowedRemovals: rules.removals, translationUses: observations.filter((entry) => entry.kind === 'content'), method: 'Reachable exported symbols, routes, translated controls and option bindings, keyboard handlers and native widget actions and figures. Mapped translation bindings require a reachable rendered consumer, resolved through property-specific values, calls and component props. Noninteractive translation references alone are supporting observations. Static source evidence does not prove runtime conditions, permissions or API behavior.', entries }
@@ -620,7 +629,7 @@ function run(options) {
   for (const entry of missing) console.log(`${entry.id} | ${entry.evidence.map((item) => `${item.file}:${item.line}`).join(', ')} | ${entry.ticket ?? 'ticket required'}`)
   if (options.ci) {
     const base = tree(options.root, options.base)
-    const baseEntries = compare(capabilities, ['web', 'mobile'].flatMap((platform) => scan(base, platform)), rules)
+    const baseEntries = compare(capabilities, ['web', 'mobile'].flatMap((platform) => scan(base, platform, rules)), rules)
     const losses = newLosses(entries, baseEntries)
     console.log(`Feature parity CI: ${missing.length - losses.length} ticketed base gaps advisory; ${losses.length} new or unticketed losses blocking.`)
     return losses.length ? 1 : 0

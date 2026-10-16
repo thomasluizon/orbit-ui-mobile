@@ -4044,20 +4044,6 @@
     "web:control:orbitMcp.webStep2": "#1447",
     "web:control:orbitMcp.webStep3": "#1447",
     "web:control:orbitMcp.webStep4": "#1447",
-    "web:control:privacy.automatedProcessing.title": "#1440",
-    "web:control:privacy.controller.title": "#1440",
-    "web:control:privacy.dataCollected.title": "#1440",
-    "web:control:privacy.dataResidency.title": "#1440",
-    "web:control:privacy.deletion.title": "#1440",
-    "web:control:privacy.export.title": "#1440",
-    "web:control:privacy.googleScopes.title": "#1440",
-    "web:control:privacy.howWeUse.title": "#1440",
-    "web:control:privacy.intro.title": "#1440",
-    "web:control:privacy.minors.title": "#1440",
-    "web:control:privacy.noSell.title": "#1440",
-    "web:control:privacy.retention.title": "#1440",
-    "web:control:privacy.security.title": "#1440",
-    "web:control:privacy.thirdParty.title": "#1440",
     "web:control:shareCard.entry": "#1441",
     "web:control:shareCard.stats.activeDays": "#1441",
     "web:control:shareCard.stats.completionRate": "#1441",
@@ -4067,18 +4053,6 @@
     "web:control:summary.loading": "#1443",
     "web:control:summary.retry": "#1443",
     "web:control:summary.upgrade": "#1443",
-    "web:control:terms.ai.title": "#1440",
-    "web:control:terms.changes.title": "#1440",
-    "web:control:terms.eligibility.title": "#1440",
-    "web:control:terms.governingLaw.title": "#1440",
-    "web:control:terms.intro.title": "#1440",
-    "web:control:terms.liability.title": "#1440",
-    "web:control:terms.license.title": "#1440",
-    "web:control:terms.noMedicalAdvice.title": "#1440",
-    "web:control:terms.provider.title": "#1440",
-    "web:control:terms.subscription.title": "#1440",
-    "web:control:terms.termination.title": "#1440",
-    "web:control:terms.warranty.title": "#1440",
     "web:control:today.setupChecklist.dismiss": "#1444",
     "web:display:goals.metrics.projectedCompletion": "#1429",
     "web:display:habits.form.every": "#1450",
@@ -4127,6 +4101,16 @@
       "citation": ".claude/specs/orbit-prod-release.md",
       "rule": "Remove the Hoje jump pill; the centred date label returns to today across the app",
       "reason": "The separate jump pill is removed by #1422; the centred date retains the return action."
+    }
+  },
+  "staticHeadingLabels": {
+    "apps/web/app/(public)/privacy/page.tsx": {
+      "namespace": "privacy",
+      "reason": "Production origin/main:apps/web/app/(public)/privacy/page.tsx:86-108 renders sections.label as SectionLabel with always-visible bodies and no action binding. Only the label-property heuristic for section title keys is suppressed; direct press, link and input bindings remain capabilities."
+    },
+    "apps/web/app/(public)/terms/page.tsx": {
+      "namespace": "terms",
+      "reason": "Production origin/main:apps/web/app/(public)/terms/page.tsx:44-66 renders sections.label as SectionLabel with always-visible bodies and no action binding. Only the label-property heuristic for section title keys is suppressed; direct press, link and input bindings remain capabilities."
     }
   }
 }
