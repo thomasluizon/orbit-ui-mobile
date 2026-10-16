@@ -334,15 +334,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         ): RemoteViews {
             val spacing = WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
             val compact = calculateWidgetGeometry(widgetHeightDp, 0, spacing).compact
-            val layout = when {
-                widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP -> R.layout.widget_layout_narrow
-                compact && !signedOut -> R.layout.widget_layout_compact
-                else -> R.layout.widget_layout
-            }
-            val views = RemoteViews(context.packageName, layout)
-            val inset = (spacing.insetDp * context.resources.displayMetrics.density).toInt()
-            views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
-            views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
@@ -367,6 +358,17 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             val rowCount = if (showSkeleton) 5 else if (ownsRows) prefs.getInt("row_count", 0) else 0
             val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount, spacing)
+            val layout = when {
+                widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP -> R.layout.widget_layout_narrow
+                compact && !signedOut -> R.layout.widget_layout_compact
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.S && geometry.contentHeightDp > spacing.rowHeightDp ->
+                    R.layout.widget_layout_expanded
+                else -> R.layout.widget_layout
+            }
+            val views = RemoteViews(context.packageName, layout)
+            val inset = (spacing.insetDp * context.resources.displayMetrics.density).toInt()
+            views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
+            views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
             views.setInt(
                 R.id.widget_content, "setMinimumHeight", (geometry.contentHeightDp * density).toInt()
             )
@@ -398,7 +400,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_empty_text, "setTextColor", colorModes) { it.textPrimary }
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
-            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility)
+            val unitVisibility = if (widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP) View.GONE else streakUnitVisibility
+            views.setViewVisibility(R.id.widget_streak_unit, unitVisibility)
 
             // Refresh icon tint
             views.setModeAwareColor(R.id.widget_refresh, "setColorFilter", colorModes) { it.textMuted }
@@ -464,7 +467,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             if (compact && !signedOut && widgetWidthDp > STREAK_UNIT_BREAKPOINT_DP) {
                 applyNextHabit(context, views, widgetWidthDp, spacing, safeHeaderLabel,
                     if (syncedOnce) "$completedCount/$habitCount" else "", streak, lang,
-                    streakUnitVisibility == View.VISIBLE, ownsRows && !showSkeleton)
+                    unitVisibility == View.VISIBLE, ownsRows && !showSkeleton)
             }
             applyOpenAppActions(context, views)
             views.setViewVisibility(

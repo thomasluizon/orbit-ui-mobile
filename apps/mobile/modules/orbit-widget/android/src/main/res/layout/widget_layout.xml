@@ -146,7 +146,7 @@
         <FrameLayout
             android:id="@+id/widget_content"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="@dimen/widget_row_height"
             android:layout_marginTop="@dimen/widget_header_list_gap"
             android:minHeight="@dimen/widget_touch_target">
 
@@ -212,14 +212,14 @@
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="@dimen/widget_refresh_inset"
+                        android:layout_height="@dimen/widget_skeleton_height"
                         android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_1"
                             android:layout_width="@dimen/widget_skeleton_width_1"
-                            android:layout_height="@dimen/widget_refresh_inset"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -245,14 +245,14 @@
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="@dimen/widget_refresh_inset"
+                        android:layout_height="@dimen/widget_skeleton_height"
                         android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_2"
                             android:layout_width="@dimen/widget_skeleton_width_2"
-                            android:layout_height="@dimen/widget_refresh_inset"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -278,14 +278,14 @@
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="@dimen/widget_refresh_inset"
+                        android:layout_height="@dimen/widget_skeleton_height"
                         android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_3"
                             android:layout_width="@dimen/widget_skeleton_width_3"
-                            android:layout_height="@dimen/widget_refresh_inset"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -311,14 +311,14 @@
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="@dimen/widget_refresh_inset"
+                        android:layout_height="@dimen/widget_skeleton_height"
                         android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_4"
                             android:layout_width="@dimen/widget_skeleton_width_4"
-                            android:layout_height="@dimen/widget_refresh_inset"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -343,14 +343,14 @@
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="@dimen/widget_refresh_inset"
+                        android:layout_height="@dimen/widget_skeleton_height"
                         android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_5"
                             android:layout_width="@dimen/widget_skeleton_width_5"
-                            android:layout_height="@dimen/widget_refresh_inset"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>

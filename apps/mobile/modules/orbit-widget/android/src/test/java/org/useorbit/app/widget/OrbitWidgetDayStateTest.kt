@@ -20,6 +20,18 @@ class OrbitWidgetDayStateTest {
         assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString("unrecognised"))
     }
 
+    @Test
+    fun `legacy widget body is bounded before runtime height setters are available`() {
+        val source = java.io.File("src/main/res/layout/widget_layout.xml").readText()
+        val content = Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
+            .find(source)?.groupValues?.get(1)
+        assertEquals("@dimen/widget_row_height", content)
+        val expanded = java.io.File("src/main/res/layout/widget_layout_expanded.xml").readText()
+        assertEquals("@dimen/widget_content_expanded_height",
+            Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
+                .find(expanded)?.groupValues?.get(1))
+    }
+
     private val cardSpacing = WidgetSpacing(24f, 48f, 68f, 8f, 16f, 96f)
     private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 64f)
 
