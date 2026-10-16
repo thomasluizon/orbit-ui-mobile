@@ -17,12 +17,12 @@ export function AppBar({ title, onBack, backLabel, action, titleRef, titleVisual
   return (
     <View testID={onBack ? 'nav-header-back' : 'nav-header-plain'} style={styles.row}>
       {onBack && <View style={styles.leading}>
-          <MotionPressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
-            style={({ pressed }) => [styles.back, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
-            <ChevronLeft size={24} strokeWidth={2} color={tokens.fg1} />
-          </MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
+          style={({ pressed }) => [styles.back, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
+          <ChevronLeft size={24} strokeWidth={2} color={tokens.fg1} />
+        </MotionPressable>
       </View>}
-      {titleVisual !== undefined ? <View ref={titleRef} accessible accessibilityRole={titleIsHeading ? 'header' : undefined} accessibilityLabel={title} style={styles.visualTitle}>{titleVisual}</View>
+      {titleVisual !== undefined ? <View ref={titleRef} accessible accessibilityRole={titleIsHeading ? 'header' : 'image'} accessibilityLabel={title} style={styles.visualTitle}>{titleVisual}</View>
         : <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>}
       <View style={styles.action}>{action}</View>
     </View>

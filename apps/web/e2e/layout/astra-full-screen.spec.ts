@@ -51,7 +51,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
           await expect(page.locator('[data-shell-conversation="panel"]')).toHaveCount(0)
-          const header = conversation.getByRole('banner')
+          const header = conversation.locator('header')
           const heading = header.getByRole('heading', { name: words.chat.title, exact: true })
           await expect(heading).toHaveText('')
           const mark = heading.locator('[data-asset="astra-mark-16"]')

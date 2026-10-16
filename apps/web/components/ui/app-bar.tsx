@@ -14,11 +14,11 @@ export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true
   return (
     <header data-back={onBack ? true : undefined} className={`grid min-h-14 shrink-0 items-center gap-1 px-4 ${onBack ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-[1fr_auto]'}`}>
       {onBack && <div className="flex min-w-[var(--touch-min)] justify-start">
-          <button type="button" aria-label={backLabel} onClick={onBack} className={APP_BAR_CONTROL_CLASS}>
-            <ChevronLeft size={24} strokeWidth={2} aria-hidden="true" />
-          </button>
+        <button type="button" aria-label={backLabel} onClick={onBack} className={APP_BAR_CONTROL_CLASS}>
+          <ChevronLeft size={24} strokeWidth={2} aria-hidden="true" />
+        </button>
       </div>}
-      {titleIsHeading ? <h1 ref={titleRef} tabIndex={-1} translate={titleTranslate} aria-label={titleVisual ? title : undefined} className={`${titleClassName}${titleVisual ? ' flex items-center' : ''}`}>{titleVisual ?? title}</h1> : <span translate={titleTranslate} aria-label={titleVisual ? title : undefined} className={`${titleClassName}${titleVisual ? ' flex items-center' : ''}`}>{titleVisual ?? title}</span>}
+      {titleIsHeading ? <h1 ref={titleRef} tabIndex={-1} translate={titleTranslate} aria-label={titleVisual ? title : undefined} className={`${titleClassName}${titleVisual ? ' flex items-center' : ''}`}>{titleVisual ?? title}</h1> : <span translate={titleTranslate} role={titleVisual ? 'img' : undefined} aria-label={titleVisual ? title : undefined} className={`${titleClassName}${titleVisual ? ' flex items-center' : ''}`}>{titleVisual ?? title}</span>}
       <div className="flex items-center justify-end gap-3">{action}</div>
     </header>
   )

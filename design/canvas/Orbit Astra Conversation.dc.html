@@ -829,12 +829,12 @@ class Component extends DCLogic {
       feedBusy: (st === 'loading' || st === 'busy' || acting) ? true : undefined,
       conversationOpen: true,
 
-      navHeader: H(window.OrbitNativeMobile.NavHeader, {
-        title: H('span', { translate: 'no', 'aria-label': 'Astra', style: { display: 'flex', alignItems: 'center' } }, H(D.AstraGlyph, { size: 16 })),
-        trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: () => {},
+      navHeader: H('header', { style: { display: 'flex', alignItems: 'center', minHeight: 56, flexShrink: 0, gap: 4, paddingInline: 16 } },
+        H('h1', { translate: 'no', 'aria-label': 'Astra', style: { display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, margin: 0, color: 'var(--fg-1)' } },
+          H('span', { 'aria-hidden': true, style: { display: 'flex' } }, H(D.AstraGlyph, { size: 16 }))),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: () => {},
           style: { width: 48, height: 48, paddingInline: 0, boxShadow: 'none' } },
-          H(D.Icon, { name: 'x', size: 20 })),
-      }),
+          H(D.Icon, { name: 'x', size: 20 }))),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
 
       /* The composer carries the full contract: voice with its four words, attachments with the tray

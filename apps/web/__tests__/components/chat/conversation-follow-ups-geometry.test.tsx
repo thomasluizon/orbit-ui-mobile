@@ -53,13 +53,13 @@ describe('Follow-up conversation geometry in Chromium', () => {
 
   it.each([412, 1352])('centres the header mark with close at %ipx', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
-      <div style={{ width: Math.min(width, 740) }}><AstraConversation chat={createChat()} /></div>
+      <main style={{ width: Math.min(width, 740) }}><AstraConversation chat={createChat()} /></main>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const header = page.getByRole('banner')
+      const header = page.locator('header')
       const mark = header.locator('[data-asset="astra-mark-16"]')
       await expect(mark.count()).resolves.toBe(1)
       const markBox = (await mark.boundingBox())!

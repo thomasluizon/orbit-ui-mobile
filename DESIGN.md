@@ -118,11 +118,22 @@ the destination's header, scroller and bottom chrome in the centred column, capp
 its top inset to the viewport bottom. Its header, thread, chips and composer have the same layout
 at every width. The header is NavHeader: minimum height 56, a start-aligned 16 Astra glyph
 at the 16 header inset, centred vertically with a 48 close control carrying a 20 X. The glyph
-replaces the visible title; the header heading keeps the accessible name `Astra` once. The composer has a top hairline and 16 padding,
+replaces the visible title; the header heading keeps the accessible name `Astra` once.
+The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
+
+**Conversation header surface inventory:**
+
+| Surface | Owner | States sharing the header |
+|---|---|---|
+| Web conversation in the compact shell and wide content column | `apps/web/components/chat/conversation.tsx`, mounted by `apps/web/app/(app)/layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
+| Android conversation at every window width | `apps/mobile/components/chat/conversation.tsx`, mounted by `apps/mobile/app/_layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
+
+Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
+all open these owners through the conversation store; no entry owns a separate header.
 
 **Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
 control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
