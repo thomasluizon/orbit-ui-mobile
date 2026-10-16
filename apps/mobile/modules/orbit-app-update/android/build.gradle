@@ -1,0 +1,12 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+android {
+  namespace "org.useorbit.app.update"
+}
+
+dependencies {
+  implementation 'com.google.android.play:app-update:2.1.0'
+}

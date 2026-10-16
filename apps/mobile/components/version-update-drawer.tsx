@@ -62,6 +62,7 @@ export function VersionUpdateDrawer() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
     updateAvailable,
+    androidDownloaded,
     forceUpdate,
     iosStoreUrl,
   } = useVersionCheck()
@@ -140,7 +141,7 @@ export function VersionUpdateDrawer() {
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
 
   if (Platform.OS === 'android') {
-    return <AndroidVersionUpdateSheet ready={androidUpdateReady} restartDismissed={androidRestartDismissed}
+    return <AndroidVersionUpdateSheet ready={androidDownloaded || androidUpdateReady} restartDismissed={androidRestartDismissed}
       softOpen={updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested}
       styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}
       later={handleIosLater} restartLater={handleAndroidLater} />
