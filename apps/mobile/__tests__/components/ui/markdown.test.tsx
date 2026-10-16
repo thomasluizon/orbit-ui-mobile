@@ -464,6 +464,40 @@ describe('Astra block copying', () => {
     }
   })
 
+  it.each([
+    ['quote', '> ```\n> keep me\n> ```', '\n>\n> More prose.'],
+    ['list', '- item\n\n  ```\n  keep me\n  ```', '\n\n  More prose.'],
+  ])('preserves nested %s copy feedback and attention while prose streams in', (_context, content, appended) => {
+    vi.useFakeTimers()
+    renderSelection.current = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      const message = makeHeldHabitMessage({ role: 'ai', content, pendingOperations: [] })
+      TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
+      const button = tree!.root.findAllByType('Pressable')[0]
+      const region = tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')
+      TestRenderer.act(() => { button.props.onPress(); button.props.onFocus(); button.props.onHoverIn() })
+      TestRenderer.act(() => { tree!.update(<MessageBubble message={{ ...message, content: content + appended }} />) })
+      const updatedButton = tree!.root.findAllByType('Pressable')[0]
+      expect(updatedButton.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      expect(updatedButton).toBe(button)
+      expect(tree!.root.findAllByType('Text').find((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toBe(region)
+      expect(region.props.children).toBe('chat.blockCopy.copied')
+      TestRenderer.act(() => { vi.advanceTimersByTime(6000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      TestRenderer.act(() => { button.props.onBlur() })
+      TestRenderer.act(() => { vi.advanceTimersByTime(6000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copied')
+      TestRenderer.act(() => { button.props.onHoverOut() })
+      TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
+      expect(button.props.accessibilityLabel).toBe('chat.blockCopy.copy')
+    } finally {
+      renderSelection.current = false
+      TestRenderer.act(() => tree?.unmount())
+      vi.useRealTimers()
+    }
+  })
+
   it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', (attention) => {
     vi.useFakeTimers()
     renderSelection.current = true

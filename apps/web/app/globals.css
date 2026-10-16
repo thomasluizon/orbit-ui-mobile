@@ -2021,7 +2021,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   background: var(--bg-elev);
 }
 
-[data-bubble-role] .prose-orbit > :last-child {
+[data-bubble-role] .prose-orbit > :last-child,
+[data-bubble-role] .prose-orbit > [data-prose-html]:last-child > :last-child {
   margin-bottom: 0;
 }
 

@@ -129,6 +129,7 @@ function proseHtml(tokens: Token[], tightList = false): string {
 const ProseHtml = memo(function ProseHtml({ html, className }: Readonly<{ html: string; className?: string }>) {
   return <div
     className={className}
+    data-prose-html
     style={className ? undefined : { display: 'contents' }}
     // react-doctor-disable-next-line dangerous-html-sink -- the renderer escapes raw HTML, validates hrefs and emits allowlisted tags; DOMPurify adds client sanitization at this single sink https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     dangerouslySetInnerHTML={{ __html: html }}

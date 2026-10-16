@@ -26,6 +26,26 @@ describe('Astra code copy geometry in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([
+    ['plain reply', 'A final paragraph.'],
+    ['prose after a block', '```\nkeep me\n```\n\nA final paragraph.'],
+  ])('removes the final prose margin in an Astra bubble: %s', async (_context, content) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div data-bubble-role="ai"><Markdown className="thread-prose" copyableBlocks content={content} /></div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const paragraph = await page.locator('[data-bubble-role="ai"] p').last().evaluate(element => ({
+        marginBottom: getComputedStyle(element).marginBottom,
+        bottom: element.getBoundingClientRect().bottom,
+        bubbleBottom: element.closest('[data-bubble-role]')!.getBoundingClientRect().bottom,
+      }))
+      expect(paragraph.marginBottom).toBe('0px')
+      expect(paragraph.bottom).toBe(paragraph.bubbleBottom)
+    } finally { await page.close() }
+  })
+
   it.each(cases)('keeps controls separate from selectable code at $width, $scale text, $locale, $mode', async ({ width, scale, locale, mode }) => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC">
       <div style={{ maxWidth: 740, padding: 16, marginInline: 'auto' }}>

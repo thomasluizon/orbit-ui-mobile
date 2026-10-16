@@ -54,6 +54,13 @@ function StrongText({ children, style }: Readonly<{ children: ReactNode; style?:
   return <Text selectable style={style}>{children}</Text>
 }
 
+function retainContainerIdentity(container: ReactNode, children: ReactNode[]): ReactNode {
+  const firstChild = children.find(isValidElement)
+  return isValidElement(container) && firstChild
+    ? cloneElement(container, { key: firstChild.key })
+    : container
+}
+
 function ProseLink({ children, href, styles, colors }: Readonly<{
   children: ReactNode
   href: string
@@ -110,7 +117,8 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 
   override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
-    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+    const quote = super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+    return retainContainerIdentity(quote, children)
   }
 
   override strong(children: string | ReactNode[], styles?: TextStyle): ReactNode {
@@ -133,7 +141,11 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
       }
     }
     flush()
-    return super.listItem(blocks, styles)
+    return retainContainerIdentity(super.listItem(blocks, styles), children)
+  }
+
+  override list(ordered: boolean, children: ReactNode[], listStyle?: ViewStyle, textStyle?: TextStyle, startIndex?: number): ReactNode {
+    return retainContainerIdentity(super.list(ordered, children, listStyle, textStyle, startIndex), children)
   }
 
   override link(
