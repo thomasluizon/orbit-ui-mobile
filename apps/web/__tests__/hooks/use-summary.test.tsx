@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({ fetchSummary: vi.fn() }))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: (...args: unknown[]) => mocks.fetchSummary(...args) }))
 
 const payload = { summary: 'Your habits are ready for today.', insight: '', fromCache: false }
-const options = { date: '2026-08-29', locale: 'pt-BR', hasProAccess: true, aiSummaryEnabled: true }
+const options = { date: '2026-08-29', locale: 'pt-BR', timeZone: 'UTC', hasProAccess: true, aiSummaryEnabled: true }
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   return function SummaryQueryProvider({ children }: { children: React.ReactNode }) {

@@ -42,7 +42,7 @@ async function press(tree: SummaryTree, label: string) {
 }
 
 beforeEach(() => {
-  mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'en' })
+  mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'en', timeZone: 'America/Sao_Paulo' })
   mocks.summary = 'A short daily summary.'
   mocks.isLoading = false
   mocks.isFetching = false
@@ -59,7 +59,7 @@ describe('daily summary on Hoje', () => {
     try {
       expect(hasText(tree, 'A short daily summary.')).toBe(true)
       expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(true)
-      expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', hasProAccess: true, aiSummaryEnabled: true })
+      expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
       await press(tree, 'summary.askAstra')
       expect(useUIStore.getState().astraConversationOpen).toBe(true)
       expect(mocks.push).not.toHaveBeenCalled()

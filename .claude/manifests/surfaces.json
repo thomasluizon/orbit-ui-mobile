@@ -653,7 +653,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -668,7 +670,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -683,7 +687,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -698,7 +704,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -713,7 +721,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "light",
@@ -728,7 +738,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "light",
@@ -743,7 +755,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "dark",
@@ -758,7 +772,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "dark",
@@ -7333,11 +7349,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7361,11 +7379,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7389,11 +7409,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7417,11 +7439,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7445,11 +7469,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7473,11 +7499,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7501,11 +7529,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7529,11 +7559,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",

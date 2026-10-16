@@ -20,7 +20,7 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   if (!profile || (profile.hasProAccess && !profile.aiSummaryEnabled)) return null
-  if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} />
+  if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} timeZone={profile.timeZone} />
   return <SummarySection>
     <Text style={[styles.message, { color: tokens.fg2 }]}>{t('summary.freePrompt')}</Text>
     <View style={styles.actions}><PillButton variant="ghost" accessibilityRole="link" accessibleName={t('summary.upgrade')} onClick={() => router.push('/upgrade')}>{t('summary.upgrade')}</PillButton></View>
@@ -41,12 +41,12 @@ function SummarySection({ children, busy = false }: Readonly<{ children: React.R
   </View>
 }
 
-function DailySummary({ date, language }: Readonly<{ date: string; language: string | null }>) {
+function DailySummary({ date, language, timeZone }: Readonly<{ date: string; language: string | null; timeZone: string | null }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { summary, isLoading, isFetching, error, refetch } = useSummary({
-    date, locale: language ?? i18n.language, hasProAccess: true, aiSummaryEnabled: true,
+    date, locale: language ?? i18n.language, timeZone, hasProAccess: true, aiSummaryEnabled: true,
   })
   if (!isLoading && !error && !summary) return null
   if (!isLoading && !error && summary) return <SummarySection><SummaryText summary={summary} busy={isFetching} /></SummarySection>
@@ -100,6 +100,6 @@ const styles = StyleSheet.create({
   message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55, maxWidth: 640 },
   disclaimer: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 12 * 1.5, maxWidth: 640 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
-  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, overflow: 'hidden' },
   toggleLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
 })

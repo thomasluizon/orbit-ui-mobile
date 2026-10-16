@@ -9,7 +9,7 @@ vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.fe
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const payload = { summary: 'Your habits are ready for today.', insight: '', fromCache: false }
-const options = { date: '2026-08-29', locale: 'pt-BR', hasProAccess: true, aiSummaryEnabled: true }
+const options = { date: '2026-08-29', locale: 'pt-BR', timeZone: 'UTC', hasProAccess: true, aiSummaryEnabled: true }
 type SummaryTree = ReturnType<typeof TestRenderer.create> & { unmount: () => void }
 async function mountSummary(overrides = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })

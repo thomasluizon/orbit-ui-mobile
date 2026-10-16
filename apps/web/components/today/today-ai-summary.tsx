@@ -15,7 +15,7 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   const t = useTranslations()
   const { profile } = useProfile()
   if (!profile || (profile.hasProAccess && !profile.aiSummaryEnabled)) return null
-  if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} />
+  if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} timeZone={profile.timeZone} />
   return <SummarySection>
     <p className="max-w-[65ch] text-sm leading-[1.55] text-[var(--fg-2)]">{t('summary.freePrompt')}</p>
     <div className="flex"><PillLink href="/upgrade" variant="ghost">{t('summary.upgrade')}</PillLink></div>
@@ -34,12 +34,12 @@ function SummarySection({ children, busy = false }: Readonly<{ children: React.R
   </section>
 }
 
-function DailySummary({ date, language }: Readonly<{ date: string; language: string | null }>) {
+function DailySummary({ date, language, timeZone }: Readonly<{ date: string; language: string | null; timeZone: string | null }>) {
   const t = useTranslations()
   const locale = useLocale()
   const messageId = useId()
   const { summary, isLoading, isFetching, error, refetch } = useSummary({
-    date, locale: language ?? locale, hasProAccess: true, aiSummaryEnabled: true,
+    date, locale: language ?? locale, timeZone, hasProAccess: true, aiSummaryEnabled: true,
   })
   if (!isLoading && !error && !summary) return null
   if (!isLoading && !error && summary) return <SummarySection><SummaryText summary={summary} busy={isFetching} /></SummarySection>

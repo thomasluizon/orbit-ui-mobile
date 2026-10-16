@@ -23,7 +23,7 @@ vi.mock('@/hooks/use-summary', () => ({ useSummary: (options: unknown) => {
 } }))
 
 beforeEach(() => {
-  mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'en' })
+  mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'en', timeZone: 'America/Sao_Paulo' })
   mocks.summary = 'A short daily summary.'
   mocks.isLoading = false
   mocks.isFetching = false
@@ -38,7 +38,7 @@ describe('daily summary on Hoje', () => {
     render(<TodayAISummary date="2026-08-29" />)
     expect(screen.getByText('A short daily summary.')).toBeInTheDocument()
     expect(screen.getByText('aiDisclosure.notMedicalAdvice')).toBeInTheDocument()
-    expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', hasProAccess: true, aiSummaryEnabled: true })
+    expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
     fireEvent.click(screen.getByRole('button', { name: 'summary.askAstra' }))
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
