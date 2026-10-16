@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { motionDurations, motionEasings, skeletonPulseIterations } from '@orbit/shared/theme'
@@ -10,16 +10,27 @@ export function PendingReply({ visible }: Readonly<{ visible: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
+  const remainingPulseTime = useRef(motionDurations.slow * 4 * skeletonPulseIterations)
   const opacity = useSharedValue(1)
   const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
   useEffect(() => {
-    if (reducedMotion || !visible) {
+    if (reducedMotion || !visible || remainingPulseTime.current <= 0) {
       opacity.value = 1
       return
     }
+    const started = Date.now()
+    const settle = setTimeout(() => {
+      remainingPulseTime.current = 0
+      cancelAnimation(opacity)
+      opacity.value = 1
+    }, remainingPulseTime.current)
     const timing = { duration: motionDurations.slow * 2, easing: Easing.bezier(...motionEasings.standard) }
     opacity.value = withRepeat(withSequence(withTiming(0.6, timing), withTiming(1, timing)), skeletonPulseIterations)
-    return () => cancelAnimation(opacity)
+    return () => {
+      clearTimeout(settle)
+      remainingPulseTime.current = Math.max(0, remainingPulseTime.current - (Date.now() - started))
+      cancelAnimation(opacity)
+    }
   }, [opacity, reducedMotion, visible])
   const dots = [0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)
   return <View testID="astra-pending" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.row}>
