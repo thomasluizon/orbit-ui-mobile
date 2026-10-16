@@ -49,19 +49,33 @@ function WorkingMark({ color }: Readonly<{ color: string }>) {
   )
 }
 
-function useToastSwipe(hasAction: boolean, dismiss: () => void) {
-  return useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) => hasAction
+function useToastSwipe(props: { actionLabel?: string; persistent?: boolean; onDismiss?: () => void }, dismiss: () => void) {
+  const canDismiss = !props.persistent || Boolean(props.onDismiss)
+  const swipeEnabled = Boolean(props.actionLabel) && canDismiss
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => swipeEnabled
       && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderRelease: (_event, gesture) => {
-      if (Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
+      if (swipeEnabled && Math.abs(gesture.dx) >= 48 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) dismiss()
     },
-  }), [hasAction, dismiss])
+  }), [swipeEnabled, dismiss])
+  return { swipe, canDismiss }
+}
+
+function ToastClose({ visible, dismiss, onFocus, onBlur, color }: Readonly<{
+  visible: boolean; dismiss: () => void; onFocus: () => void; onBlur: () => void; color: string
+}>) {
+  const { t } = useTranslation()
+  if (!visible) return null
+  return (
+    <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={onFocus} onBlur={onBlur}>
+      <X size={20} color={color} />
+    </PillButton>
+  )
 }
 
 /** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void }>) {
-  const { t } = useTranslation()
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -76,8 +90,8 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss)
-  const swipe = useToastSwipe(Boolean(props.actionLabel), dismiss)
+  const { dismissed, dismiss } = useToastLifecycle(props, hovered || focused, props.onDismiss, props.persistent)
+  const { swipe, canDismiss } = useToastSwipe(props, dismiss)
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)
@@ -153,9 +167,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
               {props.actionLabel}
             </Text>
           </Pressable>
-          <PillButton variant="ghost" size="sm" iconOnly label={t('common.close')} minimumHeight={TOUCH_TARGET_MIN} onClick={dismiss} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
-            <X size={20} color={tokens.fg2} />
-          </PillButton>
+          <ToastClose visible={canDismiss} dismiss={dismiss} color={tokens.fg2} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
         </View>
       ) : null}
     </View>

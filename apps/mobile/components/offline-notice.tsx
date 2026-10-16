@@ -12,8 +12,8 @@ import { AlertTriangle, RefreshCw, WifiOff } from '@/components/ui/icons'
 import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { enqueue } from '@/lib/offline-queue'
-import { buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { enqueue, getAll } from '@/lib/offline-queue'
+import { accountTimezoneDependency, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
 import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
 function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
@@ -22,8 +22,9 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const dismissDrop = useOfflineSyncStore((state) => state.dismissDrop)
-  const hideDrop = useOfflineSyncStore((state) => state.hideDrop)
   const mutation = drop.mutation
+  const timezoneRecoveryRequired = mutation.type === 'setTimeZone'
+    && getAll().some((entry) => entry.dependsOn?.includes(accountTimezoneDependency(mutation.id)))
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
   const scope = mutation.scope ?? getMutationScope(mutation.type) ?? 'profile'
@@ -49,10 +50,10 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   }
 
   return (
-    <Toast kind="lost" message={message}
+    <Toast persistent kind="lost" message={message}
       detail={t(needsCreation ? 'common.syncOrphanedDetail' : remaining > 0 ? 'common.syncDroppedPending' : mutation.type === 'logHabit' ? 'common.syncDroppedDetail' : 'common.syncChangeDroppedDetail')}
       icon={<AlertTriangle size={20} color={tokens.statusBad} />}
-      actionLabel={actionLabel} onAction={recover} onDismiss={() => hideDrop(drop.id)} />
+      actionLabel={actionLabel} onAction={recover} onDismiss={timezoneRecoveryRequired ? undefined : () => dismissDrop(drop.id)} />
   )
 }
 
@@ -61,7 +62,7 @@ export function useOfflineNoticeContent() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { isOnline, pendingCount, isFlushing, hasFailed } = useOffline()
-  const drop = useOfflineSyncStore((state) => state.drops.find((entry) => !state.hiddenDropIds.includes(entry.id)))
+  const drop = useOfflineSyncStore((state) => state.drops[0])
   const currentToast = useAppToastStore((state) => state.currentToast)
   const [sawPending, setSawPending] = useState(false)
   const clearSynced = useCallback(() => setSawPending(false), [])

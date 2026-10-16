@@ -8,12 +8,13 @@ export function useToastLifecycle(
   props: ToastProps,
   paused: boolean,
   onDismiss?: () => void,
+  persistent = false,
 ) {
   const { kind, message } = props
   const hasAction = Boolean(props.actionLabel)
   const onDone = kind === 'neutral' || kind === 'done' ? props.onDone : undefined
   const duration = getToastDuration(props.doneAfterMs)
-  const timed = hasAction || Boolean(onDone)
+  const timed = !persistent && (hasAction || Boolean(onDone))
   const [lifecycle, setLifecycle] = useState(() => ({ kind, message, duration, lifetime: new ToastLifetime(duration) }))
   if (lifecycle.kind !== kind || lifecycle.message !== message || lifecycle.duration !== duration) {
     setLifecycle({ kind, message, duration, lifetime: new ToastLifetime(duration) })
@@ -33,6 +34,6 @@ export function useToastLifecycle(
     return () => lifetime.pause()
   }, [lifetime, paused, timed])
 
-  useEffect(() => subscribeToastNavigation(() => { if (hasAction) finish() }), [hasAction])
+  useEffect(() => subscribeToastNavigation(() => { if (hasAction && !persistent) finish() }), [hasAction, persistent])
   return { dismissed: dismissedLifetime === lifetime, dismiss }
 }
