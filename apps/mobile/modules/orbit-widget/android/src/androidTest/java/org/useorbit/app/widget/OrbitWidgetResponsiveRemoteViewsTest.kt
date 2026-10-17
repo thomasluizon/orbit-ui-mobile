@@ -193,8 +193,14 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         .findViewById<TextView>(R.id.widget_subtitle)
                     assertEquals(signInInstruction, freshSubtitle.contentDescription.toString())
                     assertEquals(View.GONE, viewTree.findViewById<View>(R.id.widget_header_right).visibility)
-                    OrbitWidgetProvider.showRefresh(signedOut)
-                    signedOut.reapply(context, viewTree)
+                    val signedInAgain = if (fallback) {
+                        signedOut.also { OrbitWidgetProvider.showRefresh(it) }
+                    } else {
+                        OrbitWidgetProvider.buildWidgetRemoteViews(
+                            context, appWidgetId, widthPx, heightPx, signedOut = false
+                        )
+                    }
+                    signedInAgain.reapply(context, viewTree)
                     assertEquals(View.VISIBLE, viewTree.findViewById<View>(R.id.widget_header_right).visibility)
                     assertEquals(View.VISIBLE, viewTree.findViewById<View>(R.id.widget_refresh).visibility)
                 }
