@@ -7,9 +7,10 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
-import { parseApiKeyExpiryUtc } from '@orbit/shared/validation'
+import { validateApiKeyExpiry } from '@orbit/shared/validation'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
@@ -355,20 +356,6 @@ function useApiKeyStepUp(expiresAt: string) {
   return { busy, error, start }
 }
 
-function openScopeOrStartStepUp(
-  createGrantAvailable: boolean,
-  clearCreateKeyError: () => void,
-  openScope: () => void,
-  startStepUp: () => Promise<void>,
-): void {
-  clearCreateKeyError()
-  if (!createGrantAvailable) {
-    void startStepUp()
-    return
-  }
-  openScope()
-}
-
 export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -392,11 +379,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   })
 
   function validateExpiry(focusInvalid = true) {
-    const parsed = parseApiKeyExpiryUtc(expiresAt)
-    const invalid = Boolean(expiresAt.trim()) && (!parsed || parsed.getTime() <= Date.now())
+    const expiry = validateApiKeyExpiry(expiresAt)
+    const invalid = !expiry.valid
     setExpiryError(invalid)
     if (invalid && focusInvalid) setExpiryFocusRequest((current) => current + 1)
-    return !invalid
+    return expiry
   }
 
   async function createKey(
@@ -405,22 +392,17 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     onInvalidExpiry?: () => void,
   ) {
     if (creating) return null
-    if (!validateExpiry(onInvalidExpiry === undefined)) {
+    const expiry = validateExpiry(onInvalidExpiry === undefined)
+    if (!expiry.valid) {
       onInvalidExpiry?.()
       return null
     }
-    const creationAccount = getAccountGeneration()
-    setCreating(true)
-    try {
-      const result = await management.handleCreateKey({
-        ...request, expiresAtUtc: parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null,
-      }, onCreateGrantRequired)
-      if (getAccountGeneration() !== creationAccount) return null
-      if (result) retainApiKeyExpiryDraft('')
-      return result
-    } finally {
-      if (getAccountGeneration() === creationAccount) setCreating(false)
-    }
+    return submitApiKeyCreation({ ...request, expiresAtUtc: expiry.expiresAtUtc }, {
+      getAccountGeneration,
+      setCreating,
+      createKey: (request) => management.handleCreateKey(request, onCreateGrantRequired),
+      retainExpiryDraft: retainApiKeyExpiryDraft,
+    })
   }
 
   async function createSimpleKey() {
@@ -482,8 +464,8 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             creating={creating}
             onCreate={() => void createSimpleKey()}
             onCreateScoped={() => {
-              if (!validateExpiry()) return
-              openScopeOrStartStepUp(
+              if (!validateExpiry().valid) return
+              openApiKeyScopeOrStartStepUp(
                 management.createGrantAvailable,
                 management.clearCreateKeyError,
                 () => setScopeOpen(true),

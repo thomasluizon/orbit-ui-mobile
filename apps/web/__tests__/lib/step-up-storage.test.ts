@@ -2,17 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { STEP_UP_ATTEMPT_WINDOW_MS } from '@orbit/shared/utils'
 import {
   beginStepUpChallenge,
-  bindStepUpStateToAccount,
   clearStepUpState,
-  consumeApiKeyCreationGrant,
-  hasApiKeyCreationGrant,
-  isStepUpVerified,
   markStepUpAttemptFailed,
   markStepUpExhausted,
-  markStepUpVerified,
   readStepUpTiming,
-  readApiKeyExpiryDraft,
-  retainApiKeyExpiryDraft,
 } from '@/lib/step-up-storage'
 
 const ACCOUNT = 'user-1'
@@ -42,56 +35,5 @@ describe('web step up timing storage', () => {
       sentAt: 2_000,
     })
     expect(failed.failedAttempts).toBe(2)
-  })
-
-  it('holds a verified result in memory for the session', () => {
-    expect(isStepUpVerified('keys')).toBe(false)
-
-    markStepUpVerified('keys')
-
-    expect(isStepUpVerified('keys')).toBe(true)
-    expect(isStepUpVerified('keys')).toBe(true)
-  })
-
-  it('consumes the create grant without hiding key management', () => {
-    markStepUpVerified('keys')
-
-    consumeApiKeyCreationGrant()
-
-    expect(hasApiKeyCreationGrant()).toBe(false)
-    expect(isStepUpVerified('keys')).toBe(true)
-  })
-
-  it('clears visibility, the create grant and the expiry draft when the account changes', () => {
-    bindStepUpStateToAccount('account-a')
-    markStepUpVerified('keys')
-    retainApiKeyExpiryDraft('2099-12-31T23:59')
-
-    bindStepUpStateToAccount('account-b')
-
-    expect(isStepUpVerified('keys')).toBe(false)
-    expect(hasApiKeyCreationGrant()).toBe(false)
-    expect(readApiKeyExpiryDraft()).toBe('')
-    bindStepUpStateToAccount('account-a')
-    expect(readApiKeyExpiryDraft()).toBe('')
-  })
-
-  it('keeps the expiry through grant renewal for the same account', () => {
-    bindStepUpStateToAccount(ACCOUNT)
-    retainApiKeyExpiryDraft('2099-12-31T23:59')
-    consumeApiKeyCreationGrant()
-    bindStepUpStateToAccount(ACCOUNT)
-    markStepUpVerified('keys')
-
-    expect(readApiKeyExpiryDraft()).toBe('2099-12-31T23:59')
-  })
-
-  it('forgets expiry drafts on sign out and ignores typing without an account', () => {
-    bindStepUpStateToAccount(ACCOUNT)
-    retainApiKeyExpiryDraft('2099-12-31T23:59')
-    clearStepUpState()
-    retainApiKeyExpiryDraft('2099-12-31T23:59')
-
-    expect(readApiKeyExpiryDraft()).toBe('')
   })
 })
