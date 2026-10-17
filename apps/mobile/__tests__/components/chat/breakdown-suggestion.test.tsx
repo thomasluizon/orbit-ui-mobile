@@ -81,6 +81,7 @@ describe('BreakdownSuggestion (mobile)', () => {
 
   it('collapses a rejected preview in place', () => {
     const tree = renderBreakdown()
+    TestRenderer.act(() => moreActions(tree).props.onPress())
     TestRenderer.act(() => press(tree, 'chat.preview.reject').props.onPress())
 
     expect(renderedText(tree.toJSON())).toContain('chat.preview.rejected')
@@ -228,6 +229,7 @@ it('disables approval and editing after removing every Android proposal', async 
   expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-primary-sm')
   expect(press(tree, 'chat.preview.approve').props.testID).toBe('button-secondary-sm')
   expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)
+  await act(() => moreActions(tree).props.onPress())
   expect(press(tree, 'chat.preview.edit').props.accessibilityState.disabled).toBe(true)
   expect(press(tree, 'chat.preview.reject').props.accessibilityState.disabled).toBe(false)
   expect(bulkCreate).not.toHaveBeenCalled()
@@ -345,7 +347,9 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     expect(bulkCreate).toHaveBeenCalledTimes(attempt)
     expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite' && renderedText(node.props.children) === 'habits.breakdown.capacityDenied')).toHaveLength(1)
     expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert' && renderedText(node.props.children).length > 0)).toHaveLength(0)
+    await act(() => moreActions(tree).props.onPress())
     expect(press(tree, 'chat.preview.reject').props.disabled).toBe(false)
+    await act(() => (tree.root.findAll(node => node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress as () => void)())
     expect(press(tree, 'chat.batch.retry')).toBeUndefined()
     expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   }
@@ -406,6 +410,7 @@ it('keeps an all-failed response editable and rejectable', async () => {
   const tree: ReactTestRenderer = renderBreakdown()
   await approveBreakdown(tree)
   expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.createError')
+  await act(() => moreActions(tree).props.onPress())
   await act(() => press(tree, 'chat.preview.reject').props.onPress())
   expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('chat.preview.rejected')
 })
@@ -476,3 +481,14 @@ it('names and confirms removal of a whitespace-only added draft', async () => {
   expect(bulkCreate).not.toHaveBeenCalled()
   await act(() => tree.update(<></>))
 })
+
+it('limits the Android preview footer to three visible actions', async () => {
+  const tree = renderBreakdown() as ReactTestRenderer
+  const footer = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
+  expect(footer.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(3)
+  await act(() => tree.update(<></>))
+})
+
+function moreActions(tree: ReactTestRenderer): { props: { onPress: () => void } } {
+  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.actions.more')[0]! as unknown as { props: { onPress: () => void } }
+}

@@ -5,7 +5,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
 import { useTranslations } from 'next-intl'
-import { useCallback, useRef, type RefObject } from 'react'
+import { useCallback, useId, useRef, useState, type RefObject } from 'react'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import type { BulkCreateRequest } from '@orbit/shared/types/habit'
 import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
@@ -16,7 +16,8 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
-import { AlertTriangle, Plus, Trash2 } from '@/components/ui/icons'
+import { Menu } from '@/components/ui/menu'
+import { AlertTriangle, MoreVertical, Plus, Trash2 } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 
 function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; t: ReturnType<typeof useTranslations>; editingDisabled: boolean }>) {
@@ -43,8 +44,10 @@ function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: Retur
   }))
 }
 
-function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, rejectRef }: Readonly<{ rejectRef: RefObject<HTMLButtonElement | null>; card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string }>) {
+function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, actionsRef }: Readonly<{ actionsRef: RefObject<HTMLButtonElement | null>; card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string }>) {
   const t = useTranslations()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
   const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
   const isEmpty = card.habits.length === 0
   const addVariant = isEmpty ? 'primary' : 'ghost'
@@ -59,8 +62,16 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
         {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
           <>
             <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
-            <Button size="sm" variant="ghost" disabled={editingDisabled || card.habits.length === 0} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button>
-            <Button buttonRef={rejectRef} size="sm" variant="ghost" disabled={editingDisabled} onClick={card.reject}>{t('chat.preview.reject')}</Button>
+            <Button buttonRef={actionsRef} size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} controlsId={menuId} hasPopup="menu" expanded={menuOpen && !editingDisabled} disabled={editingDisabled} onClick={() => setMenuOpen(!menuOpen)}>
+              <MoreVertical aria-hidden="true" size={20} />
+            </Button>
+            <Menu id={menuId} open={menuOpen && !editingDisabled} anchorRef={actionsRef} title={t('habits.actions.more')} restoreFocusOnSelect={false}
+              items={[
+                { id: 'edit', label: t('chat.preview.edit'), icon: 'pencil', disabled: editingDisabled || isEmpty },
+                { id: 'reject', label: t('chat.preview.reject'), disabled: editingDisabled },
+              ]}
+              onClose={() => setMenuOpen(false)}
+              onSelect={(id) => { if (id === 'edit') card.setEditingId(card.habits[0]?.id ?? null); else if (id === 'reject') card.reject() }} />
             <Button size="sm" variant={approveVariant} disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
           </>
         )}
@@ -70,7 +81,7 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
 
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const t = useTranslations()
-  const rejectRef = useRef<HTMLButtonElement>(null)
+  const actionsRef = useRef<HTMLButtonElement>(null)
   const bulkCreate = useBulkCreateHabits()
   const trackCardOperation = useChatCardOperation()
   const { mutateAsync } = bulkCreate
@@ -103,9 +114,9 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
       </label>
       <div role="status">{card.groupingDenied ? <p className="text-pretty text-sm text-[var(--fg-2)]">{t('habits.breakdown.groupingDenied')}</p> : null}</div>
       </div>
-    )} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={card.completed ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('chat.action.completed')}</p> : <BreakdownActions rejectRef={rejectRef} card={card} isPending={isPending} editingDisabled={editingDisabled} warning={warning} parentName={parentName} />} />
+    )} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={card.completed ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('chat.action.completed')}</p> : <BreakdownActions actionsRef={actionsRef} card={card} isPending={isPending} editingDisabled={editingDisabled} warning={warning} parentName={parentName} />} />
     <ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} />
-      <ConfirmSheet open={removalHabit != null} title={t('chat.breakdown.removeTitle')} message={t('chat.breakdown.removeBody', { name: removalHabit?.title.trim() || t('chat.breakdown.unnamedHabit') })} confirmLabel={t('chat.operation.remove')} destructive loading={isPending} onCancel={() => card.setRemovalId(null)} onConfirm={() => { card.removeHabit(); rejectRef.current?.focus() }} />
+      <ConfirmSheet open={removalHabit != null} title={t('chat.breakdown.removeTitle')} message={t('chat.breakdown.removeBody', { name: removalHabit?.title.trim() || t('chat.breakdown.unnamedHabit') })} confirmLabel={t('chat.operation.remove')} destructive loading={isPending} onCancel={() => card.setRemovalId(null)} onConfirm={() => { card.removeHabit(); actionsRef.current?.focus() }} />
     </>
   )
 }
