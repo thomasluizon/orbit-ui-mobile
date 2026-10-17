@@ -109,13 +109,17 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
   return candidates
 }
 
-function progressChips(state: ComposerChipState): ComposerChip[] {
-  if (!state.profile) return []
-  const contextual = state.contextualSuggestion
-  const requested: ComposerChip[] = contextual?.id === 'progress-create-goal' ? [{
-    id: contextual.id, key: 'progressScreen.goals.createAction',
+function requestedGoalChips(contextual: ComposerChipState['contextualSuggestion']): ComposerChip[] {
+  const isGoalDetailRequest = contextual?.id.startsWith('goal-detail:')
+  return contextual && (contextual.id === 'progress-create-goal' || isGoalDetailRequest) ? [{
+    id: contextual.id, key: isGoalDetailRequest ? 'goals.detail.askAstraEyebrow' : 'progressScreen.goals.createAction',
     label: contextual.label, prompt: contextual.prompt,
   }] : []
+}
+
+function progressChips(state: ComposerChipState): ComposerChip[] {
+  if (!state.profile) return []
+  const requested = requestedGoalChips(state.contextualSuggestion)
   if (state.status !== 'success' && !requested.length) return []
   const noGoal = state.status === 'success' ? state.habits.find((habit) => !habit.linkedGoals?.length) : undefined
   const withGoal = state.status === 'success' && state.habits.some((habit) => Boolean(habit.linkedGoals?.length))
@@ -132,6 +136,7 @@ function progressChips(state: ComposerChipState): ComposerChip[] {
 
 export function buildComposerChips(state: ComposerChipState): ComposerChip[] {
   if (!state.profile) return []
+  if (state.contextualSuggestion?.id.startsWith('goal-detail:')) return progressChips(state)
   switch (state.surface) {
     case 'today': return todayChips(state)
     case 'calendar': return state.status === 'error' ? [] : [
