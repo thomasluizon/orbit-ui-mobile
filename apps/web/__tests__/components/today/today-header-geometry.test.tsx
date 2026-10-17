@@ -606,7 +606,7 @@ describe('Hoje header geometry', () => {
       } finally { await page.close() }
     },
   )
-  it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {
+  it.each([['en', 1], ['pt-BR', 1], ['en', 2], ['pt-BR', 2]] as const)('fits the open %s menu at 320 pixels and text scale %i', async (locale, textScale) => {
     const messages = locale === 'en' ? en : ptBr
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
@@ -616,20 +616,34 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
-      await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
+      await page.evaluate(async (scale) => { await document.fonts.ready; document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
       const geometry = await page.evaluate(() => {
         const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
           const range = document.createRange()
           range.selectNodeContents(label)
-          return { text: label.textContent, textWidth: range.getBoundingClientRect().width, available: label.getBoundingClientRect().width, lines: range.getClientRects().length }
+          const bounds = label.getBoundingClientRect()
+          const text = range.getBoundingClientRect()
+          const row = label.closest('.orbit-menu-item')
+          const rowBounds = row?.getBoundingClientRect()
+          const icon = row?.querySelector('[data-icon]')?.getBoundingClientRect()
+          return { text: label.textContent, textWidth: text.width, textHeight: text.height,
+            available: bounds.width, lines: range.getClientRects().length,
+            rowHeight: rowBounds?.height,
+            centerOffset: rowBounds ? (bounds.top + bounds.bottom - rowBounds.top - rowBounds.bottom) / 2 : undefined,
+            iconOffset: icon ? icon.top - bounds.top : undefined,
+            lineHeight: Number.parseFloat(getComputedStyle(label).lineHeight) }
         })
         const close = document.querySelector('.orbit-sheet-close')!.getBoundingClientRect()
         return { labels, close: { width: close.width, height: close.height } }
       })
-      expect(geometry.labels).toHaveLength(5)
+      expect(geometry.labels).toHaveLength(6)
       for (const label of geometry.labels) {
         expect(label.textWidth, label.text).toBeLessThanOrEqual(label.available)
-        expect(label.lines).toBe(1)
+        expect(label.lines).toBeGreaterThanOrEqual(1)
+        if (textScale === 1) expect(label.lines).toBe(1)
+        if (label.rowHeight !== undefined) expect(label.textHeight).toBeLessThanOrEqual(label.rowHeight)
+        if (textScale === 1 && label.centerOffset !== undefined) expect(Math.abs(label.centerOffset)).toBeLessThanOrEqual(1)
+        if (label.iconOffset !== undefined) expect(label.iconOffset).toBeLessThanOrEqual(label.lineHeight / 2)
       }
       expect(geometry.close.width).toBeGreaterThanOrEqual(48)
       expect(geometry.close.height).toBeGreaterThanOrEqual(48)

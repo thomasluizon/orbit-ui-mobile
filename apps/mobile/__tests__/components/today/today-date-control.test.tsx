@@ -13,6 +13,20 @@ import { TodayDateControl } from '@/components/today/today-date-control'
 
 const TestRenderer = require('react-test-renderer')
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      let value: unknown = ptBr
+      for (const segment of key.split('.')) {
+        if (typeof value !== 'object' || value === null) return key
+        value = (value as Record<string, unknown>)[segment]
+      }
+      return typeof value === 'string' ? value : key
+    },
+    i18n: { language: 'pt-BR' },
+  }),
+}))
+
 const callbacks = {
   onToggleSelect: vi.fn(),
   onToggleCollapse: vi.fn(),
@@ -176,6 +190,7 @@ describe('Today date control feedback (mobile)', () => {
       [labels.collapseAll, 'chevrons-up'],
       [labels.refresh, 'refresh'],
       [labels.showCompleted, 'eye'],
+      [ptBr.habits.frequencyFilter, 'adjustments-horizontal'],
     ])
     TestRenderer.act(() => renderer.update(<TodayDateControl {...props} {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />))
     expect(renderer.root.findByType(Menu).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
@@ -183,6 +198,7 @@ describe('Today date control feedback (mobile)', () => {
       [labels.expandAll, 'chevrons-down'],
       [labels.refresh, 'refresh'],
       [labels.hideCompleted, 'eye-off'],
+      [ptBr.habits.frequencyFilter, 'adjustments-horizontal'],
     ])
     for (const [name, Glyph] of [
       ['checkbox', Checkbox],
@@ -290,7 +306,7 @@ it('separates the header actions from the grouped date arrows', () => {
   const search = button(renderer, 'Search')!
   expect(previous.parent).not.toBe(search.parent)
   expect(previous.parent.findAllByType(Pressable)).toHaveLength(3)
-  expect(renderer.root.findAllByType(Pressable).filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'notifications.bell')).toHaveLength(1)
+  expect(renderer.root.findAllByType(Pressable).filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === ptBr.notifications.bell)).toHaveLength(1)
 })
 
 it('pins one header in the owning shell and clears it when Hoje loses focus', () => {
@@ -320,9 +336,12 @@ it.each([false, true])('keeps the open Portuguese menu labels inside 320 dp at 2
     for (const item of menu.props.items) {
       const text = renderer.root.findAllByType(Text).find((node: { props: Record<string, unknown> }) => node.props.children === item.label)!
       const fontSize = StyleSheet.flatten(text.props.style).fontSize
-      const measured = measuredTextWidth(item.label, 'Geist', fontSize * 2,
-        require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))
-      expect(measured).toBeLessThanOrEqual(320 - 2 * 24 - 2 * 12 - 20 - 12)
+      expect(text.props.numberOfLines).toBeUndefined()
+      for (const word of item.label.split(' ')) {
+        const measured = measuredTextWidth(word, 'Geist', fontSize * 2,
+          require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))
+        expect(measured).toBeLessThanOrEqual(320 - 2 * 24 - 2 * 12 - 20 - 12)
+      }
     }
   } finally {
     TestRenderer.act(() => renderer.unmount())

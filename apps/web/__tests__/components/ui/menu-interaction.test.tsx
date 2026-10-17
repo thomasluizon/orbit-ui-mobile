@@ -60,7 +60,7 @@ describe('Menu interaction colours in Chromium', () => {
       const measure = () => remove.evaluate((row) => {
         const style = getComputedStyle(row)
         const icon = row.querySelector('svg')!
-        const label = row.querySelector('span:last-child')!
+        const label = row.querySelector('.orbit-menu-label')!
         const probe = document.createElement('span')
         probe.style.transition = 'none'
         row.append(probe)
