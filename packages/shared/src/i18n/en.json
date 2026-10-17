@@ -47,7 +47,7 @@
     "homeScreen": {
       "title": "Home Screen",
       "showGeneral": "Anytime habits",
-      "showGeneralDesc": "Habits with no schedule show in the Today list."
+      "showGeneralDesc": "Show in Today"
     },
     "clock": {
       "title": "Clock",
@@ -771,6 +771,7 @@
       "dueDate": "Start On",
       "dueTime": "Due Time",
       "dueEndTime": "End Time",
+      "endTimeRequiresStart": "Set a start time to add an end time.",
       "reminder": "Remind me",
       "reminderAtTime": "At the due time",
       "reminder5minAfter": "5 min after",
@@ -913,6 +914,7 @@
       "linkedGoal": "Linked goal",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "copyDescription": "Copy description",
+      "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
       "screenTitle": "Habit",
       "loading": "Loading habit",
@@ -985,6 +987,8 @@
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
+      "groupingDenied": "Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.",
+      "capacityDenied": "This proposal exceeds the habit limit. Remove a habit from the proposal and try again.",
       "every": "every",
       "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
@@ -1199,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} of {scheduled}",
+      "unscheduledDay": "{date} · Nothing scheduled",
       "date": "Date",
       "rate": "Rate",
       "completed": "Completed",
@@ -1916,7 +1922,6 @@
       "scopeLabel": "Scope",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
-      "mcpLine": "Paste an active key into your MCP client's settings. The full instructions live in this section in the app.",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
       "stepUpAction": "Sign in again",
       "revokeNamed": "Revoke {name}",
@@ -3377,6 +3382,7 @@
     "replaceKey": "Replace YOUR_API_KEY with the key you created above",
     "maxKeysReached": "Maximum of 5 API keys reached",
     "copyConfig": "Copy config",
+    "configCopyError": "Couldn't copy. Try again.",
     "apiKeysError": "Failed to load API keys",
     "createKeyError": "Failed to create API key",
     "scopesLabel": "Scopes:",

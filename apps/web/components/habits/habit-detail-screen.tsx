@@ -1,5 +1,7 @@
 'use client'
 
+import { DescriptionCopyButton } from './description-copy-button'
+
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
@@ -65,7 +67,7 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
@@ -151,6 +153,30 @@ function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundar
   return undefined
 }
 
+function HabitDescription({ description }: Readonly<{ description: string }>) {
+  const t = useTranslations('habits.detail')
+  const common = useTranslations('common')
+  const [descriptionOpen, setDescriptionOpen] = useAccountScopedState(false)
+  return (
+    <div data-habit-detail-description="" className="pt-3">
+      <button
+        type="button"
+        title={descriptionOpen ? common('collapse') : t('viewDescription')}
+        aria-label={descriptionOpen ? common('collapse') : description}
+        aria-expanded={descriptionOpen}
+        aria-controls="habit-description"
+        onClick={() => setDescriptionOpen((open) => !open)}
+        className="orbit-hover-text touch-target flex w-full min-w-0 touch-manipulation items-center gap-2 rounded-[8px] border-0 bg-transparent px-2 py-1 text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-2)] active:bg-[var(--bg-hover)] active:text-[var(--fg-2)] focus-visible:outline focus-visible:outline-2"
+      >
+        <span className={`min-w-0 flex-1 ${descriptionOpen ? '' : 'truncate'}`}>{descriptionOpen ? common('collapse') : description}</span>
+        <ChevronDown aria-hidden="true" focusable="false" size={20} strokeWidth={1.5} className={`shrink-0 text-[var(--fg-2)] ${descriptionOpen ? 'rotate-180' : ''}`} />
+      </button>
+      <div id="habit-description" hidden={!descriptionOpen}>{descriptionOpen ? <p className="max-w-prose select-text whitespace-pre-wrap break-words text-base leading-[1.55] text-[var(--fg-3)]">{description}</p> : null}</div>
+      {descriptionOpen ? <DescriptionCopyButton key={description} description={description} /> : null}
+    </div>
+  )
+}
+
 function HabitHeader({ habit, completed, logged, overdue, progress, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
   habit: NormalizedHabit
   completed: boolean
@@ -166,7 +192,6 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
 }>) {
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useAccountScopedState(false)
-  const [descriptionOpen, setDescriptionOpen] = useAccountScopedState(false)
   const [title, setTitle] = useAccountScopedState(habit.title)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const pendingHeadingFocusRef = useContext(HabitHeadingFocusContext)
@@ -209,7 +234,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
         </div>
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] border border-[var(--hairline-strong)]"><PersonalTextDetails lines={1} textStyle={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>{tag.name}</PersonalTextDetails></div>)}</div></div> : null}
-      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} aria-controls="habit-description" onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span id="habit-description" className={`block ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button></div> : null}
+      {habit.description ? <HabitDescription description={habit.description} /> : null}
     </header>
   )
 }
