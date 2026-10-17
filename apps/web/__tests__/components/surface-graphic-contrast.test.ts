@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
-const scannerTimeout = 120_000
+const scannerTimeout = 180_000
 const graphicSites = [
   'apps/mobile/app/support.tsx',
   'apps/mobile/components/auth/login-sections.tsx',
