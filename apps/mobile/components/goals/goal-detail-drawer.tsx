@@ -13,6 +13,7 @@ import { EditGoalModal } from './edit-goal-modal'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
 import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
+import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
 import { createStyles } from './goal-detail-drawer/styles'
@@ -39,6 +40,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useState(false)
+  const [editingProgress, setEditingProgress] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const headingRef = useRef<View>(null)
   const focusedInlineGoalId = useRef<string | null>(null)
@@ -47,6 +49,11 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     if (inline) onClose()
     else closeSheet(onClose)
   }, [inline, closeSheet, onClose])
+  const openProgressForm = useCallback(() => {
+    if (!goal || goal.status !== 'Active' || goal.isProgressDerived) return
+    if (inline) setEditingProgress(true)
+    else closeSheet(() => setEditingProgress(true))
+  }, [goal, inline, closeSheet, setEditingProgress])
   const openHabit = useCallback((habitId: string) => {
     const navigate = () => router.push({ pathname: '/habits/[id]', params: { id: habitId } })
     if (inline) navigate()
@@ -71,10 +78,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   }
 
   useEffect(() => {
-    if (!open || !inline || editing || deleting) return
+    if (!open || !inline || editing || deleting || editingProgress) return
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { close(); return true })
     return () => subscription.remove()
-  }, [open, inline, editing, deleting, close])
+  }, [open, inline, editing, deleting, editingProgress, close])
 
   useEffect(() => {
     if (!open || !inline || !goal || focusedInlineGoalId.current === goalId || !headingRef.current) return
@@ -85,7 +92,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const body = (
     <View style={layout.body}>
       {goal ? <>
-        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
+        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
@@ -95,7 +102,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
 
   return (
     <>
-      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open && editingProgress && goal ? <GoalProgressForm key={goalId} goal={goal} refetchDetail={refetch} onClose={() => setEditingProgress(false)} /> : null}
       {goal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={goal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
