@@ -71,7 +71,7 @@ export function HabitUnderstanding({
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
-    <Proposed inset proposed={emojiProposed} scope="field" label={labels.proposed}>
+    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
       <HabitEmojiSelector
         selectedEmoji={emoji}
         tokens={tokens}

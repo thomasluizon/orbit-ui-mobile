@@ -37,7 +37,8 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       minimumHeight={TOUCH_TARGET_MIN}
       label={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
       loading={isSuggesting}
-      disabled={!canSuggest || isDisabled}
+      focusableWhenLoading
+      disabled={!isSuggesting && (!canSuggest || isDisabled)}
       hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >

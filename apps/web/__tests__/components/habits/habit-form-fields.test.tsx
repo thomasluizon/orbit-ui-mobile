@@ -168,11 +168,42 @@ describe('HabitFormFields', () => {
     if (!title.trim()) expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
   })
 
+  it.each([false, true])('preserves the emoji action through pending and success after moving focus: %j', async (moveFocus) => {
+    let complete!: (proposal: HabitFormProposal) => void
+    const pending = new Promise<HabitFormProposal>((resolve) => { complete = resolve })
+    const onSuggestEmoji = vi.fn(() => pending)
+    const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
+    const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    button.focus()
+    await user.keyboard('{Enter}')
+    emojiOptions.isEmojiSuggesting = true
+    view.rerenderForm(true)
+    const busy = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(busy).toBe(button)
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(busy).not.toBeDisabled()
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{Enter} ')
+    fireEvent.click(busy)
+    expect(onSuggestEmoji).toHaveBeenCalledOnce()
+    const phrase = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    if (moveFocus) await user.click(phrase)
+    await act(async () => { complete(SETUP_PROPOSAL); await pending })
+    emojiOptions.isEmojiSuggesting = false
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiSuggest' })).toBe(button)
+    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(moveFocus ? phrase : button).toHaveFocus()
+  })
+
   it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
     const onSuggestEmoji = vi.fn()
     renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
     const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
-    expect(button).toBeDisabled()
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeDisabled()
     fireEvent.click(button)

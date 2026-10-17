@@ -219,6 +219,21 @@ describe('PillButton', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps a loading action focusable while blocking associated form submission', () => {
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault())
+    const view = render(<><form id="busy-form" onSubmit={onSubmit} /><PillButton formId="busy-form" loading focusableWhenLoading>Save</PillButton></>)
+    const button = screen.getByRole('button', { name: 'Save' })
+    button.focus()
+    expect(button).toHaveFocus()
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(button)
+    expect(onSubmit).not.toHaveBeenCalled()
+    view.rerender(<PillButton disabled loading focusableWhenLoading>Save</PillButton>)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-disabled')
+  })
+
   it('does not fire onClick when disabled', () => {
     const onClick = vi.fn()
     render(
