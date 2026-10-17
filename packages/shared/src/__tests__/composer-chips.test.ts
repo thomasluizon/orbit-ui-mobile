@@ -160,6 +160,17 @@ describe('composer chips', () => {
     }
   })
 
+  it.each(['today', 'calendar', 'progress', 'profile', 'habitDetail'] as const)('keeps the selected goal request reachable from %s with an existing draft', surface => {
+    const contextualSuggestion = { id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal' }
+    for (const status of ['success', 'loading', 'error'] as const) {
+      const chips = buildComposerChips(state({ surface, status, contextualSuggestion }))
+      expect(chips[0]).toEqual({ ...contextualSuggestion, key: 'goals.detail.askAstraEyebrow' })
+      expect(chips.length).toBeGreaterThanOrEqual(3)
+      expect(chips.length).toBeLessThanOrEqual(6)
+    }
+    expect(buildComposerChips(state({ surface, contextualSuggestion, profile: null }))).toEqual([])
+  })
+
   it('keeps the Progress goal request when a draft already exists', () => {
     const chips = buildComposerChips(state({
       surface: 'progress',

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getAccountIdFromToken } from '@/lib/auth-api'
 
 const { mockCookies, mockCookieStore } = vi.hoisted(() => {
   const cookieStore = {
@@ -61,7 +62,6 @@ describe('auth-api session helpers', () => {
 
   it('reads the account from the hermetic session token used by layout fixtures', async () => {
     const { mintHermeticJwt } = await import('@/test-support/hermetic/hermetic-session')
-    const { getAccountIdFromToken } = await import('@/lib/auth-api')
 
     expect(getAccountIdFromToken(mintHermeticJwt())).toBe('hermetic-perf-user')
   })

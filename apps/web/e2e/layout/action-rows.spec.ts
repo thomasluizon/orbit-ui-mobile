@@ -101,7 +101,10 @@ for (const width of [412, 1352]) {
 
       const readySelectors: Readonly<Record<string, string>> = {
         '/': '[data-testid="habit-row"]',
-        '/progress': '[data-testid="progress-xp-summary"]',
+        '/progress': '[data-progress-screen="overview"] a[href="/progress/goals"]',
+        '/progress/goals': '[data-goal-id]',
+        '/progress/streak': '[data-component="freeze-bank"]',
+        '/progress/achievements': '[data-testid="progress-xp-summary"]',
         '/profile/account': '[data-testid="profile-settings-group-account"] [data-slot="list-row-title"]',
         '/profile/preferences': '[data-testid="profile-settings-group-preferences"] [data-slot="list-row-title"]',
         '/profile/astra': '[data-testid="profile-api-keys"]',
@@ -113,7 +116,7 @@ for (const width of [412, 1352]) {
         '/support': 'form .orbit-pill-action',
       }
 
-      for (const route of ['/', '/progress', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
+      for (const route of ['/', '/progress', '/progress/goals', '/progress/streak', '/progress/achievements', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
         test(`${route} keeps adjacent pills in one size with sufficient clearance`, async ({ page }) => {
           const inspectActions = async () => {
             const main = page.locator('#orbit-main')
@@ -127,7 +130,7 @@ for (const width of [412, 1352]) {
               await expect(submit).toHaveAttribute('data-size', 'md')
             }
             if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()
-            if (route === '/progress') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
+            if (route === '/progress/goals') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
             if (route === '/notifications') {
               const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
               await expect(consent).toBeVisible()

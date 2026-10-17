@@ -20,6 +20,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -31,6 +32,30 @@ import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
+}
+
+function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
+  const t = useTranslations()
+  const { displayDateMedium } = useDateFormat()
+  return (
+    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: 16, paddingBottom: 16 }}>
+      <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
+      <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
+      <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.created')}</dt>
+          <dd><time dateTime={apiKey.createdAtUtc}>{displayDateMedium(apiKey.createdAtUtc)}</time></dd>
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.lastUsed')}</dt>
+          <dd>{apiKey.lastUsedAtUtc
+            ? <time dateTime={apiKey.lastUsedAtUtc}>{displayDateMedium(apiKey.lastUsedAtUtc)}</time>
+            : t('orbitMcp.never')}</dd>
+        </div>
+      </dl>
+      {apiKey.expiresAtUtc ? <p>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</p> : null}
+    </div>
+  )
 }
 
 interface ApiKeyListProps {
@@ -61,22 +86,24 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   return (
     <RowList>
       {apiKeys.map((apiKey) => (
-        <ListRow
-          compact
-          key={apiKey.id}
-          icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
-          title={apiKey.name}
-          textMode="personal"
-          wrapTitle
-          value={`${apiKey.keyPrefix}…`}
-          chevron={false}
-          action={{
-            icon: 'trash',
-            label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
-            danger: true,
-            onPress: () => onRevoke(apiKey.id),
-          }}
-        />
+        <div key={apiKey.id}>
+          <ListRow
+            compact
+            icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+            title={apiKey.name}
+            textMode="personal"
+            wrapTitle
+            value={`${apiKey.keyPrefix}…`}
+            chevron={false}
+            action={{
+              icon: 'trash',
+              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
+              danger: true,
+              onPress: () => onRevoke(apiKey.id),
+            }}
+          />
+          <ApiKeyDetails apiKey={apiKey} />
+        </div>
       ))}
     </RowList>
   )
