@@ -62,7 +62,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
-**Conversation copying:** message text stays selectable on web and Android, with no per-message copy control; this decision supersedes the copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
+**Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
@@ -190,6 +190,30 @@ in that order. Calendar sync opens the Calendários sheet, its one home, and kee
 Mais do Orbit rows carry no descriptions that repeat their titles. Sign out is the final top-level row. Each setting
 has one home; the retired Preferências, Avançado and Recursos de IA pages redirect to the new
 sub-screens and never carry a second copy.
+
+### Progresso overview and detail navigation
+
+Progresso opens with the last 30 days: one neutral bar chart, three short figures
+(completion rate, active days and best weekday), then the most consistent habit as a row.
+Each figure answers one question. There are at most four figures, including the habit row.
+The root never opens with a large streak numeral or repeats the detail below its entries.
+
+Three icon-led rows follow, using the Perfil sub-menu pattern. Sequência opens
+`/progress/streak` and owns the current and longest streak, day strip, tier, legend,
+freeze bank, next freeze, protected days and repair. Metas opens `/progress/goals`
+and owns creation, filters, reordering and the existing goal detail actions.
+Conquistas opens `/progress/achievements` and owns the level and XP row followed by the
+achievement categories. Its supporting line names level and XP so that home is findable.
+Keeping those together preserves the granted level and achievement composition with three
+choices on the root, rather than adding a fourth screen for one row.
+
+Each detail has its own URL, PageHeader and a visible back control to Progresso. A failed
+or loading detail never blocks the overview or the other entries. Empty and locked states
+stay with the subject they explain. The overview keeps its navigation rows in every state.
+All existing figures and actions have one home, reachable by one row from the overview.
+Both platforms keep a centred column capped at 740px, 16px content insets and small,
+label-hugging actions in wide windows. This amendment supersedes the inline detail stack
+in the Progresso drawing; its detail compositions and semantic tokens remain authoritative.
 
 ### The month completion rate has one definition
 

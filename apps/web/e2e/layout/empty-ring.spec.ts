@@ -94,7 +94,7 @@ for (const width of [412, 1280]) {
       })
 
       test('Progresso paints only the goal track at zero percent', async ({ page }) => {
-        await page.goto('/progress')
+        await page.goto('/progress/goals')
         const ring = page.locator('[data-goal-id="empty-ring-goal"]').getByRole('progressbar')
         await expect(ring).toHaveAttribute('aria-valuenow', '0')
         await expect(ring.locator('circle')).toHaveCount(2)

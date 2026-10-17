@@ -5,58 +5,11 @@ import {
   parseISO,
   startOfDay,
 } from 'date-fns'
-import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
+import type { Achievement, StreakInfo } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
-import type { Profile } from '../types/profile'
 import { formatAPIDateInTimeZone, nowDate } from './dates'
-import { isPayGateError } from './error-utils'
 import { getGoalMetricsStatusPresentation } from './goal-metrics'
 import { formatLocaleDate } from './locale-format'
-
-type ProgressQueryState = { isLoading: boolean; isError: boolean }
-
-export function deriveProgressViewState({ goalCount, account, goals, gamification, canViewGamification }: {
-  goalCount: number
-  canViewGamification: boolean
-  account: ProgressQueryState & {
-    profile: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined
-  }
-  goals: ProgressQueryState
-  gamification: ProgressQueryState & {
-    error?: unknown
-    profile: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null
-  }
-}): { loading: boolean; error: boolean; empty: boolean } {
-  const gamificationLocked = canViewGamification
-    && gamification.isError
-    && isPayGateError(gamification.error)
-  const gamificationFailed = canViewGamification
-    && gamification.isError
-    && !gamificationLocked
-  const error = account.isError || goals.isError || gamificationFailed
-  const loading = !error && (
-    account.isLoading
-    || goals.isLoading
-    || (canViewGamification && gamification.isLoading)
-  )
-  const empty = !loading && !error && isProgressEmpty(
-    goalCount,
-    account.profile,
-    canViewGamification && !gamificationLocked ? gamification.profile : null,
-  )
-  return { loading, error, empty }
-}
-
-export function isProgressEmpty(
-  goalCount: number,
-  account: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined,
-  gamification: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null,
-): boolean {
-  if (!account || goalCount > 0) return false
-  return account.currentStreak === 0 && account.longestStreak === 0 && account.totalXp === 0
-    && (!gamification || (gamification.currentStreak === 0 && gamification.longestStreak === 0
-      && gamification.totalXp === 0 && gamification.achievementsEarned === 0))
-}
 
 export const PROGRESS_GOAL_FILTERS = ['all', 'active', 'completed', 'abandoned'] as const
 export type ProgressGoalFilter = (typeof PROGRESS_GOAL_FILTERS)[number]
