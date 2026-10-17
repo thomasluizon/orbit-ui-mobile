@@ -102,6 +102,21 @@ jobs:
       - name: Test guard workflow behavior
         run: node --test tools/__tests__/guards-changed-paths.test.mjs
 
+      # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
+      # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
+      - name: Report surface scope findings across the full tree
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          node tools/check-surface-scope.mjs
+          checker_status=$?
+          set -e
+          if [ "$checker_status" -eq 1 ]; then
+            echo "Surface scope findings are reported and do not fail this step."
+            exit 0
+          fi
+          exit "$checker_status"
+
       - name: Run tools harness
         if: ${{ !cancelled() }}
         run: node tools/test-tools.mjs

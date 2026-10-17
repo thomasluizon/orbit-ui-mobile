@@ -143,3 +143,24 @@ test("pull requests run each source check through one owner", () => {
   assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
   assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test -- --coverage"))
 })
+
+test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
+  const job = testWorkflow.jobs["tool-hook-tests"]
+  const step = job.steps.find((candidate) => candidate.run?.includes("node tools/check-surface-scope.mjs"))
+  assert.ok(step, "Tool and Hook Tests must execute the full-tree surface scope scan")
+  assert.equal(step.if, "${{ !cancelled() }}")
+  assert.doesNotMatch(step.run, /changed-paths/, "a mobile-only change must still run the full-tree scan")
+  assert.equal(job.needs, undefined)
+  assert.equal(testWorkflow.on.pull_request.paths, undefined)
+  const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
+  try {
+    mkdirSync(join(directory, "tools"))
+    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 0], [2, 2]]) {
+      writeFileSync(join(directory, "tools/check-surface-scope.mjs"), `process.exit(${checkerStatus})\n`)
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", step.run], { cwd: directory, encoding: "utf8" })
+      assert.equal(result.status, stepStatus, `checker exit ${checkerStatus} must end the step with ${stepStatus}`)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
