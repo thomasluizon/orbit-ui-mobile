@@ -68,6 +68,8 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 with a 24px `AstraGlyph` in `--fg-1`, aligned to the top of the reply. An 8px gap separates its
 column from the content. Following messages reserve the same column without repeating the mark.
 Prose, previews, read blocks, charts, tool traces and follow-up actions share the content edge.
+A running tool trace reserves the same column, showing the mark only when no Astra message
+precedes it in the run.
 Messages and blocks keep 16px gaps. The person's messages keep their right-aligned bubble with
 no avatar or reserved column. The pending reply uses the same 24px mark and 8px gap, with its
 indicator beside the mark, so the first reply replaces it at the same position. This participant

@@ -15,7 +15,6 @@ import { Composer } from '@/components/shell/composer'
 import { ChevronDown, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
@@ -33,8 +32,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
     <span>{t(chatTraceLabelKey(step.domain, step.access))}</span>
     {running && index === steps.length - 1 ? <WorkingMark /> : null}
   </div>)
-  if (running) return <div className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
-  return <div className="py-2">
+  if (running) return <div data-thinking-trace="running" className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
+  return <div data-thinking-trace="completed" className="py-2">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-[var(--touch-min)] items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
       {t('chat.trace.steps', { count: steps.length })}
       <ChevronDown aria-hidden="true" size={16} strokeWidth={1.5} className={expanded ? 'rotate-180' : undefined} />
@@ -263,7 +262,14 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </div>
           </article>
         ))}
-        {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+        {activeSteps.length > 0 ? <div className="flex min-w-0 items-start gap-2">
+          <span aria-hidden="true" className="block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar={messages.at(-1)?.role !== 'ai' ? '' : undefined}>
+            {messages.at(-1)?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <ThinkingTrace steps={activeSteps} running />
+          </div>
+        </div> : null}
         </div>
 
       </div>

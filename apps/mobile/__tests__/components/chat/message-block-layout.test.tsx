@@ -89,6 +89,51 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
   }
 })
 
+it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ width, previous }))))(
+  'aligns Android activeSteps with the completed trace at $width after $previous', async ({ width, previous }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const messages = previous === 'empty' ? [] : [makeHeldHabitMessage({
+      id: 'previous', role: previous === 'user' ? 'user' : 'ai', content: 'Previous message.', pendingOperations: [],
+    })]
+    const steps = [{ domain: 'habits', access: 'read' }]
+    const chat = {
+      threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages,
+      activeSteps: steps, showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
+      scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
+    } as unknown as ChatController
+    let conversation!: GeometryTree
+    let feed!: GeometryTree
+    await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+    const renderFeed = () => {
+      const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+      return <View style={list.contentContainerStyle}>
+        {Array.from(list.data!).map((item, index) => <React.Fragment key={item.id}>
+          {list.renderItem!({ item, index, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}
+        </React.Fragment>)}
+        {list.ListFooterComponent as React.ReactElement}
+      </View>
+    }
+    try {
+      await renderer.act(() => { feed = renderer.create(renderFeed()) as GeometryTree })
+      const runningMarks = feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length
+      const measure = () => measureSafeArea(feed.toJSON(), host => {
+        if (host.props.testID?.startsWith('thinking-trace-')) return host.props.testID
+        if (host.props.testID === 'message-prose') return host.props.testID
+      }, { width, height: 30000 })
+      const running = measure().get('thinking-trace-running')!
+      await renderer.act(() => { conversation.update(<AstraConversation chat={{ ...chat, activeSteps: [], messages: [
+        ...messages, makeHeldHabitMessage({ id: 'completed', content: 'Completed reply.', toolSteps: steps, pendingOperations: [] }),
+      ] }} />) })
+      await renderer.act(() => { feed.update(renderFeed()) })
+      const completed = measure()
+      expect(running.left).toBe(completed.get('thinking-trace-completed')!.left)
+      expect(running.left).toBe(completed.get('message-prose')!.left)
+      expect(runningMarks).toBe(1)
+      expect(feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')).toHaveLength(1)
+    } finally { await renderer.act(() => { feed.unmount(); conversation.unmount() }) }
+  },
+)
+
 it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', async ({ width, locale, scenario, prose }) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   await i18n.changeLanguage(locale)

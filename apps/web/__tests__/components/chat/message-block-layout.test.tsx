@@ -1,7 +1,7 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -104,6 +104,46 @@ describe('Astra block layout in Chromium', () => {
       expect(geometry[2]!.content.right).toBeCloseTo(geometry[2]!.turn.right, 1)
     } finally { await page.close() }
   })
+
+  it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ width, previous }))))(
+    'aligns activeSteps with the completed trace at $width after $previous', async ({ width, previous }) => {
+      const messages = previous === 'empty' ? [] : [makeHeldHabitMessage({
+        id: 'previous', role: previous === 'user' ? 'user' : 'ai', content: 'Previous message.', pendingOperations: [],
+      })]
+      const steps = [{ domain: 'habits', access: 'read' }]
+      const chat = {
+        threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages,
+        activeSteps: steps, showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
+        scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+          words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send,
+            actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
+        },
+      } as unknown as ChatController
+      const surface = (controller: ChatController) => <NextIntlClientProvider locale="en" messages={en}>
+        <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={controller} /></div>
+      </NextIntlClientProvider>
+      const { container, rerender } = render(surface(chat))
+      const runningMarks = container.querySelectorAll('[data-astra-avatar]').length
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const runningLeft = await page.locator('[data-thinking-trace="running"]').evaluate(element => element.getBoundingClientRect().left)
+        await act(async () => { rerender(surface({ ...chat, activeSteps: [], messages: [...messages, makeHeldHabitMessage({
+          id: 'completed', content: 'Completed reply.', toolSteps: steps, pendingOperations: [],
+        })] })) })
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        await page.getByRole('article').last().evaluate(settleAnimations)
+        const completedLeft = await page.locator('[data-thinking-trace="completed"]').evaluate(element => element.getBoundingClientRect().left)
+        const proseLeft = await page.getByRole('article').last().locator('[data-bubble-role="ai"]').evaluate(element => element.getBoundingClientRect().left)
+        expect(runningLeft).toBeCloseTo(completedLeft, 1)
+        expect(runningLeft).toBeCloseTo(proseLeft, 1)
+        expect(runningMarks).toBe(1)
+        expect(container.querySelectorAll('[data-astra-avatar]')).toHaveLength(1)
+      } finally { await page.close() }
+    },
+  )
 
   it.each([320, 412, 1352])('keeps three replies and a sent message natively selectable at %s', async width => {
     const contents = ['First reply.', 'Second **reply** with a [link](https://example.com).', 'Third reply with `code`.', 'My sent message.']
