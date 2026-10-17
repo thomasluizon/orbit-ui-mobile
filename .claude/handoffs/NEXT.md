@@ -1,6 +1,6 @@
 /sleep
 
-Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standing rules` (including the landing rule: never a split hero, one centred Astra column at `100dvh`), `### Batch L` (the owner's order), `### Batch R` (including the owner's gate review paragraph and the 1.3.80 and 1.3.81 retest tickets), `### Batch 0b`, `## Decision pointers`, `## Current state` and `## Open questions` first. Then, through the Obsidian MCP, the brain ADRs under `2 Areas/20-29 Orbit Engineering/Decisions/` that `## Decision pointers` lists, including D145 (feature flags) and D146 (Codex plan). Then `DESIGN.md` in full, `BRAND.md` and `design/canvas/README.md` before the first diff read or sweep. The owner's test list for the next build is the brain note `0 Inbox/Orbit staging test.md`.
+Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standing rules` (including the landing rule: Pierre's long-scroll page in Orbit's design, Astra the focus, never a split hero), `### Batch L` (the owner's order), `### Batch R` (including the owner's gate review paragraph and the 1.3.80 and 1.3.81 retest tickets), `### Batch 0b`, `## Decision pointers`, `## Current state` and `## Open questions` first. Then, through the Obsidian MCP, the brain ADRs under `2 Areas/20-29 Orbit Engineering/Decisions/` that `## Decision pointers` lists, including D145 (feature flags) and D146 (Codex plan). Then `DESIGN.md` in full, `BRAND.md` and `design/canvas/README.md` before the first diff read or sweep. The owner's test list for the next build is the brain note `0 Inbox/Orbit staging test.md`.
 
 ## Entry point
 
@@ -10,45 +10,36 @@ The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. The owner's order (Batch L): (1) the landing: done; (2) the redesign fixes: the 1.3.81 retest wave, `#1422`, `#1423`, the parity guard `#1424` and its restorations `#1426` to `#1450`, merged into `redesign/main`, released to staging and shipped as Orbit Staging builds for the owner's gate retest; (3) feature flags and API versioning (`#1413` to `#1420`), then `redesign` on for the owner's production account; (4) `#1412`, `#1421`, `#1458`, then the harness flakes `#1425`, `#1451` to `#1453`, `#1455` to `#1457`. Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (`reconcile.mjs`): 182 open, 182 placed, 0 unplaced, 0 placed twice (`#1454` closed; `#1458` filed and placed in Batch L item 4). The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. The owner's order (Batch L): (1) the landing, reopened: `#1459` rebuilds it as Pierre's page in Orbit's design, the owner's top priority; (2) the redesign fixes: the 1.3.81 retest wave, `#1422`, `#1423`, the parity guard `#1424` and its restorations `#1426` to `#1450`, merged into `redesign/main`, released to staging and shipped as Orbit Staging builds for the owner's gate retest; (3) feature flags and API versioning (`#1413` to `#1420`), then `redesign` on for the owner's production account; (4) `#1412`, `#1421`, `#1458`, then the harness flakes `#1425`, `#1451` to `#1453`, `#1455` to `#1457`. Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (`reconcile.mjs`): 183 open, 183 placed, 0 unplaced, 0 placed twice (`#1459` filed and placed in Batch L item 1). The run ends only when the spec is done or for an external cause.
 
 ## In flight
 
-No worker is running and no local check is running. Every item below was checked at handover.
+No worker is running and no local check is running. Three `wait-ci.mjs` waiters from the predecessor stop at the relay. Every item was checked at handover.
 
 | item | disposition |
 |---|---|
-| landing | DONE: `landing#101` merged (`6f1d7042`), `#1454` closed, staging landing serves `6f1d7042` (release run 38978335464 succeeded; the first run 38977742742 failed only its CDN check, ticket `#1458`). The owner was told the URL |
-| `ui#1756` (`#1402`) | round committed, unpushed: `b4492df48` (Android pending dots stay visible after a layout-only reveal). Read the worker report (launcher output in the predecessor's tasks), resolve `PRRT_kwDOR5Siws6tZu-C`, push, then wait for CI and a fresh approval and merge; then launch `#1408` (worktree and `prompt-1408.md` exist) |
-| `ui#1757` (`#1411`) | base merged `806f003b5`, pushed; its only red was `conversation-thread-scroll.spec.ts:24` (`#1356`), rerun (run 38968493128); needs a Pullfrog approval of this head, then merge |
-| `ui#1760` (`#1410`) | base merge plus the bare `/progress` notification fix `c59bfb8f6`, pushed, APPROVED; CI was still running Unit Tests and layout. Merge on green; then `ui#1761` gets its base-merge round, and whichever of `ui#1759`/`ui#1760` merges second maps `mobile:control:gamification.title` to `mobile:control:progressScreen.sections.achievements` in `tools/feature-parity-rules.json` |
-| `ui#1762` (`#1406`) | docs-only base merge `4f44ff096`, pushed; CI running, then a fresh approval and merge |
-| `ui#1759` (`#1424`) | three rounds pushed, last `2b41f776d`, thread resolved; wait for CI and approval |
-| `ui#1761` (`#1409`) | conflicts with the base in six product files: base-merge worker round after `ui#1760` merges |
-| `ui#1771` (`#1403`) | opened this relay, copy approved (comment posted); CI running |
-| `#1423` | worktree `ticket-1423-habit-views` at `125248af3` (sweep round `7acf62be4` passed all seven review lines; docs-only base merge mine), unpushed: push and open the pull request with the worker's report once a slot is free, and approve its copy (pt-BR "Nenhum hábito geral" drops production's "ainda" while en keeps "yet") |
-| `#1404`, `#1405`, `#1422` | sweep orders composed (`order-<n>-sweep1.md`); admission refused them at 16 open pull requests: relaunch each as merges free slots (`--allow-subagents --relaunch-reason`). `#1404` edits native widget code: a throwaway AVD check before merge |
-| `ui#1763` (`#1430`) | round pushed and APPROVED, but Unit Tests is red: `apps/mobile/__tests__/lib/press-shape-contract.test.ts` "clips every composed press fill to its own radius" (run 38970555302): worker round |
-| `ui#1764` (`#1437`) | round committed, unpushed `25a4489c0`: read report, resolve `PRRT_kwDOR5Siws6tYdAn`, push |
-| `ui#1765` (`#1434`) | approved; layout round committed, unpushed `3baeefaff` (`field-insets.spec.ts` finds fields by name and measures the end-time field): prove the spec red on the base build and green on this head, then push |
-| `ui#1766` (`#1427`) | round pushed `af6bddcca`, thread resolved; wait for CI and approval |
-| `ui#1767` (`#1443`) | round committed, unpushed `f09195c7e`: read report (it also had Surface Manifest, Unit Tests and an `action-rows.spec.ts:117` `/habits/habit-1` red), resolve `PRRT_kwDOR5Siws6tYql1`, push |
-| `ui#1768` (`#1433`) | round committed, unpushed `6454a6e4b`: read report, resolve `PRRT_kwDOR5Siws6tY1h4`, push |
-| `ui#1769` (`#1426`) | round pushed `b3b2f2ca4` (it changes `viewport-safe-area.spec.ts`), both threads resolved; wait for CI's layout run and approval |
-| `ui#1770` (`#1442`) | round pushed `0d145b6d5`, thread resolved; wait for CI and approval |
-| `#1428`, `#1429`, `#1431`, `#1432`, `#1435`, `#1436`, `#1438`, `#1439`, `#1441`, `#1444` to `#1450` | not started; same-surface tickets start after their neighbour merges |
-| `#1455` to `#1457`, `#1413` to `#1420`, `#1412`, `#1421`, `#1458`, `#1425`, `#1451` to `#1453` | not started; Batch L order |
-| Releases | staging API `0a32fab3`, staging landing `6f1d7042`, staging web `60cf0960` (behind `redesign/main`), Orbit Staging 1.3.81 (140) on internal; production unchanged |
-| orbit-api | no open pull request |
+| `#1459` landing rebuild | NOT STARTED, FIRST: create a landing worktree `ticket-1459-pierre-landing` from landing `origin/redesign/main`, compose the order from the ticket plus the reference screenshots (`$HOME/.orbit-run-carry/pierre-ref/pierre-1.jpg` to `pierre-9.jpg`, copied into the scratchpad `pierre-ref/` by the carry), launch at xhigh with `--allow-subagents` if the order carries the sweep and a long ceiling. When it reports, build and serve the preview, screenshot it beside Pierre at 1352 and 412 through `claude-in-chrome`, and run `/second-opinion` plus a GPT visual judge (Codex with the screenshots) in rounds until both agree; then the pull request, copy approval, merge and the staging landing release, and tell the owner the URL |
+| `ui#1756` (`#1402`) | round `b4492df48` pushed, thread resolved; CI and a fresh approval, then merge; then `#1408` (worktree and `prompt-1408.md` exist) |
+| `ui#1757` (`#1411`), `ui#1762` (`#1406`), `ui#1766` (`#1427`), `ui#1759` (`#1424`) | pushed; Pullfrog check reads "would approve" with no review at the head while six Pullfrog dispatches were queued; if still none after the queue drains, comment `@pullfrog review` |
+| `ui#1760` (`#1410`), `ui#1769` (`#1426`), `ui#1770` (`#1442`), `ui#1771` (`#1403`) | approved at head; merge on green; whichever of `ui#1759`/`ui#1760` merges second maps `mobile:control:gamification.title` to `mobile:control:progressScreen.sections.achievements` in `tools/feature-parity-rules.json` |
+| `ui#1763` (`#1430`) | CI round `8a3f4d428` pushed (press fill clipped; contract test red then green); CI and a fresh approval |
+| `ui#1764` (`#1437`), `ui#1767` (`#1443`), `ui#1768` (`#1433`) | rounds `25a4489c0`, `f09195c7e`, `6454a6e4b` pushed, threads resolved; CI and approvals |
+| `ui#1765` (`#1434`) | rounds `3baeefaff` and `7ffb9b4a4` pushed after the local proof (spec red on the base build, 73 of 73 green on the head build); CI and a fresh approval |
+| `ui#1772` (`#1423`) | opened, copy approved (comment 6226518362); CI and approval |
+| `ui#1761` (`#1409`) | base-merge worker round after `ui#1760` merges |
+| `#1404`, `#1405`, `#1422` | sweep orders composed (`order-<n>-sweep1.md`); admission is open now: launch each (`--allow-subagents --relaunch-reason`). `#1404` edits native widget code: a throwaway AVD check before merge |
+| restorations `#1428`, `#1429`, `#1431`, `#1432`, `#1435`, `#1436`, `#1438`, `#1439`, `#1441`, `#1444` to `#1450` | not started; launch them now that the caps are gone, each with `note-parallel-body.md` and `verify-note.md` appended |
+| caps commit | the uncommitted cap edit needs a harness ticket (the test pins in `tools/__tests__/orchestrator-config.mjs:437`, `admission.mjs`, `launch-worker.mjs`); file it and launch it |
+| Releases | staging API `0a32fab3`, staging landing `6f1d7042` (rejected), staging web `60cf0960`, Orbit Staging 1.3.81 (140); production unchanged |
+| orbit-api, landing | no open pull request |
 | Session chain | open (automatic relay) |
 
 ## Then, in this order
 
 1. Answer the owner first. A screenshot or message is filed as a ticket and started at once.
-2. Push the five committed rounds (`ui#1756`, `ui#1764`, `ui#1765` after its spec proof, `ui#1767`, `ui#1768`), each after reading its report and resolving its thread.
-3. Start CI waiters (at most three, `--ceiling-minutes 90`) and merge each pull request the moment it clears the bar; check the others for conflicts after every merge. Merging is what frees admission: CI throughput, not the machine, is the bottleneck.
-4. Fill free slots up to 10 in this order: `ui#1763` round, `ui#1761` base merge after `ui#1760`, `#1408` after `ui#1756`, the `#1404`, `#1405`, `#1422` sweeps and the `#1423` push as slots free, then the next restorations.
-5. When the 1.3.81 wave (`#1402` to `#1411`, `#1422`, `#1423`) has merged: release the staging web from `redesign/main`, verify `/api/health`, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update section 2 of the brain note `0 Inbox/Orbit staging test.md` (add `#1422` and `#1423`), push-notify and tell the owner.
+2. Launch `#1459` (above), then fill slots with no cap: the `#1404`, `#1405`, `#1422` sweeps, every restoration, `#1408` after `ui#1756`, the caps harness ticket.
+3. Start CI waiters (`--ceiling-minutes 90`) and merge each pull request the moment it clears the bar; check the others for conflicts after every merge.
+4. When the 1.3.81 wave (`#1402` to `#1411`, `#1422`, `#1423`) has merged: release the staging web from `redesign/main`, verify `/api/health`, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update section 2 of the brain note `0 Inbox/Orbit staging test.md` (add `#1422` and `#1423`), push-notify and tell the owner.
 
 ## Sleep
 
@@ -60,20 +51,16 @@ The owner's written authorization for this run stands: merge to `main` what belo
 
 The context relay is live: at the threshold, launch nothing, drain, run `carry-out.sh`, then `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 
-Owner instructions: go faster and use the machine's full capacity (the configured cap of 10 applies; the gate is a load of 60 with focused tests in workers); the landing is a NEW page built around Astra, one screen that fits `100dvh` on every device, cleaner and smaller, never a description on one side with a phone mockup or visual on the other; stop removing features: the redesign keeps every production capability unless he explicitly removed it, and a missing one is restored with production's behaviour; the order is the landing, then the redesign fixes, then feature flags and API versioning; feature flags are agent first; removing the `redesign` flag and restarting must show the old design on web and Android; the Codex plan (D146) stands; file gate findings as tickets and fix them without waiting for testing to finish; no literal pt-BR translation anywhere; no option row that wraps to a second line; on wide Android windows content is centred, actions stay small and lists become responsive grids; one padding standard; a copy control only on a copyable block in an Astra reply; the daily streak up moment returns in the redesign's language. THE REDESIGN GATE holds for the UI and landing builds until the owner approves after his retest. Where a control sits is the run's call.
+Owner instructions: remove every cap, maximum velocity, the most workers possible (the orchestrating checkout's `.claude/orchestrator.json` holds `parallelTickets` 40, `maxOpenPullRequests` 200 and `maxQueuedRuns` 1000 as an uncommitted edit: never stage or revert it; `xhigh-launch.sh` now reverts only its own tier edit; the load gate of 60 is the only throttle); the landing literally copies Pierre's landing page (`https://lp.pierre.finance/lp/converse`, Lenis smooth scrolling and GSAP scroll animation) in Orbit's new design, Astra still the focus, MAKE IT LOOK GOOD, and `/second-opinion` repeats until GPT agrees it looks like Pierre's page and is the best possible Orbit landing (`#1459`, the priority); never a description on one side with a phone mockup or visual on the other; stop removing features: the redesign keeps every production capability unless he explicitly removed it, and a missing one is restored with production's behaviour; the order is the landing, then the redesign fixes, then feature flags and API versioning; feature flags are agent first; removing the `redesign` flag and restarting must show the old design on web and Android; the Codex plan (D146) stands; file gate findings as tickets and fix them without waiting for testing to finish; no literal pt-BR translation anywhere; no option row that wraps to a second line; on wide Android windows content is centred, actions stay small and lists become responsive grids; one padding standard; a copy control only on a copyable block in an Astra reply; the daily streak up moment returns in the redesign's language. THE REDESIGN GATE holds for the UI and landing builds until the owner approves after his retest. Where a control sits is the run's call.
 
 ## Previous prompt, disposition
 
-- Reading list, Entry point, Sleep, authorization, Chrome rule, relay and owner instructions: carried.
-- `landing#101` CI, approval, copy approval, merge, close `#1454`, staging landing release, tell the owner the URL: done (`6f1d7042`; copy approved after two fix rounds, verdicts posted; release run 38978335464; push notification sent).
-- `ui#1756` merge, then `#1408`: superseded by a new Pullfrog finding; its round is committed (`b4492df48`): carried.
-- `ui#1762`, `ui#1757`, `ui#1760` base-merge rounds: done (`4f44ff096`, `806f003b5`, `826660261`, the docs-only ones resolved by the orchestrator); their merges: carried.
-- `ui#1761` base merge after `ui#1760`: carried.
-- `ui#1759` round 2 and push: done (`daddb249d`, `cd216b598`), then round 3 done (`2b41f776d`); its merge: carried.
-- Sweep rounds for `#1403`, `#1404`, `#1405`, `#1422`, `#1423`: `#1403` done (`ui#1771`); `#1423` done (unpushed, carried); `#1404`, `#1405`, `#1422` carried (admission).
-- `ui#1763` review round: done (`6378aafcc`, approved); its new Unit Tests red: carried.
-- Restoration pull requests `ui#1764` to `ui#1770`: each got a review round; four pushed, three committed and carried.
-- Restorations not started and later Batch L items: carried.
+- Reading list, Entry point, Sleep, authorization, Chrome rule and relay: carried; the landing reading-list clause and the speed owner instruction superseded by the owner's later orders (Pierre landing, caps removed).
+- Push the five committed rounds: done (`ui#1756` `b4492df48`, `ui#1764` `25a4489c0`, `ui#1767` `f09195c7e`, `ui#1768` `6454a6e4b`, `ui#1765` `3baeefaff` plus `7ffb9b4a4` after its proof).
+- `ui#1763` round: done (`8a3f4d428`). `#1423` push and pull request: done (`ui#1772`, copy approved).
+- CI waiters and merges: carried (no merge yet; checks were queued).
+- `ui#1761` base merge, `#1408`, the `#1404`, `#1405`, `#1422` sweeps, the restorations, Batch L items 3 and 4: carried.
+- Landing done: superseded by `#1459` (owner rejected the staging landing).
 - Staging web release and 1.3.82 after the wave: carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
