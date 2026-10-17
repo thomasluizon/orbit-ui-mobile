@@ -1,0 +1,153 @@
+{
+  "response": {
+    "aiMessage": "Here is what is left today.\n\nAnd your week so far:",
+    "actions": [],
+    "parts": [
+      {
+        "type": "text",
+        "text": "Here is what is left today."
+      },
+      {
+        "type": "block",
+        "kind": "habitList",
+        "block": {
+          "scope": "today",
+          "items": []
+        }
+      },
+      {
+        "type": "text",
+        "text": "And your week so far:"
+      },
+      {
+        "type": "block",
+        "kind": "metrics",
+        "block": {
+          "period": "week",
+          "completionRate": 1,
+          "totalCompletions": 1,
+          "totalScheduled": 1,
+          "activeDays": 1,
+          "currentStreak": 1,
+          "bestStreak": 1,
+          "hasData": true,
+          "surfaceId": "progress"
+        }
+      }
+    ]
+  },
+  "blocks": [
+    {
+      "type": "block",
+      "kind": "habitList",
+      "block": {
+        "scope": "today",
+        "items": []
+      }
+    },
+    {
+      "type": "block",
+      "kind": "goalList",
+      "block": {
+        "items": []
+      }
+    },
+    {
+      "type": "block",
+      "kind": "metrics",
+      "block": {
+        "period": "week",
+        "completionRate": 1,
+        "totalCompletions": 1,
+        "totalScheduled": 1,
+        "activeDays": 1,
+        "currentStreak": 1,
+        "bestStreak": 1,
+        "hasData": true,
+        "surfaceId": "progress"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "periodInsight",
+      "block": {
+        "period": "week",
+        "dateFrom": "2026-10-16",
+        "dateTo": "2026-10-16",
+        "completionRate": 1,
+        "activeDays": 1,
+        "periodDays": 1,
+        "totalCompletions": 1,
+        "totalScheduled": 1,
+        "currentStreak": 1,
+        "bestStreak": 1,
+        "topHabits": [],
+        "needsAttention": [],
+        "narrative": {
+          "highlights": "fixture",
+          "missed": "fixture",
+          "trends": "fixture",
+          "suggestion": "fixture"
+        },
+        "series": null,
+        "surfaceId": "progress"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "daySummary",
+      "block": {
+        "date": "2026-10-16",
+        "due": 1,
+        "done": 1,
+        "completionRate": 1,
+        "overdueCount": 1,
+        "currentStreak": 1,
+        "surfaceId": "today"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "streak",
+      "block": {
+        "currentStreak": 1,
+        "longestStreak": 1,
+        "level": 1,
+        "totalXp": 1,
+        "xpForNextLevel": 1,
+        "lastActiveDate": "2026-10-16",
+        "isFrozenToday": true,
+        "recentFreezeDates": [],
+        "recentAchievements": [],
+        "surfaceId": "progress"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "calendar",
+      "block": {
+        "events": [],
+        "sync": null,
+        "surfaceId": "calendar"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "recordList",
+      "block": {
+        "kind": "tags",
+        "totalCount": 1,
+        "items": []
+      }
+    },
+    {
+      "type": "block",
+      "kind": "accountRows",
+      "block": {
+        "kind": "profile",
+        "rows": [],
+        "surfaceId": "profile"
+      }
+    }
+  ]
+}

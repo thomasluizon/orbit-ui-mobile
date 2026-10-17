@@ -1,8 +1,59 @@
-import { describe, expect, it } from 'vitest'
-import { actionResultSchema, chatStreamEventSchema } from '../types/chat'
+import { describe, expect, it, vi } from 'vitest'
+import type { z } from 'zod'
+import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '../types/chat'
+import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
+import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
+import { createChatSseParser } from '../chat/sse-stream'
+import partsFixture from '../test-support/chat-parts.fixture.json'
 import { agentExecuteOperationResponseSchema } from '../types/ai'
 import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
+
+const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
+
+describe('ordered chat parts', () => {
+  it('keeps generated contract parts through SSE, final assembly and stored message parsing', () => {
+    expect(PostApiChatResponse.parse(partsFixture.response)).toEqual(partsFixture.response)
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: partsFixture.response })}\n\n`)
+    expect(event?.type).toBe('final')
+    if (event?.type !== 'final') throw new Error('Expected a final event')
+    const message = chatMessageSchema.parse({ id: 'parts', role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) })
+    expect(message.parts).toEqual(partsFixture.response.parts)
+    expect(message.content).toBe(partsFixture.response.aiMessage)
+    expect(getChatMessageParts(message, true)).toEqual([{ type: 'text', text: message.content }])
+  })
+
+  it('validates every registered block from the pinned contract', () => {
+    expect(partsFixture.blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
+    const response = { ...partsFixture.response, parts: partsFixture.blocks }
+    expect(PostApiChatResponse.parse(response)).toEqual(response)
+    expect(chatResponseSchema.parse(response).parts).toEqual(partsFixture.blocks)
+  })
+
+  it.each(['futureKind', ...CHAT_BLOCK_KINDS])('skips an unsupported or malformed %s block without losing the final event', kind => {
+    const parts = [...partsFixture.response.parts]
+    parts[1] = { ...parts[1]!, type: 'block', kind, block: {} }
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { ...partsFixture.response, parts } })}\n\n`)
+    expect(event?.type).toBe('final')
+    if (event?.type !== 'final') throw new Error('Expected a final event')
+    expect(event.response.parts).toEqual([parts[0], null, parts[2], parts[3]])
+    expect(buildChatFinalMessageFields(event.response, []).parts).toEqual([parts[0], parts[2], parts[3]])
+  })
+
+  it.each([{ parts: [] }, { parts: [{ type: 'block', kind: 'futureKind', block: {} }] }])('uses aiMessage when every part is skipped or absent from the array', ({ parts }) => {
+    const response = chatResponseSchema.parse({ ...partsFixture.response, parts })
+    expect(buildChatFinalMessageFields(response, []).parts).toEqual([{ type: 'text', text: response.aiMessage }])
+  })
+
+  it.each([undefined, null])('adapts legacy fields in their existing order when parts is %s', parts => {
+    const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'lists and metrics')!
+    const response = chatResponseSchema.parse({ aiMessage: 'Legacy reply', actions: [], ...scenario.fields, parts })
+    const assembled = buildChatFinalMessageFields(response, []).parts!
+    expect(assembled.map(part => part?.type === 'block' ? part.kind : part?.type)).toEqual([
+      'text', 'habitList', 'goalList', 'metrics', 'periodInsight', 'daySummary', 'streak', 'calendar', 'recordList', 'recordList', 'accountRows',
+    ])
+  })
+})
 
 const validClarificationRequest = {
   question: 'Which reading habit did you mean?',

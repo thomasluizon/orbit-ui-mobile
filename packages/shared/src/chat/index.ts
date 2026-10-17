@@ -1,6 +1,7 @@
 export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'
+export * from './block-kinds'
 export * from './final-message'
 export * from './message-actions'
 export * from './message-bubble'
