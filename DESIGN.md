@@ -1037,7 +1037,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 
 ## Habit list
 
-- **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
+- **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. Keep 4px between rows inside a Hoje family and 12px between families; habit detail child rows use 12px. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
 - The panel is the quietest step so the `--bg-well` emoji squares inside it read as the lighter elevation.
 - **Two levels inline, then drill in.** One fg-3 chevron column expands a top-level parent in place and opens the drill anywhere else. The drill head carries a round back button, the parent's name and a mono done count; deeper than one level, a home row returns to all habits.

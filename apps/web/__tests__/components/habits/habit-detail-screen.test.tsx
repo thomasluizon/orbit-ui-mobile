@@ -2066,9 +2066,9 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
         const group = await page.getByTestId('detail-children').evaluate((element) => {
           const paint = getComputedStyle(element)
-          return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth }
+          return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth, gap: paint.rowGap }
         })
-        expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px' })
+        expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px', gap: '12px' })
       } finally { await page.close() }
     })
 

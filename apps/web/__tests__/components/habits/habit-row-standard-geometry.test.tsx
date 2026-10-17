@@ -57,7 +57,7 @@ describe('habit row standard in Chromium', () => {
         const paint = check && getComputedStyle(check)
         const body = getComputedStyle(row)
         const bounds = row.getBoundingClientRect()
-        return { check: check && { width: check.getBoundingClientRect().width, height: check.getBoundingClientRect().height, radius: paint!.borderTopLeftRadius, border: paint!.boxShadow, background: paint!.backgroundColor }, radius: body.borderTopLeftRadius, border: body.boxShadow, background: body.backgroundColor, left: bounds.left, right: bounds.right }
+        return { check: check && { width: check.getBoundingClientRect().width, height: check.getBoundingClientRect().height, radius: paint!.borderTopLeftRadius, border: paint!.boxShadow, background: paint!.backgroundColor }, radius: body.borderTopLeftRadius, border: body.boxShadow, background: body.backgroundColor, left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
       }))
       expect(rows).toHaveLength(9)
       for (const row of rows) {
@@ -68,6 +68,7 @@ describe('habit row standard in Chromium', () => {
         expect(row.left).toBeGreaterThanOrEqual(16)
         expect(row.right).toBeLessThanOrEqual(width - 16)
       }
+      expect(rows.slice(1).map((row, index) => row.top - rows[index]!.bottom)).toEqual(Array.from({ length: 8 }, () => 4))
       const partial = await page.locator('[data-habit-title="Partial parent"] [data-habit-check] path').evaluate((element) => {
         const path = element as SVGPathElement
         return { perimeter: path.getTotalLength(), progress: Number.parseFloat(path.getAttribute('stroke-dasharray')!) }

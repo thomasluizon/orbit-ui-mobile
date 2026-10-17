@@ -1383,6 +1383,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 20px;
 }
 
+.habit-panel,
+.habit-row-group:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .orbit-focus-inset:focus-visible,
 .habit-panel :focus-visible,
 [data-focus-inset] :focus-visible {

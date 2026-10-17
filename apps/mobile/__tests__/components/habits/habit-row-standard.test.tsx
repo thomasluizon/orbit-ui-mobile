@@ -26,6 +26,8 @@ describe('habit row standard on Android', () => {
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, borderWidth: 1, borderColor: tokens.hairline, backgroundColor: tokens.bgCard })
+    const spacing = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.paddingBottom === 4)
+    expect(spacing).toHaveLength(1)
     const check = tree!.root.findByProps({ testID: 'habit-check' })
     expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderWidth: 1, borderColor: tokens.statusEmpty })
     const toggle = tree!.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.statusDot.empty, habits.logHabit: Read')!
