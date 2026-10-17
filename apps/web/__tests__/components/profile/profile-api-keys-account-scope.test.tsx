@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
@@ -124,7 +124,7 @@ it('shows the MCP endpoint for the selected API environment', () => {
   )
 
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.connectionInstructions }))
-  expect(screen.getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
+  expect(within(screen.getByRole('dialog', { name: en.orbitMcp.claudeWeb })).getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
 })
 
 async function revealAccountAKey() {

@@ -9,7 +9,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { ProfileMcpGuide } from '@/components/profile/profile-mcp-guide'
+import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
 
@@ -473,7 +475,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
           ) : null}
           {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
-          <ProfileMcpGuide />
+          <McpCodeClient endpoint={getMcpEndpointUrl(accountEventApiBase())} />
         </>
       </ApiKeyAccessContent>
 

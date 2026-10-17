@@ -61,8 +61,7 @@ export function ProfileMcpGuide() {
   const t = useTranslations()
   const [open, setOpen] = useState(false)
   return (
-    <div className="flex min-w-0 flex-col items-start" style={{ gap: 12, paddingBlock: 16 }}>
-      <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
+    <div className="flex min-w-0 flex-col items-start">
       <PillButton variant="ghost" size="sm" expanded={open} onClick={() => setOpen(true)}>{t('orbitMcp.connectionInstructions')}</PillButton>
       {open ? <McpWebSheet onClose={() => setOpen(false)} /> : null}
     </div>

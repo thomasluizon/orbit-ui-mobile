@@ -64,12 +64,9 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
 
 export function ProfileMcpGuide() {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const [open, setOpen] = useState(false)
   return (
     <View style={styles.entry}>
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{t('profile.apiKeys.mcpTitle')}</Text>
       <PillButton variant="ghost" size="sm" expanded={open} onClick={() => setOpen(true)}>{t('orbitMcp.connectionInstructions')}</PillButton>
       {open ? <McpWebSheet onClose={() => setOpen(false)} /> : null}
     </View>
@@ -78,8 +75,7 @@ export function ProfileMcpGuide() {
 
 const styles = StyleSheet.create({
   copyAction: { minHeight: 48, justifyContent: 'center' },
-  entry: { alignItems: 'flex-start', gap: 12, paddingVertical: 16 },
-  title: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  entry: { alignItems: 'flex-start' },
   content: { gap: 24, maxWidth: 640, width: '100%', alignSelf: 'center' },
   body: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24.8 },
   steps: { gap: 12 },

@@ -542,9 +542,9 @@ describe('ProfilePage', () => {
             headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
         })
         expect(geometry.columnTop).toBe(0)
-        expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
-        expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
-        expect(geometry.headerHeight).toBe(width < 1024 ? 48 : 0)
+        expect(geometry.columnInset).toBe(width < 1024 ? 100 : 32)
+        expect(geometry.scrollerInset).toBe(width < 1024 ? 100 : 0)
+        expect(geometry.headerHeight).toBe(width < 1024 ? 72 : 0)
         if (width < 1024) expect(geometry.trailingInset).toBe(16)
       } finally { await page.close() }
     })
@@ -1118,7 +1118,7 @@ describe('ProfilePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'orbitMcp.copy' }))
     expect(await screen.findByText('orbitMcp.copyError')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toHaveAccessibleDescription('orbitMcp.copyError')
-    expect(screen.getByText(getMcpEndpointUrl(accountEventApiBase()))).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'orbitMcp.claudeWeb' })).getByText(getMcpEndpointUrl(accountEventApiBase()))).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'orbitMcp.copied' })).not.toBeInTheDocument()
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.copy' }))

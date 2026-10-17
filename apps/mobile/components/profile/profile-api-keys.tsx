@@ -9,7 +9,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
-import { ProfileMcpGuide } from '@/components/profile/profile-mcp-guide'
+import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
@@ -24,6 +25,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { useOffline } from '@/hooks/use-offline'
 import { apiClient } from '@/lib/api-client'
+import { API_BASE } from '@/lib/api-base'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
@@ -472,7 +474,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{management.createKeyError}</Text>
           ) : null}
           {stepUp.error ? <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('stepUp.requestError')}</Text> : null}
-          <ProfileMcpGuide />
+          <McpCodeClient endpoint={getMcpEndpointUrl(API_BASE)} />
         </>
       </ApiKeyAccessContent>
 
