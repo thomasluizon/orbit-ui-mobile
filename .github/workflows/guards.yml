@@ -120,15 +120,9 @@ jobs:
           fi
         if: ${{ !cancelled() }}
       - id: root-allowlist__4
-        name: "Root Allowlist: The brand lockup's viewBox is exactly its ink"
-        run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^design/brand/orbit-lockup\.svg$|^tools/check-lockup-crop\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
-            node tools/check-lockup-crop.mjs
-          else
-            echo "Lockup crop skipped: no owned path changed."
-          fi
-        if: ${{ !cancelled() }}
+        name: "Root Allowlist: Check the lockup crop on branch pushes"
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+        run: node tools/check-lockup-crop.mjs
       - id: dashes__1
         name: "Dash Ban: Changed files carry no new dashes"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
@@ -192,15 +186,9 @@ jobs:
           fi
         if: ${{ !cancelled() }}
       - id: lint-severity__1
-        name: "Lint Severity: Changed lint inputs keep local rules blocking"
-        run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '(^|/)eslint\.config\.(cjs|cts|js|mjs|mts|ts)$|(^|/)eslint-suppressions\.json$|(^|/)package\.json$|^package-lock\.json$|^\.github/workflows/.*\.ya?ml$|^tools/check-lint-severity\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
-            node tools/check-lint-severity.mjs
-          else
-            echo "Lint severity skipped: no owned path changed."
-          fi
-        if: ${{ !cancelled() }}
+        name: "Lint Severity: Check local lint rules on branch pushes"
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+        run: node tools/check-lint-severity.mjs
       - id: calibration__1
         name: "Harness Calibration: Report calibration drift"
         continue-on-error: true
@@ -249,15 +237,9 @@ jobs:
             --changed-files-file "$RUNNER_TEMP/changed.txt"
         if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') }}
       - id: performance-workflow__1
-        name: "Performance Workflow Drift: Changed performance machinery matches its generated workflow"
-        run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^tools/(generate-performance-workflow\.mjs|lib/performance-measurement\.mjs)$|^\.claude/workflows/audit\.mjs$' "$RUNNER_TEMP/changed-paths.txt"; then
-            node tools/generate-performance-workflow.mjs --check
-          else
-            echo "Performance workflow skipped: no owned path changed."
-          fi
-        if: ${{ !cancelled() }}
+        name: "Performance Workflow Drift: Check generated workflow on branch pushes"
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+        run: node tools/generate-performance-workflow.mjs --check
       - id: surface-manifest__1
         name: "Surface Manifest Drift: Changed surface inputs match the committed inventory"
         run: |
@@ -302,23 +284,6 @@ jobs:
           else
             echo "Gradient guard skipped: no owned path changed."
           fi
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - id: surface-scope-report__1
-        name: "Surface Scope Report: Report declared token surface scopes"
-        env:
-          SURFACE_SCOPE_MODE: reporting-only
-        run: |
-          echo "Surface scope mode: ${SURFACE_SCOPE_MODE}. Findings are reported and do not fail this job."
-          echo "Surface scope findings remain advisory in this job."
-          set +e
-          node tools/check-surface-scope.mjs
-          checker_status=$?
-          set -e
-          if [ "$SURFACE_SCOPE_MODE" = "reporting-only" ] && [ "$checker_status" -eq 1 ]; then
-            echo "Surface scope findings reported. This reporting-only job exits 0."
-            exit 0
-          fi
-          exit "$checker_status"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
       - id: dependency-audit__1
         name: "Dependency Audit: Test critical production CVE gate"

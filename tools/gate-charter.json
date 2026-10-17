@@ -189,11 +189,6 @@
     "snapshot": "node tools/surface-manifest.mjs",
     "constants": "none"
   },
-  ".github/workflows/guards.yml#surface-scope-report": {
-    "scope": "whole-tree-advisory",
-    "snapshot": "none",
-    "constants": "none"
-  },
   ".github/workflows/guards.yml#timeless": {
     "scope": "changed-files",
     "snapshot": "none",

@@ -13,11 +13,8 @@ const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/
 const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/test.yml"), "utf8"))
 const cases = [
   ["root-allowlist", "Workspace packages declare no ignored overrides", "package.json"],
-  ["root-allowlist", "The brand lockup's viewBox is exactly its ink", "design/brand/orbit-lockup.svg"],
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
-  ["lint-severity", "Changed lint inputs keep local rules blocking", "eslint.config.mjs"],
-  ["performance-workflow", "Changed performance machinery matches its generated workflow", "tools/generate-performance-workflow.mjs"],
   ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
 ]
 
@@ -108,7 +105,7 @@ for (const [jobId, stepName, path, options] of [
 
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "lint-severity", "parity", "expo-pin", "review-harness", "performance-workflow", "surface-manifest", "gate-charter"]
+    "parity", "expo-pin", "review-harness", "surface-manifest", "gate-charter"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
@@ -132,19 +129,17 @@ test("script guards share one checkout and install, and run after another guard 
   }
 })
 
-test("surface scope keeps findings advisory and checker errors blocking", () => {
-  const step = guardGroups(workflow)["surface-scope-report"].steps.find((candidate) =>
-    candidate.name === "Report declared token surface scopes")
-  assert.equal(step["continue-on-error"], undefined)
-  for (const status of [0, 1, 2]) {
-    const result = spawnSync("bash", ["-e", "-c", `node() { return ${status}; }\n${step.run}`], {
-      encoding: "utf8", env: { ...process.env, ...step.env },
-    })
-    assert.equal(result.status, status === 1 ? 0 : status, result.stderr)
-  }
-})
-
 test("calibration stays advisory and React Doctor retains its time limit", () => {
   assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
   assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+})
+
+test("pull requests run each source check through one owner", () => {
+  assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
+  for (const id of ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"]) {
+    const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === id)
+    assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  }
+  assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
+  assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test -- --coverage"))
 })

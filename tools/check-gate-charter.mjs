@@ -213,7 +213,8 @@ function isPullRequestCondition(condition) {
 }
 
 function guardJobUsesChangedFiles(job) {
-  const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true)
+  const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true &&
+    step.if !== "${{ !cancelled() && (github.event_name != 'pull_request') }}")
   const gateRuns = blockingRuns.filter((step) => step.name !== "Resolve pull request changed paths")
   const timeless = gateRuns.at(-1)?.run.trim()
   if (timeless === `if [ "\${{ github.event_name }}" = "pull_request" ]; then
@@ -235,10 +236,7 @@ fi` && gateRuns.slice(0, -1).every((step) => isPrerequisiteRun(step.run))) retur
 function guardJobIsAdvisory(job) {
   const runs = runSteps(job)
   return runs.length > 0 && runs.every((step) => step.name === "Resolve pull request changed paths" ||
-    isPrerequisiteRun(step.run) || step["continue-on-error"] === true ||
-    (step.env?.SURFACE_SCOPE_MODE === "reporting-only" &&
-      /set \+e\nnode tools\/check-surface-scope\.mjs\nchecker_status=\$\?\nset -e/.test(step.run) &&
-      /if \[ "\$SURFACE_SCOPE_MODE" = "reporting-only" \] && \[ "\$checker_status" -eq 1 \]; then[\s\S]*?exit 0\nfi\nexit "\$checker_status"/.test(step.run)))
+    isPrerequisiteRun(step.run) || step["continue-on-error"] === true)
 }
 
 function preparesChangedPaths(job) {

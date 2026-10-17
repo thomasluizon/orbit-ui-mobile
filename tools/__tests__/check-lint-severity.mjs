@@ -365,8 +365,9 @@ jobs:
   const lintSeverityJob = guardsWorkflow.split("      - id: ")
     .find((step) => step.startsWith("lint-severity__1")) ?? ""
   T(
-    `${TOOL}: the workflow predicate owns package-lock.json`,
-    /\^package-lock\\\.json\$/.test(lintSeverityJob),
+    `${TOOL}: PR enforcement belongs to the unfiltered tools suite and the guard retains push coverage`,
+    lintSeverityJob.includes("github.event_name != 'pull_request'") &&
+      readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8").includes("run: node tools/test-tools.mjs"),
     lintSeverityJob.trim(),
   )
   T(
