@@ -89,7 +89,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
     }, labels)
     expect.soft(measured.gap).toBe(24)
     for (const label of measured.labels) {
-      expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: label.label === labels[0] || hasProAccess ? 16 : 56 })
+      expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: 16 })
       if (scale === 1) expect.soft(label.lines, label.label).toBe(1)
       else expect.soft(label.lines, label.label).toBeGreaterThanOrEqual(1)
     }

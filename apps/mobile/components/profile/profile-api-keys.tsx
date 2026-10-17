@@ -16,7 +16,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Input } from '@/components/ui/input'
-import { Key, Lock } from '@/components/ui/icons'
+import { Key } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -279,14 +279,12 @@ function ApiKeyAccessContent({
   unlocked,
 }: Readonly<ApiKeyAccessContentProps>) {
   const { t } = useTranslation()
-  const tokens = useTokens()
   if (!hasProAccess) {
     return (
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
         <ListRow
           compact
-          icon={<Lock size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.unlock')}
           accessibilityLabel={t('profile.apiKeys.unlock')}
           trailing={<ProBadge alwaysVisible label={t('common.proBadge')} />}
