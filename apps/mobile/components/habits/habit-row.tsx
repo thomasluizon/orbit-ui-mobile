@@ -111,7 +111,6 @@ export interface HabitRowProps {
   childrenTotal?: number
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
-  panelStart?: boolean
   panelEnd?: boolean
   hasProAccess?: boolean
 }
@@ -201,13 +200,11 @@ function useBodyPressFeedback(
 function buildRowStyle({
   child,
   selected,
-  panelStart,
   panelEnd,
   tokens,
 }: Readonly<{
   child: boolean
   selected: boolean
-  panelStart: boolean
   panelEnd: boolean
   tokens: ReturnType<typeof createTokensV2>
 }>): ViewStyle {
@@ -216,14 +213,8 @@ function buildRowStyle({
     marginBottom: panelEnd ? 12 : 0,
     backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
     borderColor: tokens.hairline,
-    borderTopWidth: panelStart ? StyleSheet.hairlineWidth : 0,
-    borderBottomWidth: panelEnd ? StyleSheet.hairlineWidth : 0,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: panelStart ? 20 : 0,
-    borderTopRightRadius: panelStart ? 20 : 0,
-    borderBottomLeftRadius: panelEnd ? 20 : 0,
-    borderBottomRightRadius: panelEnd ? 20 : 0,
+    borderWidth: 1,
+    borderRadius: 20,
   }
 }
 
@@ -245,7 +236,6 @@ export const HabitRow = memo(function HabitRow({
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
-  panelStart = true,
   panelEnd = true,
   hasProAccess = true,
 }: Readonly<HabitRowProps>) {
@@ -333,7 +323,6 @@ export const HabitRow = memo(function HabitRow({
   const rowStyle = buildRowStyle({
     child: isChild,
     selected: isSelected,
-    panelStart,
     panelEnd,
     tokens,
   })

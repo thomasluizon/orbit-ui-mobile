@@ -24,7 +24,7 @@ describe('Hoje parent ring track', () => {
     for (const selectMode of [false, true]) {
       const { container, unmount } = render(<HabitRow habit={createMockHabit({ isBadHabit: state === 'bad' })}
         hasChildren childProgress={{ done: 1, total: 2 }} state={state} selectMode={selectMode} />)
-      expect(container.querySelector('circle')).toHaveAttribute('stroke', 'var(--track-empty)')
+      expect(container.querySelector('[data-habit-check]')).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--track-empty)' })
       unmount()
     }
   })
@@ -219,7 +219,7 @@ describe('HabitRow neutral metadata contrast', () => {
             reference.style.color = `var(${token})`
             return getComputedStyle(reference).color
           }
-          const layers = [getComputedStyle(document.body).backgroundColor, getComputedStyle(panel).backgroundColor]
+          const layers = [getComputedStyle(document.body).backgroundColor, getComputedStyle(panel).backgroundColor, getComputedStyle(panel.querySelector('[data-testid="habit-row"]')!).backgroundColor]
           if (interactive) layers.push(getComputedStyle(body).backgroundColor)
           const result = {
             foreground: getComputedStyle(metadata).color,
@@ -408,7 +408,7 @@ describe('HabitRow check circle accessible name', () => {
     expect(ring).toHaveAccessibleDescription("We could not load this day's habits.")
     const unavailable = ring.querySelector<HTMLElement>('[data-status="unavailable"]')
     expect(unavailable).toBeInTheDocument()
-    expect(unavailable).toHaveClass('bg-[var(--bg-well)]')
+    expect(unavailable).toHaveStyle({ background: 'var(--bg-well)', width: '28px', height: '28px' })
     fireEvent.click(ring)
     expect(onLog).not.toHaveBeenCalled()
     rerender(<HabitRow habit={createMockHabit({ title: 'Read' })} child depth={1} actions={{ onLog }} />)
@@ -443,7 +443,7 @@ describe('HabitRow check circle accessible name', () => {
 
     fireEvent.mouseOver(ring)
 
-    expect(ring).toHaveAttribute('data-habit-row-control', 'ring')
+    expect(ring).toHaveAttribute('data-habit-row-control', 'check')
     expect(matchingRowBackgrounds(ring)).toEqual(['var(--bg-hover)'])
     expect(matchingRowBackgrounds(panel)).toEqual([])
   })
