@@ -30,11 +30,12 @@ async function collectIntegration() {
     describe: () => undefined,
     it: (name, run) => { cases.push({ name, run }) },
   }))
-  const registrations = { describe: RuleTester.describe, it: RuleTester.it, afterAll: RuleTester.afterAll }
+  const registrations = { describe: RuleTester.describe, it: RuleTester.it }
   try {
     await import('./no-rejecting-animation-wait.test.mjs')
   } finally {
     Object.assign(RuleTester, registrations)
+    delete RuleTester.afterAll
   }
   const integration = cases.find(({ name }) => name === 'enforces the web e2e scope through the installed ESLint config')
   expect(integration).toBeDefined()
