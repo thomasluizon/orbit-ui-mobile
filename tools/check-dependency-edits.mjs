@@ -4,7 +4,7 @@ import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
-import { dirname, join, relative, resolve, sep } from "node:path"
+import { basename, dirname, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
@@ -167,7 +167,23 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
     writeFileSync(archivePath, archive)
     /** Reuse the archive reader shipped with the existing web dependency. */
     const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
-    await tar.x({ file: archivePath, cwd: unpacked, strip: 1, strict: true })
+    const seenNpmIgnores = new Set()
+    await tar.x({
+      file: archivePath, cwd: unpacked, strip: 1, strict: true,
+      /** Match npm extraction: ignore links and let an explicit .npmignore win either archive order. */
+      filter: (name, entry) => {
+        if (/Link$/.test(entry.type)) return false
+        if (/File$/.test(entry.type)) {
+          if (basename(name) === ".npmignore") seenNpmIgnores.add(name)
+          else if (basename(name) === ".gitignore") {
+            const npmIgnore = name.replace(/\.gitignore$/, ".npmignore")
+            if (seenNpmIgnores.has(npmIgnore)) return false
+            entry.path = npmIgnore
+          }
+          return true
+        }
+      },
+    })
     const expected = []
     collectPackageFiles(unpacked, expected, false)
     if (expected.length === 0) throw new Error("locked archive contains no regular package files")

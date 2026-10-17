@@ -35,33 +35,58 @@ const stageTree = (label) => {
   return { repository, nodeModules }
 }
 
-const stageLockedPackage = (label) => {
+const stageLockedPackage = (label, ignoreFiles = []) => {
   const tree = stageTree(label)
   const source = join(tree.repository, "published")
   mkdirSync(source, { recursive: true })
   writeFileSync(join(source, "package.json"), JSON.stringify({ name: "slow-extraction", version: "1.0.0" }))
   writeFileSync(join(source, "index.js"), "published bytes\n")
   writeFileSync(join(source, "README.md"), "published documentation\n")
-  const packed = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", [
-    "pack", "--ignore-scripts", "--offline", "--cache", "../npm-cache", "--pack-destination", "..",
-  ], { cwd: source, encoding: "utf8", shell: process.platform === "win32" })
-  if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr}`)
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm"
+  const npmOptions = { cwd: source, encoding: "utf8", shell: process.platform === "win32" }
+  if (ignoreFiles.length > 0) {
+    for (const name of ignoreFiles) writeFileSync(join(source, name), `${name} published bytes\n`)
+    const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+    tar.c({ file: join(tree.repository, "slow-extraction-1.0.0.tgz"), cwd: tree.repository, gzip: true, sync: true },
+      ["package.json", "index.js", "README.md", ...ignoreFiles].map((name) => `published/${name}`))
+  } else {
+    const packed = spawnSync(npm, [
+      "pack", "--ignore-scripts", "--offline", "--cache", "../npm-cache", "--pack-destination", "..",
+    ], npmOptions)
+    if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr}`)
+  }
   const archiveName = readdirSync(tree.repository).find((name) => name.endsWith(".tgz"))
-  const integrity = `sha512-${createHash("sha512").update(readFileSync(join(tree.repository, archiveName))).digest("base64")}`
+  writeFileSync(join(tree.repository, "package.json"), JSON.stringify({ name: "guard-fixture", version: "1.0.0", private: true }))
+  const installed = spawnSync(npm, [
+    "install", `./${archiveName}`, "--ignore-scripts", "--offline", "--no-audit", "--no-fund", "--cache", "./npm-cache",
+  ], { ...npmOptions, cwd: tree.repository })
+  if (installed.status !== 0) throw new Error(`npm install failed: ${installed.stderr}`)
   const packageDirectory = join(tree.nodeModules, "slow-extraction")
-  cpSync(source, packageDirectory, { recursive: true })
-  for (const [name, seconds] of [["package.json", 0], ["index.js", 338], ["README.md", 339]]) {
+  for (const name of readdirSync(packageDirectory)) utimesSync(join(packageDirectory, name), at(0), at(0))
+  for (const [name, seconds] of [["index.js", 338], ["README.md", 339]]) {
     utimesSync(join(packageDirectory, name), at(seconds), at(seconds))
   }
-  const lock = {
-    name: "guard-fixture", lockfileVersion: 3,
-    packages: { "node_modules/slow-extraction": { version: "1.0.0", resolved: `file:${archiveName}`, integrity } },
-  }
-  writeFileSync(join(tree.repository, "package-lock.json"), JSON.stringify(lock))
+  const lock = JSON.parse(readFileSync(join(tree.repository, "package-lock.json"), "utf8"))
   return { ...tree, packageDirectory, lock, archiveName }
 }
 
 export const cases = () => {
+  for (const [label, ignoreFiles] of [
+    ["renamed-ignore", [".gitignore"]],
+    ["npmignore-first", [".npmignore", ".gitignore"]],
+    ["gitignore-first", [".gitignore", ".npmignore"]],
+  ]) {
+    const extracted = stageLockedPackage(label, ignoreFiles)
+    T(`${label}: npm removes the archived .gitignore path`, !readdirSync(extracted.packageDirectory).includes(".gitignore"))
+    const ignorePath = join(extracted.packageDirectory, ".npmignore")
+    const expectedIgnore = ignoreFiles.includes(".npmignore") ? ".npmignore" : ".gitignore"
+    T(`${label}: npm installs the expected ignore bytes`, readFileSync(ignorePath, "utf8") === `${expectedIgnore} published bytes\n`)
+    check(TOOL, `${label}: unchanged npm extraction passes beyond the tolerance`, ["--root", extracted.repository], { status: 0 })
+    writeAt(ignorePath, "edited ignore bytes\n", at(338))
+    check(TOOL, `${label}: changed ignore contents still fail`, ["--root", extracted.repository], {
+      status: 1, stderr: /modified:.*\.npmignore/,
+    })
+  }
   const slow = stageLockedPackage("locked-slow")
   const snapshot = () => ["package.json", "index.js", "README.md"].map((name) => {
     const path = join(slow.packageDirectory, name)
