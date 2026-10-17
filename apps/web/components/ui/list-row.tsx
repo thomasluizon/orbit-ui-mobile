@@ -75,6 +75,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
 
 function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
+  if (typeof value !== 'string') return <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center" data-slot="list-row-value">{value}</span>
   if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
   const text = <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'min-w-0 max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: textMode === 'label' ? 23.8 / 12 : 1.4 }}>{value}</span>
   return textMode === 'label' ? <span className="orbit-list-row-value-line flex min-w-0 max-w-full items-center">{text}</span> : text
@@ -127,6 +128,10 @@ function RowTextAndValue(props: Readonly<WebListRowProps & { rowValue: ReactNode
   return <span className={`orbit-list-row-label-content flex min-w-0 flex-1 items-center ${keepsControlInline ? '' : 'flex-wrap'}`} style={{ gap: 12, ...labelContentStyle(props) }}><RowText {...props} />{rowValue}{textMode === 'label' ? rowTrailing : null}</span>
 }
 
+function rowAccessibleText(props: Pick<WebListRowProps, 'title' | 'description' | 'value'>) {
+  return [props.title, props.description, typeof props.value === 'string' ? props.value : undefined].filter(Boolean).join(', ')
+}
+
 function ownsPersonalDisclosure(original: Readonly<WebListRowProps>) {
   return (original.textMode === 'personal' || original.valueTextMode === 'personal') && !original.href && !original.onClick && !original.readOnly
 }
@@ -135,7 +140,7 @@ function useRowDisclosure(original: Readonly<WebListRowProps>) {
   const [disclosed, setDisclosed] = useState(false)
   const contentId = useId()
   const ownsDisclosure = ownsPersonalDisclosure(original)
-  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, original.value].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, controls: contentId, chevron: original.chevron ?? true, onClick: () => setDisclosed(!disclosed) } : original
+  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? rowAccessibleText(original), expanded: disclosed, personalExpanded: disclosed, controls: contentId, chevron: original.chevron ?? true, onClick: () => setDisclosed(!disclosed) } : original
   const Chevron = ownsDisclosure ? ChevronDown : ChevronRight
   return { props, Chevron, contentId }
 }
@@ -170,7 +175,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
 
   return (
     <div data-text-mode={props.textMode} className={`orbit-list-row-shell flex items-stretch ${props.placement === 'column' ? 'orbit-list-row-column' : ''}`} style={{ minHeight: 52 }}>
-      {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? [props.title, props.description, props.value].filter(Boolean).join(', ')} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
+      {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? rowAccessibleText(props)} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(!!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>

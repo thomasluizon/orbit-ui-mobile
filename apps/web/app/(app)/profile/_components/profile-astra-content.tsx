@@ -55,7 +55,7 @@ function buildAstraRows(
                 chevron={false}
               />
             ) : (
-              <ListRow key={feature.key} compact textMode="label" title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              <ListRow key={feature.key} compact textMode="label" title={t(feature.labelKey)} value={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
             ))}
           </RowList>
         ) : null}

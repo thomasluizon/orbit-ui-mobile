@@ -287,7 +287,8 @@ function ApiKeyAccessContent({
           compact
           title={t('profile.apiKeys.unlock')}
           accessibilityLabel={t('profile.apiKeys.unlock')}
-          trailing={<ProBadge alwaysVisible label={t('common.proBadge')} />}
+          textMode="label"
+          value={<ProBadge alwaysVisible label={t('common.proBadge')} />}
           chevron={false}
           onClick={onUpgrade}
         />

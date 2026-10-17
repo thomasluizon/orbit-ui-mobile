@@ -17,7 +17,7 @@ export interface ListRowBase {
   expanded?: boolean
   controls?: string
   description?: string
-  value?: string
+  value?: string | React.ReactElement
   wrapValue?: boolean
   trailing?: React.ReactNode
   danger?: boolean
