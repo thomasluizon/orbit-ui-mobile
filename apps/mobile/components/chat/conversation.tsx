@@ -216,7 +216,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
-      {item.proactiveItem ? <ProactiveAction item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
+      {item.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>

@@ -469,6 +469,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           hint: description,
           value,
           hasTrailing: Boolean(trailing || toggle),
+          hasValue: Boolean(value),
           onPress: toggle ? () => toggle.onChange(!toggle.checked) : readOnly ? undefined : onClick,
           chevron,
           accessibilityRole: roleOf(props),
@@ -483,6 +484,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           onPress: action.onPress,
         }) : null,
         trailing ?? null,
+        typeof value === 'string' ? null : value ?? null,
         description ? React.createElement('Text', {}, description) : null,
       )
     },
@@ -506,6 +508,7 @@ interface SettingsRowStubNode {
     hint?: string
     value?: string
     hasTrailing?: boolean
+    hasValue?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -1210,7 +1213,7 @@ describe('ProfileScreen', () => {
       for (const label of [proactive, summary]) {
         const row = findRowByLabel(tree, label)
         expect(row.props.accessibilityRole).toBe('button')
-        expect(row.props.hasTrailing).toBe(true)
+        expect(row.props.hasValue).toBe(true)
         expect(row.props.chevron).toBe(false)
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())

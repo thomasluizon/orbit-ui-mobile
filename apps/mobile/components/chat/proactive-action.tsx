@@ -7,15 +7,16 @@ import { proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
 import { Button } from '@/components/ui/pill-button'
 
-export function ProactiveAction({ item, acted, onSend }: Readonly<{
+export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   item: ProactiveItem
   acted: boolean
+  isOnline: boolean
   onSend: (prompt: string) => Promise<void>
 }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { reason, allowance, act } = useProactiveAction(item, acted, onSend)
+  const { reason, allowance, act } = useProactiveAction(item, acted, isOnline, onSend)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? t(reason, { allowance }) : undefined
   return <View style={{ alignItems: 'flex-start', gap: explanation ? 8 : 0, paddingVertical: 8 }}>

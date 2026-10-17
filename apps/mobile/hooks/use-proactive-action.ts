@@ -4,15 +4,13 @@ import { getProactiveActionReason } from '@orbit/shared/utils'
 import { proactiveKeys } from '@orbit/shared/query'
 import { type ProactiveItem, proactiveItemStatusSchema, type ProactiveItemStatus } from '@orbit/shared/types'
 import { useProfile } from '@/hooks/use-profile'
-import { useOffline } from '@/hooks/use-offline'
 import { useChatStore } from '@/stores/chat-store'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 
-export function useProactiveAction(item: ProactiveItem, acted: boolean, onSend: (prompt: string) => Promise<void>) {
+export function useProactiveAction(item: ProactiveItem, acted: boolean, isOnline: boolean, onSend: (prompt: string) => Promise<void>) {
   const { profile } = useProfile()
-  const { isOnline } = useOffline()
   const queryClient = useQueryClient()
   const busy = useChatStore((state) => state.isTyping || state.streamingMessageId !== null)
   const atLimit = profile !== undefined && profile.aiMessagesUsed >= profile.aiMessagesLimit
