@@ -1,4 +1,6 @@
 import React from 'react'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import type { HabitTag } from '@orbit/shared/types/habit'
 import { StyleSheet, Text } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -8,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { __getFocusedNativeTag, __setFocusImpl } from '@/test-mocks/react-native'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
@@ -16,6 +19,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
+const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
@@ -60,9 +64,18 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
-  useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
+  useTags: () => ({ tags: tagCollection.tags }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
+vi.mock('@/components/ui/keyboard-aware-scroll-view', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/keyboard-aware-scroll-view')>()
+  return {
+    ...actual,
+    KeyboardAwareFlatList: (props: React.ComponentProps<typeof actual.KeyboardAwareFlatList>) => (
+      <actual.KeyboardAwareFlatList {...props}>{React.isValidElement(props.ListFooterComponent) ? props.ListFooterComponent : null}</actual.KeyboardAwareFlatList>
+    ),
+  }
+})
 vi.mock('@/components/ui/sheet', async () => {
   const sheetDouble = await import('@/__tests__/support/sheet-double')
   return {
@@ -854,8 +867,72 @@ describe('habit tag suggestions', () => {
   }
   const selected = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.testID === 'selected-tags')[0]!.props.children
   const text = (value: string) => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === value)
-  beforeEach(() => { tagMutations.suggest.mockReset(); tagMutations.create.mockReset(); formLocale.language = 'en' })
+  beforeEach(() => {
+    tagCollection.tags = []
+    tagMutations.suggest.mockReset()
+    tagMutations.create.mockReset()
+    formLocale.language = 'en'
+    useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  })
   afterEach(async () => { if (tree) await TestRenderer.act(() => tree.unmount()) })
+
+  it.each(['settled', 'pending', 'error'])('preserves %s suggestion state across tag search remounts', async (phase) => {
+    tagCollection.tags = Array.from({ length: 25 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    if (phase === 'error') tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable'))
+    await renderTagForm()
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    const proposals = { tags: [{ name: 'Reading', color: '#000000', isExisting: false, id: null }] }
+    if (phase === 'settled') await TestRenderer.act(() => complete(proposals))
+    await TestRenderer.act(() => tree.root.findByType(BottomSheetAppTextInput).props.onChangeText('Tag 24'))
+    if (phase === 'pending') {
+      expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+      expect(text('habits.form.suggestingTags')).toHaveLength(1)
+      await TestRenderer.act(() => complete(proposals))
+    }
+    if (phase === 'error') expect(text('habits.form.suggestTagsError')).toHaveLength(1)
+    else expect(button('Reading')).toBeDefined()
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['success', 'failure'])('preserves proposals and acceptance status across optimistic virtualization: %s', async (outcome) => {
+    tagCollection.tags = Array.from({ length: 20 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Reading', color: '#000000', isExisting: false, id: null },
+      { name: 'Outdoors', color: '#000000', isExisting: false, id: null },
+    ] })
+    const view = await renderTagForm()
+    let complete!: (response: { id: string }) => void
+    let fail!: (error: Error) => void
+    tagMutations.create.mockImplementation(() => {
+      tagCollection.tags = [...tagCollection.tags, { id: 'optimistic', name: 'Reading', color: '#000000' }]
+      view.refresh()
+      return new Promise((resolve, reject) => { complete = resolve; fail = reject })
+    })
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    await TestRenderer.act(() => button('Reading').props.onPress())
+    expect(tree.root.findByType(BottomSheetAppTextInput)).toBeDefined()
+    expect(button('Outdoors')?.props.disabled).toBe(true)
+    expect(text('common.loading')).toHaveLength(1)
+    expect(button('habits.form.suggestTags').props.disabled).toBe(true)
+    if (outcome === 'success') {
+      await TestRenderer.act(() => complete({ id: 'created' }))
+      expect(selected()).toBe('created')
+      expect(button('Reading')).toBeUndefined()
+    } else {
+      await TestRenderer.act(() => {
+        tagCollection.tags = tagCollection.tags.slice(0, 20)
+        view.refresh()
+        fail(new Error('Unavailable'))
+      })
+      expect(selected()).toBe('')
+      expect(button('Reading')).toBeDefined()
+      expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.accessibilityRole === 'alert')).toHaveLength(1)
+    }
+    expect(button('Outdoors')?.props.disabled).toBe(false)
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
 
   it('requests proposals and accepts existing and new tags only on selection', async () => {
     tagMutations.suggest.mockResolvedValue({ tags: [
@@ -937,12 +1014,18 @@ describe('habit tag suggestions', () => {
     expect(tagMutations.create).not.toHaveBeenCalled()
   })
 
-  it('drops an in-flight result when the habit context changes', async () => {
+  it.each(['title', 'description', 'locale', 'returning title', 'account'])('drops an in-flight result when the habit context changes: %s', async (context) => {
     let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     const view = await renderTagForm()
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
-    await TestRenderer.act(() => { view.helpers.form.setValue('title', 'Read'); view.refresh() })
+    await TestRenderer.act(() => {
+      if (context === 'locale') formLocale.language = 'pt-BR'
+      else if (context === 'account') advanceAccountGeneration()
+      else view.helpers.form.setValue(context === 'description' ? 'description' : 'title', 'Read')
+      view.refresh()
+    })
+    if (context === 'returning title') await TestRenderer.act(() => { view.helpers.form.setValue('title', ' Run '); view.refresh() })
     await TestRenderer.act(() => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
     expect(button('Outdoors')).toBeUndefined()
     expect(button('habits.form.suggestTags').props.disabled).toBe(false)
