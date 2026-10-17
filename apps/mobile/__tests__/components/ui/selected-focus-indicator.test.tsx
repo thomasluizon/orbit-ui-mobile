@@ -82,11 +82,13 @@ function verify(element: React.ReactNode, selected: boolean) {
   TestRenderer.act(() => tree!.unmount())
 }
 
-function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
-  const choices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
+function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, reuseMountedChoices = false) {
+  const findChoices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
     const state = node.props.accessibilityState
     return state?.selected !== undefined || state?.checked !== undefined
   })
+  const mountedChoices = findChoices()
+  const choices = reuseMountedChoices ? () => mountedChoices : findChoices
   expect(choices().length).toBeGreaterThan(1)
   for (let index = 0; index < choices().length; index += 1) {
     let choice = choices()[index]
@@ -133,7 +135,7 @@ it.each([false, true])('emoji options and category chips share the focus rule, c
     const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
     TestRenderer.act(() => category.props.onPress())
   }
-  verifyAllChoices(tree)
+  verifyAllChoices(tree, true)
   TestRenderer.act(() => tree!.unmount())
 })
 
