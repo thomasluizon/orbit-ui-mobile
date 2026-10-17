@@ -2,7 +2,7 @@ import { RuleTester, ESLint } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 RuleTester.describe = describe
@@ -11,6 +11,19 @@ RuleTester.afterAll = afterAll
 const tester = new RuleTester({ languageOptions: { parser } })
 const unsafeWait = 'Promise.all(document.getAnimations().map(animation => animation.finished))'
 const webRoot = fileURLToPath(new URL('../../apps/web/', import.meta.url))
+let configLoading
+let webConfig
+
+// Keep the installed configuration's startup budget outside timed rule assertions (#1421).
+beforeAll(async () => {
+  const eslint = new ESLint({ cwd: webRoot })
+  configLoading = eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+  webConfig = await configLoading
+}, 15000)
+
+afterAll(async () => {
+  await configLoading
+}, 15000)
 
 tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wait.cjs'), {
   valid: [
@@ -40,8 +53,6 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
   ]),
 })
 
-it('enforces the web e2e scope through the installed ESLint config', async () => {
-  const eslint = new ESLint({ cwd: webRoot })
-  const config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
-  expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
+it('enforces the web e2e scope through the installed ESLint config', () => {
+  expect(webConfig.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
 })
