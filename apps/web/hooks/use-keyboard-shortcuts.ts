@@ -56,6 +56,9 @@ export function useKeyboardShortcuts(enabled = true): void {
         case 'a':
           setAstraConversationOpen(true)
           return true
+        case 'i':
+          navigate('/progress')
+          return true
         case 'p':
           navigate('/profile')
           return true

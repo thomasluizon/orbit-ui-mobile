@@ -11,12 +11,12 @@ import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { measureScrollbarGutter } from './scrollbar-geometry'
 
-async function waitForRoot(page: Page, root: string, words: typeof en) {
+async function waitForRoot(page: Page, root: string) {
   if (root === '/calendar') {
     await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
     await expect(page.getByTestId('calendar-grid').getByRole('progressbar')).toHaveCount(0)
   } else if (root === '/progress') {
-    await expect(page.getByText(words.progressScreen.goals.empty, { exact: true })).toBeVisible()
+    await expect(page.locator('a[href="/progress/goals"]')).toBeVisible()
   } else if (root === '/profile') {
     await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
   }
@@ -57,7 +57,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             let todayRight: number | undefined
             for (const root of ['/', '/calendar', '/progress', '/profile']) {
               await page.goto(root)
-              await waitForRoot(page, root, words)
+              await waitForRoot(page, root)
               const bell = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
               await expect(bell).toHaveCount(1)
               await expect(bell.locator('[data-notification-count]')).toHaveText(unreadCount > 9 ? '9+' : String(unreadCount))

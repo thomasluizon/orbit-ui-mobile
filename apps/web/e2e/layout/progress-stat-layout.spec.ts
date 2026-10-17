@@ -41,7 +41,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.retrospective,
           (route) => route.fulfill({ json: retrospective }),
         )
-        await page.goto('/progress')
+        await page.goto('/progress/streak')
         const section = page.getByRole('region', { name: words.progressScreen.sections.streak })
         const bank = section.locator('[data-component="freeze-bank"]')
         await expect(bank).toHaveAttribute('data-protected-state', 'protected')
@@ -59,6 +59,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             gapCardGap: element.nextElementSibling!.getBoundingClientRect().top - bounds[3]!.bottom,
           }
         })).toEqual({ groupGaps: [16, 16, 16], tileGap: 16, gapCardGap: 16 })
+        await page.goto('/progress')
         const windowSection = page.getByRole('region', { name: words.progressScreen.sections.window })
         const tiles = windowSection.locator('[data-state="default"]')
         await expect(tiles).toHaveCount(3)

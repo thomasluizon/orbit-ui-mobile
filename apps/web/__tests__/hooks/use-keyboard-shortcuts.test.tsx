@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { act, render, renderHook, fireEvent } from '@testing-library/react'
 
 const mockPush = vi.fn()
 const mockTogglePalette = vi.fn()
@@ -36,6 +36,7 @@ vi.mock('@/lib/overlay-stack', () => ({
   hasOpenModalFocusOwner: () => modalFocusOwnerOpen,
 }))
 
+import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import {
   getCurrentRouteTransitionIntent,
@@ -87,6 +88,8 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'c' })
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'a' })
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
 
     expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
     expect(mockTogglePalette).not.toHaveBeenCalled()
@@ -226,5 +229,108 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'c' })
     expect(mockPush).not.toHaveBeenCalled()
+  })
+})
+
+describe('progress destination shortcut', () => {
+  it.each([['g', 'i'], ['G', 'I']])('opens Progress with %s then %s', (prefix, destination) => {
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: prefix })
+    expect(fireEvent.keyDown(document, { key: destination })).toBe(false)
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+    expect(mockSetActiveView).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+  })
+
+  it.each([[1199, true], [1200, false]] as const)('honors the chord timeout after %s milliseconds', (elapsed, accepted) => {
+    vi.useFakeTimers()
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'g' })
+    act(() => { vi.advanceTimersByTime(elapsed) })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush.mock.calls).toEqual(accepted ? [['/progress']] : [])
+  })
+
+  it('requires a fresh prefix after an unknown key', () => {
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'i' })
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'x' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it.each(['input', 'textarea', 'select'] as const)('clears the chord while typing in a %s', (tag) => {
+    const view = render(<Harness />)
+    const field = document.createElement(tag)
+    view.container.append(field)
+    fireEvent.keyDown(field, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(field, { key: 'i' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it('clears an armed chord when an overlay opens', () => {
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'g' })
+    overlayOpen = true
+    fireEvent.keyDown(document, { key: 'i' })
+    overlayOpen = false
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it.each(['ctrlKey', 'metaKey', 'altKey'])('ignores modified chord keys with %s', (modifier) => {
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'g', [modifier]: true })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i', [modifier]: true })
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('discards an armed chord when navigation becomes disabled', () => {
+    const view = render(<Harness />)
+    fireEvent.keyDown(document, { key: 'g' })
+    view.rerender(<Harness enabled={false} />)
+    fireEvent.keyDown(document, { key: 'i' })
+    view.rerender(<Harness />)
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+  })
+
+  it('keeps an unsaved habit until its navigation guard approves leaving', () => {
+    const onNavigate = vi.fn<(action: () => void) => void>()
+    const guard = renderHook(() => useHabitCreateNavigationGuard({
+      active: true, dirty: true, leaving: false, onNavigate, onReturn: vi.fn(),
+    }))
+    render(<Harness />)
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(onNavigate).toHaveBeenCalledTimes(1)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(onNavigate).toHaveBeenCalledTimes(2)
+    act(() => onNavigate.mock.calls[1]![0]())
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+    guard.unmount()
   })
 })
