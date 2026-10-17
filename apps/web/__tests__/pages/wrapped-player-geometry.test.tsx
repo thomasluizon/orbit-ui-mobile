@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+import type { Page } from '@playwright/test'
 import type { Recap } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -107,65 +108,58 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
-  async function measureSlide(viewport: { width: number; height: number }, markup: string, safeArea = false) {
-    const page = await browser.newPage({ viewport })
-    try {
-      const session = await page.context().newCDPSession(page)
-      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: playerInsets(viewport.width, safeArea) })
-      await page.setContent(`<style>${stylesheet}</style>${markup}`)
-      await loadAppFonts(page)
-      return await page.evaluate(() => {
-        const dialog = document.querySelector('[role="dialog"]')!
-        const notice = dialog.querySelector('[data-shell-notice]')!
-        const pager = dialog.querySelector('[data-testid="wrapped-pager"]')!
-        const frame = dialog.querySelector('[data-testid="wrapped-frame"]')!.getBoundingClientRect()
-        const banner = notice.querySelector('[data-update-banner]')!.getBoundingClientRect()
-        const slideParts = dialog.querySelectorAll('[data-testid="wrapped-motion-part"]')
-        const close = dialog.querySelector('button')!
-        const unavailableValueOverflow = [...dialog.querySelectorAll('[data-unavailable]')].filter((column) => {
-          const bounds = column.getBoundingClientRect()
-          const range = document.createRange()
-          range.selectNodeContents(column.firstElementChild!)
-          return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
-        }).length
-        const atStart = {
-          undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
-            const bounds = button.getBoundingClientRect()
-            return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
-          }).map((button) => ({
-            name: button.getAttribute('aria-label') ?? button.textContent,
-            target: button.getAttribute('data-testid'),
-            width: button.getBoundingClientRect().width,
-            height: button.getBoundingClientRect().height,
-          })),
-          unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
-          unavailableValueOverflow,
-          controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
-            const bounds = element.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right }
-          }),
-          closeTop: close.getBoundingClientRect().top,
-          closeBottom: close.getBoundingClientRect().bottom,
-          noticeTop: notice.getBoundingClientRect().top,
-          noticeBottom: notice.getBoundingClientRect().bottom,
-          pagerTop: pager.getBoundingClientRect().top,
-          pagerBottom: pager.getBoundingClientRect().bottom,
-          bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
-        }
-        const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
-        scroller.scrollTop = scroller.scrollHeight
-        return {
-          ...atStart,
-          closeTopAtEnd: close.getBoundingClientRect().top,
-          closeBottomAtEnd: close.getBoundingClientRect().bottom,
-          pagerBottomAtEnd: pager.getBoundingClientRect().bottom,
-          noticeTopAtEnd: notice.getBoundingClientRect().top,
-          lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
-        }
-      })
-    } finally {
-      await page.close()
-    }
+  async function measureSlide(page: Page, markup: string) {
+    await page.setContent(`<style>${stylesheet}</style>${markup}`)
+    await loadAppFonts(page)
+    return await page.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"]')!
+      const notice = dialog.querySelector('[data-shell-notice]')!
+      const pager = dialog.querySelector('[data-testid="wrapped-pager"]')!
+      const frame = dialog.querySelector('[data-testid="wrapped-frame"]')!.getBoundingClientRect()
+      const banner = notice.querySelector('[data-update-banner]')!.getBoundingClientRect()
+      const slideParts = dialog.querySelectorAll('[data-testid="wrapped-motion-part"]')
+      const close = dialog.querySelector('button')!
+      const unavailableValueOverflow = [...dialog.querySelectorAll('[data-unavailable]')].filter((column) => {
+        const bounds = column.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(column.firstElementChild!)
+        return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
+      }).length
+      const atStart = {
+        undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
+          const bounds = button.getBoundingClientRect()
+          return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
+        }).map((button) => ({
+          name: button.getAttribute('aria-label') ?? button.textContent,
+          target: button.getAttribute('data-testid'),
+          width: button.getBoundingClientRect().width,
+          height: button.getBoundingClientRect().height,
+        })),
+        unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
+        unavailableValueOverflow,
+        controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right }
+        }),
+        closeTop: close.getBoundingClientRect().top,
+        closeBottom: close.getBoundingClientRect().bottom,
+        noticeTop: notice.getBoundingClientRect().top,
+        noticeBottom: notice.getBoundingClientRect().bottom,
+        pagerTop: pager.getBoundingClientRect().top,
+        pagerBottom: pager.getBoundingClientRect().bottom,
+        bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
+      }
+      const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
+      scroller.scrollTop = scroller.scrollHeight
+      return {
+        ...atStart,
+        closeTopAtEnd: close.getBoundingClientRect().top,
+        closeBottomAtEnd: close.getBoundingClientRect().bottom,
+        pagerBottomAtEnd: pager.getBoundingClientRect().bottom,
+        noticeTopAtEnd: notice.getBoundingClientRect().top,
+        lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
+      }
+    })
   }
 
   it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, safeArea = false, ...viewport }) => {
@@ -185,31 +179,36 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
     if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
-    for (const slide of wrapped.slides as { id: string }[]) {
-      const measured = await measureSlide(viewport, container.innerHTML, safeArea)
+    const page = await browser.newPage({ viewport })
+    try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
+      for (const slide of wrapped.slides as { id: string }[]) {
+        const measured = await measureSlide(page, container.innerHTML)
 
-      expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
-        .toBeLessThanOrEqual(viewport.height - insets.bottom)
-      for (const control of measured.controls) {
-        expect(control.left).toBeGreaterThanOrEqual(insets.left)
-        expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
+        expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
+          .toBeLessThanOrEqual(viewport.height - insets.bottom)
+        for (const control of measured.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(insets.left)
+          expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
+        }
+        expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
+        expect(measured.unavailableValueOverflow).toBe(0)
+        expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
+        expect(measured.closeTop).toBeGreaterThanOrEqual(insets.top)
+        expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
+        expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
+        expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
+        expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - insets.bottom)
+        expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
+        expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
+        expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
+        expect(measured.lastSlidePartBottomAtEnd).toBeLessThanOrEqual(measured.noticeTopAtEnd + 0.5)
+
+        const next = screen.queryByTestId('wrapped-next-zone')
+        if (next) fireEvent.click(next)
       }
-      expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
-      expect(measured.unavailableValueOverflow).toBe(0)
-      expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
-      expect(measured.closeTop).toBeGreaterThanOrEqual(insets.top)
-      expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
-      expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
-      expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
-      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - insets.bottom)
-      expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
-      expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
-      expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
-      expect(measured.lastSlidePartBottomAtEnd).toBeLessThanOrEqual(measured.noticeTopAtEnd + 0.5)
-
-      const next = screen.queryByTestId('wrapped-next-zone')
-      if (next) fireEvent.click(next)
-    }
+    } finally { await page.close() }
   })
 
   it.each([
