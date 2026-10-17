@@ -27,7 +27,7 @@ export default defineConfig({
           name: 'jsdom',
           include: ['__tests__/**/*.test.{ts,tsx}'],
           exclude: chromiumTests,
-          sequence: { groupOrder: 0 },
+          sequence: { groupOrder: 1 },
         },
       },
       {
@@ -36,7 +36,7 @@ export default defineConfig({
           name: 'chromium',
           include: chromiumTests,
           maxWorkers: 1,
-          sequence: { groupOrder: 1 },
+          sequence: { groupOrder: 2 },
         },
       },
     ],
