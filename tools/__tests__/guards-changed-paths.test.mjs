@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { guardGroups } from "./_guard-groups.mjs"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"))
@@ -52,7 +53,7 @@ function runCase(jobId, stepName, changedPath, mode, options = {}) {
     if (mode === "owned" || mode === "unowned") git(directory, "update-ref", "refs/remotes/origin/base", base)
     if (mode === "unfetched") git(directory, "update-ref", "refs/heads/base", base)
     const baseRef = mode === "missing" ? "missing" : "base"
-    const job = (options.workflow ?? workflow).jobs[jobId]
+    const job = guardGroups(options.workflow ?? workflow)[jobId]
     const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
     assert.ok(prepare?.run, `${jobId} must prepare changed paths in its own step`)
     const gate = job.steps.find((step) => step.name === stepName)
@@ -100,7 +101,7 @@ for (const [jobId, stepName, path, options] of [
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
-      runCase(jobId, stepName, path, mode, { workflow: testWorkflow, ...options })
+      runCase(jobId, stepName, path, mode, { workflow: jobId === "lint" ? testWorkflow : workflow, ...options })
     }
   })
 }
@@ -109,12 +110,24 @@ test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
     "lint-severity", "parity", "expo-pin", "review-harness", "performance-workflow", "surface-manifest", "gate-charter"]
   for (const jobId of readers) {
-    const steps = workflow.jobs[jobId].steps
+    const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
     assert.ok(preparation > 0, `${jobId} must prepare paths after checkout`)
-    assert.equal(steps[preparation].if, "github.event_name == 'pull_request'")
+    assert.equal(steps[preparation].if, "${{ !cancelled() && (github.event_name == 'pull_request') }}")
     assert.ok(steps.slice(preparation + 1).some((step) => step.run?.includes("$RUNNER_TEMP/changed-paths")),
       `${jobId} must read the prepared list`)
   }
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
+})
+
+test("script guards share one checkout and install, and run after another guard fails", () => {
+  assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
+  const steps = workflow.jobs.guards.steps
+  assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
+  assert.equal(steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
+    assert.ok(step.name, `${step.id} must name the guard`)
+    assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
+    assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
+  }
 })

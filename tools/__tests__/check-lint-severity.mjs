@@ -362,10 +362,8 @@ jobs:
   })
 
   const guardsWorkflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")
-  const lintSeverityJob = guardsWorkflow.slice(
-    guardsWorkflow.indexOf("  lint-severity:"),
-    guardsWorkflow.indexOf("\n  calibration:", guardsWorkflow.indexOf("  lint-severity:")),
-  )
+  const lintSeverityJob = guardsWorkflow.split("      - id: ")
+    .find((step) => step.startsWith("lint-severity__1")) ?? ""
   T(
     `${TOOL}: the workflow predicate owns package-lock.json`,
     /\^package-lock\\\.json\$/.test(lintSeverityJob),

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import yaml from "js-yaml"
+import { guardGroups } from "./_guard-groups.mjs"
 
 import { BASH, REPO_ROOT, T, check, root } from "./_harness.mjs"
 
@@ -14,7 +15,10 @@ const entry = (overrides = {}) => ({
 
 const scopedGuardWorkflow = "jobs:\n  existing:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n"
 
-const scopedLintWorkflow = readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")
+const currentGuards = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/guards.yml"), "utf8"))
+const lintWithDesign = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8"))
+lintWithDesign.jobs["design-guard"] = guardGroups(currentGuards)["design-guard"]
+const scopedLintWorkflow = yaml.dump(lintWithDesign)
 
 const stageRepository = (label, charter, { guardWorkflow = scopedGuardWorkflow, lintWorkflow = scopedLintWorkflow } = {}) => {
   const repository = join(root, "gate-charter", label)
@@ -86,7 +90,7 @@ export const cases = () => {
     { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
   )
 
-  const timelessJob = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")).jobs.timeless
+  const timelessJob = guardGroups(currentGuards).timeless
   const timelessWorkflow = (job) => yaml.dump({ jobs: { existing: job } })
   check(
     "check-gate-charter.mjs",
@@ -246,7 +250,7 @@ export const cases = () => {
     ["dashes", "PR title and body carry no dashes"],
     ["review-harness", "A UI pull request on redesign/main records what the review skills found"],
   ]) {
-    const step = guards.jobs[jobId].steps.find((candidate) => candidate.name === stepName)
+    const step = guardGroups(guards)[jobId].steps.find((candidate) => candidate.name === stepName)
     writeFileSync(join(root, "changed-paths.txt"), "")
     const script = `gh() { [[ "$2" == "repos/example/repo/pulls/1050" ]] || return 88; printf 'text'; }\nnode() { :; }\ngit() { :; }\n${step.run.replaceAll("${{ github.base_ref }}", "redesign/main")}`
     const result = spawnSync(BASH, ["-c", script], {
