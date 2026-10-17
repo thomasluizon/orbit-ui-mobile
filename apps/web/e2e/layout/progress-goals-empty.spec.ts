@@ -48,24 +48,15 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await context.route(`${LAYOUT_ORIGIN}${API.gamification.streak}`, (route) => route.fulfill({ json: progressGoalsEmptyStreak }))
           let goalPage = progressGoalsEmptyPage
           await context.route(matchesProgressGoalsRequest, (route) => route.fulfill({ json: goalPage }))
-          await page.goto('/progress')
+          await page.goto('/progress/goals')
           await expect(page.locator('html')).toHaveClass(new RegExp(mode))
-          const section = page.getByRole('region', { name: words.progressScreen.sections.goals })
+          const section = page.locator('[data-progress-screen="goals"]')
           const well = section.locator('[data-goals-empty]')
-          await expectGoalsWell(well)
-          await expect(section.locator('[data-empty-state-mark]')).toHaveCount(0)
-          const action = well.getByRole('button', { name: words.progressScreen.goals.createAction })
-          await expect(action).toHaveAttribute('data-variant', viewport.width >= 768 ? 'secondary' : 'primary')
-          await expect(well.locator('p')).toHaveText(words.progressScreen.goals.empty)
-          await page.evaluate(() => document.fonts.ready)
-          if (viewport.width === 1352) {
-            expect(await page.locator('main').evaluate((element) => element.scrollTop)).toBe(0)
-            for (const item of [well.locator('p'), action]) {
-              const box = await item.boundingBox()
-              expect(box).not.toBeNull()
-              expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height)
-            }
-          }
+          const empty = section.locator('[data-mark="orbit"]')
+          await expect(empty).toBeVisible()
+          await expect(empty.getByRole('button', { name: words.progressScreen.goals.createAction })).toHaveAttribute('data-variant', viewport.width >= 768 ? 'secondary' : 'primary')
+          await expect(empty.locator('p')).toHaveText(words.progressScreen.goals.empty)
+          await page.goto('/progress/streak')
           const bank = page.locator('[data-component="freeze-bank"]')
           await expect(bank).toHaveAttribute('data-protected-state', 'empty')
           const figures = await bank.evaluate((element) => {
@@ -98,7 +89,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await page.keyboard.press('Escape')
           await expect(legend).toBeFocused()
           goalPage = paginatedGoalResponseSchema.parse({ ...progressGoalsEmptyPage, items: [createMockGoal()], totalCount: 1, totalPages: 1 })
-          await page.reload()
+          await page.goto('/progress/goals')
           await section.getByRole('button', { name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true }).click()
           await page.getByRole('menuitemcheckbox', { name: words.progressScreen.goals.completed, exact: true }).click()
           await expectGoalsWell(well)

@@ -9,6 +9,10 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 
 import Link from 'next/link'
+import { PROGRESS_SUBMENUS, type ProgressSubmenuId } from '@orbit/shared/utils/progress-navigation'
+import { ListRow } from '@/components/ui/list-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ProgressSubscreen } from './progress-subscreen'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 
 import {
@@ -42,7 +46,6 @@ import {
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
-  deriveProgressViewState,
   visibleProgressAchievements,
   mapCompletionSeries,
   type ProgressGoalFilter,
@@ -78,13 +81,7 @@ import { useProgressRetrospective } from '@/hooks/use-retrospective'
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
-  const headingId = useId()
-  return (
-    <section className="flex flex-col gap-4" aria-labelledby={headingId}>
-      <h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
-      {children}
-    </section>
-  )
+  return <section className="flex flex-col gap-4" aria-label={title}>{children}</section>
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
@@ -132,20 +129,17 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
   )
 }
 
-function ProgressLoading({ label }: Readonly<{ label: string }>) {
-  return (
-    <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
-      <div className="flex w-full flex-col gap-3" aria-hidden="true">
-        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
-      </div>
-      <div className="flex flex-wrap gap-4" aria-hidden="true">
-        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
-      </div>
-      <div className="flex flex-col gap-3" aria-hidden="true">
-        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" label={label} />)}
-      </div>
-    </div>
-  )
+function ProgressLoading({ label, screen }: Readonly<{ label: string; screen: ProgressSubmenuId }>) {
+  return <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
+    {screen !== 'goals' ? <Skeleton variant="settings" grouped /> : null}
+    {screen === 'streak' ? <>
+      <div className="h-[20px]"><Skeleton variant="fill" grouped /></div>
+      <div className="flex flex-wrap gap-4"><Skeleton variant="stat-tile" grouped /><Skeleton variant="stat-tile" grouped /></div>
+      <Skeleton variant="settings" rows={3} grouped />
+    </> : <div className="flex flex-col gap-3">
+      {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" grouped />)}
+    </div>}
+  </div>
 }
 
 function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean }>) {
@@ -199,13 +193,11 @@ function StreakRepairPanel({
   ceiling,
   repair,
   isDesktop,
-  hasGoals,
 }: Readonly<{
   state: StreakRepairState
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   isDesktop: boolean
-  hasGoals: boolean
 }>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -224,7 +216,7 @@ function StreakRepairPanel({
       <>
         <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
           <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
-          {state.canRepair ? <PillButton variant={isDesktop || !hasGoals ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
+          {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
           {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
           {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
         </div>
@@ -247,11 +239,10 @@ function StreakRepairPanel({
     : null
 }
 
-function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals }: Readonly<{
+function StreakSection({ accountProfile, canView, gamificationProfile }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']
   canView: boolean
   gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']
-  hasGoals: boolean
 }>) {
   const headingId = useId()
   const t = useTranslations()
@@ -335,7 +326,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
           }}
         />
       ) : <><div className="flex flex-wrap gap-4"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
-      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} hasGoals={hasGoals} /> : null}
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} /> : null}
     </section>
   )
 }
@@ -409,7 +400,6 @@ function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?:
 }
 
 function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void }>) {
-  const headingId = useId()
   const isDesktop = useIsDesktop()
   const t = useTranslations()
   const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
@@ -446,7 +436,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
     { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
+    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-3">
       {goals.length > 0 ? <>
         <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
@@ -492,7 +482,7 @@ function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string
   return habit && !habit.habitId ? <PersonalTextAction label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} contentClassName={rowClass} control={control} /> : control
 }
 
-function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
+function WindowSection() {
   const t = useTranslations()
   const locale = useLocale()
   const isDesktop = useIsDesktop()
@@ -500,7 +490,7 @@ function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant={isDesktop || !hasGoals ? 'secondary' : 'primary'} size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
+  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
   if (retrospective.isError) {
     return (
       <WindowFrame title={t('progressScreen.sections.window')}>
@@ -589,13 +579,13 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
       <Section title={t('progressScreen.sections.achievements')}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
   )
 }
 
-export function ProgressContent() {
+function ProgressGoalsContent() {
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
   const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
@@ -604,44 +594,77 @@ export function ProgressContent() {
   useEffect(() => {
     if (creating || !createdGoalId) return
     const card = Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[data-goal-id]') ?? []).find((element) => element.dataset.goalId === createdGoalId)
-    const destination = card ?? contentRef.current?.querySelector<HTMLElement>('h1')
+    const destination = card ?? contentRef.current?.querySelector<HTMLElement>('[data-progress-focus]')
     destination?.focus()
   }, [creating, createdGoalId])
   const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
+  const openingGoalId = useRef<string | null>(null)
+  useEffect(() => {
+    if (detailGoalId) { openingGoalId.current = detailGoalId; return }
+    const previousGoal = openingGoalId.current
+    if (!previousGoal) return
+    const card = Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[data-goal-id]') ?? []).find((element) => element.dataset.goalId === previousGoal)
+    ;(card ?? contentRef.current?.querySelector<HTMLElement>('[data-progress-focus]'))?.focus()
+    openingGoalId.current = null
+  }, [detailGoalId])
   const t = useTranslations()
   const isDesktop = useIsDesktop()
-  const account = useProfile()
   const goals = useGoals()
-  const canViewGamification = account.profile?.canViewGamification ?? false
-  const gamification = useGamificationProfile(canViewGamification)
-  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({
-    goalCount: allGoals.length,
-    account,
-    goals,
-    gamification,
-    canViewGamification,
-  })
-  const retry = () => {
-    void account.refetch()
-    void goals.refetch()
-    void gamification.refetch()
-  }
+  const error = goals.isError
+  const loading = !error && goals.isLoading
+  const empty = !loading && !error && allGoals.length === 0
+  const retry = () => { void goals.refetch() }
   return (
-    <div ref={contentRef} className="mx-auto flex w-full max-w-[740px] flex-col">
+    <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col">
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
       {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col">
-        <RootNotificationHeader />
-        <div className="flex w-full flex-col gap-8 px-4 pt-12 lg:pt-4">
-          <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
-          {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
+        <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
+          <p data-progress-focus tabIndex={-1} className="sr-only">{t('progressScreen.sections.goals')}</p>
+          {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
           {empty ? <div className="pt-12"><GoalsEmptyState onCreate={openCreateGoal} /></div> : null}
-          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
-        </div>
+          {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /> : null}
+        </ProgressSubscreen>
       </div>
     </div>
   )
+}
+
+function ProgressOverview() {
+  const t = useTranslations()
+  return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col" data-progress-screen="overview">
+    <RootNotificationHeader />
+    <div className="flex min-w-0 flex-col gap-8 px-4 py-4">
+      <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+      <WindowSection />
+      <SettingsGroup>
+        {PROGRESS_SUBMENUS.map((entry) => <ListRow key={entry.id} placement="column" textMode="label" icon={entry.icon} title={t(entry.labelKey)} description={entry.descriptionKey ? t(entry.descriptionKey) : undefined} href={entry.route} />)}
+      </SettingsGroup>
+    </div>
+  </div>
+}
+
+function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | 'achievements' }>) {
+  const t = useTranslations()
+  const account = useProfile()
+  const canView = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canView)
+  const available = canView && !isPayGateError(gamification.error)
+  const error = account.isError || (available && gamification.isError)
+  const loading = !error && (account.isLoading || (available && gamification.isLoading))
+  const retry = () => { void account.refetch(); void gamification.refetch() }
+  return <ProgressSubscreen screen={screen}>
+    {error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} />
+      : loading ? <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
+      : screen === 'streak' ? <StreakSection accountProfile={account.profile} canView={available} gamificationProfile={gamification.profile} />
+      : <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} />}
+  </ProgressSubscreen>
+}
+
+export function ProgressContent({ screen = 'overview' }: Readonly<{ screen?: ProgressSubmenuId | 'overview' }>) {
+  if (screen === 'overview') return <ProgressOverview />
+  if (screen === 'goals') return <ProgressGoalsContent />
+  return <ProgressGamificationContent screen={screen} />
 }
