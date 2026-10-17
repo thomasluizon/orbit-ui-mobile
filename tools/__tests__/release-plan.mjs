@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import { T, toolPath } from "./_harness.mjs"
+import { cases as workflowCases } from "./check-release-workflow.mjs"
 import { planRelease, stagingServiceIds, productionServiceIds } from "../release-plan.mjs"
 
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
@@ -90,6 +91,15 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
 }
 
 export async function cases() {
+  workflowCases()
+  let redesignPlan
+  let redesignError = ""
+  try { redesignPlan = await planRelease(clientFor(), "production-redesign", IDS) }
+  catch (error) { redesignError = error.message }
+  T("redesign is an explicit web-only production plan", redesignPlan?.services.length === 1 &&
+    redesignPlan.services[0].name === "web" && redesignPlan.services[0].branch === "redesign/main" &&
+    redesignPlan.environment === "production-redesign", redesignError)
+
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
