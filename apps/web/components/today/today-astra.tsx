@@ -1,17 +1,14 @@
 'use client'
 
-import { useId, useSyncExternalStore } from 'react'
+import { useId } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   getReturningInterval,
-  selectNewestUnreadProactiveCheckin,
-  shouldShowTodayAstraLine,
   shouldShowTodayAstraSurface,
 } from '@orbit/shared/utils'
-import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
+import { useProactiveItem } from '@/hooks/use-proactive-item'
 import { useProfile } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 interface TodayAstraProps {
@@ -20,41 +17,23 @@ interface TodayAstraProps {
   suppressed: boolean
 }
 
-export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
   const destinationId = useId()
   const { profile } = useProfile()
-  const { notifications } = useNotifications()
-  const markRead = useMarkNotificationRead()
-  const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const isOnline = useSyncExternalStore(
-    (onChange) => {
-      globalThis.addEventListener('online', onChange)
-      globalThis.addEventListener('offline', onChange)
-      return () => {
-        globalThis.removeEventListener('online', onChange)
-        globalThis.removeEventListener('offline', onChange)
-      }
-    },
-    () => globalThis.navigator.onLine,
-    () => true,
-  )
-  const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
+  const { item: proactive, openItem } = useProactiveItem()
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
-  const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
-    ? selectNewestUnreadProactiveCheckin(notifications, today, profile?.timeZone)
-    : null
 
   const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
     ? proactive
-      ? { text: proactive.body, destination: t('todayAstra.openConversation'), notificationId: proactive.id }
+      ? { text: proactive.text, destination: t('todayAstra.openConversation'), item: proactive }
       : returning
         ? {
             text: returning.kind === 'elapsed'
               ? t('todayAstra.returningElapsed', { days: returning.days })
               : t('todayAstra.returningBounded'),
             destination: t('todayAstra.viewProgress'),
-            notificationId: null,
+            item: null,
           }
         : null
     : null
@@ -72,14 +51,13 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
   return (
     <div className="px-[16px]">
-      {line.notificationId ? (
+      {line.item ? (
         <button
           type="button"
           className="today-astra-line"
           aria-describedby={destinationId}
           onClick={() => {
-            markRead.mutate(line.notificationId)
-            setConversationOpen(true)
+            openItem(line.item)
           }}
         >
           {content}

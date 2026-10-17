@@ -22,7 +22,7 @@ type ExpectedBase = {
   expanded?: boolean
   controls?: string
   description?: string
-  value?: string
+  value?: string | React.ReactElement
   wrapValue?: boolean
   trailing?: React.ReactNode
   danger?: boolean
@@ -42,6 +42,8 @@ type Accepts<
   Expected,
 > = Actual
 
+type BadgeValue = Accepts<{ title: 'Reminder'; value: React.ReactElement }, ListRowProps>
+
 type Value = Accepts<{ title: 'Reminder'; value: '08:00' }, ListRowProps>
 type ReadOnly = Accepts<{ title: 'Start date'; readOnly: true }, ListRowProps>
 type Action = Accepts<{
@@ -57,7 +59,7 @@ type ReadOnlyAction = Accepts<{
 }, ListRowProps>
 // @ts-expect-error an icon action requires an accessible label
 type UnlabelledAction = Accepts<{ icon: 'trash'; onPress: () => void }, ListRowAction>
-// @ts-expect-error values are words, nodes belong in trailing
+// @ts-expect-error values require text or a React element
 type NodeValue = Accepts<{ title: 'Reminder'; value: { type: 'badge' } }, ListRowProps>
 
 export type ListRowTypeAssertionsWidthAssertions = [
@@ -74,7 +76,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['expanded'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['controls'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['description'], string | undefined>>,
-  Assert<IsExactWidth<ListRowProps['value'], string | undefined>>,
+  Assert<IsExactWidth<ListRowProps['value'], string | React.ReactElement | undefined>>,
   Assert<IsExactWidth<ListRowProps['wrapValue'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['trailing'], React.ReactNode>>,
   Assert<IsExactWidth<ListRowProps['danger'], boolean | undefined>>,
@@ -89,6 +91,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
 
 export type ListRowTypeAssertions =
   | Value
+  | BadgeValue
   | ReadOnly
   | Action
   | ReadOnlyAction

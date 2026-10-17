@@ -9,10 +9,10 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
 import type { NextRouter } from 'next/router'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import type { NotificationItem } from '@orbit/shared/types/notification'
+import type { ProactiveItem } from '@orbit/shared/types'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useUIStore } from '@/stores/ui-store'
 import { Composer } from '@/components/shell/composer'
@@ -20,14 +20,14 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 interface TodayAstraMocks {
   portuguese: boolean
-  notifications: NotificationItem[]
-  markRead: ReturnType<typeof vi.fn>
+  item: ProactiveItem | null
+  markRead: ReturnType<typeof vi.fn<(id: string) => void>>
   profile: { id: string; timeZone: string; lastCompletionDate?: string | null; aiMessagesUsed?: number; aiMessagesLimit?: number }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   portuguese: false,
-  notifications: [],
+  item: null,
   markRead: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
 }))
@@ -42,9 +42,11 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: mocks.notifications }),
-  useMarkNotificationRead: () => ({ mutate: mocks.markRead }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.item, openItem: (item: ProactiveItem) => {
+    mocks.markRead(item.id)
+    useUIStore.getState().setAstraConversationOpen(true)
+  } }),
 }))
 
 function renderTodayAstra() {
@@ -58,9 +60,9 @@ describe('web Today Astra', () => {
     ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
   ])('makes the %s sentence the whole row target with a destination description', (variant, sentence, destination) => {
     mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
-    if (variant === 'proactive') mocks.notifications = [createMockNotification({
-      id: 'check-in', url: '/chat', body: sentence, createdAtUtc: '2026-08-29T10:00:00Z',
-    })]
+    if (variant === 'proactive') mocks.item = createMockProactiveItem({
+      text: sentence,
+    })
     const { container } = renderTodayAstra()
     const action = screen.getByRole(variant === 'proactive' ? 'button' : 'link', { name: sentence })
     expect(container.querySelectorAll('button, a')).toHaveLength(1)
@@ -69,7 +71,7 @@ describe('web Today Astra', () => {
     expect(action.querySelector('button, a')).toBeNull()
     if (variant === 'proactive') {
       fireEvent.click(action)
-      expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+      expect(mocks.markRead).toHaveBeenCalledWith(mocks.item!.id)
       expect(useUIStore.getState().astraConversationOpen).toBe(true)
     } else {
       expect(action).toHaveAttribute('href', '/progress')
@@ -81,7 +83,7 @@ describe('web Today Astra', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     mocks.portuguese = false
-    mocks.notifications = []
+    mocks.item = null
     mocks.markRead.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
     vi.useFakeTimers()
@@ -99,9 +101,9 @@ describe('web Today Astra', () => {
 
   it('keeps exactly one conversation glyph target beside the proactive sentence', () => {
     mocks.portuguese = true
-    mocks.notifications = [createMockNotification({
-      url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: '2026-08-29T10:00:00Z',
-    })]
+    mocks.item = createMockProactiveItem({
+      text: 'Sua rotina mudou. Vamos conversar?',
+    })
     renderTodayAstra()
     render(<Composer state="idle" value="" suggestions={[]} words={ptBr.shell.composer}
       onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()}
@@ -192,39 +194,24 @@ describe('web Today Astra', () => {
     expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
   })
 
-  it.each([
-    ['23:59 yesterday locally', '2026-08-29T02:59:00Z', false, false],
-    ['00:01 today locally', '2026-08-29T03:01:00Z', false, true],
-    ['read today', '2026-08-29T03:01:00Z', true, false],
-  ])('filters the proactive line using the profile timezone: %s', (_scenario, createdAtUtc, isRead, visible) => {
-    mocks.profile.timeZone = 'America/Sao_Paulo'
-    vi.setSystemTime(new Date('2026-08-29T03:02:00Z'))
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc, isRead })]
-
-    const { container } = renderTodayAstra()
-
-    expect(screen.queryByRole('button', { name: 'Check in' }) !== null).toBe(visible)
-    if (!visible) expect(container).toBeEmptyDOMElement()
-  })
-
   it('renders a proactive check-in and opens its conversation', () => {
-    mocks.notifications = [{
-      id: 'check-in',
-      title: 'Astra',
-      body: 'Check in',
-      url: '/chat',
-      habitId: null,
-      isRead: false,
-      createdAtUtc: '2026-08-29T10:00:00Z',
-    }]
+    mocks.item = createMockProactiveItem({ text: 'Check in' })
 
     renderTodayAstra()
 
     expect(screen.getByText(/Check in/)).toBeInTheDocument()
     const action = screen.getByRole('button', { name: 'Check in' })
     fireEvent.click(action)
-    expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+    expect(mocks.markRead).toHaveBeenCalledWith(mocks.item!.id)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it.each(['offline', 'quota exhausted'])('keeps the fetched item available when %s', (state) => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10 }
+    mocks.item = createMockProactiveItem()
+    if (state === 'offline') vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderTodayAstra()
+    expect(screen.getByRole('button', { name: mocks.item.text })).toBeEnabled()
   })
 
   it.each(['proactive', 'elapsed', 'bounded'])('keeps the pt-BR %s variant within two lines at 320 and grows at 200% text in both themes', async (variant) => {
@@ -238,10 +225,10 @@ describe('web Today Astra', () => {
       await page.setViewportSize({ width: 320, height: 800 })
       mocks.profile.lastCompletionDate = variant === 'proactive' ? null
         : new Date(Date.now() - (variant === 'elapsed' ? 3 : 31) * 86_400_000).toISOString().slice(0, 10)
-      mocks.notifications = variant === 'proactive' ? [createMockNotification({
-        url: '/chat', body: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
-        createdAtUtc: new Date().toISOString(),
-      })] : []
+      mocks.item = variant === 'proactive' ? createMockProactiveItem({
+        text: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
+
+      }) : null
       mocks.portuguese = true
       const { container, unmount } = renderTodayAstra()
       for (const mode of ['dark', 'light'] as const) {

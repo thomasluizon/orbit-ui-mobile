@@ -1961,7 +1961,7 @@
       "title": "Daily recap"
     },
     "proactiveAstra": {
-      "title": "Check-ins"
+      "title": "Astra notifications"
     },
     "marketingEmails": {
       "title": "Product email",
@@ -3606,5 +3606,16 @@
       "eyebrow": "Today",
       "line": "Your {count} habit for today is done. | All {count} habits for today are done."
     }
+  },
+  "proactive": {
+    "actions": {
+      "morningPlan": "Plan day",
+      "eveningCheckin": "Log now",
+      "restartAfterMiss": "Restart",
+      "busyCalendarDay": "See day",
+      "goalBehind": "See goal",
+      "weeklyReview": "See week"
+    },
+    "ended": "This item has ended."
   }
 }

@@ -1,5 +1,8 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
+
 import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 
 import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
@@ -110,12 +113,15 @@ function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
 }>) {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (searchParams.get('astra') !== 'open') return
-    onOpen(true)
+    const entry = searchParams.get('astra')
+    if (entry !== 'open' && entry !== 'proactive') return
+    if (entry === 'proactive') void openCurrentProactiveItem(queryClient)
+    else onOpen(true)
     router.replace(pathname)
-  }, [onOpen, pathname, router, searchParams])
+  }, [onOpen, pathname, queryClient, router, searchParams])
 
   return null
 }

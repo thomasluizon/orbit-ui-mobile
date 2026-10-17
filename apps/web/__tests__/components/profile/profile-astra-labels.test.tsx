@@ -56,8 +56,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
       const sizes = [...document.querySelectorAll<HTMLElement>('body *')].map((element) => {
         const style = getComputedStyle(element)
         return { element, fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) }
-        document.documentElement.style.fontSize = '32px'
-    })
+      })
       for (const { element, fontSize, lineHeight } of sizes) {
         element.style.fontSize = `${fontSize * 2}px`
         if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * 2}px`
@@ -79,7 +78,19 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
         const clipped = rects.some((rect) => rect.left < box.left - 1 || rect.right > box.right + 1 || rect.top < box.top - 1 || rect.bottom > box.bottom + 1)
         return { label, lines: new Set(rects.map((rect) => rect.top)).size, clipped, ellipsis: style.textOverflow === 'ellipsis' || !['none', '0'].includes(style.webkitLineClamp), fontSize: parseFloat(style.fontSize), inset: box.left - panelBox.left }
       })
-      return { gap: settingsBox.top - panelBox.bottom, labels: labelMeasurements, switches: [...document.querySelectorAll('[role="switch"]')].map((control) => {
+      const lockedRows = [...settings.querySelectorAll<HTMLElement>('.orbit-list-row-shell')].filter((row) => !row.querySelector('[role="switch"]')).map((row) => {
+        const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+        const badge = row.querySelector<HTMLElement>('[data-slot="list-row-value"], [data-slot="list-row-trailing"]')!
+        const titleBox = title.getBoundingClientRect()
+        const badgeBox = badge.getBoundingClientRect()
+        const clone = title.cloneNode(true) as HTMLElement
+        clone.style.cssText += ';position:absolute;width:max-content;max-width:none'
+        title.parentElement!.appendChild(clone)
+        const naturalWidth = clone.getBoundingClientRect().width
+        clone.remove()
+        return { title: title.textContent, titleBottom: titleBox.bottom, badgeTop: badgeBox.top, shouldWrap: naturalWidth + badgeBox.width + 12 > title.parentElement!.parentElement!.getBoundingClientRect().width }
+      })
+      return { gap: settingsBox.top - panelBox.bottom, labels: labelMeasurements, lockedRows, switches: [...document.querySelectorAll('[role="switch"]')].map((control) => {
         const box = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
         const row = control.closest('.orbit-list-row-shell')!
         const titleElement = row.querySelector('[data-slot="list-row-title"]')!
@@ -89,9 +100,14 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
     }, labels)
     expect.soft(measured.gap).toBe(24)
     for (const label of measured.labels) {
-      expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: label.label === labels[0] || hasProAccess ? 16 : 56 })
+      expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: 16 })
       if (scale === 1) expect.soft(label.lines, label.label).toBe(1)
       else expect.soft(label.lines, label.label).toBeGreaterThanOrEqual(1)
+    }
+    expect(measured.lockedRows).toHaveLength(hasProAccess ? 0 : 2)
+    for (const row of measured.lockedRows) {
+      if (row.shouldWrap) expect(row.badgeTop, JSON.stringify(row)).toBeGreaterThanOrEqual(row.titleBottom + 12)
+      else expect(row.badgeTop, JSON.stringify(row)).toBeLessThan(row.titleBottom)
     }
     expect(measured.switches).toHaveLength(hasProAccess ? 2 : 0)
     if (hasProAccess) for (const control of measured.switches) {

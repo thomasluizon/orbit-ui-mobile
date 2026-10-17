@@ -256,6 +256,12 @@ gate cannot be dropped before undo exists.
 
 ### The proactive line
 
+The line and the push open the current item as Astra's first message, with its full text and one
+action. The action sends the item's prompt through the normal conversation and preview flow.
+The line stays available at the daily message limit and offline using the last fetched item;
+its action is disabled with the limit or offline reason. An ended item keeps its text and disables
+its action with an explanation. The Perfil Astra notifications switch controls push delivery only.
+
 Astra reaches the person before the person opens the app. The push is a **pointer**, never the only
 copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the composer glyph owns. Two consequences are
 deliberate. The proactive layer has a visible place to be audited instead of only firing into the

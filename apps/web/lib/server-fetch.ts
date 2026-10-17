@@ -59,6 +59,7 @@ function assertIntendedAccountStillHolds(
 type MutatingMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 interface MutateInit extends Omit<RequestInit, 'method'> {
+  skipAuthRecovery?: boolean
   method: MutatingMethod
 }
 
@@ -82,6 +83,7 @@ async function fetchWithSession<T>(
   intendedAccountId: string | null,
   recordUpstream?: RecordProxyUpstream,
   renderToken?: string,
+  skipAuthRecovery = false,
 ): Promise<T> {
   const accountIntent = intendedAccountId?.startsWith('{')
     ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
@@ -109,7 +111,7 @@ async function fetchWithSession<T>(
   })
   recordUpstream?.(res)
 
-  if (!renderToken && res.status === 401 && path !== API.auth.refresh) {
+  if (!skipAuthRecovery && !renderToken && res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
       assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
@@ -167,13 +169,14 @@ export async function serverAuthMutate<T = unknown>(
   intendedAccountId: string | null,
   schema?: ZodType<T>,
 ): Promise<T> {
+  const { skipAuthRecovery, ...requestInit } = init
   const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path)
   if (astraAction) {
     return observeProxyFailure(`/api/ai/pending-operations/:id/${astraAction[1]}`, (recordUpstream) =>
-      fetchWithSession(path, init, schema, intendedAccountId, recordUpstream),
+      fetchWithSession(path, requestInit, schema, intendedAccountId, recordUpstream, undefined, skipAuthRecovery),
     )
   }
-  return fetchWithSession(path, init, schema, intendedAccountId)
+  return fetchWithSession(path, requestInit, schema, intendedAccountId, undefined, undefined, skipAuthRecovery)
 }
 
 /**

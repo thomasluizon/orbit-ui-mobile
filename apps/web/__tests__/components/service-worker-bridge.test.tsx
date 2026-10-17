@@ -1,9 +1,12 @@
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { useChatStore } from '@/stores/chat-store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 
 const mockPush = vi.fn()
+vi.mock('@/app/actions/chat', () => ({ getCurrentProactiveItem: async () => createMockProactiveItem(), reportProactiveOpened: async () => null }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
@@ -60,6 +63,7 @@ function createReplyPort() {
 describe('ServiceWorkerBridge', () => {
   beforeEach(() => {
     useUIStore.setState({ astraConversationOpen: false })
+    useChatStore.setState({ messages: [], proactiveOutcomes: {} })
     mockPush.mockReset()
     mockCaptureException.mockReset()
     window.history.replaceState(null, '', '/')
@@ -96,15 +100,16 @@ describe('ServiceWorkerBridge', () => {
     await vi.waitFor(() => expect(mockCaptureException).toHaveBeenCalledWith(failure))
   })
 
-  it('routes a notification click through the shared destination rule', () => {
+  it('routes a notification click through the shared destination rule', async () => {
     const container = installServiceWorkerContainer()
     renderBridge()
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/?astra=open'], ['/progress']])
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush.mock.calls).toEqual([['/'], ['/progress']])
+    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
+    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
   })
 
   it.each([
@@ -128,8 +133,9 @@ describe('ServiceWorkerBridge', () => {
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
-    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush).toHaveBeenCalledWith('/')
+    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
+    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
 
@@ -200,19 +206,20 @@ describe('ServiceWorkerBridge', () => {
     expect(window.location.search).toBe('?date=2026-09-29')
   })
 
-  it('opens Astra for a conversation notification in a newly launched window', () => {
+  it('opens Astra for a conversation notification in a newly launched window', async () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush).toHaveBeenCalledWith('/')
+    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
+    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
   })
 
   it('keeps the Astra launch intent in the route through anonymous onboarding and sign-in', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
+    expect(mockPush).toHaveBeenCalledWith('/')
     expect(window.location.search).toBe('')
   })
 

@@ -1,3 +1,4 @@
+import { ProactiveAction } from './proactive-action'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -31,6 +32,7 @@ import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { useChatStore } from "@/stores/chat-store";
 import { useUIStore } from "@/stores/ui-store";
 
 type ChatController = ReturnType<typeof useChatComposer>;
@@ -130,16 +132,28 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     verifyStepUpForBubble,
   } = chat;
   const keyboardScroll = useConversationKeyboardScroll(flatListRef, threadScroll.isFollowing);
+  const proactiveEntryId = useChatStore((state) => state.proactiveEntryId);
   const initialScrollPending = useRef(true);
-  useEffect(() => { threadScroll.followLatest(); }, [threadScroll]);
+  const showProactiveEntry = useCallback(() => {
+    const entryId = useChatStore.getState().proactiveEntryId;
+    if (!entryId || !flatListRef.current) return false;
+    threadScroll.stopFollowing();
+    flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+    initialScrollPending.current = false;
+    useChatStore.getState().clearProactiveEntry(entryId);
+    return true;
+  }, [flatListRef, threadScroll]);
+  useEffect(() => { if (!useChatStore.getState().proactiveEntryId) threadScroll.followLatest(); }, [threadScroll]);
+  useEffect(() => { showProactiveEntry(); }, [proactiveEntryId, showProactiveEntry]);
 
   const onContentSizeChange = useCallback(() => {
+    if (showProactiveEntry()) return;
     if (!threadScroll.isFollowing()) return;
     if (initialScrollPending.current) {
       flatListRef.current?.scrollToEnd({ animated: false });
       initialScrollPending.current = false;
     } else scrollToBottom();
-  }, [flatListRef, scrollToBottom, threadScroll]);
+  }, [flatListRef, scrollToBottom, showProactiveEntry, threadScroll]);
 
   const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
     threadScroll.followLatest();
@@ -202,11 +216,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
+      {item.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>
     ),
     [
+      chat.isOnline,
       confirmAndExecutePendingOperation,
       claimAnnouncement,
       handleActionChipClick,

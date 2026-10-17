@@ -1,3 +1,4 @@
+import type { ProactiveItem } from '../types/proactive'
 import type {
   HabitScheduleChild,
   HabitScheduleItem,
@@ -465,6 +466,22 @@ export function createMockSyncChangesV2Response(
     },
     serverTimestamp: '2026-01-15T10:00:00Z',
     version: 2,
+    ...overrides,
+  }
+}
+
+export function createMockProactiveItem(overrides: Partial<ProactiveItem> = {}): ProactiveItem {
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    trigger: 'EveningCheckin',
+    localDate: '2026-08-29',
+    text: 'Two habits are still open tonight.',
+    actionLabel: 'Log now',
+    actionPrompt: 'Show my habits for today.',
+    createdAtUtc: '2026-08-29T10:00:00Z',
+    shownAtUtc: null,
+    pushedAtUtc: null,
+    facts: null,
     ...overrides,
   }
 }

@@ -1,4 +1,10 @@
 export const API = {
+  proactive: {
+    current: '/api/ai/proactive/current',
+    status: (id: string) => `/api/ai/proactive/${id}` as const,
+    opened: (id: string) => `/api/ai/proactive/${id}/opened` as const,
+    acted: (id: string) => `/api/ai/proactive/${id}/acted` as const,
+  },
   events: {
     stream: '/api/events',
     ticket: '/api/events/ticket',

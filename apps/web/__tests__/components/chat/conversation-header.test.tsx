@@ -1,7 +1,9 @@
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { useChatStore } from '@/stores/chat-store'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key === 'chat.title' ? 'Astra' : key,
@@ -10,6 +12,8 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
+
+vi.mock('@/components/chat/proactive-action', () => ({ ProactiveAction: () => null }))
 
 vi.mock('@/components/shell/composer', () => ({
   Composer: () => <div data-testid="conversation-composer" />,
@@ -89,4 +93,22 @@ it('still closes the conversation on Escape', () => {
   fireEvent.keyDown(document, { key: 'Escape' })
 
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
+})
+
+it('opens and reopens the proactive message above an existing long streaming thread', () => {
+  useChatStore.setState({ messages: [], proactiveOutcomes: {} })
+  const item = createMockProactiveItem()
+  for (let index = 0; index < 30; index++) useChatStore.getState().addMessage({ id: `old-${index}`, role: 'ai', content: 'Previous reply', timestamp: new Date() })
+  useChatStore.getState().openProactiveItem(item)
+  const chat = { ...buildChat(), showSuggestions: false, messages: useChatStore.getState().messages, streamingMessageId: 'old-29' }
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollTo')
+  const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000)
+  try {
+    render(<AstraConversation chat={chat} />)
+    expect(scroll).toHaveBeenLastCalledWith({ top: 0, behavior: 'auto' })
+    expect(chat.threadScroll.isFollowing()).toBe(false)
+    void act(() => { useChatStore.getState().openProactiveItem(item) })
+    expect(scroll).toHaveBeenLastCalledWith({ top: 0, behavior: 'auto' })
+    expect(useChatStore.getState().messages.some((message) => message.id === 'old-29')).toBe(true)
+  } finally { height.mockRestore(); scroll.mockRestore() }
 })

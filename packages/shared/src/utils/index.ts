@@ -472,8 +472,6 @@ export {
   getNotificationInboxState,
   isViewableNotificationUrl,
   resolveNotificationUrl,
-  selectNewestUnreadProactiveCheckin,
-  shouldShowTodayAstraLine,
   shouldShowTodayAstraSurface,
 } from './notification-actions'
 export {
@@ -789,3 +787,5 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { proactiveActionLabelKey, getProactiveActionReason } from './proactive'

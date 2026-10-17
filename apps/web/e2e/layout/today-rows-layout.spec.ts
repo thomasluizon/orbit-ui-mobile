@@ -2,8 +2,7 @@ import { openTodayListOptions } from './hydration-guard'
 import { expect, type Page } from '@playwright/test'
 import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
-import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -126,14 +125,14 @@ for (const width of [320, 600]) {
         ]
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 3 } }))
-        const proactive = createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z` })
-        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }) }])
+        const proactive = createMockProactiveItem({ text: 'Sua rotina mudou. Vamos conversar?', localDate: selectedDate })
+        await setLayoutFixtureSession(context, [{ path: API.proactive.current, body: proactive }])
         await page.goto('/')
         const disclosure = page.locator('[data-habit-row-control="disclosure"]')
         await expect(disclosure).toBeVisible()
         if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
         await expect(page.getByTestId('habit-row')).toHaveCount(3)
-        await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.body)
+        await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
           for (const label of document.querySelectorAll<HTMLElement>('.today-astra-sentence')) {

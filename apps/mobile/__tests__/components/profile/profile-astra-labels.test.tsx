@@ -91,6 +91,11 @@ function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: n
   return node
 }
 
+function findContent(host: HostRow, label: string): HostRow | undefined {
+  if (host.props['data-slot'] === 'list-row-content' && JSON.stringify(host.children).includes(JSON.stringify(label))) return host
+  return (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string').map((child) => findContent(child, label)).find(Boolean)
+}
+
 function position(node: YogaNode): { left: number; top: number; right: number; bottom: number } {
   let left = 0
   let top = 0
@@ -135,6 +140,22 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
       expect.soft(measured.node.getComputedWidth(), label).toBeGreaterThanOrEqual(scale === 1 ? measured.width : measured.wordWidth)
       expect(position(measured.node).right, label).toBeLessThanOrEqual(width - 32)
       expect(measured.node.getComputedHeight(), label).toBeGreaterThanOrEqual(style.lineHeight * scale)
+    }
+    if (!hasProAccess) for (const label of labels.slice(1)) {
+      const rowTexts = new Map<string, { node: YogaNode; width: number; wordWidth: number }>()
+      const rowLayout = layoutHost(findContent(tree.toJSON(), label)!, rowTexts, scale)
+      try {
+        const available = width - 32 - 32
+        rowLayout.calculateLayout(available, 'auto', Yoga.DIRECTION_LTR)
+        const title = rowTexts.get(label)!
+        const badge = rowTexts.get(i18n.t('common.proBadge'))!
+        const badgeWidth = badge.node.getParent()!.getComputedWidth()
+        if (title.width + badgeWidth + 12 > available) {
+          expect(position(badge.node).top).toBeGreaterThanOrEqual(position(title.node).bottom + 12)
+        } else {
+          expect(position(badge.node).top).toBeLessThan(position(title.node).bottom)
+        }
+      } finally { rowLayout.freeRecursive() }
     }
     for (const row of tree.root.findAllByType(ListRow)) expect(row.props.textMode).toBe('label')
     const switches = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.toggle)

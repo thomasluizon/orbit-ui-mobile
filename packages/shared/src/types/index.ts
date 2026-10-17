@@ -24,3 +24,5 @@ export * from './streak-history'
 export * from './habit-trends'
 export * from './xp-history'
 export * from './tag'
+
+export * from './proactive'

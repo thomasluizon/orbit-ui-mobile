@@ -34,8 +34,9 @@ function getBodyStyle(hasDescription: boolean, column: boolean) {
   return [styles.body, column ? styles.columnBody : styles.insetBody, hasDescription ? styles.descriptionBody : null]
 }
 
-function RowValue({ value, wrap, color, personal, expanded, label }: Readonly<{ value: string | undefined; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
+function RowValue({ value, wrap, color, personal, expanded, label }: Readonly<{ value: ListRowProps['value']; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
   if (!value) return null
+  if (typeof value !== 'string') return <View data-slot="list-row-value" style={styles.trailing}>{value}</View>
   if (personal) return <PersonalText expanded={expanded} style={[styles.value, { maxWidth: '100%', color }]}>{value}</PersonalText>
   return <Text data-slot="list-row-value" style={[styles.value, wrap ? styles.wrappedValue : null, label ? styles.labelValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
@@ -110,7 +111,7 @@ function ownsPersonalDisclosure(original: Readonly<ListRowProps>) {
 function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [disclosed, setDisclosed] = useState(false)
   const ownsDisclosure = ownsPersonalDisclosure(original)
-  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, original.value].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, onClick: () => setDisclosed(!disclosed), chevron: original.chevron ?? true } : original
+  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, typeof original.value === 'string' ? original.value : undefined].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, onClick: () => setDisclosed(!disclosed), chevron: original.chevron ?? true } : original
   const ChevronIcon = ownsDisclosure ? ChevronDown : ChevronRight
   return { props, ChevronIcon }
 }

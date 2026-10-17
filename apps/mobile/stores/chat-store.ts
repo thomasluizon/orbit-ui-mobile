@@ -23,6 +23,8 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
     }
     set({
       messages: [],
+      proactiveEntryId: null,
+      proactiveOutcomes: {},
       isTyping: false,
       streamingMessageId: null,
       draft: '',

@@ -1,23 +1,23 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
-import type { NotificationItem } from '@orbit/shared/types/notification'
+import type { ProactiveItem } from '@orbit/shared/types'
 import { StyleSheet, Text, View } from 'react-native'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
 
 interface TodayAstraMocks {
-  notifications: NotificationItem[]
-  markRead: ReturnType<typeof vi.fn>
-  navigateProgress: ReturnType<typeof vi.fn>
+  item: ProactiveItem | null
+  markRead: ReturnType<typeof vi.fn<(id: string) => void>>
+  navigateProgress: ReturnType<typeof vi.fn<(id: string) => void>>
   profile: { id: string; timeZone: string; lastCompletionDate?: string | null; aiMessagesUsed?: number; aiMessagesLimit?: number }
   isOnline: boolean
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
-  notifications: [],
+  item: null,
   markRead: vi.fn(),
   navigateProgress: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
@@ -38,9 +38,11 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: mocks.notifications }),
-  useMarkNotificationRead: () => ({ mutate: mocks.markRead }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.item, openItem: (item: ProactiveItem) => {
+    mocks.markRead(item.id)
+    useUIStore.getState().setAstraConversationOpen(true)
+  } }),
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/lib/theme', () => ({
@@ -88,9 +90,9 @@ describe('mobile Today Astra', () => {
     ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
   ])('makes the %s sentence the whole row target with a destination hint', async (variant, sentence, destination) => {
     mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
-    if (variant === 'proactive') mocks.notifications = [createMockNotification({
-      id: 'check-in', url: '/chat', body: sentence, createdAtUtc: '2026-08-29T10:00:00Z',
-    })]
+    if (variant === 'proactive') mocks.item = createMockProactiveItem({
+      text: sentence,
+    })
     const tree = await renderTodayAstra()
     const actions = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.onPress === 'function')
     expect(actions).toHaveLength(1)
@@ -107,7 +109,7 @@ describe('mobile Today Astra', () => {
     expect(prose.findAll((node) => typeof node.props.onPress === 'function')).toHaveLength(0)
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     if (variant === 'proactive') {
-      expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+      expect(mocks.markRead).toHaveBeenCalledWith(mocks.item!.id)
       expect(useUIStore.getState().astraConversationOpen).toBe(true)
       expect(mocks.navigateProgress).not.toHaveBeenCalled()
     } else {
@@ -118,7 +120,7 @@ describe('mobile Today Astra', () => {
   })
 
   beforeEach(() => {
-    mocks.notifications = []
+    mocks.item = null
     mocks.markRead.mockReset()
     mocks.navigateProgress.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
@@ -182,31 +184,8 @@ describe('mobile Today Astra', () => {
     ).length).toBeGreaterThan(0)
   })
 
-  it.each([
-    ['23:59 yesterday locally', '2026-08-29T02:59:00Z', false, false],
-    ['00:01 today locally', '2026-08-29T03:01:00Z', false, true],
-    ['read today', '2026-08-29T03:01:00Z', true, false],
-  ])('filters the proactive line using the profile timezone: %s', async (_scenario, createdAtUtc, isRead, visible) => {
-    mocks.profile.timeZone = 'America/Sao_Paulo'
-    vi.setSystemTime(new Date('2026-08-29T03:02:00Z'))
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc, isRead })]
-
-    const tree = await renderTodayAstra()
-
-    expect(tree.root.findAll((node) => node.props.children === 'Check in').length > 0).toBe(visible)
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length > 0).toBe(visible)
-  })
-
   it('renders a proactive check-in and opens its conversation', async () => {
-    mocks.notifications = [{
-      id: 'check-in',
-      title: 'Astra',
-      body: 'Check in',
-      url: '/chat',
-      habitId: null,
-      isRead: false,
-      createdAtUtc: '2026-08-29T10:00:00Z',
-    }]
+    mocks.item = createMockProactiveItem({ text: 'Check in' })
 
     const tree = await renderTodayAstra()
 
@@ -223,22 +202,16 @@ describe('mobile Today Astra', () => {
       ;(action.props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+    expect(mocks.markRead).toHaveBeenCalledWith(mocks.item.id)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('shows returning Progress when a proactive check-in is unavailable offline', async () => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
-    mocks.notifications = [{
-      id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
-      isRead: false, createdAtUtc: '2026-08-29T10:00:00Z',
-    }]
-    mocks.isOnline = false
-
+  it.each(['offline', 'quota exhausted'])('keeps the fetched item available when %s', async (state) => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10 }
+    mocks.item = createMockProactiveItem()
+    mocks.isOnline = state !== 'offline'
     const tree = await renderTodayAstra()
-
-    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
-    expect(hasText(tree, 'Check in')).toBe(false)
+    expect(hasText(tree, mocks.item.text)).toBe(true)
   })
 
   it('does not add retired inline Astra content to a 50 habit list', async () => {

@@ -469,6 +469,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           hint: description,
           value,
           hasTrailing: Boolean(trailing || toggle),
+          hasValue: Boolean(value),
           onPress: toggle ? () => toggle.onChange(!toggle.checked) : readOnly ? undefined : onClick,
           chevron,
           accessibilityRole: roleOf(props),
@@ -483,6 +484,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           onPress: action.onPress,
         }) : null,
         trailing ?? null,
+        typeof value === 'string' ? null : value ?? null,
         description ? React.createElement('Text', {}, description) : null,
       )
     },
@@ -506,6 +508,7 @@ interface SettingsRowStubNode {
     hint?: string
     value?: string
     hasTrailing?: boolean
+    hasValue?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -1181,10 +1184,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
-    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
-    ['en', false, 'Check-ins', 'Daily recap'],
-    ['en', true, 'Check-ins', 'Daily recap'],
+    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
+    ['en', false, 'Astra notifications', 'Daily recap'],
+    ['en', true, 'Astra notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
@@ -1210,7 +1213,7 @@ describe('ProfileScreen', () => {
       for (const label of [proactive, summary]) {
         const row = findRowByLabel(tree, label)
         expect(row.props.accessibilityRole).toBe('button')
-        expect(row.props.hasTrailing).toBe(true)
+        expect(row.props.hasValue).toBe(true)
         expect(row.props.chevron).toBe(false)
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())
@@ -1581,6 +1584,20 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile/astra' },
     })
+  })
+
+  it.each([false, true])('shows the effective notifications value for Pro with trial=%s', async (isTrialActive) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
+      isLoading: false, error: null,
+    }
+    const tree = await renderProfileSubscreen('astra')
+    const toggle = tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'profile.proactiveAstra.title' })
+    expect(toggle.props.accessibilityState.checked).toBe(true)
+    TestRenderer.act(() => toggle.props.onPress())
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setProactiveAstra', endpoint: API.profile.proactiveAstra, method: 'PUT', payload: { enabled: false },
+    }))
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', async () => {
