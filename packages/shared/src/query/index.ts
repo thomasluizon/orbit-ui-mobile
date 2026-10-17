@@ -39,3 +39,5 @@ export {
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'
 export { resetAccountQueries } from './reset-account-queries'
+export { createConfigCache } from './config-cache'
+export type { ConfigCache, ConfigSnapshot } from './config-cache'
