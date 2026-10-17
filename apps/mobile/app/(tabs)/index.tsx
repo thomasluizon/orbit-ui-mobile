@@ -21,6 +21,7 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
+import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -248,6 +249,8 @@ function TodayScreenContent() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
+      {todayFocused && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
+        ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

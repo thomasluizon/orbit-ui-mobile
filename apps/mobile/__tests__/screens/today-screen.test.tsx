@@ -47,6 +47,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: mocks.firstUsePermission }) }))
 
+vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profileReady ? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
