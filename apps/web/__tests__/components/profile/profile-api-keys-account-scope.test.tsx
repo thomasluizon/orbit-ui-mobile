@@ -15,7 +15,7 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn() }))
+const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: management.push }) }))
 vi.mock('next-intl', async (importOriginal) => {
@@ -33,9 +33,9 @@ vi.mock('@/hooks/use-api-key-management', () => ({
   useApiKeyManagement: () => ({
     apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
     apiKeys: [],
-    canCreateKey: true,
-    createGrantAvailable: true,
-    createKeyError: null,
+    canCreateKey: management.canCreate,
+    createGrantAvailable: management.grantAvailable,
+    createKeyError: management.error,
     clearCreateKeyError: vi.fn(),
     revokingKeyId: null,
     setRevokingKeyId: vi.fn(),
@@ -93,6 +93,9 @@ beforeEach(async () => {
   await resetAuthStore()
   localStorage.clear()
   vi.mocked(requestApiKeyCreationChallenge).mockReset()
+  management.canCreate = true
+  management.grantAvailable = true
+  management.error = null
   management.handleCreateKey.mockReset()
   management.push.mockReset()
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -257,4 +260,66 @@ it('waits for the first account check before requesting an API key challenge', a
   expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
   expect(readStepUpTiming('keys', 'user-1')).not.toBeNull()
   expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
+})
+
+function renderUnlockedKeys() {
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  return render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+}
+
+it.each([true, false])('submits read-only permission %s for simple and scoped keys', async (readOnly) => {
+  renderUnlockedKeys()
+  const permission = screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })
+  expect(permission).not.toBeChecked()
+  fireEvent.click(permission)
+  if (!readOnly) fireEvent.click(permission)
+  expect(permission).toHaveAttribute('aria-checked', String(readOnly))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create })) })
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: readOnly }, expect.any(Function))
+  fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.done }))
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
+  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
+  expect(submit).toBeDisabled()
+  fireEvent.change(screen.getByLabelText(en.profile.apiKeys.scopeLabel), { target: { value: '  habits:read  ' } })
+  await act(async () => { fireEvent.click(submit) })
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, scopes: ['habits:read'], isReadOnly: readOnly }, expect.any(Function))
+})
+
+it('freezes permission and both create entries while a read-only request is pending', async () => {
+  let finish!: () => void
+  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(null) }))
+  renderUnlockedKeys()
+  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeDisabled()
+  expect(screen.getByRole('button', { name: en.profile.apiKeys.createScoped })).toBeDisabled()
+  expect(screen.getByRole('button', { name: en.profile.apiKeys.create })).toBeDisabled()
+  await act(async () => finish())
+  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeEnabled()
+})
+
+it('preserves the read-only choice when creation fails', async () => {
+  management.handleCreateKey.mockResolvedValue(null)
+  const view = renderUnlockedKeys()
+  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create })) })
+  management.error = en.orbitMcp.createKeyError
+  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  expect(screen.getByRole('alert')).toHaveTextContent(en.orbitMcp.createKeyError)
+  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeChecked()
+})
+
+it('hides permission at key capacity and retains fresh authentication for scoped creation', async () => {
+  management.canCreate = false
+  const view = renderUnlockedKeys()
+  expect(screen.queryByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).not.toBeInTheDocument()
+  expect(screen.getByText(en.orbitMcp.maxKeysReached)).toBeInTheDocument()
+  management.canCreate = true
+  management.grantAvailable = false
+  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped })) })
+  expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
+  expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
 })
