@@ -15,6 +15,7 @@ const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 type RenderedTree = ReactTestRenderer & { toJSON(): ReactTestRendererJSON | ReactTestRendererJSON[] | null; unmount(): void }
 let tree: RenderedTree
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
 vi.mock('react-i18next', async (original) => ({
   ...(await original<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: translate, i18n: { language: mocks.language } }),

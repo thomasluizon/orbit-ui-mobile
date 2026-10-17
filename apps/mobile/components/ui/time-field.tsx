@@ -1,6 +1,6 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
   Pressable,
@@ -21,6 +21,8 @@ import {
   commitTimeFieldPickerDraft,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  parseTypedTimeFieldValue,
+  reconcileTimeFieldInput,
   selectTimeFieldHour,
   selectTimeFieldMinute,
   selectTimeFieldPeriod,
@@ -300,7 +302,20 @@ export function TimeField({
   const resolvedLabel = label ?? accessibilityLabel ?? placeholder ?? t('common.selectTime')
   const presentedValue = presentTimeFieldValue(value, resolvedHourCycle)
   const [focused, setFocused] = useState(false)
-  const [inputDraft, setInputDraft] = useState<string | null>(null)
+  const [inputDraft, setInputDraft] = useState<{ text: string; hourCycle: 'h23' | 'h12' } | null>(null)
+  const previousHourCycle = useRef(resolvedHourCycle)
+  if (inputDraft && inputDraft.hourCycle !== resolvedHourCycle) {
+    const reconciledDraft = reconcileTimeFieldInput(inputDraft.text, inputDraft.hourCycle, resolvedHourCycle)
+    setInputDraft({ text: reconciledDraft.draft, hourCycle: resolvedHourCycle })
+  }
+  const inputValue = inputDraft?.text ?? presentedValue
+
+  useEffect(() => {
+    if (previousHourCycle.current === resolvedHourCycle) return
+    previousHourCycle.current = resolvedHourCycle
+    const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
+    if (!disabled && parsed && parsed !== value) onChange(parsed)
+  }, [resolvedHourCycle, inputValue, value, onChange, disabled])
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
@@ -309,8 +324,8 @@ export function TimeField({
   const { hour12, period } = to12Hour(pickerDraft.hour24)
 
   function handleChange(displayValue: string) {
-    const change = changeTimeFieldInput(displayValue, inputDraft ?? presentedValue, resolvedHourCycle)
-    setInputDraft(change.draft)
+    const change = changeTimeFieldInput(displayValue, inputValue, resolvedHourCycle)
+    setInputDraft({ text: change.draft, hourCycle: resolvedHourCycle })
     if (change.clear) {
       if (!commitTypedClearOnBlur) onClear?.()
       return
@@ -340,18 +355,18 @@ export function TimeField({
         error={error}
         focused={focused}
         hint={hint}
-        inputValue={inputDraft ?? presentedValue}
+        inputValue={inputValue}
         label={resolvedLabel}
         onBlur={() => {
           setFocused(false)
-          if (commitTypedClearOnBlur && inputDraft === '') onClear?.()
+          if (commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
           setInputDraft(null)
         }}
         onChange={handleChange}
         onClear={onClear}
         onFocus={() => {
             setFocused(true)
-            setInputDraft(presentedValue)
+            setInputDraft({ text: presentedValue, hourCycle: resolvedHourCycle })
         }}
         onOpenPicker={openPicker}
         placeholder={placeholder}

@@ -7,16 +7,24 @@ import {
   buildBreakdownCreateRequest,
   createClientId,
   filterValidBreakdownHabits,
+  isPayGateError,
+  isBreakdownNoWriteRejection,
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
-  removalId: string | null
-  setRemovalId: Dispatch<SetStateAction<string | null>>
-  removeHabit: () => void
+  capacityDenied: boolean
   addHabit: () => void
   atCapacity: boolean
   createError: boolean
+  removalId: string | null
+  setRemovalId: Dispatch<SetStateAction<string | null>>
+  removeHabit: () => void
   hasSubmitted: boolean
+  createAsParent: boolean
+  completed: boolean
+  groupingDenied: boolean
+  groupingLocked: boolean
+  isSubmitting: boolean
   confirmOpen: boolean
   editingId: string | null
   failedIds: string[]
@@ -27,6 +35,7 @@ interface BreakdownSuggestionState {
   cycleCadence: (id: string) => void
   editTitle: (id: string, title: string) => void
   reject: () => void
+  setCreateAsParent: (checked: boolean) => void
   setConfirmOpen: Dispatch<SetStateAction<boolean>>
   setEditingId: Dispatch<SetStateAction<string | null>>
   submit: (onlyIds?: readonly string[]) => Promise<void>
@@ -47,20 +56,34 @@ export function useBreakdownSuggestionState({
     createBreakdownDrafts(subHabits),
   )
   const [removalId, setRemovalId] = useState<string | null>(null)
+  const [capacityDenied, setCapacityDenied] = useState(false)
   const [createError, setCreateError] = useState(false)
+  const [createAsParent, setCreateAsParent] = useState(false)
+  const [groupingDenied, setGroupingDenied] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [results, setResults] = useState<Record<string, BreakdownItemResult>>({})
   const failedIds = getFailedBreakdownIds(habits, results)
+  const groupingLocked = isSubmitting || Object.keys(results).length > 0
+  const validHabits = filterValidBreakdownHabits(habits)
+  const completed = validHabits.length > 0 && validHabits.every((habit) => results[habit.id] === 'done')
 
   const hasSubmitted = Object.keys(results).length > 0
 
   const addHabit = () => {
-    if (habits.length >= MAX_BULK_OPERATION_SIZE || hasSubmitted) return
+    if (habits.length >= MAX_BULK_OPERATION_SIZE || groupingLocked) return
     const habit = createBreakdownDraft(createClientId('breakdown'))
     setHabits((current) => current.length >= MAX_BULK_OPERATION_SIZE ? current : [...current, habit])
     setEditingId(habit.id)
+  }
+
+  const removeHabit = () => {
+    if (groupingLocked || removalId == null) return
+    setHabits((current) => current.filter((habit) => habit.id !== removalId))
+    if (editingId === removalId) setEditingId(null)
+    setRemovalId(null)
   }
 
   const editTitle = useCallback((id: string, title: string) => {
@@ -72,44 +95,57 @@ export function useBreakdownSuggestionState({
   }, [])
 
   const submit = useCallback(async (onlyIds?: readonly string[]) => {
+    if (isSubmitting || rejected) return
     const selected = selectBreakdownHabits(habits, onlyIds)
     const valid = filterValidBreakdownHabits(selected)
-    if (valid.length === 0 || valid.length > MAX_BULK_OPERATION_SIZE) return
+    if (valid.length === 0 || valid.length > MAX_BULK_OPERATION_SIZE || valid.every((habit) => results[habit.id] === 'done')) return
     setCreateError(false)
+    setCapacityDenied(false)
     setEditingId(null)
     setHabits((current) => filterValidBreakdownHabits(current))
 
+    setGroupingDenied(false)
+    setIsSubmitting(true)
     try {
-      const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, false))
-      const nextResults = mergeBreakdownResults(results, valid, response)
-      if (!Object.values(nextResults).includes('done')) {
+      const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, createAsParent))
+      const nextResults = mergeBreakdownResults(results, valid, response, createAsParent)
+      if (!createAsParent && !hasSubmitted && !Object.values(nextResults).includes('done')) {
         setResults({})
         setCreateError(true)
         return
       }
       setResults(nextResults)
-      if (response.results.every((result) => result.status === 'Success')) onConfirmed()
-    } catch {
+      if (valid.every((habit) => nextResults[habit.id] === 'done')) onConfirmed()
+    } catch (error) {
       setCreateError(true)
-      if (hasSubmitted) setResults((current) => failBreakdownResults(current, valid))
+      if (isBreakdownNoWriteRejection(error) && Object.keys(results).length === 0) {
+        const groupingRejection = createAsParent && isPayGateError(error)
+        const capacityRejection = !isPayGateError(error)
+        setGroupingDenied(groupingRejection)
+        setCapacityDenied(capacityRejection)
+        setCreateError(!groupingRejection && !capacityRejection)
+      } else {
+        setResults((current) => failBreakdownResults(current, valid))
+      }
+    } finally {
+      setIsSubmitting(false)
     }
-  }, [habits, hasSubmitted, onBulkCreate, onConfirmed, parentName, results])
-
-  const removeHabit = () => {
-    if (hasSubmitted) return
-    setHabits((current) => current.filter((habit) => habit.id !== removalId))
-    if (editingId === removalId) setEditingId(null)
-    setRemovalId(null)
-  }
+  }, [createAsParent, habits, hasSubmitted, isSubmitting, onBulkCreate, onConfirmed, parentName, rejected, results])
 
   return {
     removalId,
     setRemovalId,
-    removeHabit,
+    capacityDenied,
     addHabit,
     atCapacity: habits.length >= MAX_BULK_OPERATION_SIZE,
     createError,
+    removeHabit,
     hasSubmitted,
+    createAsParent,
+    completed,
+    groupingDenied,
+    groupingLocked,
+    isSubmitting,
     confirmOpen,
     editingId,
     failedIds,
@@ -120,6 +156,7 @@ export function useBreakdownSuggestionState({
     cycleCadence,
     editTitle,
     reject: () => setRejected(true),
+    setCreateAsParent: (checked) => { if (!groupingLocked) setCreateAsParent(checked) },
     setConfirmOpen,
     setEditingId,
     submit,
