@@ -1,7 +1,7 @@
 import { ProBenefits } from './pro-benefits'
 import { useState } from 'react'
 import { Linking, Text, View } from 'react-native'
-import { subscriptionSummary } from '@orbit/shared/utils'
+import { formatLocaleDate, subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type {
@@ -109,17 +109,19 @@ function InvoiceRow({ invoice, locale, state, t, tokens }: Readonly<{
 }>) {
   const [downloadFailed, setDownloadFailed] = useState(false)
   const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
-  const title = formatPrice(invoice.amountPaid, invoice.currency)
-  const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)} · ${invoiceStatus(invoice.status, t)}`
+  const title = invoiceReason(invoice.billingReason, t)
+  const description = invoiceStatus(invoice.status, t)
+  const date = formatLocaleDate(invoice.date, locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const value = `${date} · ${formatPrice(invoice.amountPaid, invoice.currency)}`
   return (
     <View>
       {url && state !== 'offline' ? (
-        <ListRow title={title} description={description} chevron={false} action={{
+        <ListRow textMode="label" title={title} description={description} value={value} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.downloadDated', { date: formatBillingDate(invoice.date, locale) }),
           onPress: () => { setDownloadFailed(false); Linking.openURL(url).catch(() => setDownloadFailed(true)) },
         }} />
-      ) : <ListRow title={title} description={description} readOnly />}
+      ) : <ListRow textMode="label" title={title} description={description} value={value} readOnly />}
       {downloadFailed ? <Text accessibilityRole="alert" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('auth.genericError')}</Text> : null}
     </View>
   )
