@@ -1,4 +1,6 @@
-import { cpSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join, sep } from "node:path"
 
 import { check, root, T } from "./_harness.mjs"
@@ -32,7 +34,53 @@ const stageTree = (label) => {
   return { repository, nodeModules }
 }
 
+const stageLockedPackage = (label) => {
+  const tree = stageTree(label)
+  const source = join(tree.repository, "published")
+  mkdirSync(source, { recursive: true })
+  writeFileSync(join(source, "package.json"), JSON.stringify({ name: "slow-extraction", version: "1.0.0" }))
+  writeFileSync(join(source, "index.js"), "published bytes\n")
+  writeFileSync(join(source, "README.md"), "published documentation\n")
+  const packed = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", [
+    "pack", "--ignore-scripts", "--offline", "--pack-destination", tree.repository,
+  ], { cwd: source, encoding: "utf8", shell: process.platform === "win32" })
+  if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr}`)
+  const archiveName = readdirSync(tree.repository).find((name) => name.endsWith(".tgz"))
+  const integrity = `sha512-${createHash("sha512").update(readFileSync(join(tree.repository, archiveName))).digest("base64")}`
+  const packageDirectory = join(tree.nodeModules, "slow-extraction")
+  cpSync(source, packageDirectory, { recursive: true })
+  for (const [name, seconds] of [["package.json", 0], ["index.js", 338], ["README.md", 339]]) {
+    utimesSync(join(packageDirectory, name), at(seconds), at(seconds))
+  }
+  const lock = {
+    name: "guard-fixture", lockfileVersion: 3,
+    packages: { "node_modules/slow-extraction": { version: "1.0.0", resolved: `file:${archiveName}`, integrity } },
+  }
+  writeFileSync(join(tree.repository, "package-lock.json"), JSON.stringify(lock))
+  return { ...tree, packageDirectory, lock, archiveName }
+}
+
 export const cases = () => {
+  const slow = stageLockedPackage("locked-slow")
+  check(
+    TOOL,
+    "locked archive contents pass when clean extraction exceeds the default tolerance",
+    ["--root", slow.repository],
+    { status: 0, stdout: /No dependency was edited in place/ },
+  )
+  for (const mutation of ["modified", "missing", "extra"]) {
+    const changed = stageLockedPackage(`locked-${mutation}`)
+    if (mutation === "modified") writeAt(join(changed.packageDirectory, "index.js"), "edited bytes\n", at(338))
+    if (mutation === "missing") rmSync(join(changed.packageDirectory, "index.js"))
+    if (mutation === "extra") writeAt(join(changed.packageDirectory, "extra.js"), "extra bytes\n", at(0))
+    check(
+      TOOL,
+      `${mutation} installed files fail locked archive comparison`,
+      ["--root", changed.repository],
+      { status: 1, stderr: new RegExp(`${mutation}.*${mutation === "extra" ? "extra.js" : "index.js"}`) },
+    )
+  }
+
   const clean = stageTree("clean")
   stagePackage(clean.nodeModules, "react-native", { "index.js": 0, "src/deep/flags.kt": 90 })
   stagePackage(clean.nodeModules, "@expo/config", { "index.js": 12 })
