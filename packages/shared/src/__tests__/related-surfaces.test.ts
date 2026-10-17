@@ -16,7 +16,8 @@ describe('getRelatedSurfaces', () => {
   it('resolves known surface IDs to their mapped entries in order', () => {
     const result = getRelatedSurfaces(['gamification', 'today'])
     expect(result.map((surface) => surface.id)).toEqual(['gamification', 'today'])
-    expect(result[0]?.webRoute).toBe('/progress')
+    expect(result[0]?.webRoute).toBe('/progress/achievements')
+    expect(result[0]?.mobileRoute).toBe('/progress/achievements')
     expect(result[1]?.mobileRoute).toBe('/')
   })
 

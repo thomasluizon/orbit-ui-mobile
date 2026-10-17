@@ -107,6 +107,20 @@ describe('ServiceWorkerBridge', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
+  it.each([
+    ['/streak?source=push#freezes', '/progress/streak?source=push#freezes'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('routes the section push %s with its carried state', (url, destination) => {
+    const container = installServiceWorkerContainer()
+    renderBridge()
+    postFromWorker(container, { type: 'orbit:notification-click', url })
+    expect(mockPush).toHaveBeenCalledWith(destination)
+  })
+
   it('confirms a notification click on the worker reply port, so the worker does not reload the window', async () => {
     const container = installServiceWorkerContainer()
     renderBridge()

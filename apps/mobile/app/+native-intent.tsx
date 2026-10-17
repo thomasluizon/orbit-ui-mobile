@@ -12,7 +12,9 @@ function getSystemPathname(path: string): string {
 }
 
 const RETIRED_ROUTE_DESTINATIONS: Readonly<Record<string, string>> = {
-  '/streak': '/progress',
+  '/streak': '/progress/streak',
+  '/achievements': '/progress/achievements',
+  '/goals': '/progress/goals',
   ...Object.fromEntries(LEGACY_PROFILE_ROUTES.map(({ source, destination }) => [source, destination])),
 }
 
@@ -23,7 +25,11 @@ export function redirectSystemPath({ path }: Readonly<{
   const pathname = getSystemPathname(path).replace(/\/+$/, '')
   const retired = Object.entries(RETIRED_ROUTE_DESTINATIONS).find(([route]) =>
     pathname === route || pathname.startsWith(`${route}/`))
-  if (retired) return retired[1]
+  if (retired) {
+    const suffixIndex = path.search(/[?#]/)
+    const suffix = retired[1].startsWith('/progress/') && suffixIndex >= 0 ? path.slice(suffixIndex) : ''
+    return `${retired[1]}${suffix}`
+  }
   if (pathname === '/profile') {
     const suffixIndex = path.search(/[?#]/)
     const suffix = suffixIndex < 0 ? '' : path.slice(suffixIndex)

@@ -194,6 +194,12 @@
       "route-upgrade"
     ],
     "Orbit Progresso": [
+      "m-route-progress-achievements",
+      "m-route-progress-goals",
+      "m-route-progress-streak",
+      "route-progress-achievements",
+      "route-progress-goals",
+      "route-progress-streak",
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-create-goal-sheet",
       "m-overlay-goals-edit-goal-modal",
