@@ -35,6 +35,7 @@ const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
+const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
 const skipFlow = vi.hoisted(() => ({
   active: false,
@@ -215,7 +216,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 
 vi.mock('@/stores/ui-store', () => ({
   setUIAccountScope: vi.fn(),
-  useUIStore: () => null,
+  useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters }) }),
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -1127,6 +1128,14 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
   })
 
+  it('names an empty frequency view and offers all frequencies', () => {
+    accountHabitCount.count = 3
+    renderWithProviders(<HabitList filters={{ ...defaultFilters, frequencyUnit: 'Week' }} />)
+    expect(screen.getByText('habits.filter.weekly')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.all' }))
+    expect(setFrequencyFilters).toHaveBeenCalledWith({ frequencyUnit: undefined })
+  })
+
   it('keeps the plain line visible if the account count cannot load', () => {
     accountHabitCount.isLoaded = false
     renderWithProviders(<HabitList filters={defaultFilters} />)
@@ -1206,6 +1215,24 @@ describe('HabitList', () => {
     } finally {
       consoleError.mockRestore()
     }
+  })
+
+  it.each([false, true])('does not announce whole-day completion from a monthly subset, showCompleted=%s', (showCompleted) => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 2
+    const daily = createMockHabit({ id: 'daily-pending', frequencyUnit: 'Day', scheduledDates: [TODAY] })
+    const monthly = createMockHabit({ id: 'monthly-done', frequencyUnit: 'Month', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById = new Map([[daily.id, daily], [monthly.id, monthly]])
+    mockHabitsData.topLevelHabits = [daily, monthly]
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} showCompleted={showCompleted} />)
+    expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
+    mockHabitsData.habitsById = new Map([[monthly.id, monthly]])
+    mockHabitsData.topLevelHabits = [monthly]
+    rendered.rerenderWithProviders(<HabitList filters={{ ...defaultFilters, frequencyUnit: 'Month' }} showCompleted={showCompleted} />)
+    expect(screen.queryByText('habits.allDoneHint')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={showCompleted} />)
+    expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {

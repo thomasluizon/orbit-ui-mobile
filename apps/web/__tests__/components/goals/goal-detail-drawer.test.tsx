@@ -1,5 +1,6 @@
 import { personalText } from '@/__tests__/support/personal-text'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
@@ -77,8 +78,84 @@ describe('GoalDetailDrawer', () => {
     nextIntl.locale = 'en'
     deleteMutateAsync.mockClear()
     useAppToastStore.setState({ currentToast: null, queue: [] })
-    useChatStore.setState({ draft: '', draftHydrated: true })
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     useUIStore.setState({ astraConversationOpen: false })
+  })
+
+  it('opens Astra with the selected goal while retaining inline detail for return', () => {
+    const onOpenChange = vi.fn()
+    detailGoal = { ...detailGoal, title: 'Synced goal' }
+    render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' }))
+    expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(onOpenChange).not.toHaveBeenCalled()
+    act(() => useUIStore.getState().setAstraConversationOpen(false))
+    expect(screen.getByRole('heading', { name: 'Synced goal' })).toBeTruthy()
+  })
+
+  it('waits for the goal sheet exit before opening Astra', async () => {
+    let finishExit!: () => void
+    const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
+    const onOpenChange = vi.fn()
+    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
+    const drawer = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
+    const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
+    Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' }))
+    try {
+      await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
+      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(onOpenChange).not.toHaveBeenCalled()
+      act(() => useChatStore.getState().setDraft('Typed during dismissal'))
+      await act(async () => { finishExit() })
+      await waitFor(() => expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false))
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useChatStore.getState().draft).toBe('Typed during dismissal')
+      expect(useChatStore.getState().contextualSuggestion?.prompt).toContain('Read 12 books')
+    } finally {
+      await act(async () => { finishExit() })
+    }
+  })
+
+  it('keeps an existing draft and offers the goal request as a suggestion', () => {
+    useChatStore.setState({ draft: 'My unfinished message' })
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' }))
+    expect(useChatStore.getState().draft).toBe('My unfinished message')
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'goal-detail:1', label: 'nav.astra',
+      prompt: 'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
+    })
+    const chips = buildComposerChips({
+      surface: 'progress', status: 'success', habits: [], totalHabitCount: 0,
+      profile: createMockProfile(), contextualSuggestion: useChatStore.getState().contextualSuggestion,
+    })
+    expect(chips[0]?.id).toBe('goal-detail:1')
+    expect(chips[0]?.prompt).toBe('goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}')
+  })
+
+  it('disables the goal request until the saved draft is hydrated', () => {
+    useChatStore.setState({ draftHydrated: false })
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    const action = screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })
+    expect(action).toBeDisabled()
+    fireEvent.click(action)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    act(() => useChatStore.setState({ draftHydrated: true }))
+    expect(action).toBeEnabled()
+  })
+
+  it('offers the cached goal on detail error and no request for an unavailable goal', () => {
+    detailLoadError = true
+    detailAvailable = false
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' }))
+    expect(useChatStore.getState().draft).toContain('Read 12 books')
+    expect(screen.getByText('goals.detail.loadError')).toBeTruthy()
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
+    expect(screen.queryByRole('button', { name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault' })).toBeNull()
   })
 
   it('renders nothing when closed', () => {
