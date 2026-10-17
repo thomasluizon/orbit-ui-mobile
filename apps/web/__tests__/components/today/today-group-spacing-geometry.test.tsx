@@ -104,6 +104,38 @@ describe('Hoje group spacing', () => {
       expect.soft(spacing.lineToDate).toBeCloseTo(24 * textScale, 1)
       expect(spacing.dateToList).toBeCloseTo(24, 1)
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
+      const line = page.locator('.today-astra-line')
+      await line.focus()
+      await page.keyboard.press('Shift+Tab')
+      await page.keyboard.press('Tab')
+      const perimeter = await line.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        await Promise.all(document.getAnimations().map((animation) => animation.finished))
+        const bounds = element.getBoundingClientRect()
+        const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+        const client = scroller.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        const extent = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset)
+        return {
+          focused: element === document.activeElement && element.matches(':focus-visible'),
+          leftInset: bounds.left - client.left - scroller.clientLeft,
+          rightInset: client.left + scroller.clientLeft + scroller.clientWidth - bounds.right,
+          ringInside: bounds.left - extent >= client.left + scroller.clientLeft
+            && bounds.right + extent <= client.left + scroller.clientLeft + scroller.clientWidth
+            && bounds.top - extent >= client.top + scroller.clientTop
+            && bounds.bottom + extent <= client.top + scroller.clientTop + scroller.clientHeight,
+          outlineWidth: Number.parseFloat(style.outlineWidth), outlineStyle: style.outlineStyle,
+          inlineStart: Number.parseFloat(style.paddingInlineStart), inlineEnd: Number.parseFloat(style.paddingInlineEnd),
+          blockStart: Number.parseFloat(style.paddingTop), blockEnd: Number.parseFloat(style.paddingBottom),
+        }
+      })
+      expect(perimeter).toMatchObject({ focused: true, ringInside: true, outlineWidth: 2, outlineStyle: 'solid' })
+      expect(perimeter.leftInset).toBeCloseTo(16, 1)
+      expect(perimeter.rightInset).toBeCloseTo(16, 1)
+      expect(perimeter.inlineStart).toBeGreaterThanOrEqual(8)
+      expect(perimeter.inlineEnd).toBeGreaterThanOrEqual(8)
+      expect(perimeter.blockStart).toBeGreaterThanOrEqual(4)
+      expect(perimeter.blockEnd).toBeGreaterThanOrEqual(4)
       state.lineVisible = false
       for (const surface of ['list', 'empty', 'loading']) {
         state.surface = surface
