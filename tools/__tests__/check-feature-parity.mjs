@@ -179,6 +179,16 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
+    const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
+    const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
+    T(`${platform} every MCP web guide capability resolves to reachable rendered output`, beforeGuide.length === (platform === 'web' ? 8 : 3) && beforeGuide.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+    const originalGuide = files[guide]
+    files[guide] = 'export function ProfileMcpGuide() { return null }'
+    const afterGuide = compare(guideCapabilities, scan(current, platform), rules)
+    T(`${platform} removing the MCP web guide loses every guide capability`, afterGuide.every((entry) => entry.disposition === 'missing'))
+    T(`${platform} deleting the MCP web guide blocks every restored capability`, newLosses(afterGuide, beforeGuide).length === guideCapabilities.length)
+    files[guide] = originalGuide
     const id = `${platform}:control:chat.attachFile`
     const capability = inventory.entries.filter((entry) => entry.id === id)
     const before = compare(capability, scan(current, platform), rules)
