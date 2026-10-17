@@ -1,5 +1,7 @@
+import { PillButton } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useId } from 'react'
 import { X, Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
@@ -7,19 +9,49 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 
 interface HabitEmojiSelectorProps {
+  onSuggest?: () => void
+  canSuggest?: boolean
+  isSuggesting?: boolean
+  suggestionHint?: string
+  suggestionError?: string
   selectedEmoji: string
   onSelect: (emoji: string) => void
   isDisabled?: boolean
   wellSize?: number
 }
 
+function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, hintId, errorId }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'> & { hintId: string; errorId: string }>) {
+  const t = useTranslations()
+  return onSuggest ? (
+    <PillButton
+      variant="ghost"
+      iconOnly
+      minimumHeight={TOUCH_TARGET_MIN}
+      label={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      loading={isSuggesting}
+      disabled={!canSuggest || isDisabled}
+      descriptionId={[suggestionHint ? hintId : '', suggestionError ? errorId : ''].filter(Boolean).join(' ') || undefined}
+      onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
+    >
+      <AstraGlyph size={20} />
+    </PillButton>
+  ) : null
+}
+
 export function HabitEmojiSelector({
+  onSuggest,
+  canSuggest = false,
+  isSuggesting = false,
+  suggestionHint,
+  suggestionError,
   selectedEmoji,
   onSelect,
   isDisabled = false,
   wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
+  const hintId = useId()
+  const errorId = useId()
   const [pickerOpen, setPickerOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
@@ -52,7 +84,8 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <div className="flex shrink-0 items-end gap-2">
+      <div className="flex max-w-full min-w-0 flex-col gap-2">
+        <div className="flex items-center gap-3">
         <button
           type="button"
           className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
@@ -72,6 +105,10 @@ export function HabitEmojiSelector({
         >
           {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
         </button>
+        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={errorId} />
+        </div>
+        {onSuggest && suggestionHint ? <p id={hintId} className="text-sm text-[var(--fg-2)]">{suggestionHint}</p> : null}
+        {onSuggest ? <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">{suggestionError}</p> : null}
       </div>
 
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (

@@ -1,3 +1,5 @@
+import { PillButton } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
@@ -13,6 +15,11 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
+  onSuggest?: () => void
+  canSuggest?: boolean
+  isSuggesting?: boolean
+  suggestionHint?: string
+  suggestionError?: string
   selectedEmoji: string;
   tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
@@ -21,7 +28,30 @@ interface HabitEmojiSelectorProps {
   wellSize?: number;
 }
 
+function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, tokens }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError' | 'tokens'>>) {
+  const { t } = useTranslation()
+  return onSuggest ? (
+    <PillButton
+      variant="ghost"
+      iconOnly
+      minimumHeight={TOUCH_TARGET_MIN}
+      label={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
+      loading={isSuggesting}
+      disabled={!canSuggest || isDisabled}
+      hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
+      onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
+    >
+      <AstraGlyph size={20} color={tokens.fg1} />
+    </PillButton>
+  ) : null
+}
+
 export function HabitEmojiSelector({
+  onSuggest,
+  canSuggest = false,
+  isSuggesting = false,
+  suggestionHint,
+  suggestionError,
   selectedEmoji,
   tokens,
   styles,
@@ -62,7 +92,8 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <View style={styles.emojiField}>
+      <View style={{ gap: 8, maxWidth: '100%' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
@@ -87,6 +118,10 @@ export function HabitEmojiSelector({
             <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
           )}
         </Pressable>
+        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} tokens={tokens} />
+        </View>
+        {onSuggest && suggestionHint ? <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionHint}</Text> : null}
+        {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionError}</Text> : null}
       </View>
 
       {pickerOpen ? (<Sheet

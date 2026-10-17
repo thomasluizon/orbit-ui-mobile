@@ -93,6 +93,39 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
+    const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestEmoji={onSuggestEmoji} />) })
+    const button = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiSuggest')[0]!
+    expect(button.props.disabled).toBe(!title.trim())
+    await TestRenderer.act(async () => { await button.props.onPress() })
+    expect(onSuggestEmoji).toHaveBeenCalledTimes(title.trim() ? 1 : 0)
+    if (!title.trim()) expect(button.props.accessibilityHint).toBe('habits.form.titleRequired')
+  })
+
+  it('keeps the emoji request visible and busy while blocking competing emoji edits', async () => {
+    const onSuggestEmoji = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestEmoji={onSuggestEmoji} isEmojiSuggesting />) })
+    const button = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiSuggesting')[0]!
+    expect(button.props.disabled).toBe(true)
+    expect(button.props.accessibilityState.busy).toBe(true)
+    const picker = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')[0]!
+    expect(picker.props.disabled).toBe(true)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('explains the emoji allowance boundary and keeps request failures inline', async () => {
+    mockProfileState.aiMessagesUsed = 5
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Swim' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestEmoji={vi.fn()} emojiSuggestionError="Try again" />) })
+    const button = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiSuggest')[0]!
+    expect(button.props.disabled).toBe(true)
+    expect(button.props.accessibilityHint).toBeTruthy()
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert' && node.props.children === 'Try again')).toHaveLength(1)
+  })
+
   it('announces the details expanded state across toggles', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

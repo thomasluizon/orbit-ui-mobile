@@ -16,6 +16,7 @@ import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { toTime24,
   buildHabitAstraFallbackCopy,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
   createHabitFormController,
@@ -225,6 +226,10 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
+  isEmojiSuggesting = false,
+  emojiSuggestionError,
+  emojiSuggestionLimitReached = false,
   isSuggesting = false,
   readPhraseLocally = false,
   lockedGeneral = null,
@@ -314,6 +319,11 @@ export function HabitFormFields({
     [allowance, translate],
   )
 
+  const emojiAvailability = buildHabitEmojiSuggestionAvailability(title, atMessageLimit || emojiSuggestionLimitReached, {
+    titleRequired: t('habits.form.titleRequired'),
+    limitReached: astraFallbackCopy.limitMessage,
+  })
+
   const controller = useMemo(() => createHabitFormController({
     action: onSuggestSetup,
     atLimit: atMessageLimit,
@@ -396,7 +406,12 @@ export function HabitFormFields({
           controller.setTitle(value)
         }}
         onEmojiSelect={controller.setEmoji}
-        isSuggestionDisabled={isSuggesting}
+        onSuggestEmoji={onSuggestEmoji}
+        canSuggestEmoji={emojiAvailability.canSuggest}
+        isEmojiSuggesting={isEmojiSuggesting}
+        emojiSuggestionHint={emojiAvailability.hint}
+        emojiSuggestionError={emojiSuggestionError}
+        isSuggestionDisabled={isSuggesting && !isEmojiSuggesting}
         onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onQuantityChange={controller.setQuantity}
         labels={understandingLabels}
