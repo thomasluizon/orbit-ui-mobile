@@ -151,7 +151,7 @@ for (const input of ['click', 'Enter', 'Space'] as const) {
     await expect(page).toHaveURL(/\/$/)
     const today = row.getByRole('button', { name: new RegExp(`^${ptBr.dates.today},`) })
     await expect(today).toHaveAttribute('aria-disabled', 'true')
-    await today.click()
+    await today.click({ force: true })
     await expect(page).toHaveURL(/\/$/)
   })
 }
