@@ -64,8 +64,16 @@ describe('NotificationDetailModal navigation', () => {
     sheetTestControls.defer(false)
   })
 
-  it('opens a progress notification on Progresso after the sheet closes', () => {
-    const { tree, onClose } = renderModal('/progress')
+  it.each([
+    ['/progress', '/progress'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals', '/progress/goals'],
+    ['/progress/achievements', '/progress/achievements'],
+    ['/streak?source=inbox#freezes', '/progress/streak?source=inbox#freezes'],
+    ['/goals?status=Active', '/progress/goals?status=Active'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+  ])('opens notification %s in its screen after the sheet closes', (url, destination) => {
+    const { tree, onClose } = renderModal(url)
     const openAction = findOpenAction(tree.root)
     expect(openAction).toBeDefined()
 
@@ -74,7 +82,7 @@ describe('NotificationDetailModal navigation', () => {
     })
 
     expect(onClose).toHaveBeenCalled()
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith(destination)
   })
 
   it('preserves the closed month after the sheet closes', () => {

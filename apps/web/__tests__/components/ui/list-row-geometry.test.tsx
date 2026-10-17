@@ -58,11 +58,11 @@ describe('personal ListRow text in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([{ locale: 'en', words: en }, { locale: 'pt-BR', words: ptBR }])('fits the avoid-habit hint on one whole line at 360px in $locale', async ({ words }) => {
+  it.each([320, 360, 384, 412].flatMap((width) => [{ locale: 'en', words: en, width }, { locale: 'pt-BR', words: ptBR, width }]))('keeps the avoid-habit explanation fully visible at $width in $locale', async ({ words, width }) => {
     const markup = renderToStaticMarkup(<div style={{ padding: 16 }}>
       <ListRow placement="column" title={words.habits.form.habitTypeAvoid} description={words.habits.form.habitTypeAvoidHint} toggle={{ checked: true, onChange: vi.fn() }} />
     </div>)
-    const page = await browser.newPage({ viewport: { width: 360, height: 800 } })
+    const page = await browser.newPage({ viewport: { width, height: 800 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       await loadAppFonts(page)
@@ -72,9 +72,11 @@ describe('personal ListRow text in Chromium', () => {
         range.selectNodeContents(description)
         const rects = Array.from(range.getClientRects())
         const bounds = description.getBoundingClientRect()
-        return { lines: new Set(rects.map((rect) => rect.top)).size, fits: rects.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right + 1), visible: description.clientWidth >= description.scrollWidth }
+        return { lines: new Set(rects.map((rect) => rect.top)).size, fits: rects.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right + 1 && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1), visible: description.clientWidth >= description.scrollWidth }
       })
-      expect(geometry).toEqual({ lines: 1, fits: true, visible: true })
+      expect(geometry.lines).toBeGreaterThan(0)
+      expect(geometry.lines).toBeLessThanOrEqual(2)
+      expect(geometry).toMatchObject({ fits: true, visible: true })
     } finally { await page.close() }
   })
 

@@ -24,6 +24,39 @@ permissions:
   pull-requests: read
 
 jobs:
+  feature-parity:
+    name: Production Feature Parity
+    if: github.event_name == 'pull_request' && github.base_ref == 'redesign/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Resolve pull request changed paths
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
+      - name: Regenerate inventory and reject new capability losses
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
+            git fetch origin main
+            node tools/check-feature-parity.mjs --write --ci --base "origin/$BASE_REF"
+          fi
+      - name: Upload capability evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-feature-parity
+          path: .claude/manifests/feature-parity.json
+
   timeless:
     name: Timeless Text
     runs-on: ubuntu-latest

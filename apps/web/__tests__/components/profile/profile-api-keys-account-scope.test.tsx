@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { resetAuthStore, retireHeldAccount } from '@/__tests__/support/account-change'
+import type { ApiKey } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -15,7 +16,7 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), error: null as string | null, locale: 'en' as 'en' | 'pt-BR' }))
+const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), error: null as string | null, locale: 'en' as 'en' | 'pt-BR', apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: management.push }) }))
 vi.mock('next-intl', async (importOriginal) => {
@@ -32,8 +33,8 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 vi.mock('@/lib/actions/api-keys', () => ({ requestApiKeyCreationChallenge: vi.fn() }))
 vi.mock('@/hooks/use-api-key-management', () => ({
   useApiKeyManagement: () => ({
-    apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
-    apiKeys: [],
+    apiKeysQuery: { isLoading: management.loading, error: management.loadError, refetch: management.retry },
+    apiKeys: management.apiKeys,
     canCreateKey: true,
     createGrantAvailable: true,
     createKeyError: management.error,
@@ -94,6 +95,9 @@ beforeEach(async () => {
   await resetAuthStore()
   localStorage.clear()
   vi.mocked(requestApiKeyCreationChallenge).mockReset()
+  management.apiKeys = []
+  management.loading = false
+  management.loadError = null
   management.handleCreateKey.mockReset()
   management.error = null
   management.locale = 'en'
@@ -145,6 +149,9 @@ it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', ()
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
   expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
   expectSmallSheetActions()
+  expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeDisabled()
+  fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
+  expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeEnabled()
 })
 
 it('takes the revealed API key off the screen when another account replaces the tab', async () => {
@@ -347,4 +354,66 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('labels the name and required er
   fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction }))
   expect(name).toHaveAccessibleDescription(messages.orbitMcp.keyNameRequired)
   expect(management.handleCreateKey).not.toHaveBeenCalled()
+})
+
+const detailKey: ApiKey = {
+  id: 'details-key', name: 'External tool', keyPrefix: 'orb_details', scopes: ['habits:read', 'goals:read'],
+  isReadOnly: true, createdAtUtc: '2026-01-02T12:00:00Z', lastUsedAtUtc: '2026-02-03T12:00:00Z',
+  expiresAtUtc: '2027-04-05T12:00:00Z', isRevoked: false,
+}
+
+function renderKeyDetails(unlocked = true) {
+  return render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked={unlocked} /></QueryClientProvider>)
+}
+
+it('shows scopes, dates, permissions and expiry in the unlocked key list', () => {
+  management.apiKeys = [detailKey]
+  renderKeyDetails()
+  expect(screen.getByText('habits:read, goals:read')).toBeInTheDocument()
+  expect(screen.getByText('Read-only')).toBeInTheDocument()
+  expect(screen.getByText('Created')).toBeInTheDocument()
+  expect(screen.getByText('Jan 2, 2026')).toBeInTheDocument()
+  expect(screen.getByText('Last used')).toBeInTheDocument()
+  expect(screen.getByText('Feb 3, 2026')).toBeInTheDocument()
+  expect(screen.getByText('Expires Apr 5, 2027')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Revoke External tool' })).toBeInTheDocument()
+})
+
+it('preserves no scopes, unused, read/write and no expiry states', () => {
+  management.apiKeys = [{ ...detailKey, scopes: [], isReadOnly: false, lastUsedAtUtc: null, expiresAtUtc: null }]
+  renderKeyDetails()
+  expect(screen.getByText('No scopes')).toBeInTheDocument()
+  expect(screen.getByText('Never')).toBeInTheDocument()
+  expect(screen.getByText('Read/write')).toBeInTheDocument()
+  expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument()
+})
+
+it('withholds key details while access is locked or the list is loading', () => {
+  management.apiKeys = [detailKey]
+  const view = renderKeyDetails(false)
+  expect(screen.queryByText('External tool')).not.toBeInTheDocument()
+  management.loading = true
+  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
+  expect(screen.queryByText('habits:read, goals:read')).not.toBeInTheDocument()
+})
+
+it('offers retry instead of stale key details when loading fails', () => {
+  management.apiKeys = [detailKey]
+  management.loadError = new Error('unavailable')
+  renderKeyDetails()
+  expect(screen.getByRole('alert')).toHaveTextContent(en.orbitMcp.apiKeysError)
+  expect(screen.queryByText('External tool')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: en.common.retry }))
+  expect(management.retry).toHaveBeenCalledTimes(1)
+})
+
+it('localizes key details and dates in Brazilian Portuguese', () => {
+  management.locale = 'pt-BR'
+  management.apiKeys = [detailKey]
+  renderKeyDetails()
+  expect(screen.getByText(ptBR.orbitMcp.permReadOnly)).toBeInTheDocument()
+  expect(screen.getByText(ptBR.orbitMcp.created)).toBeInTheDocument()
+  expect(screen.getByText('2 de jan. de 2026')).toBeInTheDocument()
+  expect(screen.getByText('Expira em 5 de abr. de 2027')).toBeInTheDocument()
 })

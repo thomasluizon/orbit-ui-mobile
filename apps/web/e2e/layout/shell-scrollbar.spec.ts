@@ -117,7 +117,7 @@ for (const width of [1352, 1100, 600]) {
         await expectScrollbarGeometry(page)
         if (view === 'month') await expectRestingEdge(page)
       }
-      await page.goto('/progress')
+      await page.goto('/progress/goals')
       await expect(page.locator('[data-goal-id]')).toHaveCount(goals.items.length)
       await page.evaluate(() => document.fonts.ready)
       await expectScrollbarGeometry(page)

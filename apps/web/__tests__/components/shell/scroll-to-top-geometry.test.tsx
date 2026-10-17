@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -32,6 +33,7 @@ describe('Hoje back-to-top shell geometry in Chromium', () => {
     'keeps the $messages.common.top pill clear of the header, FAB and final row at $textScale text in $mode',
     async ({ messages, textScale, mode }) => {
       const { container } = render(
+        <NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
         <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
           header={<div style={{ minHeight: 48 }}>Header</div>}
           composer={<div style={{ minHeight: 48 }}>Composer</div>}
@@ -40,7 +42,8 @@ describe('Hoje back-to-top shell geometry in Chromium', () => {
           scrollToTop={<PillButton variant="ghost" quiet elevated minimumHeight={48} accessibleName={messages.common.backToTop}
             leadingIcon={<ArrowUp size={20} strokeWidth={2} aria-hidden="true" />} onClick={vi.fn()}>{messages.common.top}</PillButton>}>
           {Array.from({ length: 40 }, (_, index) => <div key={index} data-row={index} style={{ minHeight: 48 }}>Habit {index}</div>)}
-        </ShellWide>,
+        </ShellWide>
+        </NextIntlClientProvider>,
       )
       for (const width of [320, 412]) {
         const page = await browser.newPage({ viewport: { width, height: 740 }, reducedMotion: 'reduce' })

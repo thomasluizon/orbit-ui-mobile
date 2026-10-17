@@ -12,6 +12,7 @@ import { getApiKeyNameError } from '@orbit/shared/validation'
 import { API } from '@orbit/shared/api'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -37,6 +38,30 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
+}
+
+function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
+  const { t } = useTranslation()
+  const tokens = useTokens()
+  const { displayDateMedium } = useDateFormat()
+  const textStyle = [styles.keyDetailText, { color: tokens.fg3 }]
+  return (
+    <View style={styles.keyDetails}>
+      <Text selectable style={textStyle}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</Text>
+      <Text selectable style={textStyle}>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</Text>
+      <View style={styles.keyDates}>
+        <View style={styles.keyDateRow}>
+          <Text selectable style={textStyle}>{t('orbitMcp.created')}</Text>
+          <Text selectable style={textStyle}>{displayDateMedium(apiKey.createdAtUtc)}</Text>
+        </View>
+        <View style={styles.keyDateRow}>
+          <Text selectable style={textStyle}>{t('orbitMcp.lastUsed')}</Text>
+          <Text selectable style={textStyle}>{apiKey.lastUsedAtUtc ? displayDateMedium(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}</Text>
+        </View>
+      </View>
+      {apiKey.expiresAtUtc ? <Text selectable style={textStyle}>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</Text> : null}
+    </View>
+  )
 }
 
 interface ApiKeyListProps {
@@ -68,22 +93,24 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   return (
     <RowList>
       {apiKeys.map((apiKey) => (
-        <ListRow
-          compact
-          key={apiKey.id}
-          icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
-          title={apiKey.name}
-          textMode="personal"
-          wrapTitle
-          value={`${apiKey.keyPrefix}…`}
-          chevron={false}
-          action={{
-            icon: 'trash',
-            label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
-            danger: true,
-            onPress: () => onRevoke(apiKey.id),
-          }}
-        />
+        <View key={apiKey.id}>
+          <ListRow
+            compact
+            icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
+            title={apiKey.name}
+            textMode="personal"
+            wrapTitle
+            value={`${apiKey.keyPrefix}…`}
+            chevron={false}
+            action={{
+              icon: 'trash',
+              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
+              danger: true,
+              onPress: () => onRevoke(apiKey.id),
+            }}
+          />
+          <ApiKeyDetails apiKey={apiKey} />
+        </View>
       ))}
     </RowList>
   )
@@ -533,6 +560,10 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
 }
 
 const styles = StyleSheet.create({
+  keyDetails: { gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  keyDates: { gap: 4 },
+  keyDateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  keyDetailText: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
   root: { gap: 8 },
   headingRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   heading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
