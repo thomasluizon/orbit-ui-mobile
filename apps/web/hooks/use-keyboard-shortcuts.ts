@@ -22,6 +22,7 @@ export function useKeyboardShortcuts(enabled = true): void {
   const togglePalette = useShellStore((state) => state.togglePalette)
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setActiveView = useUIStore((state) => state.setActiveView)
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -51,6 +52,9 @@ export function useKeyboardShortcuts(enabled = true): void {
           return true
         case 'c':
           navigate('/calendar')
+          return true
+        case 'a':
+          setAstraConversationOpen(true)
           return true
         case 'i':
           navigate('/progress')
@@ -95,5 +99,5 @@ export function useKeyboardShortcuts(enabled = true): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [enabled, paletteOpen, router, togglePalette, setActiveView])
+  }, [enabled, paletteOpen, router, togglePalette, setActiveView, setAstraConversationOpen])
 }

@@ -1449,6 +1449,54 @@ describe('HabitDetailScreen', () => {
     expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
+  it('keeps the description expanded while selecting its text', async () => {
+    const description = 'A note worth selecting'
+    mocks.detail = { ...makeDetail(), description }
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const toggle = screen.getByRole('button', { name: description })
+    fireEvent.click(toggle)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.detail.copyDescription' })) })
+    expect(screen.getByText('habits.detail.copyFailed')).toBeInTheDocument()
+    const text = document.getElementById('habit-description')!
+    expect(text.closest('button')).toBeNull()
+    const selection = document.getSelection()!
+    try {
+      fireEvent.pointerDown(text, { pointerType: 'touch' })
+      selection.selectAllChildren(text)
+      fireEvent.pointerUp(text, { pointerType: 'touch' })
+      fireEvent.click(text, { detail: 1 })
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(selection.toString()).toBe(description)
+      selection.collapse(text, 0)
+      fireEvent.pointerDown(text, { pointerType: 'touch' })
+      selection.selectAllChildren(text)
+      fireEvent.pointerUp(text, { pointerType: 'touch' })
+      fireEvent.click(text, { detail: 1 })
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(selection.toString()).toBe(description)
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(document.getElementById('habit-description')).toHaveTextContent(description)
+    } finally {
+      selection.removeAllRanges()
+    }
+  })
+
+  it('copies the full description from habit details', async () => {
+    const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
+    mocks.detail = { ...makeDetail(), description }
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(document.querySelector('[data-habit-detail-description] button')!)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.detail.copyDescription' })) })
+    expect(writeText).toHaveBeenCalledWith(description)
+  })
+
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
     mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
     mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }
