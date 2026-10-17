@@ -63,14 +63,14 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
         const profileInset = await measureTopInset(firstCard)
         expect(profileInset.column).toBeGreaterThanOrEqual(16)
-        expect(profileInset).toEqual({ column: width < 1024 ? 76 : 32, scroller: width < 1024 ? 76 : 0 })
+        expect(profileInset).toEqual({ column: width < 1024 ? 100 : 32, scroller: width < 1024 ? 100 : 0 })
 
         await page.goto('/progress')
         const streak = page.getByRole('region', { name: words.progressScreen.sections.streak, exact: true })
         await expect(streak).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
-        expect(await measureTopInset(streak)).toEqual({ column: width < 1024 ? 96 : 48, scroller: width < 1024 ? 96 : 16 })
+        expect(await measureTopInset(streak)).toEqual({ column: width < 1024 ? 120 : 48, scroller: width < 1024 ? 120 : 16 })
       })
     })
   }
@@ -83,7 +83,7 @@ async function assertBellRow(row: Locator, todayBellX: number | undefined, width
   }
   await expect(row).toBeVisible()
   const bounds = await row.boundingBox()
-  expect(bounds!.height).toBe(48)
+  expect(bounds!.height).toBe(72)
   const bell = await row.getByRole('button').boundingBox()
   expect(bell!.x).toBe(todayBellX)
   expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)

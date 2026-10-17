@@ -417,7 +417,7 @@ describe('ProgressContent', () => {
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
         expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
-          topInset: width < 1024 ? 96 : 16, headerHeight: width < 1024 ? 48 : 0,
+          topInset: width < 1024 ? 120 : 16, headerHeight: width < 1024 ? 72 : 0,
           trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
