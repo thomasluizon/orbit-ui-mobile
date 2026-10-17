@@ -227,7 +227,7 @@ describe('web Today Astra', () => {
         : new Date(Date.now() - (variant === 'elapsed' ? 3 : 31) * 86_400_000).toISOString().slice(0, 10)
       mocks.item = variant === 'proactive' ? createMockProactiveItem({
         text: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
-        
+
       }) : null
       mocks.portuguese = true
       const { container, unmount } = renderTodayAstra()
