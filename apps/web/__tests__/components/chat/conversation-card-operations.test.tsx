@@ -175,7 +175,9 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   mutations.clarification.mockReturnValue(new Promise(resolve => { finish = resolve }))
   const owner = renderScrollingConversation()
   await act(async () => { await new Promise(requestAnimationFrame) })
+  owner.feed.scrollTop = 860
   start('clarification')
+  fireEvent.scroll(owner.feed)
   if (reading) {
     owner.feed.scrollTop = 100
     fireEvent.scroll(owner.feed)

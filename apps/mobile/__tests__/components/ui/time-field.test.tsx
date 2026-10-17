@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useState } from 'react'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
@@ -14,11 +15,11 @@ import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
 
-let mockUses24HourClock = true
+let mockUses24HourClock: boolean | undefined = true
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: {
+    profile: mockUses24HourClock === undefined ? undefined : {
       uses24HourClock: mockUses24HourClock,
       timeZone: 'America/Sao_Paulo',
     },
@@ -82,7 +83,82 @@ async function pressDone(tree: any) {
   })
 }
 
+function ProfileTimeFields() {
+  const [value, setValue] = useState<Time24 | ''>('')
+  return (
+    <>
+      <TimeField label="Start" value={value} onChange={setValue} onClear={() => setValue('')} />
+      <TimeField label="End" value="" onChange={vi.fn()} disabled={!value} />
+    </>
+  )
+}
+
 describe('TimeField', () => {
+  it.each([
+    { typed: '08:00', expected: '08:00', enabled: true },
+    { typed: '8:13 pm', expected: '20:13', enabled: true },
+    { typed: '12:00 am', expected: '00:00', enabled: true },
+    { typed: '08:', expected: '', enabled: false },
+    { typed: '25:00', expected: '', enabled: false },
+    { typed: '', expected: '', enabled: false },
+  ])('reconciles "$typed" when the profile resolves its hour cycle', async ({ typed, expected, enabled }) => {
+    mockUses24HourClock = undefined
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { await Promise.resolve(); tree = TestRenderer.create(<ProfileTimeFields />) })
+    const input = (label: string) => tree.root.findAllByType('TextInput').find(
+      (node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === label,
+    )
+    expect(input('Start').props.keyboardType).toBe('default')
+    TestRenderer.act(() => input('Start').props.onFocus())
+    TestRenderer.act(() => input('Start').props.onChangeText(typed))
+    mockUses24HourClock = true
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.update(<ProfileTimeFields />) })
+    expect(input('Start').props.keyboardType).toBe('number-pad')
+    expect(input('Start').props.value).toBe(enabled ? expected : typed)
+    expect(input('End').props.editable).toBe(enabled)
+    TestRenderer.act(() => input('Start').props.onBlur())
+    expect(input('Start').props.value).toBe(expected)
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+  it('does not commit a draft after the field becomes disabled while the profile resolves', async () => {
+    mockUses24HourClock = undefined
+    const onChange = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(<TimeField label="Time" value="" onChange={onChange} />)
+    })
+    const input = () => tree.root.findByType('TextInput')
+    TestRenderer.act(() => input().props.onFocus())
+    TestRenderer.act(() => input().props.onChangeText('08:00'))
+    expect(onChange).not.toHaveBeenCalled()
+    mockUses24HourClock = true
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree.update(<TimeField label="Time" value="" onChange={onChange} disabled />)
+    })
+    expect(input().props.editable).toBe(false)
+    expect(onChange).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+  it('presents a committed time in 12-hour format when the preference changes while typing', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { await Promise.resolve(); tree = TestRenderer.create(<ProfileTimeFields />) })
+    const input = () => tree.root.findAllByType('TextInput')[0]
+    TestRenderer.act(() => input().props.onFocus())
+    TestRenderer.act(() => input().props.onChangeText('20:13'))
+    mockUses24HourClock = false
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.update(<ProfileTimeFields />) })
+    expect(input().props.value).toBe('8:13 pm')
+    TestRenderer.act(() => input().props.onBlur())
+    expect(input().props.value).toBe('8:13 pm')
+    expect(tree.root.findAllByType('TextInput')[1].props.editable).toBe(true)
+    await TestRenderer.act(async () => { await Promise.resolve(); tree.unmount() })
+  })
+
+
   it.each([true, false])('keeps every selected value tinted and ringed at rest and press with 24-hour clock %s', async (uses24HourClock) => {
     mockUses24HourClock = uses24HourClock
     let tree: any

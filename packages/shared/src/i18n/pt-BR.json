@@ -47,7 +47,7 @@
     "homeScreen": {
       "title": "Tela inicial",
       "showGeneral": "Sem dia certo",
-      "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
+      "showGeneralDesc": "Aparecem no Hoje"
     },
     "clock": {
       "title": "Relógio",
@@ -771,6 +771,7 @@
       "dueDate": "Começar em",
       "dueTime": "Horário",
       "dueEndTime": "Horário final",
+      "endTimeRequiresStart": "Defina o horário inicial para adicionar o horário final.",
       "reminder": "Me lembrar",
       "reminderAtTime": "Na hora",
       "reminder5minAfter": "5 min depois",
@@ -913,6 +914,7 @@
       "linkedGoal": "Meta vinculada",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
       "copyDescription": "Copiar descrição",
+      "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
       "screenTitle": "Hábito",
       "loading": "Carregando hábito",
@@ -985,6 +987,8 @@
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
       "createAsParent": "Agrupar como hábito principal",
+      "groupingDenied": "Não foi possível agrupar os hábitos. Nada foi salvo. Desmarque a opção de agrupar para criar os hábitos separados.",
+      "capacityDenied": "A proposta passa do limite de hábitos. Remova um hábito da proposta e tente de novo.",
       "every": "a cada",
       "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"
@@ -1199,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} de {scheduled}",
+      "unscheduledDay": "{date} · Nada programado",
       "date": "Data",
       "rate": "Taxa",
       "completed": "Concluídos",
