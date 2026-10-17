@@ -320,7 +320,7 @@
     },
     "mobile:control:gamification.title": {
       "targets": [
-        "mobile:display:progressScreen.sections.achievements"
+        "mobile:control:progressScreen.sections.achievements"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -1468,7 +1468,7 @@
       "targets": [
         "mobile:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "mobile:route:/streak": {
       "targets": [
@@ -3052,7 +3052,7 @@
       "targets": [
         "web:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "web:route:/explore": {
       "targets": [
@@ -3415,17 +3415,17 @@
     },
     "mobile:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/retrospective": {
@@ -3918,12 +3918,12 @@
     },
     "web:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/insights": {
@@ -3934,7 +3934,7 @@
     },
     "web:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/retrospective": {
@@ -4089,7 +4089,7 @@
     },
     "duplicate-settings-pages": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Perfil sub-menus replace duplicate pages; their individual settings remain in the audit."
     },
     "old-floating-back-to-top": {
