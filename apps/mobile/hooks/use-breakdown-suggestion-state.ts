@@ -8,6 +8,10 @@ import {
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
+  createAsParent: boolean
+  completed: boolean
+  groupingLocked: boolean
+  isSubmitting: boolean
   confirmOpen: boolean
   editingId: string | null
   failedIds: string[]
@@ -18,6 +22,7 @@ interface BreakdownSuggestionState {
   cycleCadence: (id: string) => void
   editTitle: (id: string, title: string) => void
   reject: () => void
+  setCreateAsParent: (checked: boolean) => void
   setConfirmOpen: Dispatch<SetStateAction<boolean>>
   setEditingId: Dispatch<SetStateAction<string | null>>
   submit: (onlyIds?: readonly string[]) => Promise<void>
@@ -37,11 +42,16 @@ export function useBreakdownSuggestionState({
   const [habits, setHabits] = useState<BreakdownDraftHabit[]>(() =>
     createBreakdownDrafts(subHabits),
   )
+  const [createAsParent, setCreateAsParent] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [results, setResults] = useState<Record<string, BreakdownItemResult>>({})
   const failedIds = getFailedBreakdownIds(habits, results)
+  const groupingLocked = isSubmitting || Object.keys(results).length > 0
+  const validHabits = filterValidBreakdownHabits(habits)
+  const completed = validHabits.length > 0 && validHabits.every((habit) => results[habit.id] === 'done')
 
   const editTitle = useCallback((id: string, title: string) => {
     setHabits((current) => editBreakdownTitle(current, id, title))
@@ -52,21 +62,29 @@ export function useBreakdownSuggestionState({
   }, [])
 
   const submit = useCallback(async (onlyIds?: readonly string[]) => {
+    if (isSubmitting || rejected) return
     const selected = selectBreakdownHabits(habits, onlyIds)
     const valid = filterValidBreakdownHabits(selected)
-    if (valid.length === 0) return
+    if (valid.length === 0 || valid.every((habit) => results[habit.id] === 'done')) return
 
+    setIsSubmitting(true)
     try {
-      const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, false))
-      const nextResults = mergeBreakdownResults(results, selected, response)
+      const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, createAsParent))
+      const nextResults = mergeBreakdownResults(results, valid, response, createAsParent)
       setResults(nextResults)
-      if (response.results.every((result) => result.status === 'Success')) onConfirmed()
+      if (valid.every((habit) => nextResults[habit.id] === 'done')) onConfirmed()
     } catch {
-      setResults((current) => failBreakdownResults(current, selected))
+      setResults((current) => failBreakdownResults(current, valid))
+    } finally {
+      setIsSubmitting(false)
     }
-  }, [habits, onBulkCreate, onConfirmed, parentName, results])
+  }, [createAsParent, habits, isSubmitting, onBulkCreate, onConfirmed, parentName, rejected, results])
 
   return {
+    createAsParent,
+    completed,
+    groupingLocked,
+    isSubmitting,
     confirmOpen,
     editingId,
     failedIds,
@@ -77,6 +95,7 @@ export function useBreakdownSuggestionState({
     cycleCadence,
     editTitle,
     reject: () => setRejected(true),
+    setCreateAsParent: (checked) => { if (!groupingLocked) setCreateAsParent(checked) },
     setConfirmOpen,
     setEditingId,
     submit,
