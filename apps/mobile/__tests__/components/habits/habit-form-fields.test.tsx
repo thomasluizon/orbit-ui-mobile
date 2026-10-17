@@ -884,6 +884,7 @@ describe('habit tag suggestions', () => {
     await renderTagForm('Run', '   ')
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+    expect(button('habits.form.suggestTags').props.accessibilityHint).toBe('habits.form.suggestingTags')
     expect(text('habits.form.suggestingTags')[0]!.props.accessibilityLiveRegion).toBe('polite')
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
     await TestRenderer.act(() => resolve({ tags: [] }))

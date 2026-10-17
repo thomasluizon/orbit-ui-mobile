@@ -1,7 +1,7 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import { useContext, type CSSProperties, type Ref } from 'react'
+import { useContext, useId, type CSSProperties, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
@@ -70,6 +70,10 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
   }
 }
 
+function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
+  return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
+}
+
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
@@ -93,15 +97,18 @@ export function Button({
   brand,
   formId,
   descriptionId,
+  hint,
   buttonRef,
   quiet = false,
 }: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const withinRow = useContext(ActionRowContext)
+  const hintId = useId()
+  const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
-    <button
+    <><button
       ref={buttonRef}
       type={onClick ? 'button' : 'submit'}
       form={formId}
@@ -113,7 +120,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
-      aria-describedby={descriptionId}
+      aria-describedby={descriptionIds}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
       data-variant={variant}
@@ -126,7 +133,7 @@ export function Button({
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
       ) : iconOnly ? children : leadingIcon}
       {iconOnly ? null : <span>{children}</span>}
-    </button>
+    </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }
 

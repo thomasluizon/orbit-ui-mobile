@@ -838,6 +838,7 @@ describe('habit tag suggestions', () => {
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
     expect(tagMutations.suggest).toHaveBeenCalledTimes(1)

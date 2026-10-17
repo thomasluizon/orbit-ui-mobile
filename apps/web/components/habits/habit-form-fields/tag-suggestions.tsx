@@ -34,7 +34,7 @@ function TagSuggestionsContent({ title, description, tags, disabled, language, c
   const failure = suggestions.error
   const statusKey = tagSuggestionStatusKey(suggestions, tags.atTagLimit)
   return <div className="flex flex-col gap-4 pt-4">
-    <div className="self-start"><PillButton accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></div>
+    <div className="self-start"><PillButton hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></div>
     <div role="status" aria-label={t('habits.form.suggestTags')} className="text-sm text-[var(--fg-3)]">{statusKey ? t(statusKey) : null}</div>
     {failure ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{getFriendlyErrorMessage(failure.cause, t, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</p> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><div aria-busy={suggestions.pending === 'accept'} className="flex flex-col gap-2 p-2">

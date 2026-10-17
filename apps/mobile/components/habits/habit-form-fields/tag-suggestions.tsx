@@ -38,7 +38,7 @@ function TagSuggestionsContent({ title, description, tags, disabled, language, c
   const failure = suggestions.error
   const statusKey = tagSuggestionStatusKey(suggestions, tags.atTagLimit)
   return <View style={styles.container}>
-    <View style={styles.action}><PillButton accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} color={tokens.fg1} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></View>
+    <View style={styles.action}><PillButton hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} color={tokens.fg1} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></View>
     <Text accessibilityLiveRegion="polite" style={styles.hint}>{statusKey ? t(statusKey) : null}</Text>
     {failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{getFriendlyErrorMessage(failure.cause, t, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</Text> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><View accessibilityState={{ busy: suggestions.pending === 'accept' }} style={styles.proposals}>
