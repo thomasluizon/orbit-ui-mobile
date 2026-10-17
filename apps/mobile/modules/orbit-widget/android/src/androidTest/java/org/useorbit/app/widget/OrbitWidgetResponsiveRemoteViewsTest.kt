@@ -192,6 +192,11 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                     val freshSubtitle = signedOut.apply(context, hostView)
                         .findViewById<TextView>(R.id.widget_subtitle)
                     assertEquals(signInInstruction, freshSubtitle.contentDescription.toString())
+                    assertEquals(View.GONE, viewTree.findViewById<View>(R.id.widget_header_right).visibility)
+                    OrbitWidgetProvider.showRefresh(signedOut)
+                    signedOut.reapply(context, viewTree)
+                    assertEquals(View.VISIBLE, viewTree.findViewById<View>(R.id.widget_header_right).visibility)
+                    assertEquals(View.VISIBLE, viewTree.findViewById<View>(R.id.widget_refresh).visibility)
                 }
             }
         }
@@ -252,9 +257,11 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             val themedContext = context.createConfigurationContext(configuration)
             for ((language, units) in listOf("en" to listOf("day", "days"), "pt-BR" to listOf("dia", "dias"))) {
                 for (streak in listOf(1, 2, 365)) {
-                    preferences.edit().putString("lang", language).putInt("user_streak", streak)
-                        .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã").commit()
                     InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                        // The periodic worker can change refresh state before this render (#1404).
+                        preferences.edit().putString("lang", language).putInt("user_streak", streak)
+                            .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã")
+                            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false).commit()
                         val manager = AppWidgetManager.getInstance(themedContext)
                         val provider = manager.getAppWidgetInfo(appWidgetId)
                         hostView = appWidgetHost.createView(themedContext, appWidgetId, provider)
@@ -275,6 +282,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         assertEquals(listOf(insetPx, insetPx, insetPx, insetPx),
                             listOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom))
                         val refresh = hostView.findViewById<View>(R.id.widget_refresh)
+                        assertEquals(View.VISIBLE, refresh.visibility)
                         assertEquals(touchTargetPx, refresh.width)
                         assertEquals(touchTargetPx, refresh.height)
                         val refreshBounds = Rect(0, 0, refresh.width, refresh.height)

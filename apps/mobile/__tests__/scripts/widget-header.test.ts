@@ -247,6 +247,14 @@ describe('Android widget content sizing', () => {
         'android:layout_height': '48dp',
       })
     }
+    if (layout !== 'layout/widget_layout.xml') {
+      expect(views.get('widget_header_right')).toMatchObject({
+        'android:layout_width': '48dp',
+        'android:layout_height': '48dp',
+        'android:layout_alignParentEnd': 'true',
+      })
+      expect(views.get('widget_header_left')?.['android:layout_toStartOf']).toBe('@id/widget_header_right')
+    }
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
     expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)')
     expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)')
@@ -1031,6 +1039,8 @@ describe('Android widget header', () => {
       /fun hideRefresh\(views: RemoteViews\) \{\s*views\.setViewVisibility\(R\.id\.widget_refresh, View\.GONE\)\s*views\.setViewVisibility\(R\.id\.widget_refresh_loading, View\.GONE\)/,
     )
     expect(provider).toContain('hideRefresh(views)')
+    expect(kotlinFunctionBody(provider, 'hideRefresh')).toContain('views.setViewVisibility(R.id.widget_header_right, View.GONE)')
+    expect(kotlinFunctionBody(provider, 'applyRefreshingState')).toContain('views.setViewVisibility(R.id.widget_header_right, View.VISIBLE)')
     expect(provider).toContain('applySignedOutCard(context, fallback)')
     expect(provider).toMatch(
       /fun applySignedOutCard[\s\S]*?setTextViewText\(R\.id\.widget_header, "Orbit"\)[\s\S]*?R\.id\.widget_subtitle,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?R\.id\.widget_empty_text,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?hideRefresh\(views\)/,

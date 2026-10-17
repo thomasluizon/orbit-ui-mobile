@@ -24,28 +24,29 @@
         android:orientation="vertical"
         android:padding="@dimen/widget_inset_card">
 
-        <LinearLayout
+        <RelativeLayout
             android:id="@+id/widget_header_container"
             android:layout_width="match_parent"
             android:layout_height="@dimen/widget_touch_target"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-            <ImageView
-                android:id="@+id/widget_progress_ring"
-                android:layout_width="@dimen/widget_ring_size"
-                android:layout_height="@dimen/widget_ring_size"
-                android:layout_marginEnd="@dimen/widget_inline_gap"
-                android:importantForAccessibility="no"
-                android:contentDescription="@null"
-                android:visibility="gone" />
+            android:gravity="center_vertical">
             <LinearLayout
                 android:id="@+id/widget_header_left"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@id/widget_header_right"
                 android:layout_marginEnd="@dimen/widget_inline_gap"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/widget_progress_ring"
+                    android:layout_width="@dimen/widget_ring_size"
+                    android:layout_height="@dimen/widget_ring_size"
+                    android:layout_marginEnd="@dimen/widget_inline_gap"
+                    android:importantForAccessibility="no"
+                    android:contentDescription="@null"
+                    android:visibility="gone" />
                 <TextView
                     android:id="@+id/widget_header"
                     android:layout_width="wrap_content"
@@ -99,11 +100,12 @@
                     android:textSize="@dimen/widget_label_text_size"
                     android:visibility="gone" />
             </LinearLayout>
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/widget_header_right"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_width="@dimen/widget_touch_target"
+                android:layout_height="@dimen/widget_touch_target"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true">
                 <ImageView
                     android:id="@+id/widget_refresh"
                     android:layout_width="@dimen/widget_touch_target"
@@ -120,8 +122,8 @@
                     android:indeterminateTint="@color/widget_fg_3"
                     android:accessibilityLiveRegion="polite"
                     android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
+            </FrameLayout>
+        </RelativeLayout>
 
         <!-- Content area: list, empty message, and loading skeleton overlap so the
              skeleton can cover the area during the cold/first-load window instead of

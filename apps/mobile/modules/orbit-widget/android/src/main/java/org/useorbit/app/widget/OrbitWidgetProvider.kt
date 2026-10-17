@@ -85,6 +85,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         fun hideRefresh(views: RemoteViews) {
             views.setViewVisibility(R.id.widget_refresh, View.GONE)
             views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+            views.setViewVisibility(R.id.widget_header_right, View.GONE)
         }
 
         /** Signed in and idle: the refresh returns and its spinner goes. */
@@ -98,6 +99,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(
                 R.id.widget_refresh_loading, if (refreshing) View.VISIBLE else View.GONE
             )
+            views.setViewVisibility(R.id.widget_header_right, View.VISIBLE)
             views.setFloat(R.id.widget_list, "setAlpha", if (refreshing) 0.6f else 1f)
         }
 

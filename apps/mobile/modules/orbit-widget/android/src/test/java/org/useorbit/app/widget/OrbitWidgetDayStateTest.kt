@@ -45,6 +45,27 @@ class OrbitWidgetDayStateTest {
         assertEquals(false, header.contains("android:layout_marginStart"))
     }
 
+    @Test
+    fun `compact and narrow headers reserve the refresh slot before sizing their text`() {
+        for (layout in listOf("widget_layout_compact", "widget_layout_narrow")) {
+            val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder().parse(java.io.File("src/main/res/layout/$layout.xml"))
+            val elements = document.getElementsByTagName("*")
+            val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
+                .associateBy { it.getAttribute("android:id") }
+            val actions = views.getValue("@+id/widget_header_right")
+            for (dimension in listOf("android:layout_width", "android:layout_height")) {
+                assertEquals(layout, "@dimen/widget_touch_target", actions.getAttribute(dimension))
+            }
+            assertEquals(layout, "true", actions.getAttribute("android:layout_alignParentEnd"))
+            val summary = views.getValue("@+id/widget_header_left")
+            assertEquals(layout, "@id/widget_header_right", summary.getAttribute("android:layout_toStartOf"))
+            for (control in listOf("widget_refresh", "widget_refresh_loading")) {
+                assertEquals(layout, actions, views.getValue("@+id/$control").parentNode)
+            }
+        }
+    }
+
     private val cardSpacing = WidgetSpacing(24f, 48f, 68f, 8f, 16f, 96f)
     private val narrowSpacing = cardSpacing.copy(insetDp = 12f, headerHeightDp = 72f)
 

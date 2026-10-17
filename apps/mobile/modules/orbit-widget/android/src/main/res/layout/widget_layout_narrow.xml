@@ -114,14 +114,12 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/widget_header_right"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="@dimen/widget_touch_target"
+                android:layout_height="@dimen/widget_touch_target"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_centerVertical="true">
 
                 <!-- Refresh button -->
                 <ImageView
@@ -142,7 +140,7 @@
                     android:indeterminateTint="@color/widget_fg_3"
                     android:accessibilityLiveRegion="polite"
                     android:visibility="gone" />
-            </LinearLayout>
+            </FrameLayout>
         </RelativeLayout>
 
         <!-- Content area: list, empty message, and loading skeleton overlap so the
