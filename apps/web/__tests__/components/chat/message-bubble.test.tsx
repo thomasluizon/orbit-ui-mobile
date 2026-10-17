@@ -264,7 +264,7 @@ describe('MessageBubble', () => {
     expect(screen.getByText('chat.related.title')).toBeInTheDocument()
     const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
     fireEvent.click(link)
-    expect(push).toHaveBeenCalledWith('/progress')
+    expect(push).toHaveBeenCalledWith('/progress/achievements')
     expect(screen.queryByText('mystery')).not.toBeInTheDocument()
   })
 

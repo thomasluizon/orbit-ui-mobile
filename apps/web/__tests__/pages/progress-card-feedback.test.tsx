@@ -90,7 +90,7 @@ import { ProgressContent } from '@/app/(app)/progress/_components/progress-conte
 describe('goal card interaction feedback', () => {
   it('keeps sortable translation exact while applying drag scale', async () => {
     await act(async () => {
-      render(<ProgressContent />)
+      render(<ProgressContent screen="goals" />)
       await Promise.resolve()
     })
     const card = screen.getByRole('button', { name: (accessibleName) => accessibleName.includes('Read 12 Books') })
