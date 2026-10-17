@@ -1,8 +1,9 @@
 import { setTimeout } from 'node:timers/promises'
-import { defineConfig, mergeConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 import sharedConfig from './vitest.config.ts'
 
-export default mergeConfig(sharedConfig, defineConfig({
+export default defineConfig({
+  ...sharedConfig,
   plugins: [{
     name: 'slow-utility-barrel-import',
     async load(id) {
@@ -13,6 +14,7 @@ export default mergeConfig(sharedConfig, defineConfig({
     },
   }],
   test: {
+    ...sharedConfig.test,
     include: ['src/__tests__/types.test.ts'],
   },
-}))
+})
