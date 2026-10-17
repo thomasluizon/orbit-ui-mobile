@@ -797,7 +797,8 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     try {
       const rows = tree.root.findAllByType(ListRow)
-      expect(rows).toHaveLength(11)
+      expect(rows).toHaveLength(12)
+      expect(rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.title)).toContain((locale === 'en' ? en : ptBR).shareCard.entry)
       const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow>; children: unknown[] }) => {
         let rowTree!: ReturnType<typeof TestRenderer.create>
         TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })

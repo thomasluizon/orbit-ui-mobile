@@ -422,7 +422,8 @@ describe('ProfilePage', () => {
             overflow: row.scrollWidth > row.clientWidth,
           }
         }))
-        expect(rows).toHaveLength(11)
+        expect(rows).toHaveLength(12)
+        expect(rows.map(({ label }) => label)).toContain((locale === 'en' ? en : ptBR).shareCard.entry)
         for (const row of rows) {
           if (textScale === 1) {
             expect(row.lines, row.label!).toBe(1)

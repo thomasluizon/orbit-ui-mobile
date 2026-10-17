@@ -12,7 +12,7 @@ export function ShareCardEntryButton({ variant = 'row' }: Readonly<{ variant?: '
   const [open, setOpen] = useAccountScopedState(false)
   return <>
     {variant === 'row'
-      ? <ListRow compact textMode="label" icon={<Share2 size={24} strokeWidth={1.8} />} title={t('shareCard.entry')} onClick={() => setOpen(true)} />
+      ? <ListRow compact textMode="label" chevron={false} icon={<Share2 size={24} strokeWidth={1.8} />} title={t('shareCard.entry')} onClick={() => setOpen(true)} />
       : <PillButton variant="ghost" onClick={() => setOpen(true)} leadingIcon={<Share2 size={16} strokeWidth={2} aria-hidden="true" />}>{t('shareCard.entry')}</PillButton>}
     {open ? <ShareCardSheet onClose={() => setOpen(false)} /> : null}
   </>
