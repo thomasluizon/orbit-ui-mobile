@@ -19,6 +19,7 @@ import {
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
 import { RELEASE_HOLD_MS, checkAdmission, releaseAdmission } from "../lib/admission.mjs"
+import { runBounded } from "../lib/bounded-process.mjs"
 import {
   receiptBlocksTicketAdmission,
   acquireSubmissionLock,
@@ -79,12 +80,39 @@ const spawnTool = (entry, args, env) => {
   child.stdout.on("data", (chunk) => { stdout += chunk.toString() })
   child.stderr.on("data", (chunk) => { stderr += chunk.toString() })
   const result = new Promise((resolveResult) => {
-    child.once("close", (status) => resolveResult({ status, stdout, stderr }))
+    child.once("close", (status, signal) => resolveResult({ status, signal, stdout, stderr }))
   })
   return { child, result }
 }
 
-const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
+const runConcurrent = (entry, args, env) => runBounded(process.execPath, [entry.path, ...args], {
+  cwd: entry.repo.path,
+  env: { ...process.env, ...env },
+  timeoutMs: 30000,
+})
+
+const waitForAcceptance = async (submission, acceptedPath, timeoutMs = 15000) => {
+  let completed
+  submission.result.then((result) => { completed = result })
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    if (completed) return { stage: "exited before acceptance", ...completed }
+    const acceptance = readFileSync(acceptedPath, "utf8")
+    if (acceptance !== "") return { stage: "accepted", acceptance }
+    if (Date.now() >= deadline) return { stage: "acceptance timed out", timeoutMs }
+    await wait(10)
+  }
+}
+
+const stopSubmission = async (submission, signal) => {
+  submission.child.kill(signal)
+  const deadline = setTimeout(() => submission.child.kill("SIGKILL"), 5000)
+  try {
+    return await submission.result
+  } finally {
+    clearTimeout(deadline)
+  }
+}
 
 const cloudAdmissionAfterHold = (entry, now = Date.now() + RELEASE_HOLD_MS + 1000) => checkAdmission({
   config: { ...entry.config, repos: { ui: entry.repo.path }, caps: { maxOpenPullRequests: 0, maxQueuedRuns: 0 } },
@@ -598,24 +626,63 @@ export const cases = async () => {
   )
   const interruptedCloud = fixture("interrupted-admission")
   const acceptedPath = stage("submit-cloud/interrupted-admission-accepted.txt", "")
-  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), {
+  const startupDelay = stage("submit-cloud/startup-delay.cjs", `
+if (process.argv[1] === ${JSON.stringify(interruptedCloud.path)}) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5500)
+}
+`)
+  const delayedEnvironment = {
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS} --require "${startupDelay.replaceAll("\\", "/")}"`,
     ORBIT_FAKE_CODEX_LOG: interruptedCloud.log,
     ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
     ORBIT_FAKE_ACCEPTANCE_LOG: acceptedPath,
     ORBIT_FAKE_EXEC_DELAY_MS: "1500",
-  })
-  const acceptedDeadline = Date.now() + 5000
-  while (readFileSync(acceptedPath, "utf8") === "" && Date.now() < acceptedDeadline) await wait(10)
-  interruptedSubmission.child.kill("SIGTERM")
-  const interruptedResult = await interruptedSubmission.result
-  const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+  }
+  const beforeAcceptance = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const missedAcceptance = await waitForAcceptance(beforeAcceptance, acceptedPath, 100)
+  const beforeAcceptanceResult = await stopSubmission(beforeAcceptance, "SIGTERM")
+  const beforeAcceptanceAdmission = await cloudAdmissionAfterHold(interruptedCloud)
   T(
-    `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
-    interruptedResult.status === 143 && !interruptedAdmission.admitted &&
-      interruptedAdmission.counts.reservations?.pullRequests === 1 &&
-      interruptedAdmission.counts.reservations?.queuedRuns === 1,
-    `exit ${interruptedResult.status}: ${JSON.stringify(interruptedAdmission)}`,
+    `${TOOL}: interruption before acceptance reports startup timeout rather than lost reservations`,
+    missedAcceptance.stage === "acceptance timed out" && missedAcceptance.timeoutMs === 100 &&
+      readFileSync(acceptedPath, "utf8") === "" && beforeAcceptanceResult.status === null &&
+      beforeAcceptanceResult.signal === "SIGTERM" && beforeAcceptanceAdmission.admitted &&
+      beforeAcceptanceAdmission.counts.reservations.pullRequests === 0 &&
+      beforeAcceptanceAdmission.counts.reservations.queuedRuns === 0,
+    JSON.stringify({ ...missedAcceptance, ...beforeAcceptanceResult, admission: beforeAcceptanceAdmission }),
   )
+  releaseAdmission(beforeAcceptanceAdmission.reservationId, interruptedCloud.base, Date.now() - RELEASE_HOLD_MS - 1000)
+
+  const startupFailure = stage("submit-cloud/startup-failure.mjs", 'process.stderr.write("submission startup failed\\n"); process.exit(23)\n')
+  const failedStartup = spawnTool({ ...interruptedCloud, path: startupFailure }, [], {})
+  const failedAcceptance = await waitForAcceptance(failedStartup, acceptedPath)
+  T(
+    `${TOOL}: terminal startup failure reports exit status and stderr without waiting for acceptance`,
+    failedAcceptance.stage === "exited before acceptance" && failedAcceptance.status === 23 &&
+      failedAcceptance.signal === null && failedAcceptance.stderr === "submission startup failed\n",
+    JSON.stringify(failedAcceptance),
+  )
+  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const acceptance = await waitForAcceptance(interruptedSubmission, acceptedPath)
+  const interruptedResult = await stopSubmission(interruptedSubmission, acceptance.stage === "accepted" ? "SIGTERM" : "SIGKILL")
+  T(
+    `${TOOL}: observes Cloud acceptance after delayed startup before sending SIGTERM`,
+    acceptance.stage === "accepted" && acceptance.acceptance === delayedEnvironment.ORBIT_FAKE_EXEC_URL,
+    JSON.stringify({
+      ...acceptance, ...interruptedResult,
+      stdout: interruptedResult.stdout.slice(-2000), stderr: interruptedResult.stderr.slice(-2000),
+    }),
+  )
+  if (acceptance.stage === "accepted") {
+    const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+    T(
+      `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
+      interruptedResult.status === 143 && interruptedResult.signal === null && !interruptedAdmission.admitted &&
+        interruptedAdmission.counts.reservations?.pullRequests === 1 &&
+        interruptedAdmission.counts.reservations?.queuedRuns === 1,
+      JSON.stringify({ ...interruptedResult, admission: interruptedAdmission }),
+    )
+  }
 
   const abandonedWatcher = fixture("abandoned-watcher")
   const abandonedSubmission = run(TOOL, argvOf(abandonedWatcher), {
@@ -1437,21 +1504,74 @@ if (args[1] === "list") {
   const concurrentEnv = {
     ORBIT_FAKE_CODEX_LOG: concurrent.log,
     ORBIT_FAKE_LIST: taskPage(concurrentTasks),
-    ORBIT_FAKE_EXEC_DELAY_MS: "1000",
     ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d4",
   }
-  const concurrentResults = await Promise.all([
-    runConcurrent(concurrent, concurrentEnv),
-    runConcurrent(concurrent, concurrentEnv),
-  ])
+  const concurrentGate = stage("submit-cloud/concurrent/exec-gate", "waiting")
+  writeFileSync(concurrent.codex.script, readFileSync(concurrent.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "exec" && process.env.ORBIT_FAKE_EXEC_GATE) {
+  const gate = process.env.ORBIT_FAKE_EXEC_GATE
+  writeFileSync(gate, "entered")
+  const deadline = Date.now() + 30000
+  while (readFileSync(gate, "utf8") !== "released") {
+    if (Date.now() >= deadline) throw new Error("coordinated Cloud execution was not released")
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
+  // Start the contender after admission has released its lock, while Cloud still owns its slot.
+  const concurrentFirst = runConcurrent(concurrent, argvOf(concurrent), {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_GATE: concurrentGate,
+  })
+  let concurrentFirstResult
+  concurrentFirst.then((result) => { concurrentFirstResult = result })
+  const contenderOrder = stage("submit-cloud/concurrent/contender.md", "Implement the competing ticket.\n")
+  const contenderArguments = argvFor(concurrent, "#399", contenderOrder)
+  const contenderEnvironment = {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_e5",
+  }
+  let concurrentBusyResult
+  let concurrentCoordinationError
+  try {
+    const deadline = Date.now() + 30000
+    while (readFileSync(concurrentGate, "utf8") !== "entered") {
+      if (concurrentFirstResult) throw new Error(`first submitter exited before Cloud execution: ${JSON.stringify(concurrentFirstResult)}`)
+      if (Date.now() >= deadline) throw new Error("first submitter did not reach coordinated Cloud execution")
+      await wait(10)
+    }
+    concurrentBusyResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
+  } catch (error) {
+    concurrentCoordinationError = error.message
+  } finally {
+    writeFileSync(concurrentGate, "released")
+    concurrentFirstResult = await concurrentFirst
+  }
+  // A lock refusal proves exclusion only. Retry the distinct ticket to require the capacity check.
+  const concurrentCapResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
   const concurrentInvocations = readFileSync(concurrent.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   const concurrentExecs = concurrentInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec")
+  const concurrentDiagnostics = JSON.stringify({
+    coordinationError: concurrentCoordinationError,
+    first: concurrentFirstResult,
+    busy: concurrentBusyResult,
+    cap: concurrentCapResult,
+    invocations: concurrentInvocations,
+  })
+  T(
+    `${TOOL}: a concurrent contender reaches the Cloud submission lock after admission`,
+    !concurrentCoordinationError && concurrentFirstResult.status === 0 &&
+      concurrentBusyResult?.status === 2 && /cloud submission is already running/.test(concurrentBusyResult.stderr),
+    concurrentDiagnostics,
+  )
   T(
     `${TOOL}: concurrent submitters cannot collectively exceed the fleet cap`,
-    concurrentResults.some((result) => result.status === 0) &&
-      concurrentResults.every((result) => [0, 2, 3].includes(result.status)) &&
+    concurrentFirstResult.status === 0 && concurrentCapResult.status === 3 &&
+      concurrentCapResult.stderr.includes(`cloud capacity is full: ${concurrent.config.caps.cloudParallelTasks}/${concurrent.config.caps.cloudParallelTasks} tasks are in flight`) &&
       concurrentExecs.length === 1,
-    `${JSON.stringify(concurrentResults)}\n${JSON.stringify(concurrentInvocations)}`,
+    concurrentDiagnostics,
   )
 
   const breaker = fixture("session-empty-breaker")

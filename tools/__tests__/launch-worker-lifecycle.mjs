@@ -117,7 +117,7 @@ setInterval(() => {}, 60000)
     unpublishedStartup.child.kill("SIGKILL")
     await launcherResult(unpublishedStartup)
   }
-  const occupiedLaunch = launch("occupied-worktree", launchConfig(stubEngine(lifecycleWorker)))
+  const occupiedLaunch = launch("delayed-startup-worktree", launchConfig(stubEngine(lifecycleWorker)))
   const occupiedArgv = ["--issue", "ORB-201", "--worktree", occupiedLaunch.worktree, "--prompt", occupiedLaunch.prompt]
   const occupiedMarker = stage("launch-worker/occupied-worker.json", "")
   rmSync(occupiedMarker)
@@ -135,7 +135,7 @@ setInterval(() => {}, 60000)
     // Keep the worker alive until admission finishes; the probe deadline bounds the wait.
     secondOccupied = launchAsync(occupiedLaunch.path, occupiedArgv, { ...githubAuthEnv(), ORBIT_TEST_LIFECYCLE_MARKER: occupiedMarker })
     const refusedOccupied = await admissionDecision(secondOccupied, occupiedLaunch, readFileContents)
-    T(`${TOOL}: a second launch into a live worker's worktree is refused with its pid`,
+    T(`${TOOL}: a delayed launcher publishes startup before a second launch is refused with its worker pid`,
       refusedOccupied.status === 2 && refusedOccupied.stderr.includes(`live worker pid ${runningWorkerPid}`) && processIsRunning(runningWorkerPid),
       JSON.stringify({ runningWorkerPid, ...refusedOccupied }))
   } catch (error) {

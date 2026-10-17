@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { habitFormSchema } from '@orbit/shared/validation'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -82,11 +83,6 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importO
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
-vi.mock('@/components/ui/time-field', () => ({
-  TimeField: ({ onChange }: { onChange: (value: string) => void }) => (
-    <button type="button" onClick={() => onChange('10:00')}>time-field</button>
-  ),
-}))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
 
 type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
@@ -282,9 +278,9 @@ describe('HabitFormFields', () => {
   })
 
   it.each([
-    ['en', 'Log it when you do it, not when you resist.'],
-    ['pt-BR', 'Registre quando fizer, não quando resistir.'],
-  ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
+    ['en', 'A habit you want to avoid. Log each slip.'],
+    ['pt-BR', 'Um hábito que você quer evitar. Registre cada deslize.'],
+  ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
     expect(screen.getByText(expected)).toBeInTheDocument()
@@ -536,14 +532,14 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
   })
 
-  it('clears a prefilled end time when the exact time changes', () => {
+  it('preserves a prefilled end time when the exact time changes', () => {
     const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00', dueEndTime: '09:00' })
     renderForm(formHelpers, undefined, true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'time-field' }))
+    fireEvent.change(screen.getByLabelText('habits.form.exactTime'), { target: { value: '10:00' } })
 
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '10:00', { shouldDirty: true })
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '', { shouldDirty: true })
+    expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
   })
 
   it('keeps every local control live when the Astra allowance is exhausted', () => {
@@ -781,4 +777,59 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   await waitFor(() => expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull())
   expect(tagMutations.create).toHaveBeenLastCalledWith({ name: 'Updated', color: expect.any(String) })
   expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
+})
+
+
+describe('habit end time', () => {
+  function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {
+    const helpers = useHabitForm({ initialData: { title: 'Run', dueDate: '2099-01-01' } })
+    const save = () => {
+      if (helpers.validateAll()) return
+      const values = habitFormSchema.parse(helpers.form.getValues())
+      onSave([buildCreateHabitRequest(values, [], [], [], []), buildUpdateHabitRequest(values, true, '', [], [])])
+    }
+    return <><HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /><button onClick={() => helpers.form.reset({ ...helpers.form.getValues(), dueTime: '08:00', dueEndTime: '09:00' })}>load existing times</button><button onClick={() => helpers.form.reset({ ...helpers.form.getValues(), dueTime: '' })}>remove start elsewhere</button><button onClick={save}>save times</button></>
+  }
+
+  it('edits and clears end times, rejects ordering errors, and disables the field without a start', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const onSave = vi.fn()
+    render(<QueryClientProvider client={client}><EditingForm onSave={onSave} /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const end = screen.getByLabelText('habits.form.dueEndTime')
+    expect(end).toBeDisabled()
+    expect(end).toHaveAccessibleDescription('habits.form.endTimeRequiresStart')
+    const start = screen.getByLabelText('habits.form.exactTime')
+    fireEvent.change(start, { target: { value: '08:00' } })
+    expect(end).toBeEnabled()
+    fireEvent.change(end, { target: { value: '09:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveValue('09:00')
+    fireEvent.click(screen.getByRole('button', { name: 'save times' }))
+    expect(onSave).toHaveBeenLastCalledWith([expect.objectContaining({ dueTime: '08:00', dueEndTime: '09:00' }), expect.objectContaining({ dueTime: '08:00', dueEndTime: '09:00' })])
+    onSave.mockClear()
+    fireEvent.change(end, { target: { value: '08:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    expect(end).toHaveAccessibleDescription('habits.form.endTimeBeforeStartTime')
+    fireEvent.click(screen.getByRole('button', { name: 'save times' }))
+    expect(onSave).not.toHaveBeenCalled()
+    fireEvent.change(end, { target: { value: '07:00' } })
+    fireEvent.blur(end)
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(end, { target: { value: '10:00' } })
+    fireEvent.blur(end)
+    expect(end).not.toHaveAttribute('aria-invalid')
+    fireEvent.click(within(end.parentElement!).getByRole('button', { name: 'common.clear' }))
+    expect(end).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'load existing times' }))
+    expect(end).toHaveValue('09:00')
+    fireEvent.click(within(start.parentElement!).getByRole('button', { name: 'common.clear' }))
+    expect(end).toHaveValue('')
+    expect(end).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'load existing times' }))
+    fireEvent.click(screen.getByRole('button', { name: 'remove start elsewhere' }))
+    await waitFor(() => expect(end).toHaveValue(''))
+    expect(end).toBeDisabled()
+  })
 })

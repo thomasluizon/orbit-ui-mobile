@@ -72,7 +72,7 @@ const guardsWorkflow = readFileSync(join(repoRoot, ".github", "workflows", "guar
 const parityGuidance = "a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
 T("parity guidance: both one-sided failures name the complete narrow exception", guardsWorkflow.split(parityGuidance).length - 1, 2)
 T("parity guidance: obsolete platform-adapters-only help is gone", guardsWorkflow.includes("(platform adapters only)"), false)
-T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'"), true)
+T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]') }}"), true)
 T("parity gate: both one-sided file-count failures remain enforced", (guardsWorkflow.match(/if \[ \"\$(?:web|mobile)\" -gt 0 \] && \[ \"\$(?:mobile|web)\" -eq 0 \]; then/g) ?? []).length, 2)
 
 // ---------------------------------------------------------------------------
@@ -1105,13 +1105,19 @@ const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: 
 // Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
 const wakeCheckout = join(root, "wake-identity")
 const wakeHooks = join(wakeCheckout, ".claude", "hooks")
-mkdirSync(join(wakeCheckout, ".git"), { recursive: true })
+mkdirSync(wakeCheckout, { recursive: true })
+T("relay fixture: repository initializes", stagingGit(["init", "--initial-branch=relay-fixture"], wakeCheckout).status, 0)
+T("relay fixture: repository configures identity", stagingGit(["config", "user.email", "hooks@example.invalid"], wakeCheckout).status, 0)
+T("relay fixture: repository configures name", stagingGit(["config", "user.name", "Hook Test"], wakeCheckout).status, 0)
 mkdirSync(wakeHooks, { recursive: true })
 cpSync(join(repoRoot, "tools", "lib"), join(wakeCheckout, "tools", "lib"), { recursive: true })
 cpSync(join(repoRoot, "tools", "relay-session.mjs"), join(wakeCheckout, "tools", "relay-session.mjs"))
 cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
 cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
 cpSync(join(repoRoot, ".claude", "orchestrator.json"), join(wakeCheckout, ".claude", "orchestrator.json"))
+T("relay fixture: repository stages configuration", stagingGit(["--literal-pathspecs", "add", ".claude/orchestrator.json"], wakeCheckout).status, 0)
+T("relay fixture: repository commits configuration", stagingGit(["commit", "-m", "relay fixture"], wakeCheckout).status, 0)
+T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
 for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
@@ -1137,7 +1143,7 @@ T("sleep: drain guidance never launches more work", checkSleepStop({ state: { ..
 const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8"))
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
-const isolatedRelayHook = (name, payload = relayPayload) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8" })
+const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: a sleeping queue with nothing live -> 2", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 2)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }, wakeCheckout)
@@ -1168,8 +1174,11 @@ T("relay post-tool: reads, edits, agents and MCP tools each match once", ["Read"
 const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
   permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
   tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
-const postToolRelay = () => postToolRelayHooks.length === 1
-  ? isolatedRelayHook("relay-at-threshold.mjs", postToolPayload) : { status: 0, stdout: "", stderr: "" }
+const relayTimeoutMilliseconds = postToolRelayHooks[0].timeout * 1000
+T("relay: configured timeout is explicitly positive", Number.isFinite(relayTimeoutMilliseconds) && relayTimeoutMilliseconds > 0, true)
+T("relay: Stop and PostToolUse share the timeout", settings.hooks.Stop.flatMap((entry) => entry.hooks)
+  .filter((hook) => hook.command.includes("relay-at-threshold.mjs")).map((hook) => hook.timeout), [postToolRelayHooks[0].timeout])
+const postToolRelay = () => isolatedRelayHook("relay-at-threshold.mjs", postToolPayload, relayTimeoutMilliseconds)
 writeRunState(relayState, wakeCheckout)
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
 T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
@@ -1181,11 +1190,21 @@ const subagentCrossing = isolatedRelayHook("relay-at-threshold.mjs", { ...postTo
 T("relay post-tool: a subagent tool call at the threshold prints nothing", subagentCrossing.stdout, "")
 T("relay post-tool: a subagent tool call leaves the parent relay state", readRunState(wakeCheckout).relay, undefined)
 T("relay post-tool: a subagent tool call records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), stopRelayRequest)
-const relayCheckStarted = performance.now()
-const postToolCrossing = postToolRelay()
-const relayCheckMilliseconds = performance.now() - relayCheckStarted
-console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${relayCheckMilliseconds.toFixed(1)} ms`)
-T("relay post-tool: large transcript finishes inside half its timeout", relayCheckMilliseconds < (postToolRelayHooks[0]?.timeout ?? 1) * 500, true)
+// Each sample begins a fresh relay, including configuration checks and the lock's process identity probe.
+const relayMeasurements = Array.from({ length: 3 }, (_, index) => {
+  writeRunState(relayState, wakeCheckout)
+  const started = performance.now()
+  const result = postToolRelay()
+  const milliseconds = performance.now() - started
+  console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${milliseconds.toFixed(1)} ms (sample ${index + 1}, budget ${relayTimeoutMilliseconds / 2} ms)`)
+  T(`relay post-tool: sample ${index + 1} crosses and persists without diagnostics`,
+    { status: result.status, stderr: result.stderr, feedback: JSON.parse(result.stdout || "{}").hookSpecificOutput, relay: readRunState(wakeCheckout).relay },
+    { status: 0, stderr: "", feedback: { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext },
+      relay: { ...stopRelayState.relay, triggeredAt: readRunState(wakeCheckout).relay?.triggeredAt } })
+  return { result, milliseconds }
+})
+const postToolCrossing = relayMeasurements.at(-1).result
+T("relay post-tool: large transcript finishes inside half its timeout", relayMeasurements.every(({ milliseconds }) => milliseconds < relayTimeoutMilliseconds / 2), true)
 T("relay post-tool: crossing succeeds without diagnostics", { status: postToolCrossing.status, stderr: postToolCrossing.stderr }, { status: 0, stderr: "" })
 T("relay post-tool: mid-turn crossing emits the same drain instruction", JSON.parse(postToolCrossing.stdout || "{}").hookSpecificOutput,
   { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext })

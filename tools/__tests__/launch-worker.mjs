@@ -3,7 +3,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
-import { readWakeSourceStates, writeRunState } from "../lib/run-state.mjs"
+import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases } from "./launch-worker-lifecycle.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -180,6 +180,78 @@ const launchAsync = (path, argv, env) => {
   return { child, result, output: () => ({ stdout, stderr }) }
 }
 
+const checkOccupiedWorktree = async () => {
+  const config = launchConfig(stubEngine(IMMEDIATE))
+  const occupiedLaunch = launch("occupied-worktree", config)
+  const occupiedArgv = ["--issue", "ORB-201", "--worktree", occupiedLaunch.worktree, "--prompt", occupiedLaunch.prompt]
+  // IPC owns this fixture's lifetime, including cleanup if the runner is killed without a signal handler.
+  const worker = stage("launch-worker/occupied-worker.cjs", `
+const { spawn, spawnSync } = require("node:child_process")
+process.on("disconnect", () => {
+  if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(process.pid)])
+  else process.kill(-process.pid, "SIGKILL")
+})
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" })
+descendant.on("error", (error) => { throw error })
+descendant.once("spawn", () => process.send(descendant.pid))
+`)
+  const child = spawn(process.execPath, [worker], {
+    stdio: ["ignore", "ignore", "ignore", "ipc"],
+    detached: process.platform !== "win32",
+    windowsHide: true,
+  })
+  const closed = new Promise((resolve) => child.once("close", resolve))
+  const cleanup = () => {
+    if (Number.isInteger(child.pid)) {
+      if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
+      else {
+        try { process.kill(-child.pid, "SIGKILL") } catch (error) { if (error.code !== "ESRCH") throw error }
+      }
+    }
+    clearWorkerLaunchReservation(process.pid, occupiedLaunch.worktree)
+  }
+  const interrupt = () => process.exit(1)
+  process.once("exit", cleanup)
+  process.once("SIGINT", interrupt)
+  process.once("SIGTERM", interrupt)
+  let descendantPid
+  try {
+    descendantPid = await new Promise((resolve, reject) => {
+      child.once("message", resolve)
+      child.once("error", reject)
+      child.once("exit", () => reject(new Error("occupied worker exited before readiness")))
+    })
+    const reservation = reserveWorkerLaunch({
+      launcherPid: process.pid, issue: "ORB-201", runDirectory: occupiedLaunch.worktree,
+      repositoryKey: config.cloud.repositoryKey, branch: "main", tier: "default",
+      headSha: occupiedLaunch.git(["rev-parse", "HEAD"]).stdout.trim(),
+      timestamp: new Date().toISOString(), relaunchReason: null,
+    }, config.caps.workerLaunchesPerBranch, occupiedLaunch.worktree)
+    if (!reservation.allowed || !recordReservedWorkerPid(process.pid, child.pid, occupiedLaunch.worktree)) {
+      throw new Error("could not reserve the occupied fixture worker")
+    }
+    // Exercise a scheduling delay longer than 1.8 seconds before the refusal check starts.
+    await new Promise((resolve) => setTimeout(resolve, 2200))
+    const refused = run(TOOL, occupiedArgv, { path: occupiedLaunch.path, env: githubAuthEnv() })
+    discardLog(refused.stdout)
+    T(`${TOOL}: a second launch into a live worker's worktree is refused with its pid`,
+      processIsRunning(child.pid) && processIsRunning(descendantPid) && refused.status === 2 && refused.stderr.includes(`live worker pid ${child.pid}`),
+      JSON.stringify({ runningWorkerPid: child.pid, status: refused.status, stderr: refused.stderr }))
+  } finally {
+    cleanup()
+    await closed
+    const cleanupDeadline = Date.now() + 5000
+    while (processIsRunning(descendantPid) && Date.now() < cleanupDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    process.removeListener("exit", cleanup)
+    process.removeListener("SIGINT", interrupt)
+    process.removeListener("SIGTERM", interrupt)
+  }
+  T(`${TOOL}: the occupied fixture cleans up its worker process tree`,
+    !processIsRunning(child.pid) && !processIsRunning(descendantPid))
+}
+
 export const cases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
@@ -221,7 +293,7 @@ export const cases = async () => {
     const launchArgs = ["--issue", "#1089", "--worktree", subagents.worktree, "--prompt", subagents.prompt, "--dry-run"]
     const launchOptions = { path: subagents.path }
     const offArgs = name === "codex" ? ["--disable", "multi_agent"] : ["--disallowed-tools", "Task"]
-    for (const tier of ["default", "mechanical"]) {
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = check(TOOL, `${name}.${tier} non-sweep order resolves offline`, [...launchArgs, "--tier", tier], { status: 0 }, launchOptions)
       T(`${TOOL}: ${name}.${tier} non-sweep order disables sub-agents`,
         offArgs.every((argument) => JSON.parse(disabled.stdout).args.includes(argument)), disabled.stdout)
@@ -233,7 +305,7 @@ export const cases = async () => {
     const stillDisabled = check(TOOL, `${name} sweep heading alone grants no permission`, launchArgs, { status: 0 }, launchOptions)
     T(`${TOOL}: ${name} ticket text never enables sub-agents`,
       JSON.parse(stillDisabled.stdout).args.includes(offArgs[1]), stillDisabled.stdout)
-    for (const tier of ["default", "mechanical"]) {
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
       const allowed = check(TOOL, `${name}.${tier} allows the explicit sweep`, [...launchArgs, "--tier", tier, "--allow-subagents"], { status: 0 }, launchOptions)
       T(`${TOOL}: ${name}.${tier} sweep order drops the off vector`,
         !JSON.parse(allowed.stdout).args.includes(offArgs[1]), allowed.stdout)
@@ -278,8 +350,9 @@ export const cases = async () => {
   check(TOOL, "refuses a malformed ticket reference", ["--issue", "ticket-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be ORB-N, #N, or N/ }, options)
   check(TOOL, "accepts a post-migration #N reference", ["--issue", "#9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
   check(TOOL, "accepts a post-migration plain number and normalizes it", ["--issue", "9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
-  check(TOOL, "refuses a tier outside the two order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
-  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses a tier outside the four order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
+  check(TOOL, "refuses ultra because automatic delegation is forbidden", [...argv, "--tier", "ultra", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
+  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
   check(TOOL, "refuses an empty relaunch reason", [...argv, "--relaunch-reason", "", "--dry-run"], { status: 2, stderr: /--relaunch-reason must be non-empty text/ }, options)
   check(TOOL, "refuses a missing worktree flag", ["--issue", "ORB-201", "--prompt", fixture.prompt], { status: 2, stderr: /--worktree is required/ }, options)
   check(TOOL, "refuses a missing prompt flag", ["--issue", "ORB-201", "--worktree", fixture.worktree], { status: 2, stderr: /--prompt is required/ }, options)
@@ -365,6 +438,16 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
       JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
     JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),
   )
+  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
+    const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
+    const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
+    T(
+      `${TOOL}: the ${tier} tier resolves gpt-6.1-sol at ${effort} reasoning effort`,
+      tierPlan?.tier === tier && tierPlan.engine === "codex" && tierPlan.model === "gpt-6.1-sol" &&
+        tierPlan.args.includes(`model_reasoning_effort="${effort}"`),
+      result.stderr || JSON.stringify(tierPlan),
+    )
+  }
   T(
     `${TOOL}: the worker is handed the prompt PATH and the branch, never the prompt text`,
     plan !== null && plan.branch === "main" && plan.args.at(-1).includes(fixture.prompt) && !plan.args.at(-1).includes("the work order, verbatim"),
@@ -372,6 +455,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
 
   const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
+  await checkOccupiedWorktree()
   await lifecycleCases({
     launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
   })

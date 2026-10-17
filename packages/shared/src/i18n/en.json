@@ -47,7 +47,7 @@
     "homeScreen": {
       "title": "Home Screen",
       "showGeneral": "Anytime habits",
-      "showGeneralDesc": "Habits with no schedule show in the Today list."
+      "showGeneralDesc": "Show in Today"
     },
     "clock": {
       "title": "Clock",
@@ -771,6 +771,7 @@
       "dueDate": "Start On",
       "dueTime": "Due Time",
       "dueEndTime": "End Time",
+      "endTimeRequiresStart": "Set a start time to add an end time.",
       "reminder": "Remind me",
       "reminderAtTime": "At the due time",
       "reminder5minAfter": "5 min after",
@@ -827,7 +828,7 @@
       "habitTypeBuild": "Build",
       "habitTypeAvoid": "Avoid this habit",
       "habitTypeBuildHint": "A routine you want to strengthen.",
-      "habitTypeAvoidHint": "Log it when you do it, not when you resist.",
+      "habitTypeAvoidHint": "A habit you want to avoid. Log each slip.",
       "generalBadHabit": "Anytime habits cannot be marked as bad habits.",
       "subHabits": "Sub-habits",
       "subHabitPlaceholder": "Sub-habit title",
@@ -913,6 +914,7 @@
       "linkedGoal": "Linked goal",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "copyDescription": "Copy description",
+      "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
       "screenTitle": "Habit",
       "loading": "Loading habit",
@@ -978,10 +980,15 @@
     },
     "breakdown": {
       "breakInto": "Break down {name} into:",
+      "limit": "{limit} habits max. Remove one to add another.",
+      "retryError": "Could not create the remaining habits. Try again.",
+      "createError": "Could not create these habits. Edit the proposal and try again.",
       "addHabit": "Add habit",
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
+      "groupingDenied": "Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.",
+      "capacityDenied": "This proposal exceeds the habit limit. Remove a habit from the proposal and try again.",
       "every": "every",
       "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
@@ -1196,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} of {scheduled}",
+      "unscheduledDay": "{date} · Nothing scheduled",
       "date": "Date",
       "rate": "Rate",
       "completed": "Completed",
@@ -1913,7 +1922,6 @@
       "scopeLabel": "Scope",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
-      "mcpLine": "Paste an active key into your MCP client's settings. The full instructions live in this section in the app.",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
       "stepUpAction": "Sign in again",
       "revokeNamed": "Revoke {name}",
@@ -2535,7 +2543,7 @@
         "loggingTitle": "Logging Completions",
         "loggingDesc": "Tap the circle next to any habit to mark it as done. Tap again to undo. You can also log habits through the AI chat by saying things like 'I ran today'.",
         "badHabitsTitle": "Bad Habit Tracking",
-        "badHabitsDesc": "Track habits you want to stop (smoking, nail biting, etc.). Log each slip-up to build awareness. Your streak counts days without the bad habit.",
+        "badHabitsDesc": "A habit you want to avoid, like smoking or nail biting. Log each slip. Your streak counts days without slips.",
         "slipAlertsTitle": "Slip Alerts",
         "slipAlertsDesc": "Enable slip alerts on bad habits to receive AI-generated motivational notifications before your usual slip times. The system detects day and time patterns from your logs and sends personalized nudges to help you stay strong.",
         "metricsTitle": "Metrics & Streaks",
@@ -2919,7 +2927,7 @@
       "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",
       "typeStreak": "Streak",
       "typeStreakHintGood": "Link a habit: streak grows each day you complete it. Miss a day and it resets to zero.",
-      "typeStreakHintBad": "Link a bad habit: streak grows each day you resist. Log a slip and it resets to zero.",
+      "typeStreakHintBad": "Link a habit you want to avoid. Your streak grows each day without slips. Log a slip and it resets to zero.",
       "streakTarget": "Target days",
       "streakTargetPlaceholder": "e.g. 30, 60, 90",
       "habitsError": "Could not load habits. Try again.",
@@ -2964,6 +2972,7 @@
       "historyDate": "Date: {date}",
       "historyDelta": "Change: {delta} {unit}",
       "historyProgress": "Progress: {current} of {target} {unit}",
+      "askAstraEyebrow": "Ask Astra",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status"
@@ -3373,6 +3382,7 @@
     "replaceKey": "Replace YOUR_API_KEY with the key you created above",
     "maxKeysReached": "Maximum of 5 API keys reached",
     "copyConfig": "Copy config",
+    "configCopyError": "Couldn't copy. Try again.",
     "apiKeysError": "Failed to load API keys",
     "createKeyError": "Failed to create API key",
     "scopesLabel": "Scopes:",

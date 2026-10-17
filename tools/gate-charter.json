@@ -79,6 +79,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#architecture-map": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "node tools/arch-map.mjs",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#calibration": {
     "scope": "whole-tree-advisory",
     "snapshot": "node tools/reseed-calibration.mjs",
@@ -88,6 +93,11 @@
         "source": ".claude/calibration.json calibratedAt contract"
       }
     ]
+  },
+  ".github/workflows/guards.yml#contract-drift": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "cd packages/shared && ORBIT_OPENAPI_SPEC=\"https://raw.githubusercontent.com/thomasluizon/orbit-api/$(cat src/types/__generated__/api.spec.commit)/src/Orbit.Api/openapi.json\" npx --yes orval@8.37.0 --config ./orval.config.ts",
+    "constants": "none"
   },
   ".github/workflows/guards.yml#copy": {
     "scope": "changed-files",
@@ -99,9 +109,24 @@
     "snapshot": "node tools/check-dashes.mjs --write-baseline",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#dependency-audit": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#design-guard": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#expo-pin": {
     "scope": "changed-files",
     "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#feature-parity": {
+    "scope": "changed-files",
+    "snapshot": "git fetch origin main && node tools/check-feature-parity.mjs --write",
     "constants": "none"
   },
   ".github/workflows/guards.yml#gate-charter": {
@@ -137,6 +162,11 @@
   ".github/workflows/guards.yml#performance-workflow": {
     "scope": "changed-files",
     "snapshot": "node tools/generate-performance-workflow.mjs --write",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#react-doctor": {
+    "scope": "changed-files",
+    "snapshot": "none",
     "constants": "none"
   },
   ".github/workflows/guards.yml#review-harness": {
@@ -180,6 +210,11 @@
     "constants": "none"
   },
   "eslint-rules/animate-presence-stable-key.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/hover-transition.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
@@ -308,11 +343,6 @@
         "source": "CSS Easing Level 2 cubic-bezier output range"
       }
     ]
-  },
-  "eslint-rules/hover-transition.cjs": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
   },
   "eslint-rules/no-pill-radius-on-static.cjs": {
     "scope": "changed-files",
@@ -452,6 +482,11 @@
   "tools/check-docker-registries.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-feature-parity.mjs": {
+    "scope": "changed-files",
+    "snapshot": "git fetch origin main && node tools/check-feature-parity.mjs --write",
     "constants": "none"
   },
   "tools/check-gate-charter.mjs": {

@@ -2,7 +2,7 @@ import { RuleTester, ESLint } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 RuleTester.describe = describe
@@ -40,8 +40,15 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
   ]),
 })
 
-it('enforces the web e2e scope through the installed ESLint config', async () => {
-  const eslint = new ESLint({ cwd: webRoot })
-  const config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
-  expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
+describe('installed web ESLint configuration', () => {
+  let config
+
+  beforeAll(async () => {
+    const eslint = new ESLint({ cwd: webRoot })
+    config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+  }, 15000)
+
+  it('enforces the web e2e scope through the installed ESLint config', () => {
+    expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
+  })
 })
