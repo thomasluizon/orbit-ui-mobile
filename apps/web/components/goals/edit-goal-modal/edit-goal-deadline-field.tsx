@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -20,8 +20,8 @@ export function EditGoalDeadlineField({
 }: Readonly<EditGoalDeadlineFieldProps>) {
   const t = useTranslations()
   return (
-    <div style={{ padding: '16px 0 16px' }}>
-      <GoalGroupLabel top={0}>
+    <div style={{ padding: "var(--orbit-space-16) var(--orbit-space-0) var(--orbit-space-16)" }}>
+      <GoalGroupLabel top={SPACING.s0}>
         {t('goals.form.deadline')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})
@@ -64,7 +64,7 @@ export function EditGoalDeadlineField({
             fontSize: 14,
             fontWeight: 500,
             minHeight: TOUCH_TARGET_MIN,
-            padding: 0,
+            padding: SPACING.s0,
             gap: 8,
           }}
           onClick={() => onChangeDeadline(formatAPIDate(new Date()))}

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
@@ -9,7 +10,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 const COLUMNS = 3
 const ROW_HEIGHT = 52
 const ROW_GAP = 4
-const GRID_PADDING = 4
+const GRID_PADDING = SPACING.s4
 
 interface YearPickerProps {
   selectedYear: number

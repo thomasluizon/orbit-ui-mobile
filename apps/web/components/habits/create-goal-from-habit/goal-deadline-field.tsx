@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -21,13 +21,13 @@ export function GoalDeadlineField({
   const t = useTranslations()
   return (
     <>
-      <GoalGroupLabel top={16}>
+      <GoalGroupLabel top={SPACING.s16}>
         {t('goals.form.deadline')}{' '}
         <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>
           ({t('goals.form.deadlineOptional')})
         </span>
       </GoalGroupLabel>
-      <div style={{ padding: '0 0 16px' }}>
+      <div style={{ padding: "var(--orbit-space-0) var(--orbit-space-0) var(--orbit-space-16)" }}>
         {deadline ? (
           <div className="flex items-center" style={{ gap: 8 }}>
             <div className="flex-1">
@@ -56,7 +56,7 @@ export function GoalDeadlineField({
               fontSize: 14,
               fontWeight: 500,
               minHeight: TOUCH_TARGET_MIN,
-              padding: 0,
+              padding: SPACING.s0,
               gap: 8,
             }}
             onClick={() => onChangeDeadline(formatAPIDate(new Date()))}
@@ -68,7 +68,7 @@ export function GoalDeadlineField({
         {deadline && isGoalDeadlinePast(deadline) && (
           <p
             style={{
-              marginTop: 8,
+              marginTop: SPACING.s8,
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--status-overdue-text)',

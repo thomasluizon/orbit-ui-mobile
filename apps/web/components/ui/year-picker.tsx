@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useMemo, useRef } from 'react'
 import { buildYearRange } from '@orbit/shared/utils'
 import { revealFocusedControl } from '@/lib/focus-scroll'
@@ -33,7 +36,7 @@ export function YearPicker({
           gridAutoRows: 'minmax(48px, auto)',
           columnGap: 4,
           rowGap: 4,
-          padding: 4,
+          padding: SPACING.s4,
         }}
       >
         {years.map((year) => {

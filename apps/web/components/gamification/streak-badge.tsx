@@ -32,7 +32,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         minWidth: TOUCH_TARGET_MIN,
         minHeight: TOUCH_TARGET_MIN,
         borderRadius: 999,
-        padding: '0 8px',
+        padding: "var(--orbit-space-0) var(--orbit-space-8)",
         gap: 4,
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}

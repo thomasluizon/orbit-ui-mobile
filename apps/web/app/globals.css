@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../../../packages/shared/src/theme/spacing.css";
 
 /* WHY: Tailwind's own hover variant gates on (hover: hover) alone, and DESIGN.md requires
    (pointer: fine) too, so a touch tap cannot latch a hover state. */
@@ -318,7 +319,7 @@
   align-self: center;
   width: 48px;
   height: 4px;
-  margin-top: 12px;
+  margin-top: var(--orbit-space-12);
   border-radius: 999px;
   background: var(--hairline-strong);
 }
@@ -328,7 +329,7 @@
   min-width: 0;
   align-items: flex-start;
   gap: 16px;
-  padding: 16px 24px 8px;
+  padding: var(--padding-sheet-header-top) var(--padding-sheet-inline) var(--padding-sheet-header-bottom);
 }
 
 .orbit-sheet-title {
@@ -357,7 +358,7 @@
   flex: 1;
   min-width: 0;
   min-height: 48px;
-  padding: 8px;
+  padding: var(--orbit-space-8);
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -396,8 +397,8 @@
 }
 
 .orbit-sheet-full-title {
-  margin: 0;
-  padding-bottom: 16px;
+  margin: var(--orbit-space-0);
+  padding-bottom: var(--orbit-space-16);
   font-family: var(--font-sans);
   font-size: 1.0625rem;
   line-height: 1.55;
@@ -439,7 +440,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px 24px 24px;
+  padding: var(--padding-sheet-top) var(--padding-sheet-inline) var(--padding-sheet-bottom);
 }
 
 .orbit-sheet-actions {
@@ -449,7 +450,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px 24px;
+  padding: var(--padding-sheet-footer-top) var(--padding-sheet-inline) var(--padding-sheet-bottom);
 }
 
 .orbit-sheet-actions > * {
@@ -463,7 +464,7 @@
 .orbit-menu-panel {
   min-width: 240px;
   max-width: 320px;
-  padding: 8px;
+  padding: var(--orbit-space-8);
   border-radius: 20px;
   background: var(--bg-sheet);
   box-shadow: var(--shadow-2), inset 0 0 0 1px var(--hairline);
@@ -508,7 +509,7 @@
   border: 0;
   border-radius: 12px;
   background: transparent;
-  padding: 8px 12px;
+  padding: var(--orbit-space-8) var(--orbit-space-12);
   color: var(--fg-1);
   font: 500 0.875rem/1.4 var(--font-sans);
   text-align: start;
@@ -553,7 +554,7 @@
 
 .orbit-menu-item[role="menuitemcheckbox"] {
   align-items: flex-start;
-  padding-block: 16px;
+  padding-block: var(--orbit-space-16);
 }
 
 .orbit-menu-check {
@@ -571,7 +572,7 @@
   gap: 12px;
   border-radius: 12px;
   background: var(--bg-well);
-  padding: 16px;
+  padding: var(--orbit-space-16);
   color: var(--fg-3);
 }
 
@@ -595,7 +596,7 @@
 @media (min-width: 640px) {
   .orbit-sheet-viewport {
     align-items: center;
-    padding: 16px;
+    padding: var(--orbit-space-16);
   }
 
   .orbit-sheet-panel {
@@ -753,19 +754,12 @@
   --radius-full: 999px;
 
   /* Spacing rhythm (8px base grid) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-
-  /* Card padding semantic tokens */
-  --card-px: 1.25rem;
-  --card-py: 1.25rem;
-  --card-gap: 0.75rem;
+  --space-1: var(--orbit-space-4);
+  --space-2: var(--orbit-space-8);
+  --space-3: var(--orbit-space-12);
+  --space-4: var(--orbit-space-16);
+  --space-6: var(--orbit-space-24);
+  --space-8: var(--orbit-space-32);
 
   /* Composite transitions */
   --transition-interactive: var(--dur-fast) var(--ease-standard);
@@ -1183,7 +1177,7 @@ input[type="number"] {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
-  margin: 0;
+  margin: var(--orbit-space-0);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
@@ -1195,8 +1189,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .form-label {
   @apply text-[length:var(--fs-sm)] font-medium text-[var(--fg-2)];
   display: block;
-  padding: 0;
-  margin: 0 0 0.375rem 0;
+  padding: var(--orbit-space-0);
+  margin: var(--orbit-space-0) var(--orbit-space-0) var(--orbit-space-8) var(--orbit-space-0);
 }
 
 /* WHY: Opaque inset fills cover native autofill without adding a perimeter https://github.com/thomasluizon/orbit-tickets/issues/1001 */
@@ -1268,7 +1262,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .form-input {
-  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3.5 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
+  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
   min-height: 54px;
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
@@ -1357,7 +1351,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 0;
   background: transparent;
   cursor: pointer;
-  padding: 0;
+  padding: var(--orbit-space-0);
   position: relative;
   width: var(--touch-min);
   height: var(--touch-min);
@@ -1443,6 +1437,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 }
 
+/* WHY: The proactive line's section clearance follows text zoom, while its gutter stays fixed. https://github.com/thomasluizon/orbit-tickets/issues/1409 */
+.today-proactive-date-group {
+  gap: calc(var(--padding-section-gap) * (1rem / 16px));
+}
+
 .today-astra-line {
   position: relative;
   display: flex;
@@ -1451,8 +1450,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   width: 100%;
   min-width: 0;
   min-height: 48px;
-  padding: 8px 16px;
-  padding-inline-start: 8px;
+  padding: var(--orbit-space-8) var(--orbit-space-16);
+  padding-inline-start: var(--orbit-space-8);
   border: 0;
   border-radius: 12px;
   background: var(--bg-well);
@@ -1577,7 +1576,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 14px;
   font-weight: 500;
   min-height: var(--touch-min);
-  padding: 9px 16px;
+  padding: var(--orbit-space-8) var(--orbit-space-16);
   border-radius: var(--radius-full);
   box-shadow: inset 0 0 0 1px var(--hairline);
   display: inline-flex;
@@ -1880,8 +1879,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   font-weight: 500;
   line-height: 1.3;
   color: var(--fg-1);
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: var(--orbit-space-24);
+  margin-bottom: var(--orbit-space-12);
   letter-spacing: -0.01em;
 }
 
@@ -1890,8 +1889,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   font-weight: 500;
   line-height: 1.3;
   color: var(--fg-1);
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
+  margin-top: var(--orbit-space-24);
+  margin-bottom: var(--orbit-space-8);
   letter-spacing: -0.01em;
 }
 
@@ -1900,18 +1899,18 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   font-weight: 400;
   line-height: 1.3;
   color: var(--fg-1);
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  margin-top: var(--orbit-space-16);
+  margin-bottom: var(--orbit-space-8);
 }
 
 .prose-orbit p {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--orbit-space-12);
 }
 
 .prose-orbit ul,
 .prose-orbit ol {
-  margin-bottom: 0.75rem;
-  padding-left: 1.5rem;
+  margin-bottom: var(--orbit-space-12);
+  padding-left: var(--orbit-space-24);
 }
 
 .prose-orbit ul {
@@ -1923,7 +1922,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .prose-orbit li {
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--orbit-space-4);
 }
 
 .prose-orbit a {
@@ -1952,7 +1951,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .prose-orbit code {
   background: var(--bg-elev);
-  padding: 0.15em 0.4em;
+  padding: var(--orbit-space-4) var(--orbit-space-8);
   border-radius: var(--radius-sm);
   font-size: 12px;
 }
@@ -1961,8 +1960,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   background: var(--bg-elev);
   box-shadow: inset 0 0 0 1px var(--hairline);
   border-radius: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
+  padding: var(--orbit-space-16);
+  margin-bottom: var(--orbit-space-12);
   max-width: 100%;
   overflow-x: auto;
   overflow-wrap: normal;
@@ -1972,7 +1971,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .prose-orbit pre code {
   background: transparent;
-  padding: 0;
+  padding: var(--orbit-space-0);
   overflow-wrap: normal;
   white-space: inherit;
   word-break: normal;
@@ -1980,14 +1979,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .prose-orbit blockquote {
   border-left: 2px solid var(--hairline);
-  padding-left: 1rem;
+  padding-left: var(--orbit-space-16);
   color: var(--fg-3);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--orbit-space-12);
 }
 
 .prose-orbit hr {
   border-color: var(--hairline);
-  margin: 1.5rem 0;
+  margin: var(--orbit-space-24) var(--orbit-space-0);
 }
 
 .prose-orbit img {
@@ -2000,7 +1999,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   width: max-content;
   max-width: 100%;
   border-collapse: collapse;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--orbit-space-12);
   overflow-x: auto;
   overflow-wrap: normal;
   white-space: nowrap;
@@ -2019,7 +2018,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .prose-orbit th,
 .prose-orbit td {
   border: 1px solid var(--hairline);
-  padding: 0.5rem 0.75rem;
+  padding: var(--orbit-space-8) var(--orbit-space-12);
   text-align: left;
 }
 
@@ -2031,7 +2030,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 [data-bubble-role] .prose-orbit > :last-child,
 [data-bubble-role] .prose-orbit > [data-prose-html]:last-child > :last-child {
-  margin-bottom: 0;
+  margin-bottom: var(--orbit-space-0);
 }
 
 .thread-prose,
@@ -2082,7 +2081,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   min-height: 100%;
   margin-inline: auto;
   justify-content: center;
-  padding: 32px 16px;
+  padding: var(--orbit-space-32) var(--orbit-space-16);
   color: var(--fg-1);
   overflow-wrap: normal;
 }
@@ -2091,7 +2090,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   max-width: none;
   min-height: auto;
   justify-content: flex-start;
-  padding: 64px 16px 0;
+  padding: var(--orbit-space-64) var(--orbit-space-16) var(--orbit-space-0);
 }
 .error-surface--in-shell .error-surface-title {
   align-self: stretch;
@@ -2116,8 +2115,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   text-wrap: pretty;
 }
 @media (min-width: 64rem) {
-  .error-surface { padding: 32px; }
-  .error-surface--in-shell { padding: 0 16px; }
+  .error-surface { padding: var(--orbit-space-32); }
+  .error-surface--in-shell { padding: var(--orbit-space-0) var(--orbit-space-16); }
   .error-surface-title { font-size: 28px; line-height: 1.15; }
   .error-surface-action [data-variant="primary"] {
     background: var(--fg-1);
@@ -2274,7 +2273,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .orbit-check-row-label[data-variant="calendar-day"] {
   min-height: 68px;
-  padding-block: 12px;
+  padding-block: var(--orbit-space-12);
 }
 
 .orbit-check-row-label[data-variant="calendar-day"]::before,
@@ -2320,7 +2319,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-content-frame {
   width: 100%;
   min-width: 0;
-  padding-inline: 16px;
+  padding-inline: var(--padding-screen-gutter);
 }
 
 @media (min-width: 1024px) {
@@ -2378,7 +2377,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .prose-orbit [data-copyable-block] {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--orbit-space-8);
   min-width: 0;
 }
 .prose-orbit [data-copy-control] {
@@ -2386,8 +2385,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--orbit-space-8);
+  padding: var(--orbit-space-8);
 }
 .markdown-copy-error {
   color: var(--status-bad-text);

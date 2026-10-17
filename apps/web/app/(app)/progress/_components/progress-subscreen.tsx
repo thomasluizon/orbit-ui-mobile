@@ -11,6 +11,6 @@ export function ProgressSubscreen({ screen, children, hideHeader = false }: Read
   const t = useTranslations()
   return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col" data-progress-screen={screen}>
     {!hideHeader ? <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.replace('/progress')} /> : null}
-    <div className="flex min-w-0 flex-col gap-8 px-4 py-4">{children}</div>
+    <div className="flex min-w-0 flex-col gap-section-stack-gap px-screen-gutter py-4">{children}</div>
   </div>
 }

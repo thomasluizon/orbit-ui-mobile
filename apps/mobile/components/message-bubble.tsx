@@ -4,7 +4,7 @@ import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowUpRight } from "@/components/ui/icons";
-import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
+import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
@@ -321,8 +321,8 @@ function createStyles(tokens: AppTokens) {
     },
     userBubble: {
       backgroundColor: tokens.bgWell,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       borderBottomLeftRadius: 16,
@@ -339,7 +339,7 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      marginBottom: 8,
+      marginBottom: SPACING.s8,
     },
     relatedContainer: {
       width: "100%",
@@ -348,8 +348,8 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 12,
       color: tokens.fg3,
-      marginBottom: 4,
-      paddingHorizontal: 4,
+      marginBottom: SPACING.s4,
+      paddingHorizontal: SPACING.s4,
     },
     relatedChips: {
       flexDirection: "row",
@@ -361,7 +361,7 @@ function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 4,
       minHeight: TOUCH_TARGET_MIN,
-      paddingHorizontal: 16,
+      paddingHorizontal: SPACING.s16,
       borderRadius: 999,
       overflow: "hidden",
       backgroundColor: tokens.bgElev,

@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -521,7 +522,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
 }
 
 const styles = StyleSheet.create({
-  keyDetails: { gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  keyDetails: { gap: 8, paddingHorizontal: PADDING.rowInline, paddingBottom: SPACING.s16 },
   keyDates: { gap: 4 },
   keyDateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   keyDetailText: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },
@@ -534,6 +535,6 @@ const styles = StyleSheet.create({
   errorState: { alignItems: 'flex-start', gap: 8 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
-  keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: 16 },
+  keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: SPACING.s16 },
   keyValue: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
 })

@@ -58,7 +58,7 @@ export function TagEditorRow({
         type="button"
         className="habit-control-motion shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96] disabled:opacity-40"
         style={{
-          padding: '8px 12px',
+          padding: "var(--orbit-space-8) var(--orbit-space-12)",
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,

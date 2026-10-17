@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
@@ -36,9 +37,9 @@ export function PickerRow({ name, selected, disabled, onToggle, value, valueStyl
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    row: { borderRadius: 12, minWidth: 0, paddingHorizontal: 12, paddingVertical: 8 },
+    row: { borderRadius: 12, minWidth: 0, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8 },
     rowActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48 },
-    rowMain: { overflow: 'hidden', borderRadius: 12, minHeight: 48, minWidth: 0, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
+    rowMain: { overflow: 'hidden', borderRadius: 12, minHeight: 48, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, justifyContent: 'center' },
     rowTitle: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 16 },
     disabled: { opacity: 0.4 },
     pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ReactElement, Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
 import { StyleSheet, Text, View } from 'react-native'
@@ -30,7 +30,7 @@ export function AppBar({ title, onBack, backLabel, action, titleRef, titleVisual
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 16 },
+  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.s16 },
   leading: { minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
   back: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: 'GeistMono_500Medium', fontSize: 12, textAlign: 'left' },

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { Badge } from '@/components/ui/badge'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
@@ -509,7 +510,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    container: { gap: 24 }, disclosure: { gap: 12 }, details: { gap: 24, paddingHorizontal: 16 },
+    container: { gap: 24 }, disclosure: { gap: 12 }, details: { gap: 24, paddingHorizontal: SPACING.s16 },
     compactGroup: { gap: 8 }, startDate: { gap: 4 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },

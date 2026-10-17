@@ -1,5 +1,5 @@
 import { PersonalText } from '@/components/ui/personal-text'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
@@ -192,8 +192,8 @@ function InteractiveChecklistItem({
     >{item.text}</PersonalText>
   )
 
-  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? 4 : 0 }]}>
-    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
+  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? SPACING.s4 : SPACING.s0 }]}>
+    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
     {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
   </View>
 }
@@ -480,7 +480,7 @@ function createStyles(tokens: AppTokens) {
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.s8,
   },
   clearText: {
     fontFamily: 'Geist_500Medium',
@@ -509,7 +509,7 @@ function createStyles(tokens: AppTokens) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: SPACING.s4,
   },
   moveButtons: {
     width: TOUCH_TARGET_MIN,
@@ -537,8 +537,8 @@ function createStyles(tokens: AppTokens) {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     color: tokens.fg1,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: SPACING.s8,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
   },
@@ -554,8 +554,8 @@ function createStyles(tokens: AppTokens) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: SPACING.s16,
+    paddingHorizontal: SPACING.s16,
   },
   interactiveItemDivider: {
     borderBottomWidth: 1,

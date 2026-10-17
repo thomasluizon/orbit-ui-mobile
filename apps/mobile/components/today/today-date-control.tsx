@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { HABIT_FREQUENCY_FILTER_OPTIONS, toggleHabitFrequencyFilter } from '@orbit/shared/utils/habit-frequency-filter'
@@ -122,7 +123,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: 4 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: SPACING.s4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
   dateText: { minWidth: 0, alignItems: 'center', flexGrow: 1, flexShrink: 1 },
   dayName: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, letterSpacing: -0.44, textAlign: 'center' },

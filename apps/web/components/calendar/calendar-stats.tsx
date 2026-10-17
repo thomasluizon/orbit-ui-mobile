@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 export interface CalendarStat {
   key: string
   value: string | number
@@ -15,7 +16,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
   const isLoading = state === 'loading'
   return (
     <div data-testid="calendar-stats" aria-hidden={isLoading || undefined}
-      style={{ containerType: 'inline-size', containerName: 'calendar-figures', paddingInline: 16, fontSize: 14 }}>
+      style={{ containerType: 'inline-size', containerName: 'calendar-figures', paddingInline: SPACING.s16, fontSize: 14 }}>
       <div data-testid="calendar-figures" className="orbit-calendar-figures" style={{ display: 'grid', gap: 16 }}>
         {stats.map((stat) => (
           <div key={stat.key} data-state={state} className="flex min-w-0 flex-col items-start gap-2 text-start">

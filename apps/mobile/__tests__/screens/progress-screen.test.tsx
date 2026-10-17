@@ -8,7 +8,7 @@ import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -336,6 +336,46 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each([412, 840, 1352])('measures the padding contract across Android Progresso routes at %ipx', async (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 2400, scale: 1, fontScale: 1 })
+    mocks.goals.data.allGoals = [createMockGoal()]
+    mocks.gamification.profile.achievements = [createMockAchievement({ id: 'first_orbit' })]
+    try {
+      for (const destination of ['overview', 'streak', 'goals', 'achievements'] as const) {
+        const tree = await renderProgress(undefined, destination === 'overview' ? undefined : destination)
+        const measured = measureProfileRow(tree.toJSON() as HabitRowHost, Math.min(width, 740), 1)
+        const box = (testID: string) => measured.boxes.find((entry) => entry.testID === testID)!
+        const sectionID = {
+          overview: 'progress-window-section', streak: 'progress-streak-section',
+          goals: 'progress-goals-section', achievements: 'progress-achievements-section',
+        }[destination]
+        const section = box(sectionID)
+        expect(section.left, destination).toBe(16)
+        expect(section.right, destination).toBe(Math.min(width, 740) - 16)
+        if (destination === 'overview') {
+          const title = measured.texts.find((text) => text.label === 'progressScreen.sections.window')!
+          expect(measured.boxes.find((entry) => entry.testID.startsWith('progress-window-grid-'))!.top - title.bottom).toBeCloseTo(12)
+        } else if (destination === 'goals') {
+          expect(section.left).toBe(16)
+          const card = box('goal-card-goal-1')
+          const title = measured.texts.find((text) => text.label === 'Read 12 Books')!
+          expect(title.left - card.left).toBeCloseTo(16)
+          expect(title.top - card.top).toBeCloseTo(16)
+        } else if (destination === 'achievements') {
+          expect(section.left).toBe(16)
+          expect(section.top - box('progress-xp-summary').bottom).toBeCloseTo(32)
+          const host = tree.root.findAll((node) => node.type === 'View' && node.props.testID === sectionID)[0]!
+          expect(StyleSheet.flatten(host.props.style as ViewStyle).gap).toBe(16)
+          const card = box('achievement-tile-first_orbit')
+          const title = measured.texts.find((text) => text.label === 'gamification.achievements.first_orbit.name')!
+          expect(title.top - card.top).toBeCloseTo(16)
+          const category = measured.texts.find((text) => text.label === 'gamification.categories.GettingStarted')!
+          expect(card.top - category.bottom).toBeCloseTo(12)
+        }
+      }
+    } finally { dimensions.mockRestore() }
+  })
+
   it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
     mocks.freeze.streakInfo.repairableGapDates = ['2026-09-02']

@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -286,6 +286,48 @@ describe('ProgressContent', () => {
     browser = await launch
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 840, 1352])('measures the padding contract across Progresso routes at %ipx', async (width) => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    mocks.gamification.profile.achievements = [createMockAchievement({ id: 'first_orbit' })]
+    const page = await browser.newPage({ viewport: { width, height: 2400 } })
+    try {
+      for (const destination of ['overview', 'streak', 'goals', 'achievements'] as const) {
+        const { container, unmount } = render(<ProgressContent screen={destination} />)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const column = page.locator(`[data-progress-screen="${destination}"]`).last()
+        const measured = await column.evaluate((element) => {
+          const body = element.lastElementChild!
+          const bounds = element.getBoundingClientRect()
+          const section = body.querySelector('section')!
+          return { gutter: section.getBoundingClientRect().left - bounds.left,
+            sectionGap: Number.parseFloat(getComputedStyle(body).rowGap) }
+        })
+        expect(measured, destination).toEqual({ gutter: 16, sectionGap: 32 })
+        if (destination === 'overview') {
+          const window = page.getByRole('region', { name: 'progressScreen.sections.window' })
+          expect(await window.evaluate((element) => {
+            const children = Array.from(element.children).filter((child) => child.getBoundingClientRect().height > 1)
+            return { titleGap: children[1]!.getBoundingClientRect().top - children[0]!.getBoundingClientRect().bottom,
+              sectionGap: element.nextElementSibling!.getBoundingClientRect().top - element.getBoundingClientRect().bottom }
+          })).toEqual({ titleGap: 12, sectionGap: 32 })
+        } else if (destination === 'goals') {
+          const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
+          expect(await card.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return { inline: Number.parseFloat(style.paddingLeft), block: Number.parseFloat(style.paddingTop) }
+          })).toEqual({ inline: 16, block: 16 })
+        } else if (destination === 'achievements') {
+          const achievements = page.getByRole('region', { name: 'progressScreen.sections.achievements' })
+          expect(await achievements.evaluate((element) => ({
+            gap: Number.parseFloat(getComputedStyle(element).rowGap),
+            sectionGap: element.getBoundingClientRect().top - element.previousElementSibling!.getBoundingClientRect().bottom,
+          }))).toEqual({ gap: 16, sectionGap: 32 })
+        }
+        unmount()
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 360, 384, 412].flatMap((width) => [false, true].map((locked) => ({ width, locked }))))(
     'keeps drawn streak captions on one line at $width with locked=$locked', async ({ width, locked }) => {
@@ -1066,17 +1108,24 @@ describe('ProgressContent', () => {
     expect(screen.queryByTestId('progress-top-habit')).not.toBeInTheDocument()
   })
 
-  it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', (destination) => {
+  it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', async (destination) => {
     mocks.gamification.isError = true
     mocks.gamification.error = { status: 403, data: { error: 'Pro feature', errorCode: 'PAY_GATE' } }
     mocks.retrospective.isError = true
     mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
-    render(<ProgressContent screen={destination} />)
+    const { container } = render(<ProgressContent screen={destination} />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(1)
     const card = screen.getByTestId('progress-locked-card')
     expect(within(card).getAllByRole('link')).toHaveLength(1)
     expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      expect(await page.getByTestId('progress-locked-card').evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).paddingLeft),
+      )).toBe(16)
+    } finally { await page.close() }
   })
 
   it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', () => {

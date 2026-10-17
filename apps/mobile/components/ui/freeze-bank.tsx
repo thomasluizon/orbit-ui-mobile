@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FreezeBankProps } from '@orbit/shared/contracts/display'
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
   root: { gap: 16 },
   hidden: { opacity: 0 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
-  card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 },
+  card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: SPACING.s16 },
   stacked: { flexDirection: 'column' },
   figureRow: { flexDirection: 'row', gap: 16 },
   bookkeepingRow: { flexDirection: 'row', gap: 12 },

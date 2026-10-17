@@ -29,7 +29,7 @@ export function GoalTargetFields({
 }: Readonly<GoalTargetFieldsProps>) {
   const t = useTranslations()
   return (
-    <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '8px 0 0', gap: 12 }}>
+    <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: "var(--orbit-space-8) var(--orbit-space-0) var(--orbit-space-0)", gap: 12 }}>
       <FieldWell
         label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
         id="create-goal-target"

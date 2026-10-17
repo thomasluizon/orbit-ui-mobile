@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export type ProfileStyles = ReturnType<typeof createProfileStyles>
@@ -11,10 +12,10 @@ export function createProfileStyles() {
       flex: 1,
     },
     scrollContent: {
-      paddingTop: 16,
+      paddingTop: SPACING.s16,
     },
     errorBlock: {
-      paddingBottom: 12,
+      paddingBottom: SPACING.s12,
     },
     errorText: {
       fontFamily: 'Geist_400Regular',

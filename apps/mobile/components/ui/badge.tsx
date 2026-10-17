@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { BadgeProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -29,8 +30,8 @@ const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.s8,
+    paddingVertical: SPACING.s4,
   },
   text: {
     fontFamily: 'GeistMono_500Medium',

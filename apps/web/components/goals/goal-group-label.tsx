@@ -1,16 +1,18 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
 interface GoalGroupLabelProps {
   children: React.ReactNode
   top?: number
 }
 
 /** Goal-form group label using the shared form typography. */
-export function GoalGroupLabel({ children, top = 4 }: Readonly<GoalGroupLabelProps>) {
+export function GoalGroupLabel({ children, top = SPACING.s4 }: Readonly<GoalGroupLabelProps>) {
   return (
     <div
       style={{
-        padding: `${top}px 0 8px`,
+        padding: `${top}px var(--orbit-space-0) var(--orbit-space-8)`,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,

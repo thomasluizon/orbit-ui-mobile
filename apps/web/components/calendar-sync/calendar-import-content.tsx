@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
@@ -346,7 +349,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
-                marginBottom: 4,
+                marginBottom: SPACING.s4,
               }}
             >
               {t('calendar.notConnectedTitle')}
@@ -429,7 +432,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               {events.length > visibleCount && (
                 <div
                   className="flex flex-col items-center"
-                  style={{ gap: 8, paddingTop: 12 }}
+                  style={{ gap: 8, paddingTop: SPACING.s12 }}
                 >
                   <button
                     type="button"
@@ -458,7 +461,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 </div>
               )}
 
-              <div role="status" style={{ paddingTop: !isOnline ? 16 : undefined }}>
+              <div role="status" style={{ paddingTop: !isOnline ? SPACING.s16 : undefined }}>
                 {!isOnline ? <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
               </div>
             </>
@@ -491,7 +494,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
-                marginBottom: 4,
+                marginBottom: SPACING.s4,
               }}
             >
               {t('calendar.importDone')}
@@ -538,7 +541,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
-                marginBottom: 4,
+                marginBottom: SPACING.s4,
               }}
             >
               {t('calendar.errorTitle')}

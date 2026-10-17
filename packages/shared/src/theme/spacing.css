@@ -1,0 +1,53 @@
+:root {
+  --orbit-space-0: 0px;
+  --orbit-space-4: 4px;
+  --orbit-space-8: 8px;
+  --orbit-space-12: 12px;
+  --orbit-space-16: 16px;
+  --orbit-space-24: 24px;
+  --orbit-space-32: 32px;
+  --orbit-space-48: 48px;
+  --orbit-space-64: 64px;
+  --orbit-space-96: 96px;
+  --padding-screen-gutter: var(--orbit-space-16);
+  --padding-card-inset: var(--orbit-space-24);
+  --padding-record-inset: var(--orbit-space-16);
+  --padding-section-title-gap: var(--orbit-space-12);
+  --padding-section-gap: var(--orbit-space-24);
+  --padding-section-stack-gap: var(--orbit-space-32);
+  --padding-row-inline: var(--orbit-space-16);
+  --padding-row-block: var(--orbit-space-12);
+  --padding-sheet-inline: var(--orbit-space-24);
+  --padding-sheet-top: var(--orbit-space-8);
+  --padding-sheet-bottom: var(--orbit-space-24);
+  --padding-sheet-header-top: var(--orbit-space-16);
+  --padding-sheet-header-bottom: var(--orbit-space-8);
+  --padding-sheet-footer-top: var(--orbit-space-16);
+}
+
+@theme inline {
+  --spacing-0: var(--orbit-space-0);
+  --spacing-1: var(--orbit-space-4);
+  --spacing-2: var(--orbit-space-8);
+  --spacing-3: var(--orbit-space-12);
+  --spacing-4: var(--orbit-space-16);
+  --spacing-6: var(--orbit-space-24);
+  --spacing-8: var(--orbit-space-32);
+  --spacing-12: var(--orbit-space-48);
+  --spacing-16: var(--orbit-space-64);
+  --spacing-24: var(--orbit-space-96);
+  --spacing-screen-gutter: var(--padding-screen-gutter);
+  --spacing-card-inset: var(--padding-card-inset);
+  --spacing-record-inset: var(--padding-record-inset);
+  --spacing-section-title-gap: var(--padding-section-title-gap);
+  --spacing-section-gap: var(--padding-section-gap);
+  --spacing-section-stack-gap: var(--padding-section-stack-gap);
+  --spacing-row-inline: var(--padding-row-inline);
+  --spacing-row-block: var(--padding-row-block);
+  --spacing-sheet-inline: var(--padding-sheet-inline);
+  --spacing-sheet-top: var(--padding-sheet-top);
+  --spacing-sheet-bottom: var(--padding-sheet-bottom);
+  --spacing-sheet-header-top: var(--padding-sheet-header-top);
+  --spacing-sheet-header-bottom: var(--padding-sheet-header-bottom);
+  --spacing-sheet-footer-top: var(--padding-sheet-footer-top);
+}

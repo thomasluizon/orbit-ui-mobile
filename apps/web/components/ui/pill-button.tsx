@@ -5,7 +5,7 @@ import { useContext, type CSSProperties, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { SPACING, GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
@@ -63,8 +63,8 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
     height: sizeSpec.height,
     width: iconOnly ? Math.max(minimumHeight ?? sizeSpec.height, sizeSpec.height) : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
     paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
-    paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
-    paddingBlock: 4,
+    paddingInlineEnd: iconOnly ? SPACING.s0 : sizeSpec.paddingX,
+    paddingBlock: SPACING.s4,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
   }

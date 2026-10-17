@@ -19,7 +19,7 @@ import {
   WifiOff,
 } from '@/components/ui/icons'
 import { calendarKeys } from '@orbit/shared/query'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -504,7 +504,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               <>
                 <View
                   testID="section-heading-row"
-                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingBottom: 12 }}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingBottom: SPACING.s12 }}
                 >
                   <View style={{ minWidth: 0, flex: 1, paddingTop: Math.max(0, TOUCH_TARGET_MIN / 2 - firstLineCentre) }}>
                     <Text
@@ -664,5 +664,5 @@ function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled, 
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
   if (!event?.isImported) return null
-  return <View style={{ minWidth: 0, gap: 8, paddingVertical: 24 }}><PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg3 }}>{event.calendarName}</PersonalText> : null}</View>
+  return <View style={{ minWidth: 0, gap: 8, paddingVertical: SPACING.s24 }}><PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg3 }}>{event.calendarName}</PersonalText> : null}</View>
 }

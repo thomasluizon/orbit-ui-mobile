@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { zLayers } from '@orbit/shared/theme'
+import { SPACING, zLayers } from '@orbit/shared/theme'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { useOffline } from '@/hooks/use-offline'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -86,5 +86,5 @@ export function OfflineNotice() {
 }
 
 const styles = StyleSheet.create({
-  host: { paddingVertical: 16, gap: 12, zIndex: zLayers.toast },
+  host: { paddingVertical: SPACING.s16, gap: 12, zIndex: zLayers.toast },
 })

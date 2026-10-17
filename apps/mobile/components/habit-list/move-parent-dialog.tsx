@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
@@ -216,12 +217,12 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 16,
       lineHeight: 24.8,
       color: tokens.fg2,
-      marginBottom: 16,
+      marginBottom: SPACING.s16,
     },
     searchWrap: {
       position: 'relative',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: SPACING.s12,
     },
     eyebrow: {
       fontFamily: 'GeistMono_500Medium',
@@ -229,12 +230,12 @@ function createStyles(tokens: AppTokensV2) {
       letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.fg3,
-      marginTop: 4,
-      marginBottom: 8,
+      marginTop: SPACING.s4,
+      marginBottom: SPACING.s8,
     },
     moveOptionsContent: {
       gap: 4,
-      paddingTop: 4,
+      paddingTop: SPACING.s4,
     },
     wellEmoji: {
       fontSize: 16,
@@ -245,7 +246,7 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 14,
       color: tokens.fg3,
       textAlign: 'center',
-      paddingVertical: 16,
+      paddingVertical: SPACING.s16,
     },
   })
 }

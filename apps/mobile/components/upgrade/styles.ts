@@ -1,9 +1,9 @@
-import { TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
   billingStack: { width: '100%', gap: 24 },
-  billingWell: { borderRadius: 12, padding: 16, gap: 12 },
+  billingWell: { borderRadius: 12, padding: SPACING.s16, gap: 12 },
   billingBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
   billingSecondary: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
   billingSectionHeading: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 22 },
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
   },
   allowanceSection: {
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
   },
   allowanceCard: {
     alignItems: 'stretch',
@@ -30,7 +30,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    padding: 16,
+    padding: SPACING.s16,
   },
   allowanceColumn: {
     flex: 1,
@@ -57,7 +57,7 @@ export const styles = StyleSheet.create({
   },
   outcomes: {
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: SPACING.s8,
   },
   outcomeRow: {
     alignItems: 'flex-start',
@@ -72,14 +72,14 @@ export const styles = StyleSheet.create({
   },
   planState: {
     gap: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
   },
   planChoices: {
     gap: 12,
   },
   convertHeader: {
     gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
   },
   convertEyebrow: {
     fontFamily: 'GeistMono_400Regular',
@@ -109,13 +109,13 @@ export const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   planGroup: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
     gap: 16,
   },
   tierCard: {
     borderRadius: 20,
     gap: 8,
-    padding: 24,
+    padding: SPACING.s24,
   },
   tierHeader: {
     alignItems: 'center',
@@ -158,7 +158,7 @@ export const styles = StyleSheet.create({
   },
   tierAction: {
     alignItems: 'flex-start',
-    paddingTop: 8,
+    paddingTop: SPACING.s8,
     paddingBottom: (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
     marginBottom: -(TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
     paddingHorizontal: (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
@@ -177,7 +177,7 @@ export const styles = StyleSheet.create({
   reassurance: {
     alignItems: 'flex-start',
     gap: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
   },
   reassuranceCopy: {
     alignItems: 'flex-start',

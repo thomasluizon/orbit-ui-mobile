@@ -1,6 +1,6 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -54,7 +54,7 @@ export function GoalProgressHistorySection({
   return (
     <div>
       <h3 className="text-[14px] font-medium text-[var(--fg-2)]">{title}</h3>
-      <ul id={historyId} className="list-none" style={{ margin: 0, padding: 0 }}>
+      <ul id={historyId} className="list-none" style={{ margin: SPACING.s0, padding: SPACING.s0 }}>
         {visibleEntries.map((entry) => {
           const date = formatDate(entry.createdAtUtc)
           const delta = formatGoalHistoryDelta(entry.previousValue, entry.value, locale)
@@ -65,7 +65,7 @@ export function GoalProgressHistorySection({
             <li
               key={`${entry.createdAtUtc}-${entry.value}`}
               className="flex flex-col"
-              style={{ padding: '8px 0', gap: 4 }}
+              style={{ padding: "var(--orbit-space-8) var(--orbit-space-0)", gap: 4 }}
             >
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(32px,auto)_minmax(56px,auto)] items-center gap-3">
                 <span data-history-date style={{ minWidth: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}>
@@ -91,7 +91,7 @@ export function GoalProgressHistorySection({
         })}
       </ul>
       {entries.length > HISTORY_PREVIEW_COUNT && (
-        <div style={{ padding: '4px 0' }}>
+        <div style={{ padding: "var(--orbit-space-4) var(--orbit-space-0)" }}>
           <button
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
@@ -100,7 +100,7 @@ export function GoalProgressHistorySection({
               fontSize: 14,
               fontWeight: 500,
               minHeight: TOUCH_TARGET_MIN,
-              padding: 0,
+              padding: SPACING.s0,
             }}
             aria-expanded={showAllHistory}
             aria-controls={historyId}
@@ -144,7 +144,7 @@ export function GoalLinkedHabitsSection({
       {notice}
       {linkedHabits.length === 0 ? (
         <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
-      ) : <ul className="-mx-4 list-none" style={{ marginBlock: 0, padding: 0 }}>
+      ) : <ul className="-mx-4 list-none" style={{ marginBlock: SPACING.s0, padding: SPACING.s0 }}>
         {linkedHabits.map((habit) => {
           const adherence = adherenceByHabitId.get(habit.id)
           const value = adherence ? formatValue(adherence.currentStreak) : undefined

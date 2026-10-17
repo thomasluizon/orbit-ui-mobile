@@ -2,7 +2,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ListRow } from '@/components/ui/list-row'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
@@ -164,8 +164,8 @@ export function GoalLinkedHabitsSection({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     historyEntry: {
-      paddingHorizontal: 0,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s0,
+      paddingVertical: SPACING.s8,
       gap: 4,
     },
     historyEntryHeader: {
@@ -209,8 +209,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       minHeight: TOUCH_TARGET_MIN,
       minWidth: TOUCH_TARGET_MIN,
       justifyContent: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s12,
+      paddingVertical: SPACING.s8,
     },
     toggleAllText: {
       fontFamily: 'Geist_500Medium',
@@ -224,8 +224,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
-      paddingHorizontal: 0,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s0,
+      paddingVertical: SPACING.s8,
     },
   })
 }

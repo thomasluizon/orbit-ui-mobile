@@ -1,6 +1,6 @@
 'use client'
 
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { MONTH_GRID_TARGET_MIN, PADDING, SPACING } from '@orbit/shared/theme'
 
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -208,7 +208,7 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '0 16px 8px' }}>
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <MonthGrid weekdayLabels={weekdayLabels} gap="var(--calendar-grid-gap)" loadingLabel={t('calendar.loading')}>
             {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
@@ -221,7 +221,7 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      className="orbit-calendar-grid-frame" style={{ padding: '0 16px 8px' }}
+      className="orbit-calendar-grid-frame" style={{ padding: `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px` }}
     >
       <div
         data-testid="calendar-grid-card"

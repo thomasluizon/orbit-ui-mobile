@@ -1441,7 +1441,7 @@ export function HabitList({
       ref={listContainerRef}
       data-habit-list=""
       tabIndex={-1}
-      className="min-w-0 px-[16px]"
+      className="min-w-0 px-screen-gutter"
     >
       <div id={reorderInstructionsId} className="sr-only">{t('dragAndDrop.habitInstructions')}</div>
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{reorderAnnouncements[0]}</div>

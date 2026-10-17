@@ -138,7 +138,7 @@ export function ReferralPrompt() {
           )}
         >
           <div className="flex flex-col items-center text-center">
-            <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
+            <p className="m-0 max-w-[42ch] text-base leading-[1.5] text-[var(--fg-2)]">
               {body}
             </p>
           </div>

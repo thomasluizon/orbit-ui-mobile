@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 16,
-    paddingTop: 4,
+    paddingTop: SPACING.s4,
   },
   heroCircle: {
     alignItems: 'center',

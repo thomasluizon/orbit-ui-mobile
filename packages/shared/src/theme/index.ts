@@ -21,4 +21,5 @@ export { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, MATCHED_PILL_M
 export { zLayers, type ZLayer } from './z-layers'
 export { WIDE_DESKTOP_BREAKPOINT, SHELL_CONTENT_MAX_WIDTH, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from './breakpoints'
 export { SHEET_BODY_INSETS } from './sheet'
+export { SPACING, PADDING } from './spacing'
 export * from './motion'

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -8,7 +8,7 @@ export type EditGoalStyles = ReturnType<typeof createStyles>
 export function createStyles(tokens: EditGoalTokens) {
   return StyleSheet.create({
     form: {
-      paddingTop: 8,
+      paddingTop: SPACING.s8,
       gap: 16,
     },
     eyebrow: {
@@ -32,7 +32,7 @@ export function createStyles(tokens: EditGoalTokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
-      marginBottom: 8,
+      marginBottom: SPACING.s8,
     },
     labelOptional: {
       fontFamily: 'Geist_400Regular',
@@ -42,7 +42,7 @@ export function createStyles(tokens: EditGoalTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
-      marginTop: 8,
+      marginTop: SPACING.s8,
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -64,17 +64,17 @@ export function createStyles(tokens: EditGoalTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusOverdueText,
-      marginTop: 8,
+      marginTop: SPACING.s8,
     },
     addDeadlineButton: {
       borderRadius: 999,
       overflow: 'hidden',
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
       minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 12,
+      paddingVertical: SPACING.s12,
       alignSelf: 'flex-start',
     },
     addDeadlineText: {

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export function createStyles() {
@@ -6,7 +6,7 @@ export function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
     cardPad: {
-      paddingBottom: 12,
+      paddingBottom: SPACING.s12,
     },
     connectionCard: {
       flexDirection: 'row',
@@ -14,8 +14,8 @@ export function createStyles() {
       gap: 12,
       borderRadius: 16,
       borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
     },
     connectionIconSlot: {
       width: 26,
@@ -35,16 +35,16 @@ export function createStyles() {
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       lineHeight: 16.8,
-      marginTop: 4,
+      marginTop: SPACING.s4,
     },
     syncNowRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      paddingTop: 16,
-      paddingBottom: 4,
+      paddingTop: SPACING.s16,
+      paddingBottom: SPACING.s4,
     },
     reconnectBlock: {
-      paddingVertical: 12,
+      paddingVertical: SPACING.s12,
       gap: 8,
       alignItems: 'flex-start',
     },
@@ -78,7 +78,7 @@ export function createStyles() {
       justifyContent: 'center',
     },
     centerBlock: {
-      paddingVertical: 32,
+      paddingVertical: SPACING.s32,
       alignItems: 'center',
       gap: 12,
     },
@@ -86,7 +86,7 @@ export function createStyles() {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingVertical: 12,
+      paddingVertical: SPACING.s12,
       borderRadius: 12,
       minHeight: TOUCH_TARGET_MIN,
     },
@@ -138,8 +138,8 @@ export function createStyles() {
       gap: 8,
       borderRadius: 999,
       borderWidth: 1,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s8,
+      paddingHorizontal: SPACING.s16,
     },
     quietActionDim: {
       opacity: 0.6,
@@ -159,13 +159,13 @@ export function createStyles() {
       justifyContent: 'center',
     },
     actionPad: {
-      paddingVertical: 16,
+      paddingVertical: SPACING.s16,
     },
     pickerStateRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingTop: 4,
+      paddingTop: SPACING.s4,
     },
     pickerStateText: {
       fontFamily: 'Geist_400Regular',
@@ -175,7 +175,7 @@ export function createStyles() {
     showMoreRow: {
       alignItems: 'center',
       gap: 8,
-      paddingTop: 12,
+      paddingTop: SPACING.s12,
     },
     showingCountText: {
       fontFamily: 'GeistMono_400Regular',
@@ -190,7 +190,7 @@ export function createStyles() {
     errorActions: {
       flexDirection: 'row',
       gap: 12,
-      marginTop: 4,
+      marginTop: SPACING.s4,
     },
   })
 }

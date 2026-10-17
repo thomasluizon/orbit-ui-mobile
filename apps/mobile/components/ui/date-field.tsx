@@ -2,7 +2,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
-import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
 import {
   View,
@@ -388,22 +388,22 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.borderControl,
       borderRadius: radius.md,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s8,
+      paddingHorizontal: SPACING.s16,
     },
     triggerText: {
       flex: 1,
       color: tokens.fg1,
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
-      marginRight: 8,
+      marginRight: SPACING.s8,
     },
     monthNav: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 8,
-      paddingHorizontal: 4,
+      marginBottom: SPACING.s8,
+      paddingHorizontal: SPACING.s4,
     },
     monthNavButton: {
       overflow: 'hidden',
@@ -436,8 +436,8 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
-      paddingHorizontal: 4,
-      paddingVertical: 0,
+      paddingHorizontal: SPACING.s4,
+      paddingVertical: SPACING.s0,
     },
     navHidden: {
       opacity: 0,

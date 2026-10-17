@@ -63,9 +63,9 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
     <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2">
       <button type="button" className={headerButton} aria-label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
       {period ? <button type="button" data-calendar-period-title className={`${titleButton} orbit-calendar-span-title`}
-        style={{ padding: '8px 16px', maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' }}
+        style={{ padding: "var(--orbit-space-8) var(--orbit-space-16)", maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' }}
         aria-label={t('calendar.period.goToCurrent', { period: period.label })} onClick={period.onCurrent}><span>{period.label}</span></button> :
-      <button type="button" className={`${titleButton} gap-1 whitespace-nowrap`} style={{ padding: '8px 16px', maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)' }}
+      <button type="button" className={`${titleButton} gap-1 whitespace-nowrap`} style={{ padding: "var(--orbit-space-8) var(--orbit-space-16)", maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)' }}
         aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
         <span className="min-w-0 whitespace-normal break-words">{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>
         <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />

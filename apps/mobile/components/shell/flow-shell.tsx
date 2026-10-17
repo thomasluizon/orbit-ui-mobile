@@ -1,4 +1,4 @@
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -52,8 +52,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 24,
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
-    paddingHorizontal: 16,
-    paddingVertical: 32,
+    paddingHorizontal: SPACING.s16,
+    paddingVertical: SPACING.s32,
     width: '100%',
   },
   column: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH },
@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingBottom: SPACING.s16,
+    paddingHorizontal: SPACING.s16,
+    paddingTop: SPACING.s16,
   },
-  notice: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, paddingHorizontal: 16 },
+  notice: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, paddingHorizontal: SPACING.s16 },
 })

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import {
   forwardRef,
   useCallback,
@@ -440,7 +441,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const clearance = useShellScrollerClearance()
-    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? 24 : 0) }
+    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)

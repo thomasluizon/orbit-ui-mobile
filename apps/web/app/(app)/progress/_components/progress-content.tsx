@@ -103,7 +103,7 @@ function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
 function WindowFrame({ children, title, statusText = '' }: Readonly<{ children: ReactNode; title: string; statusText?: string }>) {
   const headingId = useId()
   return (
-    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+    <section className="flex flex-col gap-section-title-gap" aria-labelledby={headingId}>
       <h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
       <p role="status" aria-live="polite" className="sr-only">{statusText}</p>
       {children}
@@ -113,7 +113,7 @@ function WindowFrame({ children, title, statusText = '' }: Readonly<{ children: 
 
 function LockedCard({ title, body, action }: Readonly<{ title: string; body: string; action: string }>) {
   return (
-    <div data-testid="progress-locked-card" className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+    <div data-testid="progress-locked-card" className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
       <div className="flex items-center gap-3">
         <Lock size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-2)]" />
         <ProBadge alwaysVisible />
@@ -204,7 +204,7 @@ function StreakRepairPanel({
   if (state.gapUnavailable) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
-        <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapUnavailable')}</p>
+        <p className="text-[16px] leading-[1.5] text-[var(--fg-1)]">{t('progressScreen.streak.gapUnavailable')}</p>
       </div>
     )
   }
@@ -213,7 +213,7 @@ function StreakRepairPanel({
     return (
       <>
         <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
-          <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
+          <p className="text-[16px] leading-[1.5] text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
           {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
           {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
           {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
@@ -377,7 +377,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
-      className="[transition-property:background-color,box-shadow,scale] orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      className="[transition-property:background-color,box-shadow,scale] orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
         <span className="flex flex-wrap items-center gap-2">
@@ -434,7 +434,7 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
     { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
-    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-3">
+    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-section-title-gap">
       {goals.length > 0 ? <>
         <ActionRow><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={onCreate}>{t('goals.create')}</PillButton></ActionRow>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
@@ -524,7 +524,7 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
+    <div className="flex min-w-0 flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
       <div className="flex flex-wrap items-center gap-3">
         <AchievementMark achievement={achievement} name={name} />
         <div className="flex min-w-0 flex-[1_1_120px] flex-col gap-1">
@@ -576,7 +576,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
       <Section title={t('progressScreen.sections.achievements')}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-section-title-gap"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
   )
@@ -615,7 +615,7 @@ function ProgressGoalsContent() {
   return (
     <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col">
       {creating ? <CreateGoalSheet open onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
-      {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
+      {detailGoalId ? <div className="px-screen-gutter pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col">
         <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
           <p data-progress-focus tabIndex={-1} className="sr-only">{t('progressScreen.sections.goals')}</p>
@@ -633,7 +633,7 @@ function ProgressOverview() {
   const t = useTranslations()
   return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-col" data-progress-screen="overview">
     <RootNotificationHeader />
-    <div className="flex min-w-0 flex-col gap-8 px-4 py-4">
+    <div className="flex min-w-0 flex-col gap-section-stack-gap px-screen-gutter py-4">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       <WindowSection />
       <SettingsGroup>

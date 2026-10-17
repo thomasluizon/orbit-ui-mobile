@@ -62,7 +62,7 @@ export function FieldWell({
         className="orbit-field-hover w-full appearance-none rounded-[12px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
         style={{
           minHeight: 54,
-          padding: '0 16px',
+          padding: "var(--orbit-space-0) var(--orbit-space-16)",
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: 16,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { ListRow } from '@/components/ui/list-row'
 import { Pressable, Text, View } from 'react-native'
@@ -42,7 +42,7 @@ function PushDevicesFeedback({
     || registrationStatus === 'registering' || registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
   return (
     <>
-      {error ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+      {error ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12 }}>
         <Text accessibilityRole="alert" style={{ flex: 1, color: tokens.statusBadText, fontSize: 14 }}>
           {t('profile.settingsRows.devicesUnavailable')}
         </Text>
@@ -50,16 +50,16 @@ function PushDevicesFeedback({
           <RotateCcw size={16} color={tokens.fg2} strokeWidth={1.8} />
         </PillButton>
       </View> : null}
-      <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg3, paddingHorizontal: full ? 16 : 0, paddingBottom: full ? 12 : 0, fontSize: 14 }}>
+      <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg3, paddingHorizontal: full ? SPACING.s16 : SPACING.s0, paddingBottom: full ? SPACING.s12 : SPACING.s0, fontSize: 14 }}>
         {full ? t('profile.settingsRows.pushDeviceLimit') : ''}
       </Text>
       {showPushStatus ? (
-        <Text accessibilityRole={registrationStatus === 'registering' ? undefined : 'alert'} accessibilityLiveRegion="polite" style={{ color: pushStatus.tone === 'critical' ? tokens.statusBadText : tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
+        <Text accessibilityRole={registrationStatus === 'registering' ? undefined : 'alert'} accessibilityLiveRegion="polite" style={{ color: pushStatus.tone === 'critical' ? tokens.statusBadText : tokens.fg3, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12, fontSize: 14 }}>
           {t(pushStatus.messageKey)}
         </Text>
       ) : null}
       {permissionStatus === 'denied' ? (
-        <Pressable accessibilityRole="button" onPress={onOpenSettings} style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 16, justifyContent: 'center' }}>
+        <Pressable accessibilityRole="button" onPress={onOpenSettings} style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s16, justifyContent: 'center' }}>
           <Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('settings.notifications.openSettings')}</Text>
         </Pressable>
       ) : null}
@@ -109,7 +109,7 @@ export function PushDevicesRow({
         if (!currentDeviceRegistered && !canEnable) return
         onToggle()
       } }} />
-      {loading ? <Text accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} style={{ color: tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>{t('profile.loading')}</Text> : null}
+      {loading ? <Text accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} style={{ color: tokens.fg3, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12, fontSize: 14 }}>{t('profile.loading')}</Text> : null}
       <PushDevicesFeedback
         tokens={tokens}
         error={error}

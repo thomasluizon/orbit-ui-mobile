@@ -14,7 +14,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
         fontSize: 12,
         fontWeight: 500,
         letterSpacing: '0.06em',
-        padding: '4px 8px',
+        padding: "var(--orbit-space-4) var(--orbit-space-8)",
         textBox: 'trim-both cap alphabetic',
       }}
     >

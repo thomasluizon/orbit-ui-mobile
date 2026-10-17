@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -24,7 +24,7 @@ export function createStyles(tokens: CreateGoalTokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
-      marginBottom: 8,
+      marginBottom: SPACING.s8,
     },
     labelOptional: {
       fontFamily: 'Geist_400Regular',
@@ -34,10 +34,10 @@ export function createStyles(tokens: CreateGoalTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusBadText,
-      marginTop: 8,
+      marginTop: SPACING.s8,
     },
     typeCaption: {
-      marginTop: 12,
+      marginTop: SPACING.s12,
     },
     typeDesc: {
       fontFamily: 'Geist_400Regular',
@@ -50,7 +50,7 @@ export function createStyles(tokens: CreateGoalTokens) {
       fontSize: 12,
       color: tokens.fg3,
       lineHeight: 16,
-      marginTop: 4,
+      marginTop: SPACING.s4,
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -72,17 +72,17 @@ export function createStyles(tokens: CreateGoalTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusOverdueText,
-      marginTop: 8,
+      marginTop: SPACING.s8,
     },
     addDeadlineButton: {
       borderRadius: 999,
       overflow: 'hidden',
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
       minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 12,
+      paddingVertical: SPACING.s12,
       alignSelf: 'flex-start',
     },
     addDeadlineText: {

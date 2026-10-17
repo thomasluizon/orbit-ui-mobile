@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
@@ -222,7 +225,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           threadScroll.recordScroll(feed.scrollTop, feed.scrollHeight - feed.clientHeight)
         }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
-        style={{ padding: 16 }}
+        style={{ padding: SPACING.s16 }}
         role="feed"
         aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
         aria-label={t('chat.title')}

@@ -154,6 +154,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#padding-contract": {
+    "scope": "changed-files",
+    "snapshot": "npm run spacing:generate -w @orbit/eslint-rules",
+    "constants": [
+      {
+        "name": "shared spacing scale and padding roles",
+        "source": "packages/shared/src/theme/spacing.json"
+      }
+    ]
+  },
   ".github/workflows/guards.yml#parity": {
     "scope": "changed-files",
     "snapshot": "none",

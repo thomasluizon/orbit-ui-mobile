@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
@@ -246,7 +246,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 16,
     },
     loadingContainer: {
-      paddingVertical: 48,
+      paddingVertical: SPACING.s48,
       alignItems: 'center',
     },
     linkWell: {
@@ -257,9 +257,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
-      paddingLeft: 16,
-      paddingRight: 8,
-      paddingVertical: 4,
+      paddingLeft: SPACING.s16,
+      paddingRight: SPACING.s8,
+      paddingVertical: SPACING.s4,
     },
     linkText: {
       flex: 1,
@@ -294,7 +294,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     progressBlock: {
-      paddingVertical: 12,
+      paddingVertical: SPACING.s12,
     },
     infoTitle: {
       fontFamily: 'Geist_600SemiBold',
@@ -303,7 +303,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     infoBody: {
-      marginTop: 8,
+      marginTop: SPACING.s8,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,

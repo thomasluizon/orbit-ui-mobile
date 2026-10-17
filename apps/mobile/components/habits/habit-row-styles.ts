@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
@@ -77,8 +77,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: TOUCH_TARGET_MIN,
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.s12,
+    paddingVertical: SPACING.s12,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -88,7 +88,7 @@ export const styles = StyleSheet.create({
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: 4,
-    marginHorizontal: 8,
+    marginVertical: SPACING.s4,
+    marginHorizontal: SPACING.s8,
   },
 })

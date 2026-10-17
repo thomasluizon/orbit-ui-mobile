@@ -2,7 +2,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
@@ -29,7 +29,7 @@ function GoalName({ name, onOpen }: Readonly<{ name: string; onOpen: () => void 
     onFocus={() => setFocused(true)}
     onBlur={() => setFocused(false)}
     onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
-    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, alignSelf: 'stretch', marginHorizontal: -8, minWidth: 0, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed || focused || hovered ? tokens.bgHover : 'transparent' })}>
+    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, alignSelf: 'stretch', marginHorizontal: -SPACING.s8, minWidth: 0, justifyContent: 'center', paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed || focused || hovered ? tokens.bgHover : 'transparent' })}>
     <PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{name}</PersonalText>
   </InsetFocusPressable>
 }

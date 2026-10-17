@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
@@ -66,7 +67,7 @@ export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState,
 const styles = StyleSheet.create({
   container: { minWidth: 0, gap: 8 },
   connection: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  summary: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 4, paddingVertical: 12 },
+  summary: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 4, paddingVertical: SPACING.s12 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   date: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
   refresh: { minHeight: 48, minWidth: 48, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

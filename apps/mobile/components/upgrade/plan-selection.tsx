@@ -7,7 +7,7 @@ import Animated, {
   FadeOut,
   ReduceMotion,
 } from 'react-native-reanimated'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -143,7 +143,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <View style={[styles.planState, !inset && { paddingHorizontal: 0 }]}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
           {intervalControl}
           <View style={styles.planChoices}>
             {(['yearly', 'monthly'] as const).map((interval) => (
@@ -169,7 +169,7 @@ export function PlanSelection({
   if (isError && !plans && isOnline) {
     return (
       <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
-        <View style={[styles.planState, !inset && { paddingHorizontal: 0 }]}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
           {intervalControl}
           <ErrorState
             message={t('upgrade.plans.error')}
@@ -223,7 +223,7 @@ export function PlanSelection({
 
   return (
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
-      <View style={[styles.planGroup, !inset && { paddingHorizontal: 0 }]}>
+      <View style={[styles.planGroup, !inset && { paddingHorizontal: SPACING.s0 }]}>
         {intervalControl}
         <View style={styles.planChoices}>
           {tiers.map((tier) => (

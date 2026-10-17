@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import {
   forwardRef,
@@ -117,8 +118,8 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.borderControl,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,

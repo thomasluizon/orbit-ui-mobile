@@ -63,7 +63,7 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
+  it.each([412, 840, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     const entries = makeCalendarDayCardEntries()
     expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
@@ -78,6 +78,13 @@ describe('Android day card geometry', () => {
         replayTextLayout(tree, Math.min(width, 740) - 32, scale)
         const hostRows = tree.toJSON().children[1].children
         const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+        const title = measured.texts.find((text) => text.label === 'Hoje')!
+        expect(title.left).toBe(24)
+        expect(title.top).toBe(24)
+        const route = measured.controls.find((control) => control.accessibilityLabel === i18n.t('calendar.goToDay'))!
+        expect(route.left).toBe(24)
+        expect(route.right).toBe(Math.min(width, 740) - 32 - 24)
+        expect(StyleSheet.flatten(tree.toJSON().props.style).paddingVertical).toBe(24)
         heights.push(hostRows.map((host: Parameters<typeof measureProfileRow>[0]) => measureProfileRow(host, Math.min(width, 740) - 80, scale).height))
         hostRows.forEach((host: { props: { style: object | ((state: { pressed: boolean }) => object) } }, index: number) => {
           const style = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style

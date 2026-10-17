@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2 } from '@/lib/theme'
@@ -42,7 +43,7 @@ export function RescheduleProposal({
 
 const styles = StyleSheet.create({
   root: { gap: 12 },
-  card: { gap: 4, padding: 24, borderRadius: 20, borderWidth: 1 },
+  card: { gap: 4, padding: SPACING.s24, borderRadius: 20, borderWidth: 1 },
   value: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 20, fontVariant: ['tabular-nums'] },
   schedule: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   rationale: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

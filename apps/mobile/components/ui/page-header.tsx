@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { PageHeaderProps } from '@orbit/shared/contracts/navigation'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ArrowLeft } from '@/components/ui/icons'
@@ -21,7 +22,7 @@ export function PageHeader({ title, backLabel, onBack, action, footer }: Readonl
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 8, paddingBottom: 8, paddingLeft: 8, paddingRight: 16 },
+  row: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: SPACING.s8, paddingBottom: SPACING.s8, paddingLeft: SPACING.s8, paddingRight: SPACING.s16 },
   back: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   title: { flex: 1, minWidth: 0, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'auto' },
 })

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { ErrorStateProps } from '@orbit/shared/contracts/feedback'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -28,8 +29,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: 16,
-    paddingVertical: 48,
-    paddingHorizontal: 24,
+    paddingVertical: SPACING.s48,
+    paddingHorizontal: SPACING.s24,
   },
   message: {
     fontFamily: 'Geist_400Regular',

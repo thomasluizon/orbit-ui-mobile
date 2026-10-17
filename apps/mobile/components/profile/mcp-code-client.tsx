@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useTranslation } from 'react-i18next'
 import { buildMcpConfigJson, MCP_CONFIG_TABS, type McpConfigTab } from '@orbit/shared/utils/advanced-settings'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Copy } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 import { Chip } from '@/components/ui/chip'
@@ -76,7 +76,7 @@ export function McpCodeClient({ endpoint }: Readonly<{ endpoint: string }>) {
 }
 
 const styles = StyleSheet.create({
-  well: { minWidth: 0, borderRadius: 12, gap: 24, padding: 16 },
+  well: { minWidth: 0, borderRadius: 12, gap: 24, padding: SPACING.s16 },
   title: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   configuration: { minWidth: 0, gap: 12 },

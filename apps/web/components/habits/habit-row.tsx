@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useId, type KeyboardEvent, type ReactNode } from 'react'
 import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -260,7 +263,7 @@ export function HabitRow({
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>{controls}</div> : controls}
     </>
   )
 
@@ -289,7 +292,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   const contentId = useId()
   const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
-  const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }
+  const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: SPACING.s8, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
       <button
         type="button"
@@ -301,12 +304,12 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         style={paddingStyle}
       >
         {supportingMeta ? (
-          <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? 4 : 8 }}>
+          <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>
             {children}
           </div>
         ) : children}
         {supportingMeta ? (
-          <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingBlockEnd: 8 }}>
+          <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingBlockEnd: SPACING.s8 }}>
             <span className="w-[48px] shrink-0" aria-hidden="true" />
             <div className="min-w-0 flex-1"><MetaStrip tokens={meta.filter((token) => typeof token === 'string' || token.kind !== 'future')} expanded /></div>
           </div>
@@ -332,7 +335,7 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
       className={`relative ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'} ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{ minHeight }}>
       {largeText && !supportingMeta ? (
-        <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? 4 : 8 }}>
+        <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>
           {children}
         </div>
       ) : children}
@@ -355,6 +358,6 @@ function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefin
 }
 
 function habitRowPadding(isChild: boolean, largeText: boolean): number {
-  if (largeText) return 0
-  return isChild ? 4 : 8
+  if (largeText) return SPACING.s0
+  return isChild ? SPACING.s4 : SPACING.s8
 }

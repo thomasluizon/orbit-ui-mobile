@@ -684,11 +684,17 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
   })
 
-  it.each([600, 840, 1352])('fills the compact Perfil column and caps wide content at %i', async (width) => {
+  it.each([412, 600, 840, 1352])('fills the compact Perfil column and caps wide content at %i', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const tree = await renderProfileScreen()
     try {
       const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const groups = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'profile-settings-groups')[0]!
+      expect(StyleSheet.flatten(groups.props.style).gap).toBe(32)
+      const more = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'profile-settings-group-more')[0]!
+      expect(StyleSheet.flatten(more.props.style).gap).toBe(12)
+      const ordered = measured.boxes.filter((box) => box.testID.startsWith('profile-settings-group-'))
+      for (let index = 1; index < ordered.length; index++) expect(ordered[index]!.top - ordered[index - 1]!.bottom).toBeCloseTo(32, 2)
       for (const testID of ['profile-settings-group-you', 'profile-settings-group-ending']) {
         const box = measured.boxes.find((box) => box.testID === testID)!
         expect(box.left).toBe(16)

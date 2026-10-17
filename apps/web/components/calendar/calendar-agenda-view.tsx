@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
@@ -38,7 +41,7 @@ export function CalendarAgendaView({
       data-testid="calendar-agenda-view"
       aria-busy={isLoading}
       className="orbit-content-frame flex flex-col"
-      style={{ gap: 16, paddingBottom: 24 }}
+      style={{ gap: 16, paddingBottom: SPACING.s24 }}
     >
       {isLoading ? dates.map((date, index) => (
         <div key={formatAPIDate(date)} data-testid="calendar-agenda-loading-day">
@@ -61,7 +64,7 @@ export function CalendarAgendaView({
           >
             <h2
               style={{
-                margin: 0,
+                margin: SPACING.s0,
                 color: 'var(--fg-2)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '0.875rem',
@@ -74,7 +77,7 @@ export function CalendarAgendaView({
             {entries.length === 0 ? (
               <p
                 style={{
-                  margin: 0,
+                  margin: SPACING.s0,
                   color: 'var(--fg-3)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '0.875rem',

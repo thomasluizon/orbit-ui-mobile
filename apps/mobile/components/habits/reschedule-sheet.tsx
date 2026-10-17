@@ -10,7 +10,7 @@ import {
   parseAPIDate,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { SPACING, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
@@ -193,7 +193,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scrollContent: {
       gap: 16,
-      paddingBottom: 8,
+      paddingBottom: SPACING.s8,
     },
     headerRow: {
       flexDirection: 'row',

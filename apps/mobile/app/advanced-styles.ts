@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
@@ -6,7 +7,7 @@ export type Tokens = ReturnType<typeof createTokensV2>
 export const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 32 },
+  scrollContent: { paddingBottom: SPACING.s32 },
   widgetSheetContent: {
     gap: 16,
   },

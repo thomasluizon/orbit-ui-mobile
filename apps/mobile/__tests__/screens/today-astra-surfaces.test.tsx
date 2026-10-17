@@ -46,7 +46,6 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   ...await importOriginal<typeof import('@orbit/shared/utils')>(),
-  getTodayBoundary: () => null,
   parseShowGeneralOnTodayPreference: () => false,
 }))
 vi.mock('@/hooks/use-profile', () => ({
@@ -76,12 +75,11 @@ vi.mock('@/components/habit-list', () => ({
       React.Fragment,
       null,
       props.listHeader as React.ReactNode,
-      React.createElement('HabitList'),
+      React.createElement('HabitList', { testID: 'today-list-surface', style: { height: 68 } }),
     )
   }),
 }))
 vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
-vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
 vi.mock('@/components/today/today-date-control', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-date-control')>()
   return { TodayDateControl: (props: React.ComponentProps<typeof original.TodayDateControl>) => mocks.geometry
@@ -186,6 +184,62 @@ describe('mobile Today Astra owned surfaces', () => {
       expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in').length).toBeGreaterThan(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
+
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+    'scales only the proactive line gap with a daily summary at $width and $fontScale text scale', async ({ width, fontScale }) => {
+      const native = await import('react-native')
+      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+      mocks.geometry = true
+      mocks.hasProAccess = false
+      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      try {
+        const geometry = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+          ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line'
+            : host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('summary.freePrompt')) ? 'summary' : undefined,
+        { width, height: 915 })
+        expect(geometry.has('summary')).toBe(true)
+        expect(geometry.get('date')!.top - geometry.get('line')!.bottom).toBe(24 * fontScale)
+        expect(geometry.get('summary')!.top - geometry.get('date')!.bottom).toBe(24)
+      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
+    },
+  )
+
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [
+    { date: '2026-08-22', boundary: 'lastLoggable' },
+    { date: '2026-08-21', boundary: 'readOnly' },
+    { date: '2026-08-30', boundary: 'future' },
+    { date: '2026-08-28', boundary: null },
+    { date: '2026-08-29', boundary: null },
+  ].map((day) => ({ width, fontScale, ...day })))))(
+    'keeps the date notice and list gaps fixed for $date at $width and $fontScale text scale', async ({ width, fontScale, date, boundary }) => {
+      const native = await import('react-native')
+      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+      mocks.geometry = true
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      try {
+        await TestRenderer.act(() => {
+          mocks.selectedDay = date
+          tree.update(<TodayScreen />)
+        })
+        const notices = tree.root.findAll((node) => node.type === View && node.props.testID === 'capacity-notice')
+        expect(notices).toHaveLength(boundary ? 1 : 0)
+        const geometry = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+          ? 'date' : host.props.testID === 'capacity-notice' ? 'notice'
+            : host.props.testID === 'today-list-surface' ? 'list' : undefined,
+        { width, height: 915 })
+        if (boundary) {
+          expect(notices[0]!.findAll((node) => node.type === native.Text).map((node) => node.props.children)).toEqual([`habits.todayBoundary.${boundary}`])
+          expect(geometry.get('notice')!.top - geometry.get('date')!.bottom).toBe(24)
+          expect(geometry.get('list')!.top - geometry.get('notice')!.bottom).toBe(24)
+        } else {
+          expect(geometry.get('list')!.top - geometry.get('date')!.bottom).toBe(24)
+        }
+      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
+    },
+  )
 
   beforeEach(() => {
     mocks.habitListProps = null

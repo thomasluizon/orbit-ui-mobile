@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { buildMcpConfigJson, MCP_CONFIG_TABS, type McpConfigTab } from '@orbit/shared/utils/advanced-settings'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Copy } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 import { Chip } from '@/components/ui/chip'
@@ -45,7 +45,7 @@ export function McpCodeClient({ endpoint }: Readonly<{ endpoint: string }>) {
   const [activeTab, setActiveTab] = useState<McpConfigTab>('web')
 
   return (
-    <div className="flex min-w-0 flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 24, padding: 16 }}>
+    <div className="flex min-w-0 flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 24, padding: SPACING.s16 }}>
       <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
       <div role="group" aria-label={t('orbitMcp.connectionInstructions')} className="flex flex-wrap" style={{ gap: 12 }}>
         {MCP_CONFIG_TABS.map((tab) => (

@@ -1,5 +1,8 @@
 'use client'
 
+import { PADDING, SPACING } from '@orbit/shared/theme'
+
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { type ReactNode } from 'react'
@@ -39,7 +42,7 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
   const t = useTranslations()
   const { displayDateMedium } = useDateFormat()
   return (
-    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: 16, paddingBottom: 16 }}>
+    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: PADDING.rowInline, paddingBottom: SPACING.s16 }}>
       <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
       <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
       <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
@@ -198,7 +201,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
         <p className="text-sm font-medium text-[var(--status-overdue-text)]">
           {t('orbitMcp.keyCreatedWarning')}
         </p>
-        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: 16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
+        <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: SPACING.s16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
           <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
           <PillButton size="sm" variant="ghost" onClick={() => void copyKey()}>
             {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
