@@ -57,6 +57,9 @@ export function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="progress/streak" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
+        <Stack.Screen name="progress/goals" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
+        <Stack.Screen name="progress/achievements" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
         <Stack.Screen name="profile/account" />
         <Stack.Screen name="profile/preferences" />
         <Stack.Screen name="profile/astra" />

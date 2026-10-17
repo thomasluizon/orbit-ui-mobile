@@ -37,7 +37,7 @@ describe('Astra status cards on web', () => {
     expect(document.querySelectorAll('[data-state="earned"]')).toHaveLength(3)
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
   })
 
   it('ends the streak strip on the account date across device midnight', () => {

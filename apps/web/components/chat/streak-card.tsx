@@ -34,7 +34,7 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
       ]}
       actions={(
         /* eslint-disable-next-line local/max-button-words -- #681 uses the approved Progress destination chip. */
-        <Button variant="ghost" size="sm" onClick={() => router.push('/progress')}>{t('chat.streakCard.open')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => router.push('/progress/streak')}>{t('chat.streakCard.open')}</Button>
       )} />
   </div>
 }

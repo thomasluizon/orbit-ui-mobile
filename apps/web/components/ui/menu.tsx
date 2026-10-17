@@ -131,10 +131,12 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
             className="orbit-menu-item"
             onClick={() => onActivate(item.id)}
           >
-            {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
-            <span className="orbit-menu-label">{item.label}</span>
-            {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
-            {item.badge ? <Badge>{item.badge}</Badge> : null}
+            <span className="orbit-menu-content">
+              {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
+              <span className="orbit-menu-label">{item.label}</span>
+              {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
+              {item.badge ? <Badge>{item.badge}</Badge> : null}
+            </span>
           </button>
         )
       })}

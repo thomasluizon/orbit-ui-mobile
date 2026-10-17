@@ -133,6 +133,8 @@ async function inspectDestinations(page: Page) {
         await expectWayfindingFocus(page, row.locator('xpath=ancestor::div[@tabindex="-1"]').first())
       }
       if (path === '/progress') {
+        await page.locator('a[href="/progress/goals"]').click()
+        await expect(page).toHaveURL(/\/progress\/goals$/)
         await page.getByRole('button').filter({ hasText: goal.title }).click()
         await expectWayfindingFocus(page, page.getByRole('heading', { level: 1, name: goal.title, exact: true }))
         await expectWayfindingFocus(page, page.locator('[data-goal-detail]'))
