@@ -104,6 +104,13 @@ function unsafeIcuApostropheOffsets(value: string): number[] {
     const start = index
     while (value[index] === "'") index += 1
     const hasUnpairedApostrophe = (index - start) % 2 === 1
+    const quotesLiteralBrace = hasUnpairedApostrophe
+      && (value[index] === '{' || value[index] === '}')
+      && value[index + 1] === "'"
+    if (quotesLiteralBrace) {
+      index += 2
+      continue
+    }
     const bordersIcuSyntax = value[index] === '{' || value[index] === '}' || value[index] === '#'
     if (hasUnpairedApostrophe && bordersIcuSyntax) offsets.push(start)
   }
@@ -338,6 +345,14 @@ describe('i18n locale parity', () => {
     }
 
     expect(violations).toEqual([])
+  })
+
+  it.each([
+    { locale: 'en', message: "Remind me to '{'habit'}' at '{'time'}'.", expected: 'Remind me to {habit} at {time}.' },
+    { locale: 'pt-BR', message: "Me lembre de '{'hábito'}' às '{'hora'}'.", expected: 'Me lembre de {hábito} às {hora}.' },
+  ])('accepts paired literal-brace quotes without treating them as unsafe apostrophes in $locale', ({ locale, message, expected }) => {
+    expect(new IntlMessageFormat(message, locale).format()).toBe(expected)
+    expect(unsafeIcuApostropheOffsets(message)).toEqual([])
   })
 
   it('flags an unpaired apostrophe before an ICU closing brace', () => {
