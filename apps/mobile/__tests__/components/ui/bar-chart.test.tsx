@@ -70,6 +70,23 @@ describe('BarChart on Android', () => {
     expect(host(tree.root, 'bar-chart-readout').props.children).toContain('Sat')
   })
 
+  it.each([
+    { actionName: 'increment', start: 3, destinations: [4, 5] },
+    { actionName: 'decrement', start: 3, destinations: [2, 1] },
+    { actionName: 'increment', start: 28, destinations: [29, 0] },
+    { actionName: 'decrement', start: 1, destinations: [0, 29] },
+  ])('continues $actionName actions on radio $start from the current selection', ({ actionName, start, destinations }) => {
+    const target = radios()[start]!
+    trigger(target, 'onPress')
+    for (const destination of destinations) {
+      trigger(target, 'onAccessibilityAction', { nativeEvent: { actionName } })
+      const selected = radios()[destination]!
+      expect(radios().map((radio) => radio.props.accessibilityState)).toEqual(points.map((_, index) => ({ checked: index === destination })))
+      expect(host(tree.root, 'bar-chart-readout').props.children).toBe(selected.props.accessibilityLabel)
+      expect(radios()[start]).toBe(target)
+    }
+  })
+
   it.each([320, 412])('tiles the %i plot with full-height targets and clamps both edge readouts', (width) => {
     const plot = host(tree.root, 'bar-chart-control')
     layout(plot, width)

@@ -48,7 +48,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(event) => {
             const direction = event.nativeEvent.actionName === 'increment' ? 'right' : 'left'
-            setSelectedDate(points[stepSelection(index, points.length, direction)]!.startDate)
+            setSelectedDate(points[stepSelection(selectedIndex, points.length, direction)]!.startDate)
           }}
           onPress={() => setSelectedDate(point.startDate)}
           onFocus={() => { setFocused(index); setSelectedDate(point.startDate) }}

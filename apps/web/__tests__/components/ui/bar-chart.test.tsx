@@ -68,6 +68,29 @@ describe('BarChart on web', () => {
     expect(radios[0]).toHaveFocus()
   })
 
+  it.each([
+    { key: 'ArrowRight', start: 3, destinations: [4, 5] },
+    { key: 'ArrowLeft', start: 3, destinations: [2, 1] },
+    { key: 'ArrowDown', start: 3, destinations: [4, 5] },
+    { key: 'ArrowUp', start: 3, destinations: [2, 1] },
+    { key: 'ArrowRight', start: 5, destinations: [6, 0] },
+    { key: 'ArrowLeft', start: 1, destinations: [0, 6] },
+  ])('continues $key events on radio $start from the current selection', ({ key, start, destinations }) => {
+    const { container } = render(chart())
+    const radios = screen.getAllByRole('radio')
+    const target = radios[start]!
+    fireEvent.click(target)
+    for (const destination of destinations) {
+      fireEvent.keyDown(target, { key })
+      const selected = radios[destination]!
+      expect(screen.getAllByRole('radio', { checked: true })).toEqual([selected])
+      expect(selected).toHaveFocus()
+      expect(radios.filter((radio) => radio.tabIndex === 0)).toEqual([selected])
+      expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(selected.getAttribute('aria-label')!)
+      expect(screen.getAllByRole('radio')[start]).toBe(target)
+    }
+  })
+
   it('keeps selection in range when the series shrinks, and renders no control for an empty series', () => {
     const { rerender } = render(chart())
     fireEvent.click(screen.getAllByRole('radio')[6]!)
