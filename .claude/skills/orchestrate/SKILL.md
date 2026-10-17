@@ -1089,8 +1089,10 @@ or what triggered it, and a review with an empty body is a progress marker rathe
 Then rerun delivery verification on the new head.
 
 Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
-the order names the exact experiment. Route any batch needing product, design, architecture,
-security or ambiguous judgement to `--tier default`.
+the order names the exact experiment and no review round has failed. Route any batch needing product,
+design, architecture, security or ambiguous judgement to the ticket's `--tier default` or
+`--tier deep`. After one failed review round, use `--tier max` for the next review round regardless
+of the batch's other routing criteria.
 
 ### Who writes the fix
 
