@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
-import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
+import { confirmPendingOperation, executePendingOperation, reportProactiveOpened, reportProactiveActed } from '@/app/actions/chat'
 import { POST as eventTicket } from '@/app/api/events/ticket/route'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -55,6 +55,13 @@ describe('createHabit action error boundary', () => {
       code: errorCode,
       error: message,
     })
+  })
+
+  it.each([reportProactiveOpened, reportProactiveActed])('never retries a proactive outcome after an unauthorized response', async (report) => {
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Unauthorized' }, { status: 401 }))
+    await expect(report('11111111-1111-4111-8111-111111111111', null)).rejects.toMatchObject({ status: 401 })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)
   })
 
   it('carries upstream Retry-After for the event ticket boundary', async () => {

@@ -137,9 +137,9 @@ export async function getProactiveItemStatus(id: string) {
 }
 
 export async function reportProactiveOpened(id: string, intendedAccountId: string | null) {
-  return serverAuthMutate(API.proactive.opened(proactiveItemSchema.shape.id.parse(id)), { method: 'POST' }, intendedAccountId)
+  return serverAuthMutate(API.proactive.opened(proactiveItemSchema.shape.id.parse(id)), { method: 'POST', skipAuthRecovery: true }, intendedAccountId)
 }
 
 export async function reportProactiveActed(id: string, intendedAccountId: string | null) {
-  return serverAuthMutate(API.proactive.acted(proactiveItemSchema.shape.id.parse(id)), { method: 'POST' }, intendedAccountId)
+  return serverAuthMutate(API.proactive.acted(proactiveItemSchema.shape.id.parse(id)), { method: 'POST', skipAuthRecovery: true }, intendedAccountId)
 }
