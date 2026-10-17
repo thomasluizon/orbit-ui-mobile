@@ -1,4 +1,9 @@
+import { TOUCH_TARGET_MIN } from '../../theme/breakpoints'
+
 export type BarChartPoint = Readonly<{
+  startDate: string
+  endDate: string
+  readoutDateLabel: string
   dateLabel: string
   rate: number | null
   scheduled: number
@@ -15,7 +20,7 @@ export type BarGeometry = Readonly<{
   slotEnd: number
 }>
 
-export const BAR_CHART_HEIGHT = 96
+export const BAR_CHART_HEIGHT = Math.max(96, TOUCH_TARGET_MIN)
 export const BAR_CHART_EMPTY_HEIGHT = 4
 
 export function resolveBarChartGeometry(
@@ -44,10 +49,17 @@ export function resolveBarChartGeometry(
   })
 }
 
-export function nearestBarIndex(x: number, bars: readonly BarGeometry[]): number {
-  if (bars.length === 0) return -1
-  const slotWidth = bars[0]!.slotEnd - bars[0]!.slotStart
-  return Math.max(0, Math.min(bars.length - 1, Math.floor(x / slotWidth)))
+export function resolveBarChartReadout(width: number, readoutWidth: number, index: number, count: number): number {
+  const center = count > 0 ? (index + 0.5) * width / count : 0
+  return Math.max(0, Math.min(width - readoutWidth, center - readoutWidth / 2))
+}
+
+export function resolveBarChartSelection(points: readonly BarChartPoint[], selectedDate: string | null, today = new Date()): number {
+  const selected = points.findIndex((point) => point.startDate === selectedDate)
+  if (selected >= 0) return selected
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const current = points.findIndex((point) => point.startDate <= date && point.endDate >= date)
+  return current >= 0 ? current : points.length - 1
 }
 
 export function barChartPath(bar: BarGeometry): string {
@@ -63,5 +75,5 @@ export function stepSelection(
   if (count === 0) return -1
   if (direction === 'home') return 0
   if (direction === 'end') return count - 1
-  return Math.max(0, Math.min(count - 1, index + (direction === 'left' ? -1 : 1)))
+  return (index + (direction === 'left' ? -1 : 1) + count) % count
 }

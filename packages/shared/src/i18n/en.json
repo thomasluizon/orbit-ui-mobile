@@ -1196,6 +1196,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} of {scheduled}",
+      "unscheduledDay": "{date} · Nothing scheduled",
       "date": "Date",
       "rate": "Rate",
       "completed": "Completed",
