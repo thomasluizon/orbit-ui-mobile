@@ -1,3 +1,6 @@
+import { QueryClient, QueryObserver, onlineManager } from '@tanstack/react-query'
+import { goalKeys } from '@orbit/shared/query'
+import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { personalText } from '@/__tests__/support/personal-text'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
@@ -193,6 +196,54 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
     view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
     expect(screen.getByText('Saved note')).toBeInTheDocument()
+  })
+
+  it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    client.mount()
+    const query = vi.fn(() => Promise.resolve(detailGoal))
+    const observer = new QueryObserver(client, { queryKey: goalKeys.detail('1'), queryFn: query, initialData: detailGoal, enabled: false })
+    const unsubscribe = observer.subscribe(() => undefined)
+    refetchDetail.mockImplementationOnce(() => observer.refetch())
+    updateProgressMutateAsync.mockImplementationOnce(() => { onlineManager.setOnline(false); return Promise.resolve() })
+    try {
+      render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+      fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7' } })
+      fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+      await waitFor(() => expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused'))
+      expect(query).not.toHaveBeenCalled()
+      await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+      expect(updateProgressMutateAsync).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+      fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+      await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+    } finally {
+      await client.cancelQueries()
+      unsubscribe()
+      client.unmount()
+      client.clear()
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it('bounds progress notes and retains an over-limit draft for correction', async () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    const note = screen.getByLabelText('goals.progressNote')
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7.5' } })
+    fireEvent.change(note, { target: { value: 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1) } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+    expect(note).toHaveValue('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    expect(note).toHaveAttribute('aria-invalid', 'true')
+    expect(note).toHaveFocus()
+    expect(screen.getByText('goals.form.progressNoteTooLong')).toBeVisible()
+    const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
+    fireEvent.change(note, { target: { value: validNote } })
+    expect(note).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } })))
   })
 
   it('disables manual fields and repeated saves while a write is pending', async () => {

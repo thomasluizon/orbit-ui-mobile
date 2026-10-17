@@ -47,7 +47,7 @@ export function GoalProgressForm({ goal, refetchDetail, onClose }: Readonly<Goal
     }>
       <form id={formId} noValidate onSubmit={event => { event.preventDefault(); void submit() }} className="flex flex-col gap-6" aria-busy={busy}>
         <Input label={t('goals.progress')} name="currentValue" value={entry.value} onChange={entry.setValue} required inputMode="decimal" autoComplete="off" disabled={busy} focusRequest={entry.focusRequest} error={entry.errorKey ? t(entry.errorKey) : undefined} hint={entry.exceedsTarget ? t('goals.form.progressExceedsTarget') : undefined} />
-        <Input label={t('goals.progressNote')} name="progressNote" value={entry.note} onChange={entry.setNote} autoComplete="off" disabled={busy} multiline rows={3} />
+        <Input label={t('goals.progressNote')} name="progressNote" value={entry.note} onChange={entry.setNote} autoComplete="off" disabled={busy} focusRequest={entry.noteFocusRequest} error={entry.noteErrorKey ? t(entry.noteErrorKey) : undefined} multiline rows={3} />
         <p role="alert" className={error ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
       </form>
     </Sheet>

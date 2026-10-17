@@ -9,17 +9,19 @@ export function useGoalProgressEntry(initialValue: number, targetValue: number, 
   const pending = useRef(false)
   const parsed = getGoalProgressEntryRequest(draft.value, draft.note, targetValue)
 
+  const noteInvalid = 'errorField' in parsed && parsed.errorField === 'note'
+
   async function submit() {
     if (pending.current) return false
     if (!parsed.request) {
-      dispatch({ type: 'invalid' })
+      dispatch({ type: 'invalid', field: noteInvalid ? 'note' : undefined })
       return false
     }
     pending.current = true
     dispatch({ type: 'begin' })
     try {
       await save(parsed.request)
-      await refetchDetail()
+      void refetchDetail()
       return true
     } catch (failure: unknown) {
       dispatch({ type: 'failure', failure })
@@ -34,7 +36,8 @@ export function useGoalProgressEntry(initialValue: number, targetValue: number, 
     ...draft, submit,
     setValue: (value: string) => dispatch({ type: 'value', value }),
     setNote: (note: string) => dispatch({ type: 'note', note }),
-    errorKey: draft.submitted ? parsed.errorKey : null,
+    errorKey: draft.submitted && !noteInvalid ? parsed.errorKey : null,
+    noteErrorKey: draft.submitted && noteInvalid ? parsed.errorKey : null,
     exceedsTarget: Number(draft.value) > targetValue,
     isDirty: draft.value !== draft.initialText || draft.note.trim().length > 0,
   }

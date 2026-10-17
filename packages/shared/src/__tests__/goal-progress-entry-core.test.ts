@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '../validation/constants'
 import { createGoalProgressEntry, getGoalProgressEntryRequest, reduceGoalProgressEntry } from '../hooks/goal-progress-entry-core'
 
 describe('goal progress entry', () => {
@@ -13,6 +14,23 @@ describe('goal progress entry', () => {
   it('permits note-only changes and omits whitespace-only notes', () => {
     expect(getGoalProgressEntryRequest('3', '  ', 12)).toEqual({ errorKey: null, request: { currentValue: 3, note: undefined } })
     expect(getGoalProgressEntryRequest('3', 'Note', 12)).toEqual({ errorKey: null, request: { currentValue: 3, note: 'Note' } })
+  })
+
+  it('accepts a note at the limit after trimming surrounding whitespace', () => {
+    const note = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
+    expect(getGoalProgressEntryRequest('7.5', `  ${note}  `, 12)).toEqual({ errorKey: null, request: { currentValue: 7.5, note } })
+  })
+
+  it('rejects an over-limit note before constructing a request', () => {
+    expect(getGoalProgressEntryRequest('7.5', 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1), 12)).toEqual({ errorKey: 'goals.form.progressNoteTooLong', errorField: 'note', request: null })
+  })
+
+  it('requests focus only for the submitted invalid field', () => {
+    const noteInvalid = reduceGoalProgressEntry(createGoalProgressEntry(3), { type: 'invalid', field: 'note' })
+    expect(noteInvalid).toMatchObject({ focusRequest: 0, noteFocusRequest: 1 })
+    const corrected = reduceGoalProgressEntry(noteInvalid, { type: 'note', note: 'Corrected' })
+    expect(corrected).toMatchObject({ focusRequest: 0, noteFocusRequest: 1 })
+    expect(reduceGoalProgressEntry(corrected, { type: 'invalid' })).toMatchObject({ focusRequest: 1, noteFocusRequest: 1 })
   })
 
   it('retains both draft fields through validation, a failed write and retry', () => {

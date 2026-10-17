@@ -1,3 +1,6 @@
+import { QueryClient, QueryObserver, onlineManager } from '@tanstack/react-query'
+import { goalKeys } from '@orbit/shared/query'
+import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Animated, BackHandler, StyleSheet } from 'react-native'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -305,6 +308,52 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
     TestRenderer.act(() => { tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
     expect(collectText(tree.toJSON())).toContain('Saved note')
+  })
+
+  it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    client.mount()
+    const query = vi.fn(() => Promise.resolve(detailGoal))
+    const observer = new QueryObserver(client, { queryKey: goalKeys.detail('1'), queryFn: query, initialData: detailGoal, enabled: false })
+    const unsubscribe = observer.subscribe(() => undefined)
+    refetchDetail.mockImplementationOnce(() => observer.refetch())
+    updateProgressMutateAsync.mockImplementationOnce(() => { onlineManager.setOnline(false); return Promise.resolve() })
+    try {
+      const tree = renderDrawer()
+      press(tree, 'goals.updateProgress')
+      changeEntry(tree, 'goals.progress', '7')
+      await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+      expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused')
+      expect(query).not.toHaveBeenCalled()
+      expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+      expect(updateProgressMutateAsync).toHaveBeenCalledOnce()
+      press(tree, 'goals.updateProgress')
+      press(tree, 'common.cancel')
+      expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+    } finally {
+      await TestRenderer.act(async () => { await client.cancelQueries() })
+      unsubscribe()
+      client.unmount()
+      client.clear()
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it('bounds progress notes and retains an over-limit draft for correction', async () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.updateProgress')
+    const note = tree.root.findAll((node: { props: { accessibilityLabel?: string; onChangeText?: unknown } }) => node.props.accessibilityLabel === 'goals.progressNote' && typeof node.props.onChangeText === 'function')[0]
+    changeEntry(tree, 'goals.progress', '7.5')
+    changeEntry(tree, 'goals.progressNote', 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+    expect(note.props.value).toBe('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    expect(note.props.accessibilityHint).toContain('goals.form.progressNoteTooLong')
+    expect(collectText(tree.toJSON())).toContain('goals.form.progressNoteTooLong')
+    const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
+    changeEntry(tree, 'goals.progressNote', validNote)
+    await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } }))
   })
 
   it('disables manual fields and repeated saves while a write is pending', async () => {

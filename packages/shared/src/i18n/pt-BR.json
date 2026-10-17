@@ -2914,6 +2914,7 @@
       "unitTooLong": "Encurte a unidade da meta para até 50 caracteres.",
       "habitLimit": "Vincule até 20 hábitos a esta meta.",
       "progressValueInvalid": "Informe um valor igual ou maior que 0",
+      "progressNoteTooLong": "Encurte a nota para até 500 caracteres.",
       "type": "Tipo de meta",
       "typeStandard": "Progresso",
       "typeStandardDescription": "Acompanhe uma meta mensurável passo a passo. Atualize o progresso na mão ou vincule hábitos que contam para ela.",
