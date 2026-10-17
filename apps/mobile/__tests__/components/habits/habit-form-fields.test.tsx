@@ -1,10 +1,10 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { __getFocusedNativeTag, __setFocusImpl } from '@/test-mocks/react-native'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
@@ -16,7 +16,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
-const tagMutations = vi.hoisted(() => ({ create: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
@@ -59,6 +59,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
+  useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
@@ -822,4 +823,127 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
     await TestRenderer.act(() => tree.unmount())
     __setFocusImpl(() => {})
   }
+})
+
+it('exposes tag suggestions from the owning habit form', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => {
+    tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Run', description: 'Outside' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+  })
+  const picker = tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.tags')!
+  await TestRenderer.act(() => picker.props.onClick())
+  expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.suggestTags')).toHaveLength(1)
+  await TestRenderer.act(() => tree.unmount())
+})
+
+describe('habit tag suggestions', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  function button(label: string) {
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+  }
+  async function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
+    const helpers = createFormHelpers({ title, description })
+    function OwningForm() {
+      const tags = useTagSelection(initialIds)
+      return <><Text testID="selected-tags">{tags.selectedTagIds.join(',')}</Text><HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></>
+    }
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const picker = tree.root.findAllByType(ListRow).find((node: { type: unknown; props: Record<string, unknown> }) => node.props.title === 'habits.form.tags')!
+    await TestRenderer.act(() => picker.props.onClick())
+    return { helpers, refresh: () => tree.update(<OwningForm />) }
+  }
+  const selected = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.testID === 'selected-tags')[0]!.props.children
+  const text = (value: string) => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === value)
+  beforeEach(() => { tagMutations.suggest.mockReset(); tagMutations.create.mockReset(); formLocale.language = 'en' })
+  afterEach(async () => { if (tree) await TestRenderer.act(() => tree.unmount()) })
+
+  it('requests proposals and accepts existing and new tags only on selection', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    await renderTagForm()
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
+    expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')).toHaveLength(1)
+    expect(selected()).toBe('')
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    await TestRenderer.act(() => button('Health').props.onPress())
+    expect(selected()).toBe('existing')
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    await TestRenderer.act(() => button('Reading').props.onPress())
+    expect(selected()).toBe('existing,created')
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+  })
+
+  it('preserves the action label while loading and announces empty results', async () => {
+    let resolve!: (response: { tags: [] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    formLocale.language = 'pt-BR'
+    await renderTagForm('Run', '   ')
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+    expect(text('habits.form.suggestingTags')[0]!.props.accessibilityLiveRegion).toBe('polite')
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
+    await TestRenderer.act(() => resolve({ tags: [] }))
+    expect(text('habits.form.noTagSuggestions')).toHaveLength(1)
+    expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+  })
+
+  it('shows request failure inline and permits retry', async () => {
+    tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
+    await renderTagForm()
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    expect(text('habits.form.suggestTagsError')[0]!.props.accessibilityRole).toBe('alert')
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    expect(text('habits.form.noTagSuggestions')).toHaveLength(1)
+    expect(text('habits.form.suggestTagsError')).toHaveLength(0)
+  })
+
+  it('retains a failed new proposal and disables other actions during acceptance', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] })
+    let reject!: (error: Error) => void
+    tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
+    await renderTagForm()
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    await TestRenderer.act(() => button('Reading').props.onPress())
+    expect(button('Reading').props.disabled).toBe(true)
+    expect(text('common.loading')[0]!.props.accessibilityLiveRegion).toBe('polite')
+    expect(button('habits.form.suggestTags').props.disabled).toBe(true)
+    await TestRenderer.act(() => reject(new Error('Unavailable')))
+    expect(selected()).toBe('')
+    expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.accessibilityRole === 'alert')).toHaveLength(1)
+    await TestRenderer.act(() => button('Reading').props.onPress())
+    expect(selected()).toBe('created')
+  })
+
+  it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', async (title, ids) => {
+    await renderTagForm(title, '', ids)
+    expect(button('habits.form.suggestTags').props.disabled).toBe(true)
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+  })
+
+  it('disables remaining proposals at capacity', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    await renderTagForm('Run', '', ['1', '2', '3', '4'])
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    await TestRenderer.act(() => button('Health').props.onPress())
+    expect(button('Reading').props.disabled).toBe(true)
+    expect(tagMutations.create).not.toHaveBeenCalled()
+  })
+
+  it('drops an in-flight result when the habit context changes', async () => {
+    let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    const view = await renderTagForm()
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    await TestRenderer.act(() => { view.helpers.form.setValue('title', 'Read'); view.refresh() })
+    await TestRenderer.act(() => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
+    expect(button('Outdoors')).toBeUndefined()
+    expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+  })
 })

@@ -11,7 +11,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 
-const tagMutations = vi.hoisted(() => ({ create: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
@@ -62,6 +62,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
+  useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: [] }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
@@ -781,4 +782,128 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   await waitFor(() => expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull())
   expect(tagMutations.create).toHaveBeenLastCalledWith({ name: 'Updated', color: expect.any(String) })
   expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
+})
+
+it('exposes tag suggestions from the owning habit form', () => {
+  renderForm(createFormHelpers({ title: 'Run', description: 'Outside' }), undefined, true)
+  fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+})
+
+describe('habit tag suggestions', () => {
+  function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
+    const helpers = createFormHelpers({ title, description })
+    function OwningForm() {
+      const tags = useTagSelection(initialIds)
+      return <><output aria-label="Selected tags">{tags.selectedTagIds.join(',')}</output><HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></>
+    }
+    const view = render(<OwningForm />)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+    return { ...view, helpers, refresh: () => view.rerender(<OwningForm />) }
+  }
+
+  beforeEach(() => {
+    tagMutations.suggest.mockReset()
+    tagMutations.create.mockReset()
+    formLocale.language = 'en'
+  })
+
+  it('requests proposals with trimmed context and accepts existing and new tags only on selection', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toHaveAttribute('data-proposed')
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing'))
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing,created'))
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+    expect(screen.queryByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toBeNull()
+  })
+
+  it('preserves the action label while loading and announces an empty result', async () => {
+    let resolve!: (response: { tags: [] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    formLocale.language = 'pt-BR'
+    renderTagForm('Run', '   ')
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    fireEvent.click(action)
+    expect(action).toBeDisabled()
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+    fireEvent.click(action)
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
+    await act(async () => resolve({ tags: [] }))
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
+    expect(action).toBeEnabled()
+  })
+
+  it('shows request failure inline and permits a successful retry', async () => {
+    tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions'))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('retains a failed new proposal for retry and disables other actions during acceptance', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] })
+    let reject!: (error: Error) => void
+    tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
+    expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    await act(async () => reject(new Error('Unavailable')))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created'))
+  })
+
+  it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
+    renderTagForm(title, '', ids)
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(action).toBeDisabled()
+    fireEvent.click(action)
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
+  })
+
+  it('disables remaining proposals at capacity', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    renderTagForm('Run', '', ['1', '2', '3', '4'])
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
+    expect(tagMutations.create).not.toHaveBeenCalled()
+  })
+
+  it('drops an in-flight result when the habit context changes', async () => {
+    let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    const view = renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    view.helpers.testValues.title = 'Read'
+    view.refresh()
+    await act(async () => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
+    expect(screen.queryByRole('button', { name: 'Outdoors', pressed: false })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+  })
 })

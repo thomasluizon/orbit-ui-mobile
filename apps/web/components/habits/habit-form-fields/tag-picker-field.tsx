@@ -17,6 +17,7 @@ interface TagPickerFieldProps {
   atLimit: boolean
   disabled: boolean
   editor?: ReactNode
+  suggestions?: ReactNode
   onToggle: (id: string) => void
   onCreate: () => void
   onEdit: (tag: HabitTag) => void
@@ -63,18 +64,19 @@ function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDe
   )
 }
 
-function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerListProps>) {
+function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerListProps>) {
   const t = useTranslations()
   const empty = !editor ? <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}><p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTags')}</p><button type="button" className="chip mt-2" onClick={onCreate}>{t('habits.form.newTag')}</button></div> : null
   return (
-    <PickerList items={tags} getName={(tag) => tag.name} getKey={(tag) => tag.id} searchLabel={t('habits.form.searchTags')} empty={empty} renderRow={(tag) => <TagPickerRow tag={tag} selected={selectedIds.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />}>
+    <PickerList scrollFooter={<>
       {tags.length > 0 && !editor ? <button type="button" className="chip mt-2 self-start" onClick={onCreate}>{t('habits.form.newTag')}</button> : null}
       {editor}
-    </PickerList>
+      {suggestions}
+    </>} items={tags} getName={(tag) => tag.name} getKey={(tag) => tag.id} searchLabel={t('habits.form.searchTags')} empty={empty} renderRow={(tag) => <TagPickerRow tag={tag} selected={selectedIds.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />} />
   )
 }
 
-export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
+export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
   const t = useTranslations()
   const [open, setOpen] = useState(false)
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
@@ -85,7 +87,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
       <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
       <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} />
       {open ? <Sheet open virtualizedBody={tags.length >= 21} title={t('habits.form.tags')} onClose={() => setOpen(false)}>
-        <TagPickerList tags={tags} selectedIds={selectedSet} atLimit={atLimit} disabled={disabled} editor={editor} onToggle={onToggle} onCreate={onCreate} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />
+        <TagPickerList tags={tags} selectedIds={selectedSet} atLimit={atLimit} disabled={disabled} editor={editor} suggestions={suggestions} onToggle={onToggle} onCreate={onCreate} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />
       </Sheet> : null}
     </>
   )
