@@ -158,7 +158,7 @@ const workerTiers = Object.fromEntries(Object.keys(config.workers[workerEngine].
   const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], tier)
   return [tier, { model: invocation.model, args: invocation.args }]
 }))
-const workerTierVerdict = "default handles product, design, architecture, and ambiguous orders requiring judgment; mechanical handles merge-forward work, known conflict lists, and reviewer-directed test experiments"
+const workerTierVerdict = "default handles normal orders requiring judgment; mechanical handles merge-forward work, known conflict lists, and reviewer-directed test experiments; deep handles large tickets; max handles review rounds after one failed round; ultra is never used because it delegates to its own agents"
 
 const now = new Date()
 const calibratedAt = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`

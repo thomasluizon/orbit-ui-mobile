@@ -51,6 +51,31 @@ describe('Follow-up conversation geometry in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 1352])('centres the header mark with close at %ipx', async (width) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
+      <main style={{ width: Math.min(width, 740) }}><AstraConversation chat={createChat()} /></main>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const header = page.locator('header')
+      const mark = header.locator('[data-asset="astra-mark-16"]')
+      await expect(mark.count()).resolves.toBe(1)
+      const markBox = (await mark.boundingBox())!
+      const closeBox = (await header.getByRole('button', { name: pt.common.closeConversation }).boundingBox())!
+      const headerBox = (await header.boundingBox())!
+      expect(markBox.width).toBe(16)
+      expect(markBox.height).toBe(16)
+      expect(markBox.x - headerBox.x).toBe(16)
+      expect(headerBox.height).toBe(56)
+      expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)
+      expect(closeBox.width).toBe(48)
+      expect(closeBox.height).toBe(48)
+      expect(headerBox.x + headerBox.width - closeBox.x - closeBox.width).toBe(16)
+    } finally { await page.close() }
+  })
+
   it.each(cases)('shows whole questions at $width with text scale $textScale and trace $withTrace', async ({ width, textScale, withTrace }) => {
     const chat = createChat(withTrace)
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>

@@ -26,7 +26,9 @@ async function measureBell(bell: Locator) {
     .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
   return bell.evaluate((element, gutter) => {
     const bounds = element.getBoundingClientRect()
-    const row = element.parentElement!.getBoundingClientRect()
+    const rowElement = element.parentElement!
+    const row = rowElement.getBoundingClientRect()
+    const rowStyle = getComputedStyle(rowElement)
     const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
     const scroller = element.closest('[data-shell-column]')!.querySelector<HTMLElement>('[data-shell-scroller]')!
     return {
@@ -35,7 +37,7 @@ async function measureBell(bell: Locator) {
       width: bounds.width,
       height: bounds.height,
       rowHeight: row.height,
-      rowCenterY: row.top + row.height / 2,
+      rowCenterY: row.top + (row.height + Number.parseFloat(rowStyle.paddingTop) - Number.parseFloat(rowStyle.paddingBottom)) / 2,
       trailingInset: column.right - bounds.right - gutter,
       gutter,
       overflows: scroller.scrollHeight > scroller.clientHeight,
