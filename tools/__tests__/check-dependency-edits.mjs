@@ -43,7 +43,7 @@ const stageLockedPackage = (label) => {
   writeFileSync(join(source, "index.js"), "published bytes\n")
   writeFileSync(join(source, "README.md"), "published documentation\n")
   const packed = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", [
-    "pack", "--ignore-scripts", "--offline", "--pack-destination", tree.repository,
+    "pack", "--ignore-scripts", "--offline", "--cache", "../npm-cache", "--pack-destination", "..",
   ], { cwd: source, encoding: "utf8", shell: process.platform === "win32" })
   if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr}`)
   const archiveName = readdirSync(tree.repository).find((name) => name.endsWith(".tgz"))
