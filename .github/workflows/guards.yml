@@ -52,7 +52,8 @@ jobs:
         run: |
           if grep -Eq '.' "$RUNNER_TEMP/changed-paths.txt"; then
             git fetch origin main
-            node tools/check-feature-parity.mjs --write --ci --base "origin/$BASE_REF"
+            # WHY: Compare with the queued merge's own base so later restorations cannot create false losses (https://github.com/thomasluizon/orbit-tickets/issues/1495).
+            node tools/check-feature-parity.mjs --write --ci --base "HEAD^1"
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.base_ref == 'redesign/main') }}
       - id: feature-parity__2
