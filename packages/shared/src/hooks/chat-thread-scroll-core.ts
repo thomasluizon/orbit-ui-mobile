@@ -11,7 +11,7 @@ export function createChatThreadScroll(): ChatThreadScroll {
   return {
     followLatest: (currentOffset) => {
       following = true
-      previousOffset = currentOffset ?? null
+      previousOffset = currentOffset ?? previousOffset
     },
     isFollowing: () => {
       return following
