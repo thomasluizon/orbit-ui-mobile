@@ -194,8 +194,8 @@ describe('HabitRow canonical content (mobile)', () => {
       tree = TestRenderer.create(<HabitRow habit={createMockHabit()} hasChildren
         childrenDone={1} childrenTotal={2} isSelectMode={isSelectMode} />)
     })
-    const circles = tree!.root.findAllByType('Circle')
-    expect(circles[0].props.stroke).toBe(createTokensV2('purple', 'dark').trackEmpty)
+    const check = tree!.root.findByProps({ testID: 'habit-check' })
+    expect(StyleSheet.flatten(check.props.style).borderColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
   })
 
   it('shows a one-day habit row without an internal type label', () => {
@@ -266,7 +266,7 @@ describe('HabitRow canonical content (mobile)', () => {
     expect(trailing).toBeDefined()
     expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
     expect(body.props.delayLongPress).toBe(500)
-    expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
   })
   it('omits descriptions and tags from the canonical row', () => {
     const texts = renderRowText(
@@ -394,11 +394,12 @@ describe('HabitRow status control names (mobile)', () => {
     expect(ring.props.accessibilityLabel).toBe('habits.logHabit: Read')
     const unavailableDot = renderer!.root.findByProps({ testID: 'unavailable-status-dot' })
     expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({
-      width: 30,
-      height: 30,
+      width: 28,
+      height: 28,
+      borderRadius: 12,
       backgroundColor: neutralColors.dark.bgWell,
     })
-    expect(renderer!.root.findAllByProps({ testID: 'status-ring' })).toHaveLength(0)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' })).toHaveLength(0)
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
@@ -408,7 +409,7 @@ describe('HabitRow status control names (mobile)', () => {
     TestRenderer.act(() => {
       renderer!.update(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onDetail }} />)
     })
-    expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
     expect(renderer!.root.findAllByProps({ testID: 'unavailable-status-dot' })).toHaveLength(0)
   })
 

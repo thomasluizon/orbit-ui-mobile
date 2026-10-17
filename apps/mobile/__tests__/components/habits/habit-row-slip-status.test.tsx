@@ -50,7 +50,7 @@ describe.each(['en', 'pt-BR'] as const)('bad-habit status in %s', (language) => 
     const body = () => tree.root.findAllByType('Pressable').find(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500)
     expect(body().props.accessibilityLabel).toContain(language === 'en' ? 'Not done' : 'Não feito')
-    if (!parent) expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'status-ring' }).props.style).borderColor)
+    if (!parent) expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'habit-check' }).props.style).borderColor)
       .toBe(createTokensV2('orange', 'dark').statusBad)
     TestRenderer.act(() => button(pending).props.onPress())
     expect(body().props.accessibilityLabel).toContain(language === 'en' ? 'Slipped' : 'Deslize')
