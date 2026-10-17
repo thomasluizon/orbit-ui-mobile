@@ -13,8 +13,6 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 226,
-  "cellCount": 1068,
   "cells": [
     {
       "surfaceId": "route-missing",
