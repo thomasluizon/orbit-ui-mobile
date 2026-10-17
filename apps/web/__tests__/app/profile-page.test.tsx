@@ -231,6 +231,13 @@ import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscr
 
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
+function nameAndCreateApiKey(name: string): void {
+  fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.keyName' }), {
+    target: { value: name },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+}
+
 describe('ProfilePage', () => {
   it.each([
     ['profile.settingsRows.editName', 'profile.editName.title'],
@@ -1120,11 +1127,11 @@ describe('ProfilePage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'habits:read' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+    nameAndCreateApiKey('  Home automation  ')
 
     await waitFor(() => {
       expect(mockCreateApiKey).toHaveBeenCalledWith({
-        name: 'profile.apiKeys.newKeyName',
+        name: 'Home automation',
         scopes: ['habits:read'],
       }, 'account-a')
     })
@@ -1150,20 +1157,22 @@ describe('ProfilePage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'stale:scope' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+    nameAndCreateApiKey('First key')
     expect(await screen.findByText('orbitMcp.createKeyError')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.scopeTitle' })).not.toBeInTheDocument()
     })
 
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
     expect(screen.queryByText('orbitMcp.createKeyError')).not.toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'fresh:scope' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+    nameAndCreateApiKey('Second key')
     expect(await screen.findByRole('dialog', { name: 'orbitMcp.revealHeading' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.done' }))
     await waitFor(() => {
@@ -1174,6 +1183,7 @@ describe('ProfilePage', () => {
     mockCreateGrant.consumed = false
     render(<ProfileSubscreen screen="astra" />)
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
   })
 
@@ -1201,6 +1211,7 @@ describe('ProfilePage', () => {
 
     const create = screen.getByRole('button', { name: 'profile.apiKeys.create' })
     fireEvent.click(create)
+    nameAndCreateApiKey('First key')
     await screen.findByText('orb_first')
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.copy' }))
     expect(await screen.findByRole('button', { name: 'orbitMcp.copied' })).toBeInTheDocument()
@@ -1218,6 +1229,7 @@ describe('ProfilePage', () => {
     mockCreateGrant.consumed = false
     render(<ProfileSubscreen screen="astra" />)
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    nameAndCreateApiKey('Second key')
     await screen.findByText('orb_second')
     expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toBeInTheDocument()
   })
@@ -1233,6 +1245,7 @@ describe('ProfilePage', () => {
     render(<ProfileSubscreen screen="astra" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+    nameAndCreateApiKey('Work key')
 
     await waitFor(() => {
       expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
