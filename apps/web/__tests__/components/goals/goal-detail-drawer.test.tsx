@@ -29,6 +29,8 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
+let forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null as string | null, daysToDeadline: null as number | null }
+let detailLoading = false
 let detailLoadError = false
 let detailAvailable = true
 const refetchDetail = vi.fn()
@@ -44,8 +46,8 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
-    isLoading: false,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, trackingStatus: forecastMetrics.daysToDeadline === null ? 'no_deadline' : 'on_track', habitAdherence } } : null,
+    isLoading: detailLoading,
     isError: detailLoadError,
     refetch: refetchDetail,
   }),
@@ -69,6 +71,8 @@ describe('GoalDetailDrawer', () => {
     document.body.innerHTML = ''
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
+    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null }
+    detailLoading = false
     detailLoadError = false
     detailAvailable = true
     refetchDetail.mockClear()
@@ -79,6 +83,51 @@ describe('GoalDetailDrawer', () => {
     useAppToastStore.setState({ currentToast: null, queue: [] })
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
+  })
+
+
+  it.each(['Standard', 'Streak'] as const)('shows the producer forecast for a %s goal', (type) => {
+    detailGoal = { ...listGoal, type, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25' }
+    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 }]
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent('13')
+    expect(screen.getByText('goals.metrics.velocity').nextElementSibling).toHaveTextContent('goals.metrics.dailyPace:{"value":"0.5","unit":"books"}')
+    expect(screen.getByText('goals.metrics.projectedCompletion').nextElementSibling).toHaveTextContent('Jan 25, 2025')
+    expect(screen.getByText('goals.metrics.weeklyAdherence:{"percent":"75"}')).toBeInTheDocument()
+  })
+
+  it('keeps no-deadline and no-data forecasts explicit', () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent('goals.metrics.noDeadline')
+    expect(screen.getByText('goals.metrics.velocity').nextElementSibling).toHaveTextContent('goals.metrics.noData')
+    expect(screen.getByText('goals.metrics.projectedCompletion').nextElementSibling).toHaveTextContent('goals.metrics.noData')
+    expect(screen.queryByText('goals.metrics.habitAdherence')).not.toBeInTheDocument()
+  })
+
+  it.each([0, -3])('preserves %s deadline days instead of treating them as missing', (daysToDeadline) => {
+    forecastMetrics = { ...forecastMetrics, daysToDeadline }
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent(String(daysToDeadline))
+  })
+
+  it('shows loading and recovers the forecast through the existing retry', () => {
+    detailAvailable = false
+    detailLoading = true
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByRole('progressbar', { name: 'goals.metrics.title' })).toBeInTheDocument()
+    expect(screen.queryByText('goals.metrics.velocity')).not.toBeInTheDocument()
+    detailLoading = false
+    detailLoadError = true
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(refetchDetail).toHaveBeenCalledOnce()
+    expect(screen.queryByText('goals.metrics.title')).not.toBeInTheDocument()
+    detailAvailable = true
+    detailLoadError = false
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.velocity')).toBeInTheDocument()
   })
 
   it('renders nothing when closed', () => {

@@ -47,6 +47,8 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
+let forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null as string | null, daysToDeadline: null as number | null }
+let detailLoading = false
 let detailLoadError = false
 let detailAvailable = true
 const refetchDetail = vi.fn()
@@ -139,8 +141,8 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
-    isLoading: false,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, trackingStatus: forecastMetrics.daysToDeadline === null ? 'no_deadline' : 'on_track', habitAdherence } } : null,
+    isLoading: detailLoading,
     isError: detailLoadError,
     refetch: refetchDetail,
   }),
@@ -179,6 +181,8 @@ describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
+    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null }
+    detailLoading = false
     detailLoadError = false
     detailAvailable = true
     refetchDetail.mockClear()
@@ -220,6 +224,56 @@ describe('GoalDetailDrawer', () => {
       node.props.onPress()
     })
   }
+
+
+  it.each(['Standard', 'Streak'] as const)('shows the producer forecast for a %s goal', (type) => {
+    detailGoal = { ...listGoal, type, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25' }
+    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 }]
+    const tree = renderDrawer()
+    const text = collectText(tree.toJSON())
+    expect(text).toContain('goals.metrics.daysToDeadline13')
+    expect(text).toContain('goals.metrics.velocitygoals.metrics.dailyPace:{"value":"0.5","unit":"books"}')
+    expect(text).toContain('goals.metrics.projectedCompletionJan 25, 2025')
+    expect(text).toContain('goals.metrics.weeklyAdherence:{"percent":"75"}')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps no-deadline and no-data forecasts explicit', () => {
+    const tree = renderDrawer()
+    const text = collectText(tree.toJSON())
+    expect(text).toContain('goals.metrics.daysToDeadlinegoals.metrics.noDeadline')
+    expect(text).toContain('goals.metrics.velocitygoals.metrics.noData')
+    expect(text).toContain('goals.metrics.projectedCompletiongoals.metrics.noData')
+    expect(text).not.toContain('goals.metrics.habitAdherence')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([0, -3])('preserves %s deadline days instead of treating them as missing', (daysToDeadline) => {
+    forecastMetrics = { ...forecastMetrics, daysToDeadline }
+    const tree = renderDrawer()
+    expect(collectText(tree.toJSON())).toContain(`goals.metrics.daysToDeadline${daysToDeadline}`)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows loading and recovers the forecast through the existing retry', () => {
+    detailAvailable = false
+    detailLoading = true
+    const tree = renderDrawer()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'goals.metrics.title', accessibilityRole: 'progressbar' }).length).toBeGreaterThan(0)
+    expect(collectText(tree.toJSON())).not.toContain('goals.metrics.velocity')
+    detailLoading = false
+    detailLoadError = true
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer open onClose={vi.fn()} goalId="1" />))
+    press(tree, 'common.retry')
+    expect(refetchDetail).toHaveBeenCalledOnce()
+    expect(collectText(tree.toJSON())).not.toContain('goals.metrics.title')
+    detailAvailable = true
+    detailLoadError = false
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer open onClose={vi.fn()} goalId="1" />))
+    expect(collectText(tree.toJSON())).toContain('goals.metrics.velocity')
+    TestRenderer.act(() => tree.unmount())
+  })
 
   it('prefers synced detail data over the stale list cache', () => {
     detailGoal = {
