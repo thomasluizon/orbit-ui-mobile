@@ -1204,11 +1204,173 @@
     }
   },
   "chat": {
-    "blockCopy": {
-      "copy": "Copiar",
-      "copied": "Copiado",
-      "copyError": "Não consegui copiar. Tente de novo."
+    "templates": {
+      "title": "Ideias",
+      "browse": "Ver ideias",
+      "back": "Voltar à conversa",
+      "search": "Buscar ideias",
+      "forYou": "Para você agora",
+      "noMatches": "Nenhuma ideia para “{query}”.",
+      "clearSearch": "Limpar busca",
+      "more": "Mais ideias",
+      "previous": "Ideias anteriores",
+      "draftKept": "Seu rascunho está guardado. Apague o texto para editar esta ideia.",
+      "categories": {
+        "start": "Começar",
+        "remember": "Lembrar",
+        "many": "Vários de uma vez",
+        "restart": "Recomeçar",
+        "understand": "Entender",
+        "calendar": "Calendário"
+      },
+      "items": {
+        "morning": {
+          "label": "Montar minha manhã",
+          "prompt": "Me ajude a montar uma rotina simples de manhã."
+        },
+        "evening": {
+          "label": "Montar minha noite",
+          "prompt": "Me ajude a montar uma rotina simples à noite."
+        },
+        "oneHabit": {
+          "label": "Começar um hábito",
+          "prompt": "Me ajude a começar um hábito pequeno."
+        },
+        "goalHabits": {
+          "label": "Hábitos para uma meta",
+          "prompt": "Transforme minha meta de '{'meta'}' em hábitos pequenos."
+        },
+        "habitReminder": {
+          "label": "Hábito com lembrete",
+          "prompt": "Crie um hábito de '{'hábito'}' com lembrete às '{'hora'}'."
+        },
+        "smallSteps": {
+          "label": "Dividir em passos",
+          "prompt": "Divida meu hábito de '{'hábito'}' em passos pequenos."
+        },
+        "setReminder": {
+          "label": "Criar um lembrete",
+          "prompt": "Me lembre de '{'hábito'}' às '{'hora'}'."
+        },
+        "changeReminder": {
+          "label": "Mudar um lembrete",
+          "prompt": "Mude o lembrete de '{'hábito'}' para '{'hora'}'."
+        },
+        "dueToday": {
+          "label": "O que falta hoje?",
+          "prompt": "Quais hábitos ainda faltam hoje?"
+        },
+        "tonight": {
+          "label": "Planejar esta noite",
+          "prompt": "Me ajude a planejar esta noite com os hábitos que faltam."
+        },
+        "reviewReminders": {
+          "label": "Rever meus lembretes",
+          "prompt": "Me mostre os lembretes dos meus hábitos."
+        },
+        "busyReminders": {
+          "label": "Lembrar em dias cheios",
+          "prompt": "Me ajude a escolher lembretes para meus dias cheios."
+        },
+        "moveToday": {
+          "label": "Mudar os hábitos de hoje",
+          "prompt": "Passe os hábitos que faltam hoje para amanhã."
+        },
+        "changeTimes": {
+          "label": "Mudar vários horários",
+          "prompt": "Me ajude a mudar os horários de vários hábitos de uma vez."
+        },
+        "skipToday": {
+          "label": "Pular o que falta hoje",
+          "prompt": "Pule os hábitos que faltam hoje."
+        },
+        "logMany": {
+          "label": "Registrar vários hábitos",
+          "prompt": "Registre '{'hábitos'}' como feitos hoje."
+        },
+        "tagGroup": {
+          "label": "Agrupar com etiqueta",
+          "prompt": "Adicione a etiqueta '{'etiqueta'}' a '{'hábitos'}'."
+        },
+        "pauseMany": {
+          "label": "Pausar vários hábitos",
+          "prompt": "Me ajude a pausar vários hábitos nesta semana."
+        },
+        "afterDay": {
+          "label": "Voltar depois de um dia",
+          "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
+        },
+        "afterWeek": {
+          "label": "Voltar após uma semana",
+          "prompt": "Me ajude a recomeçar depois de uma semana difícil."
+        },
+        "smallerHabit": {
+          "label": "Diminuir um hábito",
+          "prompt": "Me ajude a diminuir meu hábito de '{'hábito'}'."
+        },
+        "keepOne": {
+          "label": "Ficar com um hábito",
+          "prompt": "Me ajude a escolher um hábito para retomar hoje."
+        },
+        "lighterWeek": {
+          "label": "Aliviar esta semana",
+          "prompt": "Me ajude a deixar a rotina desta semana mais leve."
+        },
+        "easierTime": {
+          "label": "Achar um horário melhor",
+          "prompt": "Me ajude a achar um horário melhor para '{'hábito'}'."
+        },
+        "reviewWeek": {
+          "label": "Rever minha semana",
+          "prompt": "Me ajude a rever como foram meus hábitos nesta semana."
+        },
+        "missedHabit": {
+          "label": "Ver o que fica para trás",
+          "prompt": "Qual hábito tenho deixado de fazer com mais frequência?"
+        },
+        "streak": {
+          "label": "Entender minha sequência",
+          "prompt": "Me explique como funciona minha sequência."
+        },
+        "freezes": {
+          "label": "Entender as proteções",
+          "prompt": "Me explique como funcionam as proteções de sequência."
+        },
+        "whatWorks": {
+          "label": "Ver o que funciona",
+          "prompt": "Quais hábitos têm sido mais fáceis de manter?"
+        },
+        "reviewGoals": {
+          "label": "Rever minhas metas",
+          "prompt": "Me ajude a rever o andamento das minhas metas."
+        },
+        "aroundEvents": {
+          "label": "Planejar entre eventos",
+          "prompt": "Me ajude a encaixar os hábitos de hoje entre os eventos da agenda."
+        },
+        "importWeek": {
+          "label": "Importar esta semana",
+          "prompt": "Importe os eventos desta semana do Google Calendar."
+        },
+        "todayEvents": {
+          "label": "Ver os eventos de hoje",
+          "prompt": "Me mostre os eventos de hoje da agenda."
+        },
+        "findTime": {
+          "label": "Achar tempo para um hábito",
+          "prompt": "Ache um horário para '{'hábito'}' entre os eventos de hoje."
+        },
+        "tomorrow": {
+          "label": "Planejar amanhã",
+          "prompt": "Me ajude a planejar os hábitos de amanhã entre os eventos da agenda."
+        },
+        "busyDay": {
+          "label": "Aliviar um dia cheio",
+          "prompt": "Me ajude a aliviar os hábitos nos dias com muitos eventos na agenda."
+        }
+      }
     },
+    "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
     "title": "Astra",
     "offline": {
       "title": "Você está sem conexão"
@@ -1443,101 +1605,43 @@
       "open": "Abrir Calendário"
     },
     "recordList": {
-      "title": {
-        "notifications": "Avisos",
-        "tags": "Tags",
-        "templates": "Modelos de checklist",
-        "keys": "Chaves de API"
-      },
+      "title": { "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },
       "count": "{shown} de {total}",
       "empty": "Nada por aqui ainda.",
       "unread": "Não lido",
       "templateCount": "{count} itens",
       "templateLimit": "Modelos com mais de 20 itens abrem no editor de checklist.",
-      "keyState": {
-        "active": "Ativa",
-        "expired": "Expirada",
-        "revoked": "Revogada"
-      },
+      "keyState": { "active": "Ativa", "expired": "Expirada", "revoked": "Revogada" },
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
       "filter": "Filtrar lista",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
       "clearFilter": "Limpar filtro",
-      "open": {
-        "notifications": "Abrir Avisos",
-        "tags": "Abrir Tags",
-        "templates": "Abrir Modelos",
-        "keys": "Abrir Perfil"
-      }
+      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Tags", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
     },
     "account": {
-      "title": {
-        "profile": "Seu perfil",
-        "plan": "Seu plano",
-        "referral": "Sua indicação"
-      },
+      "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
       "row": {
-        "name": "Nome",
-        "email": "E-mail",
-        "language": "Idioma",
-        "timeZone": "Fuso horário",
-        "weekStartDay": "Início da semana",
-        "themePreference": "Tema",
-        "aiSummary": "Resumo diário",
-        "plan": "Plano",
-        "trialEnd": "Fim do teste",
-        "planExpiry": "Fim do plano",
-        "interval": "Cobrança",
-        "source": "Provedor",
-        "lifetime": "Acesso vitalício",
-        "astraAllowance": "Mensagens da Astra usadas",
-        "successfulReferrals": "Indicações concluídas",
-        "pendingReferrals": "Indicações pendentes",
-        "maxReferrals": "Limite de indicações",
-        "rewardType": "Recompensa",
-        "discountPercent": "Desconto"
+        "name": "Nome", "email": "E-mail", "language": "Idioma", "timeZone": "Fuso horário",
+        "weekStartDay": "Início da semana", "themePreference": "Tema", "aiSummary": "Resumo diário",
+        "plan": "Plano", "trialEnd": "Fim do teste", "planExpiry": "Fim do plano", "interval": "Cobrança",
+        "source": "Provedor", "lifetime": "Acesso vitalício", "astraAllowance": "Mensagens da Astra usadas",
+        "successfulReferrals": "Indicações concluídas", "pendingReferrals": "Indicações pendentes",
+        "maxReferrals": "Limite de indicações", "rewardType": "Recompensa", "discountPercent": "Desconto"
       },
       "value": {
-        "language": {
-          "en": "Inglês",
-          "pt-BR": "Português (Brasil)"
-        },
-        "weekStartDay": {
-          "0": "Domingo",
-          "1": "Segunda-feira"
-        },
-        "themePreference": {
-          "dark": "Escuro",
-          "light": "Claro"
-        },
-        "plan": {
-          "Free": "Grátis",
-          "Pro": "Pro"
-        },
-        "interval": {
-          "monthly": "Mensal",
-          "yearly": "Anual"
-        },
-        "source": {
-          "stripe": "Stripe",
-          "play": "Google Play"
-        },
-        "rewardType": {
-          "discount": "Desconto"
-        }
+        "language": { "en": "Inglês", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Domingo", "1": "Segunda-feira" },
+        "themePreference": { "dark": "Escuro", "light": "Claro" },
+        "plan": { "Free": "Grátis", "Pro": "Pro" },
+        "interval": { "monthly": "Mensal", "yearly": "Anual" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Desconto" }
       },
-      "yes": "Sim",
-      "no": "Não",
-      "notSet": "Não definido",
-      "unknown": "Desconhecido",
-      "code": "Código de indicação",
-      "copy": "Copiar",
-      "copied": "Copiado",
-      "share": "Compartilhar",
-      "copyError": "Não foi possível copiar o código. Tente de novo.",
-      "shareError": "Não foi possível compartilhar o link. Tente de novo.",
+      "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
+      "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
+      "copyError": "Não foi possível copiar o código. Tente de novo.", "shareError": "Não foi possível compartilhar o link. Tente de novo.",
       "open": "Abrir Perfil"
     },
     "trace": {
@@ -1631,9 +1735,7 @@
         "write": "Atualizando tags"
       }
     },
-    "followUps": {
-      "label": "Próximas perguntas"
-    },
+    "followUps": {"label": "Próximas perguntas"},
     "preview": {
       "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
@@ -1915,172 +2017,6 @@
         "completeOnboarding": "Concluir configuração",
         "completeTour": "Concluir tutorial",
         "resetTour": "Reiniciar tutorial"
-      }
-    },
-    "templates": {
-      "title": "Ideias",
-      "browse": "Ver ideias",
-      "back": "Voltar à conversa",
-      "search": "Buscar ideias",
-      "forYou": "Para você agora",
-      "noMatches": "Nenhuma ideia para “{query}”.",
-      "clearSearch": "Limpar busca",
-      "more": "Mais ideias",
-      "previous": "Ideias anteriores",
-      "draftKept": "Seu rascunho está guardado. Apague o texto para editar esta ideia.",
-      "categories": {
-        "start": "Começar",
-        "remember": "Lembrar",
-        "many": "Vários de uma vez",
-        "restart": "Recomeçar",
-        "understand": "Entender",
-        "calendar": "Calendário"
-      },
-      "items": {
-        "morning": {
-          "label": "Montar minha manhã",
-          "prompt": "Me ajude a montar uma rotina simples de manhã."
-        },
-        "evening": {
-          "label": "Montar minha noite",
-          "prompt": "Me ajude a montar uma rotina simples à noite."
-        },
-        "oneHabit": {
-          "label": "Começar um hábito",
-          "prompt": "Me ajude a começar um hábito pequeno."
-        },
-        "goalHabits": {
-          "label": "Hábitos para uma meta",
-          "prompt": "Transforme minha meta de '{'meta'}' em hábitos pequenos."
-        },
-        "habitReminder": {
-          "label": "Hábito com lembrete",
-          "prompt": "Crie um hábito de '{'hábito'}' com lembrete às '{'hora'}'."
-        },
-        "smallSteps": {
-          "label": "Dividir em passos",
-          "prompt": "Divida meu hábito de '{'hábito'}' em passos pequenos."
-        },
-        "setReminder": {
-          "label": "Criar um lembrete",
-          "prompt": "Me lembre de '{'hábito'}' às '{'hora'}'."
-        },
-        "changeReminder": {
-          "label": "Mudar um lembrete",
-          "prompt": "Mude o lembrete de '{'hábito'}' para '{'hora'}'."
-        },
-        "dueToday": {
-          "label": "O que falta hoje?",
-          "prompt": "Quais hábitos ainda faltam hoje?"
-        },
-        "tonight": {
-          "label": "Planejar esta noite",
-          "prompt": "Me ajude a planejar esta noite com os hábitos que faltam."
-        },
-        "reviewReminders": {
-          "label": "Rever meus lembretes",
-          "prompt": "Me mostre os lembretes dos meus hábitos."
-        },
-        "busyReminders": {
-          "label": "Lembrar em dias cheios",
-          "prompt": "Me ajude a escolher lembretes para meus dias cheios."
-        },
-        "moveToday": {
-          "label": "Mudar os hábitos de hoje",
-          "prompt": "Passe os hábitos que faltam hoje para amanhã."
-        },
-        "changeTimes": {
-          "label": "Mudar vários horários",
-          "prompt": "Me ajude a mudar os horários de vários hábitos de uma vez."
-        },
-        "skipToday": {
-          "label": "Pular o que falta hoje",
-          "prompt": "Pule os hábitos que faltam hoje."
-        },
-        "logMany": {
-          "label": "Registrar vários hábitos",
-          "prompt": "Registre '{'hábitos'}' como feitos hoje."
-        },
-        "tagGroup": {
-          "label": "Agrupar com etiqueta",
-          "prompt": "Adicione a etiqueta '{'etiqueta'}' a '{'hábitos'}'."
-        },
-        "pauseMany": {
-          "label": "Pausar vários hábitos",
-          "prompt": "Me ajude a pausar vários hábitos nesta semana."
-        },
-        "afterDay": {
-          "label": "Voltar depois de um dia",
-          "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
-        },
-        "afterWeek": {
-          "label": "Voltar após uma semana",
-          "prompt": "Me ajude a recomeçar depois de uma semana difícil."
-        },
-        "smallerHabit": {
-          "label": "Diminuir um hábito",
-          "prompt": "Me ajude a diminuir meu hábito de '{'hábito'}'."
-        },
-        "keepOne": {
-          "label": "Ficar com um hábito",
-          "prompt": "Me ajude a escolher um hábito para retomar hoje."
-        },
-        "lighterWeek": {
-          "label": "Aliviar esta semana",
-          "prompt": "Me ajude a deixar a rotina desta semana mais leve."
-        },
-        "easierTime": {
-          "label": "Achar um horário melhor",
-          "prompt": "Me ajude a achar um horário melhor para '{'hábito'}'."
-        },
-        "reviewWeek": {
-          "label": "Rever minha semana",
-          "prompt": "Me ajude a rever como foram meus hábitos nesta semana."
-        },
-        "missedHabit": {
-          "label": "Ver o que fica para trás",
-          "prompt": "Qual hábito tenho deixado de fazer com mais frequência?"
-        },
-        "streak": {
-          "label": "Entender minha sequência",
-          "prompt": "Me explique como funciona minha sequência."
-        },
-        "freezes": {
-          "label": "Entender as proteções",
-          "prompt": "Me explique como funcionam as proteções de sequência."
-        },
-        "whatWorks": {
-          "label": "Ver o que funciona",
-          "prompt": "Quais hábitos têm sido mais fáceis de manter?"
-        },
-        "reviewGoals": {
-          "label": "Rever minhas metas",
-          "prompt": "Me ajude a rever o andamento das minhas metas."
-        },
-        "aroundEvents": {
-          "label": "Planejar entre eventos",
-          "prompt": "Me ajude a encaixar os hábitos de hoje entre os eventos da agenda."
-        },
-        "importWeek": {
-          "label": "Importar esta semana",
-          "prompt": "Importe os eventos desta semana do Google Calendar."
-        },
-        "todayEvents": {
-          "label": "Ver os eventos de hoje",
-          "prompt": "Me mostre os eventos de hoje da agenda."
-        },
-        "findTime": {
-          "label": "Achar tempo para um hábito",
-          "prompt": "Ache um horário para '{'hábito'}' entre os eventos de hoje."
-        },
-        "tomorrow": {
-          "label": "Planejar amanhã",
-          "prompt": "Me ajude a planejar os hábitos de amanhã entre os eventos da agenda."
-        },
-        "busyDay": {
-          "label": "Aliviar um dia cheio",
-          "prompt": "Me ajude a aliviar os hábitos nos dias com muitos eventos na agenda."
-        }
       }
     }
   },
@@ -2622,10 +2558,7 @@
         "frequencyLess": "Repetir antes",
         "frequencyMore": "Repetir depois",
         "units": {
-          "day": "Dias",
-          "week": "Semanas",
-          "month": "Meses",
-          "year": "Anos"
+          "day": "Dias", "week": "Semanas", "month": "Meses", "year": "Anos"
         },
         "quantityLess": "Menos vezes",
         "quantityMore": "Mais vezes",
@@ -2643,22 +2576,10 @@
         "timeHint": "Deixe vazio para qualquer hora do dia",
         "limit": "As {allowance} mensagens de hoje acabaram. Ler a frase também usa essa cota.",
         "days": {
-          "sunday": "D",
-          "monday": "S",
-          "tuesday": "T",
-          "wednesday": "Q",
-          "thursday": "Q",
-          "friday": "S",
-          "saturday": "S"
+          "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         },
         "daysLong": {
-          "sunday": "domingo",
-          "monday": "segunda",
-          "tuesday": "terça",
-          "wednesday": "quarta",
-          "thursday": "quinta",
-          "friday": "sexta",
-          "saturday": "sábado"
+          "sunday": "domingo", "monday": "segunda", "tuesday": "terça", "wednesday": "quarta", "thursday": "quinta", "friday": "sexta", "saturday": "sábado"
         },
         "cadence": {
           "fixed": "{days}",

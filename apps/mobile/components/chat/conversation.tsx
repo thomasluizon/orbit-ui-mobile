@@ -5,6 +5,7 @@ import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
   Text,
+  Keyboard,
   AccessibilityInfo,
   Pressable,
   Platform,
@@ -16,7 +17,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey, stripChatDirectives } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -25,7 +26,11 @@ import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { MotionPressable } from "@/components/ui/motion-pressable";
-import { ChevronDown, X } from "@/components/ui/icons";
+import { ChevronDown, Lightbulb, X } from "@/components/ui/icons";
+import { useChatStore } from '@/stores/chat-store';
+import { Button } from '@/components/ui/pill-button';
+import { ListRow } from '@/components/ui/list-row';
+import { PromptLibrary } from '@/components/chat/prompt-library';
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -33,6 +38,12 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
 
 type ChatController = ReturnType<typeof useChatComposer>;
+
+function promptDisabledReason(chat: ChatController, t: ReturnType<typeof useTranslation>['t']) {
+  return chat.isOnline === false ? t('shell.composer.offline.reason')
+    : chat.atMessageLimit ? t('shell.composer.limit.reason', { allowance: chat.aiMessagesLimit })
+    : chat.isSending ? t('shell.composer.busy.reason') : undefined;
+}
 
 function ThinkingTrace({ steps, running }: Readonly<{
   steps: readonly { domain: string; access: string }[];
@@ -161,7 +172,42 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     setAstraConversationOpen(false);
   }, [setAstraConversationOpen]);
 
-  useOverlayBack(true, closeConversation);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryMounted, setLibraryMounted] = useState(false);
+  const finishLibraryExit = useCallback(() => setLibraryMounted(false), []);
+  const [inputSelection, setInputSelection] = useState<{ start: number; end: number } | undefined>();
+  const libraryTrigger = useRef<{ current: View | null } | null>(null);
+  const returnFocusVersion = useRef(0);
+  const browseHeaderRef = useRef<View>(null);
+  const browseEmptyRef = useRef<View>(null);
+  const pendingIdea = useChatStore(state => state.contextualSuggestion);
+  const disabledReason = promptDisabledReason(chat, t);
+  const openLibrary = (trigger: { current: View | null }) => { returnFocusVersion.current++; Keyboard.dismiss(); libraryTrigger.current = trigger; setLibraryMounted(true); setLibraryOpen(true); };
+  const returnToConversation = () => {
+    setLibraryOpen(false);
+    const version = ++returnFocusVersion.current;
+    requestAnimationFrame(() => {
+      if (version !== returnFocusVersion.current) return;
+      const trigger = libraryTrigger.current?.current ?? browseHeaderRef.current;
+      trigger?.setNativeProps({ hasTVPreferredFocus: true });
+      if (trigger) AccessibilityInfo.sendAccessibilityEvent(trigger, 'focus');
+    });
+  };
+  const selectIdea = (id: string, label: string, prompt: string) => {
+    if (disabledReason) return;
+    if (findPromptSlot(prompt)) {
+      const selection = preparePromptTemplate(useChatStore.getState(), { id, label, prompt });
+      setLibraryOpen(false);
+      if (selection) {
+        useChatStore.getState().setContextualSuggestion(null);
+        setInputSelection(selection);
+      } else returnToConversation();
+    } else {
+      void sendMessage(prompt);
+      returnToConversation();
+    }
+  };
+  useOverlayBack(true, libraryOpen ? returnToConversation : closeConversation);
 
   const handleActionChipClick = useCallback(
     (entityId: string, actionType: string) => {
@@ -229,11 +275,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   return (
     <ChatCardOperationContext.Provider value={trackCardOperation}>
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <View style={styles.content}>
+      <View style={styles.content} pointerEvents={libraryOpen ? 'none' : 'auto'} accessibilityElementsHidden={libraryOpen} importantForAccessibility={libraryOpen ? 'no-hide-descendants' : 'auto'}>
         <AppBar
           titleRef={titleRef}
           title={t("chat.title")}
-          action={
+          action={<>
+            <MotionPressable ref={browseHeaderRef} accessibilityRole="button" accessibilityLabel={t('chat.templates.browse')} onPress={() => openLibrary(browseHeaderRef)} style={({ pressed }) => [styles.headerClose, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Lightbulb size={20} strokeWidth={2} color={tokens.fg1} /></MotionPressable>
             <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={t("common.closeConversation")}
@@ -245,11 +292,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             >
               <X size={20} strokeWidth={2} color={tokens.fg1} />
             </MotionPressable>
-          }
+          </>}
         />
 
         {showSuggestions ? (
-          <ChatEmptyState ref={chatAreaRef} styles={styles} />
+          <ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
             <FlatList
@@ -282,8 +329,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
+          {pendingIdea?.id.startsWith('prompt-library:') ? <View style={{ paddingHorizontal: 16 }}>
+            {composerProps.value ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
+            <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={!!composerProps.value || !!disabledReason} onClick={() => selectIdea(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+          </View> : null}
           <Composer
+            inputSelection={inputSelection}
             {...composerProps}
+            onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value); }}
             autoFocus
             suggestions={composerProps.suggestions}
             onInputFocus={keyboardScroll.onComposerFocus}
@@ -291,6 +344,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           />
         </View>
       </View>
+
+      {libraryMounted ? <PromptLibrary visible={libraryOpen} onExitComplete={finishLibraryExit} onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}
 
       {selectedGoalId && (
         <GoalDetailDrawer

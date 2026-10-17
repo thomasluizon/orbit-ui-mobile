@@ -1204,11 +1204,173 @@
     }
   },
   "chat": {
-    "blockCopy": {
-      "copy": "Copy",
-      "copied": "Copied",
-      "copyError": "Couldn't copy. Try again."
+    "templates": {
+      "title": "Ideas",
+      "browse": "Browse ideas",
+      "back": "Back to conversation",
+      "search": "Search ideas",
+      "forYou": "For you now",
+      "noMatches": "No ideas for “{query}”.",
+      "clearSearch": "Clear search",
+      "more": "More ideas",
+      "previous": "Previous ideas",
+      "draftKept": "Your draft is kept. Clear it to edit this idea.",
+      "categories": {
+        "start": "Start",
+        "remember": "Remember",
+        "many": "Many at once",
+        "restart": "Restart",
+        "understand": "Understand",
+        "calendar": "Calendar"
+      },
+      "items": {
+        "morning": {
+          "label": "Plan my morning",
+          "prompt": "Help me set up a simple morning routine."
+        },
+        "evening": {
+          "label": "Plan my evening",
+          "prompt": "Help me set up a simple evening routine."
+        },
+        "oneHabit": {
+          "label": "Start one habit",
+          "prompt": "Help me start one small habit."
+        },
+        "goalHabits": {
+          "label": "Habits for a goal",
+          "prompt": "Turn my goal of '{'goal'}' into small habits."
+        },
+        "habitReminder": {
+          "label": "Habit with a reminder",
+          "prompt": "Create a habit to '{'habit'}' with a reminder at '{'time'}'."
+        },
+        "smallSteps": {
+          "label": "Break a habit into steps",
+          "prompt": "Break my habit of '{'habit'}' into small steps."
+        },
+        "setReminder": {
+          "label": "Set a reminder",
+          "prompt": "Remind me to '{'habit'}' at '{'time'}'."
+        },
+        "changeReminder": {
+          "label": "Change a reminder",
+          "prompt": "Move the reminder for '{'habit'}' to '{'time'}'."
+        },
+        "dueToday": {
+          "label": "What's still due today?",
+          "prompt": "Which habits are still due today?"
+        },
+        "tonight": {
+          "label": "Plan tonight",
+          "prompt": "Help me plan tonight around my remaining habits."
+        },
+        "reviewReminders": {
+          "label": "Review my reminders",
+          "prompt": "Show me my habit reminders."
+        },
+        "busyReminders": {
+          "label": "Remember on busy days",
+          "prompt": "Help me choose reminders that fit my busy days."
+        },
+        "moveToday": {
+          "label": "Move today's habits",
+          "prompt": "Move today's remaining habits to tomorrow."
+        },
+        "changeTimes": {
+          "label": "Change several times",
+          "prompt": "Help me change the times of several habits together."
+        },
+        "skipToday": {
+          "label": "Skip today's remaining",
+          "prompt": "Skip today's remaining habits."
+        },
+        "logMany": {
+          "label": "Log several habits",
+          "prompt": "Log '{'habits'}' as done today."
+        },
+        "tagGroup": {
+          "label": "Tag a group",
+          "prompt": "Add the tag '{'tag'}' to '{'habits'}'."
+        },
+        "pauseMany": {
+          "label": "Pause several habits",
+          "prompt": "Help me pause several habits for this week."
+        },
+        "afterDay": {
+          "label": "Return after a day away",
+          "prompt": "Help me restart after missing a day."
+        },
+        "afterWeek": {
+          "label": "Return after a hard week",
+          "prompt": "Help me restart after a difficult week."
+        },
+        "smallerHabit": {
+          "label": "Make a habit smaller",
+          "prompt": "Help me make my habit of '{'habit'}' smaller."
+        },
+        "keepOne": {
+          "label": "Keep just one habit",
+          "prompt": "Help me choose one habit to return to today."
+        },
+        "lighterWeek": {
+          "label": "Lighten this week",
+          "prompt": "Help me make this week's routine lighter."
+        },
+        "easierTime": {
+          "label": "Find an easier time",
+          "prompt": "Help me find an easier time for '{'habit'}'."
+        },
+        "reviewWeek": {
+          "label": "Review my week",
+          "prompt": "Help me review how my habits went this week."
+        },
+        "missedHabit": {
+          "label": "See what gets missed",
+          "prompt": "Which habit have I been missing most often?"
+        },
+        "streak": {
+          "label": "Understand my streak",
+          "prompt": "Explain how my streak works."
+        },
+        "freezes": {
+          "label": "Understand freezes",
+          "prompt": "Explain how streak freezes work."
+        },
+        "whatWorks": {
+          "label": "See what works for me",
+          "prompt": "Which habits have been easier for me to keep?"
+        },
+        "reviewGoals": {
+          "label": "Review my goals",
+          "prompt": "Help me review progress toward my goals."
+        },
+        "aroundEvents": {
+          "label": "Plan around events",
+          "prompt": "Help me fit today's habits around my calendar events."
+        },
+        "importWeek": {
+          "label": "Import this week",
+          "prompt": "Import this week's Google Calendar events."
+        },
+        "todayEvents": {
+          "label": "Review today's events",
+          "prompt": "Show me today's calendar events."
+        },
+        "findTime": {
+          "label": "Find time for a habit",
+          "prompt": "Find a time for '{'habit'}' around today's events."
+        },
+        "tomorrow": {
+          "label": "Plan tomorrow",
+          "prompt": "Help me plan tomorrow's habits around my calendar events."
+        },
+        "busyDay": {
+          "label": "Ease a busy day",
+          "prompt": "Help me lighten my habits on days with many calendar events."
+        }
+      }
     },
+    "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
     "offline": {
       "title": "You’re offline"
@@ -1443,101 +1605,43 @@
       "open": "Open Calendar"
     },
     "recordList": {
-      "title": {
-        "notifications": "Alerts",
-        "tags": "Tags",
-        "templates": "Checklist templates",
-        "keys": "API keys"
-      },
+      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",
       "templateCount": "{count} items",
       "templateLimit": "Templates with more than 20 items open in the checklist editor.",
-      "keyState": {
-        "active": "Active",
-        "expired": "Expired",
-        "revoked": "Revoked"
-      },
+      "keyState": { "active": "Active", "expired": "Expired", "revoked": "Revoked" },
       "markReadError": "Couldn't mark that alert read. Try again.",
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
       "filter": "Filter list",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter",
-      "open": {
-        "notifications": "Open Alerts",
-        "tags": "Open Tags",
-        "templates": "Open Templates",
-        "keys": "Open Profile"
-      }
+      "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
     },
     "account": {
-      "title": {
-        "profile": "Your profile",
-        "plan": "Your plan",
-        "referral": "Your referral"
-      },
+      "title": { "profile": "Your profile", "plan": "Your plan", "referral": "Your referral" },
       "row": {
-        "name": "Name",
-        "email": "Email",
-        "language": "Language",
-        "timeZone": "Time zone",
-        "weekStartDay": "Week starts",
-        "themePreference": "Theme",
-        "aiSummary": "Daily summary",
-        "plan": "Plan",
-        "trialEnd": "Trial ends",
-        "planExpiry": "Plan ends",
-        "interval": "Interval",
-        "source": "Provider",
-        "lifetime": "Lifetime access",
-        "astraAllowance": "Astra messages used",
-        "successfulReferrals": "Successful referrals",
-        "pendingReferrals": "Pending referrals",
-        "maxReferrals": "Referral limit",
-        "rewardType": "Reward",
-        "discountPercent": "Discount"
+        "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
+        "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
+        "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
+        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "Astra messages used",
+        "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
+        "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
       },
       "value": {
-        "language": {
-          "en": "English",
-          "pt-BR": "Português (Brasil)"
-        },
-        "weekStartDay": {
-          "0": "Sunday",
-          "1": "Monday"
-        },
-        "themePreference": {
-          "dark": "Dark",
-          "light": "Light"
-        },
-        "plan": {
-          "Free": "Free",
-          "Pro": "Pro"
-        },
-        "interval": {
-          "monthly": "Monthly",
-          "yearly": "Yearly"
-        },
-        "source": {
-          "stripe": "Stripe",
-          "play": "Google Play"
-        },
-        "rewardType": {
-          "discount": "Discount"
-        }
+        "language": { "en": "English", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Sunday", "1": "Monday" },
+        "themePreference": { "dark": "Dark", "light": "Light" },
+        "plan": { "Free": "Free", "Pro": "Pro" },
+        "interval": { "monthly": "Monthly", "yearly": "Yearly" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Discount" }
       },
-      "yes": "Yes",
-      "no": "No",
-      "notSet": "Not set",
-      "unknown": "Unknown",
-      "code": "Referral code",
-      "copy": "Copy",
-      "copied": "Copied",
-      "share": "Share",
-      "copyError": "Couldn't copy the code. Try again.",
-      "shareError": "Couldn't share the link. Try again.",
+      "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
+      "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
+      "copyError": "Couldn't copy the code. Try again.", "shareError": "Couldn't share the link. Try again.",
       "open": "Open Profile"
     },
     "trace": {
@@ -1631,9 +1735,7 @@
         "write": "Updating tags"
       }
     },
-    "followUps": {
-      "label": "Next questions"
-    },
+    "followUps": {"label": "Next questions"},
     "preview": {
       "proposed": "Proposed by Astra",
       "notSet": "Not set",
@@ -1915,172 +2017,6 @@
         "completeOnboarding": "Finish setup",
         "completeTour": "Finish tour",
         "resetTour": "Restart tour"
-      }
-    },
-    "templates": {
-      "title": "Ideas",
-      "browse": "Browse ideas",
-      "back": "Back to conversation",
-      "search": "Search ideas",
-      "forYou": "For you now",
-      "noMatches": "No ideas for “{query}”.",
-      "clearSearch": "Clear search",
-      "more": "More ideas",
-      "previous": "Previous ideas",
-      "draftKept": "Your draft is kept. Clear it to edit this idea.",
-      "categories": {
-        "start": "Start",
-        "remember": "Remember",
-        "many": "Many at once",
-        "restart": "Restart",
-        "understand": "Understand",
-        "calendar": "Calendar"
-      },
-      "items": {
-        "morning": {
-          "label": "Plan my morning",
-          "prompt": "Help me set up a simple morning routine."
-        },
-        "evening": {
-          "label": "Plan my evening",
-          "prompt": "Help me set up a simple evening routine."
-        },
-        "oneHabit": {
-          "label": "Start one habit",
-          "prompt": "Help me start one small habit."
-        },
-        "goalHabits": {
-          "label": "Habits for a goal",
-          "prompt": "Turn my goal of '{'goal'}' into small habits."
-        },
-        "habitReminder": {
-          "label": "Habit with a reminder",
-          "prompt": "Create a habit to '{'habit'}' with a reminder at '{'time'}'."
-        },
-        "smallSteps": {
-          "label": "Break a habit into steps",
-          "prompt": "Break my habit of '{'habit'}' into small steps."
-        },
-        "setReminder": {
-          "label": "Set a reminder",
-          "prompt": "Remind me to '{'habit'}' at '{'time'}'."
-        },
-        "changeReminder": {
-          "label": "Change a reminder",
-          "prompt": "Move the reminder for '{'habit'}' to '{'time'}'."
-        },
-        "dueToday": {
-          "label": "What's still due today?",
-          "prompt": "Which habits are still due today?"
-        },
-        "tonight": {
-          "label": "Plan tonight",
-          "prompt": "Help me plan tonight around my remaining habits."
-        },
-        "reviewReminders": {
-          "label": "Review my reminders",
-          "prompt": "Show me my habit reminders."
-        },
-        "busyReminders": {
-          "label": "Remember on busy days",
-          "prompt": "Help me choose reminders that fit my busy days."
-        },
-        "moveToday": {
-          "label": "Move today's habits",
-          "prompt": "Move today's remaining habits to tomorrow."
-        },
-        "changeTimes": {
-          "label": "Change several times",
-          "prompt": "Help me change the times of several habits together."
-        },
-        "skipToday": {
-          "label": "Skip today's remaining",
-          "prompt": "Skip today's remaining habits."
-        },
-        "logMany": {
-          "label": "Log several habits",
-          "prompt": "Log '{'habits'}' as done today."
-        },
-        "tagGroup": {
-          "label": "Tag a group",
-          "prompt": "Add the tag '{'tag'}' to '{'habits'}'."
-        },
-        "pauseMany": {
-          "label": "Pause several habits",
-          "prompt": "Help me pause several habits for this week."
-        },
-        "afterDay": {
-          "label": "Return after a day away",
-          "prompt": "Help me restart after missing a day."
-        },
-        "afterWeek": {
-          "label": "Return after a hard week",
-          "prompt": "Help me restart after a difficult week."
-        },
-        "smallerHabit": {
-          "label": "Make a habit smaller",
-          "prompt": "Help me make my habit of '{'habit'}' smaller."
-        },
-        "keepOne": {
-          "label": "Keep just one habit",
-          "prompt": "Help me choose one habit to return to today."
-        },
-        "lighterWeek": {
-          "label": "Lighten this week",
-          "prompt": "Help me make this week's routine lighter."
-        },
-        "easierTime": {
-          "label": "Find an easier time",
-          "prompt": "Help me find an easier time for '{'habit'}'."
-        },
-        "reviewWeek": {
-          "label": "Review my week",
-          "prompt": "Help me review how my habits went this week."
-        },
-        "missedHabit": {
-          "label": "See what gets missed",
-          "prompt": "Which habit have I been missing most often?"
-        },
-        "streak": {
-          "label": "Understand my streak",
-          "prompt": "Explain how my streak works."
-        },
-        "freezes": {
-          "label": "Understand freezes",
-          "prompt": "Explain how streak freezes work."
-        },
-        "whatWorks": {
-          "label": "See what works for me",
-          "prompt": "Which habits have been easier for me to keep?"
-        },
-        "reviewGoals": {
-          "label": "Review my goals",
-          "prompt": "Help me review progress toward my goals."
-        },
-        "aroundEvents": {
-          "label": "Plan around events",
-          "prompt": "Help me fit today's habits around my calendar events."
-        },
-        "importWeek": {
-          "label": "Import this week",
-          "prompt": "Import this week's Google Calendar events."
-        },
-        "todayEvents": {
-          "label": "Review today's events",
-          "prompt": "Show me today's calendar events."
-        },
-        "findTime": {
-          "label": "Find time for a habit",
-          "prompt": "Find a time for '{'habit'}' around today's events."
-        },
-        "tomorrow": {
-          "label": "Plan tomorrow",
-          "prompt": "Help me plan tomorrow's habits around my calendar events."
-        },
-        "busyDay": {
-          "label": "Ease a busy day",
-          "prompt": "Help me lighten my habits on days with many calendar events."
-        }
       }
     }
   },
@@ -2622,10 +2558,7 @@
         "frequencyLess": "Repeat sooner",
         "frequencyMore": "Repeat later",
         "units": {
-          "day": "Days",
-          "week": "Weeks",
-          "month": "Months",
-          "year": "Years"
+          "day": "Days", "week": "Weeks", "month": "Months", "year": "Years"
         },
         "quantityLess": "Fewer times",
         "quantityMore": "More times",
@@ -2643,22 +2576,10 @@
         "timeHint": "Leave empty for any time of day",
         "limit": "Today''s {allowance} messages have been used. Reading the phrase draws on the same allowance.",
         "days": {
-          "sunday": "Sun",
-          "monday": "Mon",
-          "tuesday": "Tue",
-          "wednesday": "Wed",
-          "thursday": "Thu",
-          "friday": "Fri",
-          "saturday": "Sat"
+          "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
         },
         "daysLong": {
-          "sunday": "Sunday",
-          "monday": "Monday",
-          "tuesday": "Tuesday",
-          "wednesday": "Wednesday",
-          "thursday": "Thursday",
-          "friday": "Friday",
-          "saturday": "Saturday"
+          "sunday": "Sunday", "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday", "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday"
         },
         "cadence": {
           "fixed": "every {days}",
