@@ -1203,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} de {scheduled}",
+      "unscheduledDay": "{date} · Nada programado",
       "date": "Data",
       "rate": "Taxa",
       "completed": "Concluídos",
