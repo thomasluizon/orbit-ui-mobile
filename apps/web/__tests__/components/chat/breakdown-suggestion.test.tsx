@@ -1,3 +1,4 @@
+import { createApiClientError } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
@@ -211,7 +212,7 @@ it('keeps multiple added drafts distinct and ignores blanks when mapping failure
 
 it('keeps a rejected batch editable until it fits a persistent capacity constraint', async () => {
   bulkCreate.mockImplementation((request) => {
-    if (request.habits.length > 2) return Promise.reject(new Error('habit capacity'))
+    if (request.habits.length > 2) return Promise.reject(createApiClientError(400, { error: 'Habit limit reached', errorCode: 'HABIT_LIMIT_REACHED' }, 'Bad Request'))
     return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
   })
   render(<BreakdownSuggestion {...defaultProps} />)
@@ -222,7 +223,8 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
     fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(attempt))
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
+    await waitFor(() => expect(screen.getByText('habits.breakdown.capacityDenied')).toHaveAttribute('role', 'status'))
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
     expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /chat\.batch\.retry/ })).not.toBeInTheDocument()
     expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
