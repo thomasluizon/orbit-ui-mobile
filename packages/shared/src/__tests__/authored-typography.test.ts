@@ -13,6 +13,12 @@ const root = resolve(import.meta.dirname, '../../../..')
 const gitExecutable = resolve(createRequire(import.meta.url)('which').sync('git'))
 const scale = new Set([12, 14, 16, 17, 20, 22, 28, 34, 44, 60])
 const widgetDrawing = 'design/canvas/Orbit Widget Android.dc.html'
+const widgetDirectory = 'apps/mobile/modules/orbit-widget/android/src/main'
+const widgetCanonicalLayout = `${widgetDirectory}/res/layout/widget_layout.xml`
+const widgetLayouts = readdirSync(resolve(root, widgetDirectory, 'res/layout'))
+  .filter((file) => /^widget_layout(?:_\w+)?\.xml$/.test(file))
+  .map((file) => `${widgetDirectory}/res/layout/${file}`)
+  .sort((left, right) => left.localeCompare(right))
 const exceptions = [
   { path: 'apps/web/components/command/command-habit-items.tsx', size: 18, element: 'habitLeading.span[1].className', drawing: 'design/canvas/Orbit Busca.dc.html', drawingElement: "typeof icon === 'string' && icon.length <= 2 ? icon : H(D.Icon, { name: icon, size: 20 })" },
   { path: 'apps/mobile/components/share/share-card.tsx', size: 88, element: 'createStyles.primaryValue.fontSize', drawing: 'design/canvas/Orbit Wrapped.dc.html', drawingElement: 'String(data.completions)' },
@@ -131,10 +137,8 @@ function authoredSizes(source: string, path: string): AuthoredSize[] {
 }
 
 function widgetExceptionPath(path: string, element: string): string {
-  const canonical = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'
-  const variants = ['compact', 'narrow', 'expanded'].map((variant) => canonical.replace('.xml', `_${variant}.xml`))
-  const hasDrawnRole = exceptions.some((entry) => entry.path === canonical && entry.element === element)
-  return variants.includes(path) && hasDrawnRole ? canonical : path
+  const hasDrawnRole = exceptions.some((entry) => entry.path === widgetCanonicalLayout && entry.element === element)
+  return widgetLayouts.includes(path) && hasDrawnRole ? widgetCanonicalLayout : path
 }
 
 function violations(source: string, path: string): AuthoredSize[] {
@@ -210,10 +214,16 @@ describe('authored app typography', () => {
     expect(authoredSizes(mutated, path)).toContainEqual({ size: 15, element: '@+id/item_title' })
   })
 
+  it('covers exactly the widget layouts selected by the provider', () => {
+    const provider = readFileSync(resolve(root, widgetDirectory, 'java/org/useorbit/app/widget/OrbitWidgetProvider.kt'), 'utf8')
+    const selectedLayouts = [...new Set([...provider.matchAll(/\bR\.layout\.(widget_layout(?:_\w+)?)\b/g)]
+      .map((match) => `${widgetDirectory}/res/layout/${match[1]}.xml`))].sort((left, right) => left.localeCompare(right))
+    expect(selectedLayouts).toContain(widgetCanonicalLayout)
+    expect(widgetLayouts).toEqual(selectedLayouts)
+  })
+
   it('retains element boundaries for resource fonts in each widget layout variant', () => {
-    const canonical = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'
-    for (const variant of ['compact', 'narrow', 'expanded']) {
-      const path = canonical.replace('.xml', `_${variant}.xml`)
+    for (const path of widgetLayouts) {
       const source = readFileSync(resolve(root, path), 'utf8')
       expect(violations(source, path)).toEqual([])
       const mutated = source.replace(/(android:id="@\+id\/widget_subtitle"[\s\S]*?android:textSize=")@dimen\/widget_label_text_size"/,
