@@ -233,6 +233,7 @@ export interface HabitUnderstandingLabels {
 }
 
 export interface HabitScheduleFieldsProps {
+  proposed?: boolean
   unit: FrequencyUnit | null
   quantity: number | null
   flexible: boolean

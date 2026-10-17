@@ -534,6 +534,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.form.unit": {
+      "targets": [
+        "mobile:content:habits.form.unitDay",
+        "mobile:content:habits.form.unitWeek",
+        "mobile:content:habits.form.unitMonth",
+        "mobile:content:habits.form.unitYear"
+      ],
+      "reason": "The unit picker is represented by four labelled radio choices with reachable rendered consumers in the habit schedule editor."
+    },
     "mobile:control:habits.logHabit": {
       "targets": [
         "mobile:content:habits.logHabit"
@@ -1206,6 +1215,12 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:habits.form.every": {
+      "targets": [
+        "mobile:control:habits.form.every"
+      ],
+      "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
+    },
     "mobile:display:habits.form.habitTypeAvoidHint": {
       "targets": [
         "mobile:control:habits.form.habitTypeAvoidHint"
@@ -1229,6 +1244,12 @@
         "mobile:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.timesPerUnit": {
+      "targets": [
+        "mobile:control:habits.form.timesPerUnit"
+      ],
+      "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
     },
     "mobile:display:onboarding.flow.complete.subtitle": {
       "targets": [
@@ -2058,6 +2079,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.form.unit": {
+      "targets": [
+        "web:content:habits.form.unitDay",
+        "web:content:habits.form.unitWeek",
+        "web:content:habits.form.unitMonth",
+        "web:content:habits.form.unitYear"
+      ],
+      "reason": "The unit picker is represented by four labelled radio choices with reachable rendered consumers in the habit schedule editor."
+    },
     "web:control:habits.logHabit": {
       "targets": [
         "web:content:habits.logHabit"
@@ -2790,6 +2820,12 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:habits.form.every": {
+      "targets": [
+        "web:control:habits.form.every"
+      ],
+      "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
+    },
     "web:display:habits.form.habitTypeAvoidHint": {
       "targets": [
         "web:control:habits.form.habitTypeAvoidHint"
@@ -2813,6 +2849,12 @@
         "web:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.timesPerUnit": {
+      "targets": [
+        "web:control:habits.form.timesPerUnit"
+      ],
+      "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
     },
     "web:display:onboarding.flow.complete.subtitle": {
       "targets": [

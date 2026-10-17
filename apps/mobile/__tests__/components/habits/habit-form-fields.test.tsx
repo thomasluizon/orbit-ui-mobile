@@ -12,7 +12,8 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { buildCreateHabitRequest, buildUpdateHabitRequest, type HabitFormProposal } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, type HabitFormProposal } from '@orbit/shared/utils'
+import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
 
 const TestRenderer = require('react-test-renderer')
@@ -656,14 +657,13 @@ describe('HabitFormFields mobile', () => {
     })
     expect(tree.root.findByType(HabitUnderstanding).props.proposed).toBe(true)
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
-    const proposedBreakdownCount = tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length
-    expect(proposedBreakdownCount).toBeGreaterThan(0)
+    expect(tree.root.findByProps({ testID: 'sub-habit-editor' }).parent.props.testID).toBe('proposed-field')
 
     TestRenderer.act(() => tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday'))
 
     expect(tree.root.findByType(HabitUnderstanding).props.proposed).toBe(false)
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(proposedBreakdownCount)
+    expect(tree.root.findByProps({ testID: 'sub-habit-editor' }).parent.props.testID).toBe('proposed-field')
   })
 
   it('marks only an Astra checklist proposal and resolves it when edited', async () => {
@@ -724,6 +724,10 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
   })
 })
+
+interface ProposedTestNode extends UnderstandingTestNode {
+  parent: ProposedTestNode | null
+}
 
 interface UnderstandingTestNode {
   type: unknown
@@ -867,6 +871,55 @@ describe('manual schedule creation', () => {
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
     expect(ask).not.toHaveBeenCalled()
     await TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const proposed = (control: ProposedTestNode): boolean => {
+      for (let node = control.parent; node; node = node.parent) {
+        if (typeof node.type === 'string' && /^proposed-(field|row|block)$/.test(String(node.props.testID))) return true
+      }
+      return false
+    }
+    const host = (label: string, role?: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === label && (!role || node.props.accessibilityRole === role))[0]!
+    try {
+      expect(tree.root.findAll((node: UnderstandingTestNode) => node.props.testID === 'proposed-block')).toHaveLength(0)
+      await TestRenderer.act(async () => {
+        tree.root.findByProps({ testID: 'button-secondary-sm' }).props.onPress()
+        await Promise.resolve()
+      })
+      expect(helpers.form.getValues('days')).toEqual(['Monday'])
+      await TestRenderer.act(() => tree.root.findByType(ListRow).props.onClick())
+      const quantity = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
+      for (const control of [quantity(), host('habits.form.every', 'radio'), host('habits.form.unitDay', 'radio'), host(helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel, 'button')]) expect(proposed(control)).toBe(true)
+      expect(quantity().props.value).toBe('1')
+      const tokens = createTokensV2('orange', 'dark')
+      expect(StyleSheet.flatten(quantity().props.style).color).toBe(tokens.fg3)
+      const selectedUnitLabel = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'habits.form.unitDay')[0]!
+      expect(StyleSheet.flatten(selectedUnitLabel.props.style).color).toBe(tokens.fg3)
+      expect(host(helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel, 'button').props.accessibilityState.selected).toBe(true)
+      expect(proposed(host('habits.form.describe'))).toBe(false)
+      await TestRenderer.act(() => {
+        if (edit === 'quantity') quantity().props.onChangeText('2')
+        else if (edit === 'unit') host('habits.form.unitMonth', 'radio').props.onPress()
+        else if (edit === 'mode') host('habits.form.timesPerUnit', 'radio').props.onPress()
+        else host(edit === 'day' ? helpers.daysList.find((day) => day.value === 'Tuesday')!.accessibleLabel : 'habits.form.repeatMore', 'button').props.onPress()
+      })
+      expect(tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && /^proposed-(field|row|block)$/.test(String(node.props.testID)))).toHaveLength(0)
+      expect(helpers.form.getValues('title')).toBe('Read')
+      expect(StyleSheet.flatten(quantity().props.style).color).toBe(tokens.fg1)
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it('disables manual scheduling for a locked parent', async () => {

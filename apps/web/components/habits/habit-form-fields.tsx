@@ -460,6 +460,7 @@ export function HabitFormFields({
             }}
           >
             <HabitScheduleFields
+              proposed={proposal.setup}
               unit={frequencyUnit ?? null}
               quantity={watch('frequencyQuantity') ?? null}
               flexible={isFlexible}

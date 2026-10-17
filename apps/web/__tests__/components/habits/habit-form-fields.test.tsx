@@ -615,7 +615,8 @@ describe('HabitFormFields', () => {
     }, true)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+    expect(screen.getByRole('spinbutton').closest('[data-proposed]')).not.toBeNull()
     expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
@@ -815,6 +816,42 @@ describe('manual schedule creation', () => {
     fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
     expect(ask).not.toHaveBeenCalled()
+  })
+
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+    const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const quantity = screen.getByRole('spinbutton', { name: 'habits.form.frequency' })
+    for (const control of [quantity, screen.getByRole('radio', { name: 'habits.form.every' }), screen.getByRole('radio', { name: 'habits.form.unitDay' }), screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })]) {
+      expect(control.closest('[data-proposed]')).not.toBeNull()
+    }
+    expect(quantity).toHaveValue(1)
+    expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-3)')
+    expect(screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' }).closest('[data-proposed]')).toBeNull()
+    quantity.focus()
+    if (edit === 'quantity') fireEvent.change(quantity, { target: { value: '2' } })
+    else if (edit === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    else if (edit === 'mode') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    else fireEvent.click(screen.getByRole('button', { name: edit === 'day' ? helpers.daysList.find((day) => day.value === 'Tuesday')!.accessibleLabel : 'habits.form.repeatMore' }))
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    if (edit === 'quantity') {
+      expect(screen.getByRole('spinbutton')).toBe(quantity)
+      expect(quantity).toHaveFocus()
+      expect(quantity).toHaveValue(2)
+      expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-1)')
+    }
+    expect(helpers.form.getValues('title')).toBe('Read')
   })
 
   it('disables manual scheduling for a locked parent', () => {

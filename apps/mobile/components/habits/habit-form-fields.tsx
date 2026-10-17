@@ -458,6 +458,7 @@ export function HabitFormFields({
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <HabitScheduleFields
+              proposed={proposal.setup}
               unit={frequencyUnit ?? null}
               quantity={watchedQuantity ?? null}
               flexible={isFlexible}
