@@ -212,47 +212,49 @@ function TodayScreenContent() {
   )
 
   const listHeader = (
-    <View testID="today-section-header" style={[styles.header, { gap: PADDING.sectionGap * fontScale }]}>
-      {todayFocused ? (
-        <TodayAstra
-          today={date.today}
+    <View testID="today-section-header" style={styles.header}>
+      <View testID="today-date-group" style={{ gap: PADDING.sectionGap * fontScale }}>
+        {todayFocused ? (
+          <TodayAstra
+            today={date.today}
+            isTodaySelected={date.dateStr === date.today}
+            suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data}
+          />
+        ) : null}
+        <TodayDateControl
+          headerActive={todayFocused}
+          shortDayName={date.shortDayName}
+          searchLabel={t('habits.search.title')}
+          onSearch={() => router.push('/search')}
+          dayName={date.dayName}
+          numericDate={date.numericDate}
           isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data}
+          nextDisabled={date.nextDisabled}
+          previousLabel={t('dates.previousDay')}
+          todayLabel={t('dates.today')}
+          goToTodayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+          moreLabel={t('habits.listOptions')}
+          menuHeading={t('common.options')}
+          selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
+          collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+          allCollapsed={habitListAllCollapsed}
+          refreshLabel={t('habits.refresh')}
+          completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
+          showCompleted={showCompleted}
+          isFetching={habitsQuery.isFetching}
+          onToggleSelect={selection.handleToggleSelectMode}
+          onToggleCollapse={() => {
+            if (habitListAllCollapsed) habitListRef.current?.expandAll()
+            else habitListRef.current?.collapseAll()
+          }}
+          onRefresh={() => void habitsQuery.refetch()}
+          onToggleCompleted={() => setShowCompleted(!showCompleted)}
+          onGoToPreviousDay={date.goToPreviousDay}
+          onGoToToday={date.goToToday}
+          onGoToNextDay={date.goToNextDay}
         />
-      ) : null}
-      <TodayDateControl
-        headerActive={todayFocused}
-        shortDayName={date.shortDayName}
-        searchLabel={t('habits.search.title')}
-        onSearch={() => router.push('/search')}
-        dayName={date.dayName}
-        numericDate={date.numericDate}
-        isTodaySelected={date.dateStr === date.today}
-        nextDisabled={date.nextDisabled}
-        previousLabel={t('dates.previousDay')}
-        todayLabel={t('dates.today')}
-        goToTodayLabel={t('dates.goToToday')}
-        nextLabel={t('dates.nextDay')}
-        moreLabel={t('habits.listOptions')}
-        menuHeading={t('common.options')}
-        selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
-        collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
-        allCollapsed={habitListAllCollapsed}
-        refreshLabel={t('habits.refresh')}
-        completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
-        showCompleted={showCompleted}
-        isFetching={habitsQuery.isFetching}
-        onToggleSelect={selection.handleToggleSelectMode}
-        onToggleCollapse={() => {
-          if (habitListAllCollapsed) habitListRef.current?.expandAll()
-          else habitListRef.current?.collapseAll()
-        }}
-        onRefresh={() => void habitsQuery.refetch()}
-        onToggleCompleted={() => setShowCompleted(!showCompleted)}
-        onGoToPreviousDay={date.goToPreviousDay}
-        onGoToToday={date.goToToday}
-        onGoToNextDay={date.goToNextDay}
-      />
+      </View>
       {todayFocused && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
         ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (

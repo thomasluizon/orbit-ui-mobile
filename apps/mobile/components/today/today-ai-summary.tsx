@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/query'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-summary'
 import { useUIStore } from '@/stores/ui-store'
@@ -94,12 +95,12 @@ const styles = StyleSheet.create({
   loading: { minHeight: 14 * 1.55 * 3, gap: 8, maxWidth: 640 },
   placeholders: { gap: 8 },
   placeholder: { height: 14, borderRadius: 8 },
-  section: { minWidth: 0, gap: 12 },
+  section: { minWidth: 0, gap: PADDING.sectionTitleGap },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   heading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55, maxWidth: 640 },
   disclaimer: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 12 * 1.5, maxWidth: 640 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
-  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, overflow: 'hidden' },
+  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: SPACING.s12, paddingVertical: SPACING.s8, borderRadius: 8, overflow: 'hidden' },
   toggleLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
 })

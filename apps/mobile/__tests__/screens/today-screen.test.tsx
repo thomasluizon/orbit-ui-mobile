@@ -256,7 +256,9 @@ describe('Hoje date boundaries', () => {
     await TestRenderer.act(async () => { tree = TestRenderer.create(<TodayScreen />); await Promise.resolve() })
     try {
       const header = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-section-header')[0]!
-      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24 * fontScale, paddingBottom: 24 })
+      const dateGroup = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-date-group')[0]!
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24, paddingBottom: 24 })
+      expect(StyleSheet.flatten(dateGroup.props.style)).toMatchObject({ gap: 24 * fontScale })
     } finally { await TestRenderer.act(() => tree.update(<></>)); dimensions.mockRestore() }
   })
   beforeEach(() => {

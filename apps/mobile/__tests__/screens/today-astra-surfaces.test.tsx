@@ -187,6 +187,27 @@ describe('mobile Today Astra owned surfaces', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+    'scales only the proactive line gap with a daily summary at $width and $fontScale text scale', async ({ width, fontScale }) => {
+      const native = await import('react-native')
+      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
+      mocks.geometry = true
+      mocks.hasProAccess = false
+      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      let tree!: GeometryTree
+      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      try {
+        const geometry = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+          ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line'
+            : host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('summary.freePrompt')) ? 'summary' : undefined,
+        { width, height: 915 })
+        expect(geometry.has('summary')).toBe(true)
+        expect(geometry.get('date')!.top - geometry.get('line')!.bottom).toBe(24 * fontScale)
+        expect(geometry.get('summary')!.top - geometry.get('date')!.bottom).toBe(24)
+      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
+    },
+  )
+
   beforeEach(() => {
     mocks.habitListProps = null
     mocks.routerPush.mockReset()

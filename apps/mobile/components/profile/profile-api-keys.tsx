@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -525,7 +525,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
 }
 
 const styles = StyleSheet.create({
-  keyDetails: { gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  keyDetails: { gap: 8, paddingHorizontal: PADDING.rowInline, paddingBottom: SPACING.s16 },
   keyDates: { gap: 4 },
   keyDateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   keyDetailText: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'] },

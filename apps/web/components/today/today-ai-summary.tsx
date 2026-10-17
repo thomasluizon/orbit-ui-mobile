@@ -24,7 +24,7 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
 
 function SummarySection({ children, busy = false }: Readonly<{ children: React.ReactNode; busy?: boolean }>) {
   const t = useTranslations()
-  return <section aria-busy={busy} aria-label={t('summary.title')} className="flex min-w-0 flex-col gap-3 px-4">
+  return <section aria-busy={busy} aria-label={t('summary.title')} className="flex min-w-0 flex-col gap-section-title-gap px-screen-gutter">
     <div className="flex items-center gap-2 text-[var(--fg-3)]">
       <AstraGlyph size={20} color="var(--fg-3)" />
       <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('summary.title')}</h2>

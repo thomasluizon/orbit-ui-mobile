@@ -1,6 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -41,7 +41,7 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
   const t = useTranslations()
   const { displayDateMedium } = useDateFormat()
   return (
-    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: 16, paddingBottom: 16 }}>
+    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: PADDING.rowInline, paddingBottom: SPACING.s16 }}>
       <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
       <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
       <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
