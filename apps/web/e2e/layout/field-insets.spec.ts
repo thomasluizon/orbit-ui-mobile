@@ -119,6 +119,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const startTime = screen.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
         const endTime = screen.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })
         await expect(endTime).toBeDisabled()
+        await expect(startTime).toHaveAttribute('data-hour-cycle', profile.uses24HourClock ? 'h23' : 'h12')
         await startTime.fill('08:00')
         await expect(endTime).toBeEnabled()
         await endTime.fill('09:00')
