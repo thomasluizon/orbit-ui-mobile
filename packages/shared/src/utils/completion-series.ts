@@ -7,7 +7,13 @@ function localCalendarDate(dateOnly: string): Date {
 
 export function mapCompletionSeries(series: CompletionSeries, locale: string): readonly BarChartPoint[] {
   const formatter = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
+  const readoutFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' })
   return series.points.map((point) => ({
+    startDate: point.startDate,
+    endDate: point.endDate,
+    readoutDateLabel: point.startDate === point.endDate
+      ? readoutFormatter.format(localCalendarDate(point.startDate))
+      : `${readoutFormatter.format(localCalendarDate(point.startDate))} - ${readoutFormatter.format(localCalendarDate(point.endDate))}`,
     dateLabel: point.startDate === point.endDate
       ? formatter.format(localCalendarDate(point.startDate))
       : `${formatter.format(localCalendarDate(point.startDate))} - ${formatter.format(localCalendarDate(point.endDate))}`,
