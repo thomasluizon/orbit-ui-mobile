@@ -1,3 +1,4 @@
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -156,7 +157,7 @@ function TodayScreenContent() {
     selectedTagIds: [],
     showGeneralOnToday,
   }), [activeView, date.dateStr, date.today, showGeneralOnToday, search.query])
-  const habitsQuery = useHabits(filters, { completeDay: activeView === 'today' })
+  const habitsQuery = useHabits(filters, habitViewQueryOptions(activeView, date.today))
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,

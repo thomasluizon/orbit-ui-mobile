@@ -61,6 +61,7 @@ function renderToday() {
   return renderHook(
     () => useTodayHabitsData({
       activeView: 'today',
+      today: DATE,
       dateStr: DATE,
       isTodayDate: true,
       initialHabits: initialHabitsFor(scheduleItem('habit-a', 'Take lithium at 9pm')),

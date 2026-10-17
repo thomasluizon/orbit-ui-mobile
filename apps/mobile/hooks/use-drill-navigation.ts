@@ -49,6 +49,16 @@ export function useDrillNavigation(
   const [drillLoading, setDrillLoading] = useState(false)
   const [drillError, setDrillError] = useState('')
 
+  const [drillView, setDrillView] = useState(view)
+  if (drillView !== view) {
+    setDrillView(view)
+    setDrillStack([])
+    setDrillChildrenMap(new Map())
+    setDrillParentInfo(null)
+    setDrillLoading(false)
+    setDrillError('')
+  }
+
   const currentParentId = drillStack.at(-1) ?? null
   const activeParentIdRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
@@ -56,6 +66,14 @@ export function useDrillNavigation(
   useEffect(() => {
     activeParentIdRef.current = currentParentId
   }, [currentParentId])
+
+  useEffect(() => () => {
+    requestIdRef.current += 1
+    feedbackPendingRef.current = false
+    const parentId = activeParentIdRef.current
+    activeParentIdRef.current = null
+    if (parentId) void queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId), exact: true })
+  }, [queryClient, view])
 
   const currentParent = useMemo(() => {
     if (!currentParentId) return null

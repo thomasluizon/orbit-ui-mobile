@@ -162,7 +162,7 @@ describe('i18n locale parity', () => {
     expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
   })
 
-  it('keeps internal habit type names out of rendered copy', () => {
+  it('keeps internal habit type names out of copy while retaining the named General view', () => {
     const otherMeanings = new Set([
       'preferences.general',
       'chat.insight.overview',
@@ -172,11 +172,17 @@ describe('i18n locale parity', () => {
     ])
     for (const [key, value] of ptFlat) {
       if (otherMeanings.has(key)) continue
-      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?|\bgera(l|is)\b/i)
+      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?/i)
+      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+        expect(value, `pt-BR: ${key}`).not.toMatch(/\bgera(l|is)\b/i)
+      }
     }
     for (const [key, value] of enFlat) {
       if (otherMeanings.has(key)) continue
-      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b|\bgeneral\b/i)
+      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b/i)
+      if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+        expect(value, `en: ${key}`).not.toMatch(/\bgeneral\b/i)
+      }
     }
   })
 

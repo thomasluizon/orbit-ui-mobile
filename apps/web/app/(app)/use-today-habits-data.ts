@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { hashKey, useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import { habitListQueryFilters } from '@orbit/shared/utils'
+import { habitViewQueryOptions, habitListQueryFilters } from '@orbit/shared/utils'
 import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { ActiveView } from '@orbit/shared/stores'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
@@ -32,6 +32,7 @@ interface TodayHabitsDataParams {
   activeView: ActiveView
   searchQuery?: string
   dateStr: string
+  today: string
   isTodayDate: boolean
   initialHabits: TodayInitialHabits | null
 }
@@ -57,6 +58,7 @@ export function useTodayHabitsData({
   activeView,
   searchQuery = '',
   dateStr,
+  today,
   isTodayDate,
   initialHabits,
 }: TodayHabitsDataParams): TodayHabitsData {
@@ -80,7 +82,8 @@ export function useTodayHabitsData({
     [activeView, dateStr, isTodayDate, showGeneralOnToday, searchQuery],
   )
 
-  const queryKey = habitKeys.list(habitListQueryFilters(filters, activeView === 'today'))
+  const queryOptions = habitViewQueryOptions(activeView, today)
+  const queryKey = habitKeys.list(habitListQueryFilters(filters, queryOptions.completeDay, queryOptions.scheduleDate))
   const queryClient = useQueryClient()
   /**
    * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the
@@ -102,7 +105,7 @@ export function useTodayHabitsData({
       queryClient.setQueryData(habitKeys.listTotalCount(filters), initialTotalCount)
     }
   }, [filters, initialTotalCount, queryClient])
-  const habitsQuery = useHabits(filters, initialItems, { completeDay: activeView === 'today' })
+  const habitsQuery = useHabits(filters, initialItems, queryOptions)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size

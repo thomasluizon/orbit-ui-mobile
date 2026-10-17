@@ -4,6 +4,8 @@ import { createHabitVisibilityHelpers, filterHabitViewRoots } from '../utils/hab
 import { buildHabitDateBuckets, computeHabitDayProgress, computeParentPromptProgress } from '../utils/habit-list-progress'
 import { getPersistedUIState, migratePersistedUIState, type UIStoreState } from '../stores/ui-store'
 
+import { canLogHabitOnDate } from '../utils/habit-card-helpers'
+
 const TODAY = '2026-09-12'
 
 describe('production habit views', () => {
@@ -26,6 +28,14 @@ describe('production habit views', () => {
     const roots = filterHabitViewRoots(fixture.topLevelHabits, 'all', false, new Set(), visibility)
     const order = buildHabitDateBuckets(roots, TODAY).flatMap((bucket) => bucket.habits.flatMap((habit) => [habit.id, ...visibility.getVisibleChildren(habit.id, 'all').map((child) => child.id)]))
     expect(order).toEqual(HABIT_VIEW_ROW_ORDER.all)
+  })
+
+  it('keeps an undated overdue daily root grouped and loggable', () => {
+    const fixture = createHabitViewFixture(TODAY, 'all')
+    const habit = fixture.habitsById.get('overdue')!
+    expect(habit.frequencyUnit).toBe('Day')
+    expect(buildHabitDateBuckets([habit], TODAY)[0]?.key).toBe('__overdue__')
+    expect(canLogHabitOnDate(habit, TODAY, TODAY)).toBe(true)
   })
 
   it('counts future children in list progress and waits for them before parent settlement', () => {

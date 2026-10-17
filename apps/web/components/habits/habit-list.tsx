@@ -1,5 +1,7 @@
 'use client'
 
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
+
 import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
@@ -348,7 +350,7 @@ export function HabitList({
   const { displayTime } = useTimeFormat()
   const dndContextId = useId()
 
-  const habitsQuery = useHabits(filters, undefined, { completeDay: view === 'today' })
+  const habitsQuery = useHabits(filters, undefined, habitViewQueryOptions(view, todayStr))
   const accountHabitCount = useHabitCountLoaded()
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()

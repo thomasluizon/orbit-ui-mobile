@@ -334,7 +334,7 @@ export {
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
-export { habitListQueryFilters, shouldFetchAllHabitPages } from './habit-list-pagination-core'
+export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
   buildHabitQueryString,
   buildUrlWithQuery,
@@ -797,3 +797,5 @@ export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progre
 export { filterHabitViewRoots } from './habit-visibility'
 
 export { formatHabitDateBucketLabel } from './habit-list-progress'
+
+export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'

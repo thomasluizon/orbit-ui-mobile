@@ -58,6 +58,7 @@ export function useTodayPage(
     activeView,
     searchQuery: search.query,
     dateStr: nav.dateStr,
+    today: nav.today,
     isTodayDate: nav.isTodaySelected,
     initialHabits,
   })

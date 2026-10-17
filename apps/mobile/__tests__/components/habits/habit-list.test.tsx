@@ -1,4 +1,4 @@
-import { createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
@@ -598,6 +598,31 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it('loads producer-shaped Todos rows with overdue logging and rescheduling available', async () => {
+    skipFlow.active = true
+    useActualHabitVisibility = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    offlineMocks.apiClient.mockImplementation((url: string) => {
+      const items = url.includes('dateFrom=') ? createHabitViewScheduleItems(TODAY) : createHabitViewItems(TODAY, 'all')
+      return Promise.resolve({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 })
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} /></QueryClientProvider>)
+    })
+    await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)) })
+    const rows = tree!.root.findAllByType(HabitRow)
+    const overdue = rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'overdue')!
+    expect(overdue.props.habit.isOverdue).toBe(true)
+    const logButton = overdue.find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel?.includes('habits.logHabit') === true)
+    expect(logButton.props.disabled).toBe(false)
+    expect(overdue.props.actions.onReschedule).toBeTypeOf('function')
+    expect(rows.some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'future')).toBe(true)
+    await TestRenderer.act(async () => { overdue.props.actions.onLog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue', intent: 'log' })
+    queryClient.clear()
+  })
+
   it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))

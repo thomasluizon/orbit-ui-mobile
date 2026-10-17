@@ -101,7 +101,8 @@ function TodayHydrationSurface({
   const t = useTranslations()
   const navigation = useTodayNavigation(initialToday)
   const habits = useTodayHabitsData({
-      activeView: 'today',
+    activeView: 'today',
+    today: navigation.today,
     dateStr: navigation.dateStr,
     isTodayDate: navigation.isTodaySelected,
     initialHabits,

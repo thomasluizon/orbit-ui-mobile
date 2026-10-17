@@ -1,4 +1,4 @@
-import { createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
@@ -40,6 +40,7 @@ const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const skipFlow = vi.hoisted(() => ({
   active: false,
   retryRead: false,
+  scheduleItems: null as HabitScheduleItem[] | null,
   items: [] as HabitScheduleItem[],
   original: [] as HabitScheduleItem[],
   mutate: vi.fn(),
@@ -52,7 +53,7 @@ vi.mock('@/lib/api-fetch', async (importOriginal) => {
     ...actual,
     fetchJson: async (...args: Parameters<typeof actual.fetchJson>) => skipFlow.retryRead
       ? actual.fetchJson(...args)
-      : ({ items: skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
+      : ({ items: String(args[0]).includes('dateFrom=') && skipFlow.scheduleItems ? skipFlow.scheduleItems : skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
   }
 })
 
@@ -262,6 +263,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       onDuplicate?: () => void
       onDetail?: () => void
       onAddSubHabit?: () => void
+      onReschedule?: () => void
       onToggleSelection?: () => void
     }
   }) => (
@@ -274,6 +276,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       data-can-log={canLog ? 'yes' : 'no'}
       data-read-only={completionReadOnly ? 'yes' : 'no'}
       data-has-skip={actions?.onSkip ? 'yes' : 'no'}
+      data-has-reschedule={actions?.onReschedule ? 'yes' : 'no'}
     >
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
@@ -451,6 +454,21 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
     expect(clearSearch).toHaveBeenCalledOnce()
     expect(screen.queryByText('No habits yet')).not.toBeInTheDocument()
+  })
+
+  it('loads producer-shaped Todos rows with overdue logging and rescheduling available', async () => {
+    skipFlow.active = true
+    skipFlow.items = createHabitViewItems(TODAY, 'all')
+    skipFlow.scheduleItems = createHabitViewScheduleItems(TODAY)
+    useActualHabitVisibility = true
+    renderWithProviders(<HabitList view="all" filters={{}} />)
+    const overdue = await screen.findByTestId('habit-card-overdue')
+    expect(overdue).toHaveAttribute('data-state', 'overdue')
+    expect(overdue).toHaveAttribute('data-can-log', 'yes')
+    expect(overdue).toHaveAttribute('data-has-reschedule', 'yes')
+    expect(screen.getByTestId('habit-card-future')).toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByTestId('log-overdue')) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue', intent: 'log' })
   })
 
   it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
@@ -1046,6 +1064,7 @@ describe('HabitList', () => {
     dragLocale.english = false
     skipFlow.active = false
     skipFlow.retryRead = false
+    skipFlow.scheduleItems = null
     useAppToastStore.setState({ currentToast: null, queue: [] })
     rowImplementation.actual = false
     accountDate.timeZone = undefined

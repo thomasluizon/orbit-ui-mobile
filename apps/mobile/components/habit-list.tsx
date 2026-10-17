@@ -1,3 +1,4 @@
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
   useCallback,
@@ -468,7 +469,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
-    const habitsQuery = useHabits(filters, { completeDay: view === 'today' })
+    const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
