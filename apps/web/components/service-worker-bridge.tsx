@@ -5,16 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
-import { useUIStore } from '@/stores/ui-store'
+import type { QueryClient } from '@tanstack/react-query'
+import { proactiveKeys } from '@orbit/shared/query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 
 type AppRouter = ReturnType<typeof useRouter>
 
-function openNotificationUrl(router: AppRouter, url: unknown) {
+function openNotificationUrl(router: AppRouter, queryClient: QueryClient, url: unknown) {
   const destination = typeof url === 'string' ? getNotificationDestination(url) : null
   if (!destination) return
-  router.push(destination.opensAstra ? '/?astra=open' : destination.url)
-  if (destination.opensAstra) useUIStore.getState().setAstraConversationOpen(true)
+  router.push(destination.url)
+  if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
 }
 
 /** Reads the url `public/sw.js` opened a new window with, then drops it from the address bar. */
@@ -39,8 +41,8 @@ export function ServiceWorkerBridge(): null {
 
   useEffect(() => {
     const launchUrl = takeLaunchNotificationUrl()
-    if (launchUrl !== null) openNotificationUrl(router, launchUrl)
-  }, [router])
+    if (launchUrl !== null) openNotificationUrl(router, queryClient, launchUrl)
+  }, [queryClient, router])
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
@@ -53,10 +55,13 @@ export function ServiceWorkerBridge(): null {
     function handleWorkerMessage(event: MessageEvent<unknown>) {
       const message = event.data
       if (typeof message !== 'object' || message === null || !('type' in message)) return
-      if (message.type === 'orbit:push-received') void invalidateNotificationList(queryClient)
+      if (message.type === 'orbit:push-received') {
+        void invalidateNotificationList(queryClient)
+        void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
+      }
       if (message.type === 'orbit:notification-click' && 'url' in message) {
         event.ports[0]?.postMessage({ type: 'orbit:notification-click-received' })
-        openNotificationUrl(router, message.url)
+        openNotificationUrl(router, queryClient, message.url)
       }
     }
 

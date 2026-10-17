@@ -37,6 +37,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setAstraConversationOpen(true); return Promise.resolve() } }))
+
 vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
 
 vi.mock('expo', () => ({

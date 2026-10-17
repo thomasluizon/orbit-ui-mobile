@@ -117,3 +117,9 @@ export const uploadMutationKeys = {
   all: ['uploads'] as const,
   sign: () => [...uploadMutationKeys.all, 'sign'] as const,
 }
+
+export const proactiveKeys = {
+  all: ['proactive'] as const,
+  current: () => [...proactiveKeys.all, 'current'] as const,
+  status: (id: string) => [...proactiveKeys.all, 'status', id] as const,
+}

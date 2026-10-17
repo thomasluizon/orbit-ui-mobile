@@ -18,6 +18,7 @@ import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
+import { ProactiveAction } from './proactive-action'
 import { FollowUpChips } from './follow-up-chips'
 
 function ThinkingTrace({ steps, running }: Readonly<{
@@ -253,6 +254,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
+          {msg.proactiveItem ? <ProactiveAction item={msg.proactiveItem} acted={msg.proactiveActed ?? false} onSend={sendMessage} /> : null}
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </article>

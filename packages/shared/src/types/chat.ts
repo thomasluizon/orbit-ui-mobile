@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { proactiveItemSchema } from './proactive'
 import { frequencyUnitSchema } from './habit'
 import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
 import {
@@ -320,6 +321,8 @@ export const accountRowsCardSchema = z.object({
 export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
 export const chatMessageSchema = z.object({
+  proactiveItem: proactiveItemSchema.optional(),
+  proactiveActed: z.boolean().optional(),
   id: z.string(),
   role: z.enum(['user', 'ai']),
   content: z.string(),

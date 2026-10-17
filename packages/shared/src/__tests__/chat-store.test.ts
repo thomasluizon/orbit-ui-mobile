@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { createMockProactiveItem } from './factories'
 import type { ChatStoreState } from '../stores/chat-store'
 import {
   clearContextualSuggestionIfCurrent,
@@ -26,6 +27,23 @@ function createStoreHarness() {
 describe('shared chat store', () => {
   beforeEach(() => {
     createStoreHarness()
+  })
+
+  it('opens the item as the first AI message without spending a message or changing a draft', () => {
+    const store = createStoreHarness()
+    const item = createMockProactiveItem()
+    store.getState().setDraft('Keep my draft')
+    store.getState().addMessage({ id: 'previous', role: 'user', content: 'Previous thread', timestamp: new Date() })
+    expect(store.getState().openProactiveItem(item)).toBe(true)
+    expect(store.getState().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text, proactiveItem: item })])
+    expect(store.getState().draft).toBe('Keep my draft')
+    expect(store.getState().isTyping).toBe(false)
+    expect(store.getState().openProactiveItem(item)).toBe(false)
+    expect(store.getState().messages).toHaveLength(1)
+    expect(store.getState().claimProactiveAction(item.id)).toBe(true)
+    expect(store.getState().claimProactiveAction(item.id)).toBe(false)
+    expect(store.getState().messages[0]?.proactiveActed).toBe(true)
+    expect(store.getState().claimProactiveAction('unknown')).toBe(false)
   })
 
   it('appends messages and tracks the active streamed message', () => {

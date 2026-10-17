@@ -468,3 +468,18 @@ export function createMockSyncChangesV2Response(
     ...overrides,
   }
 }
+
+export function createMockProactiveItem(overrides: Partial<import('../types/proactive').ProactiveItem> = {}): import('../types/proactive').ProactiveItem {
+  return {
+  "id": "11111111-1111-4111-8111-111111111111",
+  "trigger": "EveningCheckin",
+  "localDate": "2026-08-29",
+  "text": "Two habits are still open tonight.",
+  "actionLabel": "Log now",
+  "actionPrompt": "Show my habits for today.",
+  "createdAtUtc": "2026-08-29T10:00:00Z",
+  "shownAtUtc": null,
+  "pushedAtUtc": null,
+  "facts": null
+, ...overrides }
+}

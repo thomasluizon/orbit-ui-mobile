@@ -1,3 +1,4 @@
+import { ProactiveAction } from './proactive-action'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -202,6 +203,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
+      {item.proactiveItem ? <ProactiveAction item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>

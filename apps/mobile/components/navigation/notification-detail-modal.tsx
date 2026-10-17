@@ -10,7 +10,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
-import { useUIStore } from '@/stores/ui-store'
+import { useQueryClient } from '@tanstack/react-query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -34,7 +35,7 @@ export function NotificationDetailModal({
   const { width } = useWindowDimensions()
   const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const queryClient = useQueryClient()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -52,7 +53,7 @@ export function NotificationDetailModal({
     closeSheet(() => {
       onClose()
       router.push(destination.url)
-      if (destination.opensAstra) setAstraConversationOpen(true)
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
     })
   }
 

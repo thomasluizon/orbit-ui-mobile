@@ -14,6 +14,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
   idempotencyKey?: string
   skipAuthRecovery?: boolean
+  silent?: boolean
   isCurrent?: () => boolean
 }
 
@@ -169,6 +170,7 @@ async function parseApiResponse<T>(
   path: string,
   schema?: ZodType<T>,
   method = 'GET',
+  silent = false,
 ): Promise<T> {
   if (!response.ok) {
     const error = attachRequestIdToPayload(
@@ -176,7 +178,7 @@ async function parseApiResponse<T>(
       requestId,
     )
     const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`, getResponseHeader(response.headers, 'retry-after'))
-    if (!['GET', 'HEAD'].includes(method.toUpperCase())) useThrottleStore.getState().show(response.status, error)
+    if (!silent && !['GET', 'HEAD'].includes(method.toUpperCase())) useThrottleStore.getState().show(response.status, error)
     throw failure
   }
 
@@ -225,6 +227,7 @@ async function handleUnauthorized<T>(
           path,
           schema,
           effectiveOptions.method,
+          effectiveOptions.silent,
         ),
         authorizingToken: retryWithLatest.tokenUsed,
       }
@@ -247,7 +250,7 @@ async function handleUnauthorized<T>(
       const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
       if (retry.response.status !== 401) {
         return {
-          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema, effectiveOptions.method),
+          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
           authorizingToken: retry.tokenUsed,
         }
       }
@@ -309,7 +312,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     const { useAuthStore } = await import('@/stores/auth-store')
     if (!latestToken && !useAuthStore.getState().isAuthenticated) {
       return {
-        data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method),
+        data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
         authorizingToken: null,
       }
     }
@@ -329,7 +332,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   return {
-    data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method),
+    data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method, effectiveOptions.silent),
     authorizingToken: tokenUsed,
   }
 }

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { proactiveItemSchema } from '@orbit/shared/types/proactive'
 import { z, type ZodType } from 'zod'
 import { accountEventTicketSchema } from '@orbit/shared/types/account-event'
 import { profileSchema, subscriptionStatusSchema } from '@orbit/shared/types/profile'
@@ -53,6 +54,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'GET', path: '/api/ai/proactive/current', schema: proactiveItemSchema.nullable(), body: null },
   { method: 'GET', path: '/api/gamification/streak', schema: streakInfoSchema, body: streakFixture },
   {
     method: 'POST',
@@ -296,6 +298,11 @@ function sendFixtureRoute(req: IncomingMessage, res: ServerResponse, route: Mock
   if (url.pathname === '/api/tags') body = tagsForRequest(req)
   const seeded = session ? sessionFixtures.read(session, url) : undefined
   if (seeded) body = seeded.body
+  if (body === null && url.pathname === '/api/ai/proactive/current') {
+    res.writeHead(204)
+    res.end()
+    return
+  }
   if (body === null) {
     sendInvalidSession(res, url.pathname)
     return

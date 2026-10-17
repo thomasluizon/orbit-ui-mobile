@@ -957,10 +957,10 @@ describe('ProfilePage', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
-    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
-    ['en', false, 'Check-ins', 'Daily recap'],
-    ['en', true, 'Check-ins', 'Daily recap'],
+    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
+    ['en', false, 'Astra notifications', 'Daily recap'],
+    ['en', true, 'Astra notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
@@ -1259,6 +1259,18 @@ describe('ProfilePage', () => {
     expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
     expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('shows the effective notifications value for Pro with trial=%s', (isTrialActive) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
+      isLoading: false, error: null,
+    }
+    render(<ProfileSubscreen screen="astra" />)
+    const toggle = screen.getByRole('switch', { name: 'profile.proactiveAstra.title' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(toggle)
+    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: false }, 'account-a')
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', () => {
