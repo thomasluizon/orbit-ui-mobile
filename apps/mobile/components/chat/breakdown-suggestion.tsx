@@ -59,7 +59,7 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
     {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
     {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
     {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant={addVariant} leadingIcon={<Plus accessible={false} size={16} color={addIconColor} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><MenuAnchorHost anchorRef={menu.anchorRef}>
-      <Button size="sm" variant="ghost" iconOnly label={t('habits.actions.more')} expanded={menu.visible && !editingDisabled} disabled={editingDisabled} onClick={menu.toggle}>
+      <Button size="sm" variant="ghost" iconOnly minimumHeight={TOUCH_TARGET_MIN} label={t('habits.actions.more')} expanded={menu.visible && !editingDisabled} disabled={editingDisabled} onClick={menu.toggle}>
         <MoreVertical accessible={false} size={20} color={tokens.fg1} />
       </Button>
     </MenuAnchorHost>

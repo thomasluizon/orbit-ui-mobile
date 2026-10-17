@@ -10,6 +10,7 @@ import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { renderedText } from '../../support/react-test-renderer'
+import { measureProfileRow } from '../../support/profile-row-geometry'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -29,6 +30,28 @@ function control(tree: ReactTestRenderer, role: string, name: string) {
 
 function press(node: ReactTestInstance) { (node.props.onPress as () => void)() }
 
+function composedMenuTarget(tree: ReactTestRenderer, name: string, width: number) {
+  type Host = Parameters<typeof measureProfileRow>[0]
+  function findAnchor(host: Host): Host | undefined {
+    const children = (host.children ?? []).filter((child): child is Host => typeof child !== 'string')
+    if (children.some(child => child.type === 'Pressable' && child.props.accessibilityLabel === name)) return host
+    return children.map(findAnchor).find(Boolean)
+  }
+  const host = findAnchor((tree as ReactTestRenderer & { toJSON: () => Host }).toJSON())
+  expect(host).toBeDefined()
+  const geometry = measureProfileRow({
+    type: 'View', props: { style: { flexDirection: 'row', alignItems: 'center' } },
+    children: [{ ...host!, props: { ...host!.props, testID: 'menu-anchor' } }],
+  }, width, 1)
+  const anchor = geometry.boxes.find(box => box.testID === 'menu-anchor')!
+  const button = geometry.controls.find(button => button.accessibilityLabel === name)!
+  const hitSlop = (control(tree, 'button', name).props.hitSlop as number | undefined) ?? 0
+  return {
+    width: Math.min(anchor.right, button.right + hitSlop) - Math.max(anchor.left, button.left - hitSlop),
+    height: Math.min(anchor.bottom, button.bottom + hitSlop) - Math.max(anchor.top, button.top - hitSlop),
+  }
+}
+
 afterEach(() => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); sheetTestControls.defer(false) })
 
 it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))(
@@ -46,6 +69,9 @@ it.each([320, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({
       expect(footer.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(3)
       expect(footer.findAll(node => typeof node.type === 'string' && node.props.testID === 'button-primary-sm')).toHaveLength(1)
       const more = () => control(tree, 'button', messages.habits.actions.more)
+      const target = composedMenuTarget(tree, messages.habits.actions.more, width)
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
       expect(more().props.accessibilityState).toMatchObject({ expanded: false })
       await act(() => press(more()))
       expect(more().props.accessibilityState).toMatchObject({ expanded: true })
