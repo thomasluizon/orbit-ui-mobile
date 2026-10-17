@@ -18,9 +18,10 @@ interface PickerListProps<Item> {
   emptySearch?: ReactNode
   empty?: ReactNode
   children?: ReactNode
+  scrollFooter?: ReactNode
 }
 
-export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabel, inset = true, empty, emptySearch, children }: Readonly<PickerListProps<Item>>) {
+export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabel, inset = true, empty, emptySearch, children, scrollFooter }: Readonly<PickerListProps<Item>>) {
   const t = useTranslations()
   const [query, setQuery] = useState('')
   const [scrollTop, setScrollTop] = useState(0)
@@ -42,7 +43,7 @@ export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabe
   }, [])
   const filtered = items.filter((item) => getName(item).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const virtualized = items.length >= 21
-  const start = virtualized ? Math.max(0, Math.floor(scrollTop / rowHeight) - VIRTUAL_OVERSCAN) : 0
+  const start = virtualized ? Math.min(filtered.length, Math.max(0, Math.floor(scrollTop / rowHeight) - VIRTUAL_OVERSCAN)) : 0
   const size = Math.ceil(VIRTUAL_VIEWPORT_HEIGHT / rowHeight) + VIRTUAL_OVERSCAN * 2
   const visible = virtualized ? filtered.slice(start, start + size) : filtered
   const end = Math.min(filtered.length, start + visible.length)
@@ -57,6 +58,7 @@ export function PickerList<Item>({ items, getName, getKey, renderRow, searchLabe
         {start > 0 ? <div aria-hidden="true" style={{ height: start * rowHeight }} /> : null}
         {visible.map((item) => <Fragment key={getKey(item)}>{renderRow(item)}</Fragment>)}
         {end < filtered.length ? <div aria-hidden="true" style={{ height: (filtered.length - end) * rowHeight }} /> : null}
+        {scrollFooter}
       </div>
       {children}
     </div>

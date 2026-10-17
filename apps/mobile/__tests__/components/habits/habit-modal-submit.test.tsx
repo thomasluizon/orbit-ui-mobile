@@ -30,7 +30,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
-vi.mock('@/hooks/use-tags', () => ({
+vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useTags: () => ({ tags: [] }),
   useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
