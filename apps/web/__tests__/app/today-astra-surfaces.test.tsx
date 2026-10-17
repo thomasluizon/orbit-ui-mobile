@@ -1,11 +1,12 @@
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockNotification, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import type { Profile } from '@orbit/shared/types/profile'
+import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   motionSets: [] as number[],
   lastCompletionDate: undefined as string | null | undefined,
   profileReady: true,
+  checklistProfile: null as Profile | null,
   timeZone: 'UTC',
   notifications: [] as NotificationItem[],
   view: {
@@ -67,7 +69,7 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-profile')>()),
   useProfile: (options?: { initialData?: Profile }) => ({
-    profile: options?.initialData ?? (mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } : undefined),
+    profile: options?.initialData ?? mocks.checklistProfile ?? (mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } : undefined),
   }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
@@ -130,6 +132,7 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.habitsCount = 1
     mocks.lastCompletionDate = undefined
     mocks.profileReady = true
+    mocks.checklistProfile = null
     mocks.timeZone = 'UTC'
     mocks.notifications = []
     mocks.view.nav.today = '2026-08-29'
@@ -137,6 +140,20 @@ describe('web Today Astra owned surfaces', () => {
     mocks.animate.mockClear()
     mocks.reducedMotion = false
     mocks.motionSets.length = 0
+  })
+
+  it('dismisses the setup checklist from Today and keeps it dismissed after rehydration', async () => {
+    mocks.checklistProfile = createMockProfile({ isTrialActive: false, hasCreatedFirstHabit: true })
+    localStorage.setItem('orbit-ui-store', JSON.stringify({ state: { setupChecklistDismissed: false }, version: 6 }))
+    await useUIStore.persist.rehydrate()
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('list')).toHaveTextContent('today.setupChecklist.items.createHabit')
+    fireEvent.click(screen.getByRole('button', { name: 'today.setupChecklist.dismiss' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'today.setupChecklist.dismiss' })).not.toBeInTheDocument())
+    page.unmount()
+    await useUIStore.persist.rehydrate()
+    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByRole('button', { name: 'today.setupChecklist.dismiss' })).not.toBeInTheDocument()
   })
 
   it('removes an unread previous-day check-in when the owning Today date rolls over', () => {

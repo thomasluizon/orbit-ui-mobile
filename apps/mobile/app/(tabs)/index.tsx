@@ -20,6 +20,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
@@ -248,6 +249,7 @@ function TodayScreenContent() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
+      <SetupChecklistCard />
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

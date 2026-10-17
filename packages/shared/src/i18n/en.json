@@ -3443,7 +3443,8 @@
       },
       "progress": "{done} of {total} done",
       "complete": "You're all set.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "dismissError": "Could not dismiss the checklist. Try again."
     }
   },
   "terms": {

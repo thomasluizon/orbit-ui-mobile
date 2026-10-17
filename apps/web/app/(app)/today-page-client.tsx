@@ -10,6 +10,7 @@ import {
   TodayHabitsPanel,
   TodayOverlays,
 } from './today-page-view'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { TodayAstra } from '@/components/today/today-astra'
 import type { TodayInitialHabits } from './today-initial-data'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -122,6 +123,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
               suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || !view.data.hasFetched || view.data.showLoadError}
             />
           </TodayHeaderRegion>
+          <SetupChecklistCard />
         </PreloadedProfileContext.Provider>
 
         <TodayHabitsPanel view={view} />
