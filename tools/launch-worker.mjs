@@ -33,7 +33,7 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --hard-ceiling-minutes <n>
                      this ticket's hard ceiling, replacing timeouts.hardCeilingMinutes for this one
                      launch. For a ticket that legitimately outruns the fleet-wide default
-  --tier <default|mechanical>
+  --tier <default|mechanical|deep|max>
                      worker profile for this order (default: default)
   --allow-subagents  omit the engine's sub-agent off vector for a UI review sweep; requires the
                      exact ## UI review sweep heading in the composed prompt file
@@ -84,8 +84,8 @@ const measurement = process.argv.includes("--measurement")
 const allowSubagents = process.argv.includes("--allow-subagents")
 const dryRun = process.argv.includes("--dry-run")
 
-if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical"]).has(tierArgument)) {
-  fail(2, `${USAGE}\n\n--tier must be default or mechanical, got "${tierArgument}"`)
+if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical", "deep", "max"]).has(tierArgument)) {
+  fail(2, `${USAGE}\n\n--tier must be default, mechanical, deep or max, got "${tierArgument}"`)
 }
 if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
   fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)

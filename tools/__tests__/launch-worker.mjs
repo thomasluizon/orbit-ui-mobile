@@ -220,7 +220,7 @@ export const cases = async () => {
     const launchArgs = ["--issue", "#1089", "--worktree", subagents.worktree, "--prompt", subagents.prompt, "--dry-run"]
     const launchOptions = { path: subagents.path }
     const offArgs = name === "codex" ? ["--disable", "multi_agent"] : ["--disallowed-tools", "Task"]
-    for (const tier of ["default", "mechanical"]) {
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = check(TOOL, `${name}.${tier} non-sweep order resolves offline`, [...launchArgs, "--tier", tier], { status: 0 }, launchOptions)
       T(`${TOOL}: ${name}.${tier} non-sweep order disables sub-agents`,
         offArgs.every((argument) => JSON.parse(disabled.stdout).args.includes(argument)), disabled.stdout)
@@ -232,7 +232,7 @@ export const cases = async () => {
     const stillDisabled = check(TOOL, `${name} sweep heading alone grants no permission`, launchArgs, { status: 0 }, launchOptions)
     T(`${TOOL}: ${name} ticket text never enables sub-agents`,
       JSON.parse(stillDisabled.stdout).args.includes(offArgs[1]), stillDisabled.stdout)
-    for (const tier of ["default", "mechanical"]) {
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
       const allowed = check(TOOL, `${name}.${tier} allows the explicit sweep`, [...launchArgs, "--tier", tier, "--allow-subagents"], { status: 0 }, launchOptions)
       T(`${TOOL}: ${name}.${tier} sweep order drops the off vector`,
         !JSON.parse(allowed.stdout).args.includes(offArgs[1]), allowed.stdout)
@@ -277,8 +277,9 @@ export const cases = async () => {
   check(TOOL, "refuses a malformed ticket reference", ["--issue", "ticket-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be ORB-N, #N, or N/ }, options)
   check(TOOL, "accepts a post-migration #N reference", ["--issue", "#9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
   check(TOOL, "accepts a post-migration plain number and normalizes it", ["--issue", "9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
-  check(TOOL, "refuses a tier outside the two order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
-  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses a tier outside the four order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
+  check(TOOL, "refuses ultra because automatic delegation is forbidden", [...argv, "--tier", "ultra", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
+  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
   check(TOOL, "refuses an empty relaunch reason", [...argv, "--relaunch-reason", "", "--dry-run"], { status: 2, stderr: /--relaunch-reason must be non-empty text/ }, options)
   check(TOOL, "refuses a missing worktree flag", ["--issue", "ORB-201", "--prompt", fixture.prompt], { status: 2, stderr: /--worktree is required/ }, options)
   check(TOOL, "refuses a missing prompt flag", ["--issue", "ORB-201", "--worktree", fixture.worktree], { status: 2, stderr: /--prompt is required/ }, options)
@@ -364,6 +365,16 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
       JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
     JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),
   )
+  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
+    const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
+    const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
+    T(
+      `${TOOL}: the ${tier} tier resolves gpt-6.1-sol at ${effort} reasoning effort`,
+      tierPlan?.tier === tier && tierPlan.engine === "codex" && tierPlan.model === "gpt-6.1-sol" &&
+        tierPlan.args.includes(`model_reasoning_effort="${effort}"`),
+      result.stderr || JSON.stringify(tierPlan),
+    )
+  }
   T(
     `${TOOL}: the worker is handed the prompt PATH and the branch, never the prompt text`,
     plan !== null && plan.branch === "main" && plan.args.at(-1).includes(fixture.prompt) && !plan.args.at(-1).includes("the work order, verbatim"),

@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import ProgressScreen from '@/app/(tabs)/progress'
 import ProfileScreen from '@/app/(tabs)/profile'
 import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options'
+import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { Shell412 } from '@/components/shell/shell-412'
 import { createTokensV2 } from '@/lib/theme'
@@ -12,6 +13,7 @@ import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react
 import { QueryClientProvider } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
 
@@ -26,6 +28,14 @@ vi.mock('@/hooks/use-notification-inbox', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/hooks/use-notification-inbox')>()
   return { useNotificationInbox: () => navigation.restored ? original.useNotificationInbox() : { visibleUnreadCount: navigation.count } }
 })
+vi.mock('@/hooks/use-notifications', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-notifications')>()
+  return {
+    ...original,
+    useNotifications: () => navigation.restored ? original.useNotifications()
+      : { notifications: [createMockNotification({ url: '/chat', body: 'Routine summary', createdAtUtc: new Date().toISOString() })] },
+  }
+})
 vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isLoading: true }) }))
@@ -37,6 +47,7 @@ interface Host {
   props: {
     style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle)
     contentContainerStyle?: ViewStyle
+    accessibilityHint?: string
     accessibilityLabel?: string
     accessibilityRole?: string
     testID?: string
@@ -102,17 +113,19 @@ function bounds(node: YogaNode) {
   return { left, top, bottom: top + node.getComputedHeight(), right: left + node.getComputedWidth(), centerY: top + node.getComputedHeight() / 2, width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-function measureBell(host: Host, width: number, fontScale: number) {
+function measureBell(host: Host, width: number, fontScale: number, pressed = false) {
   const bells: YogaNode[] = []
   const rows: YogaNode[] = []
   const glyphs: YogaNode[] = []
   const counts: YogaNode[] = []
   const controls: YogaNode[] = []
+  const summaries: YogaNode[] = []
   function build(host: Host, inHeader = false): YogaNode {
     const node = Yoga.Node.create()
     const declared = host.props.style
-    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
     applyStyle(node, style)
+    if (host.props.accessibilityHint === 'todayAstra.openConversation') summaries.push(node)
     if (host.type === 'Bell') {
       node.setWidth(host.props.size)
       node.setHeight(host.props.size)
@@ -147,7 +160,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(bells).toHaveLength(1)
     expect(rows).toHaveLength(1)
-    return { bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
+    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
   } finally { layout.freeRecursive() }
 }
 
@@ -159,6 +172,31 @@ const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isT
   onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
 
 afterEach(() => { __resetTestHostConfig(); navigation.count = 0; navigation.restored = false; queryClient.clear(); vi.restoreAllMocks() })
+
+it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary at %s', async (width) => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  navigation.count = 12
+  let tree!: Tree
+  await renderer.act(() => {
+    tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>
+      <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+      {today}
+    </Shell412></QueryClientProvider>) as Tree
+  })
+  try {
+    const geometry = measureBell(tree.toJSON(), width, 1, true)
+    expect(geometry.summary).toBeDefined()
+    for (const control of geometry.controls.slice().reverse()) {
+      expect(control.width).toBeGreaterThanOrEqual(48)
+      expect(control.height).toBeGreaterThanOrEqual(48)
+      expect(geometry.summary!.top - control.bottom).toBeGreaterThanOrEqual(24)
+    }
+    const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith('notifications.bell') === true)
+    const declared = bell.props.style
+    expect(typeof declared).toBe('function')
+    expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: true }) : declared).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+  } finally { await renderer.act(() => tree.unmount()) }
+})
 
 it('paints every root bell from the restored notification cache before a delayed refetch', async () => {
   navigation.restored = true
@@ -225,7 +263,7 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
         expect(geometry.bell.width).toBeGreaterThanOrEqual(48)
         expect(geometry.bell.height).toBeGreaterThanOrEqual(48)
         expect(geometry.row.height).toBeGreaterThanOrEqual(48)
-        expect(Math.abs(geometry.bell.centerY - geometry.row.centerY), `${name} row centre`).toBeLessThanOrEqual(1)
+        expect(Math.abs(geometry.bell.centerY - (geometry.row.centerY - 12)), `${name} row centre`).toBeLessThanOrEqual(1)
         if (name === 'Hoje') {
           const baseline = measureBell(host, width, 1)
           expect(geometry.bell.right).toBe(baseline.bell.right)
