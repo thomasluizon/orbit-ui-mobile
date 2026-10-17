@@ -282,9 +282,9 @@ describe('HabitFormFields', () => {
   })
 
   it.each([
-    ['en', 'Log it when you do it, not when you resist.'],
-    ['pt-BR', 'Registre quando fizer, não quando resistir.'],
-  ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
+    ['en', 'A habit you want to avoid. Log each slip.'],
+    ['pt-BR', 'Um hábito que você quer evitar. Registre cada deslize.'],
+  ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
     expect(screen.getByText(expected)).toBeInTheDocument()

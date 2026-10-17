@@ -22,6 +22,7 @@ import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { TodayAstra } from '@/components/today/today-astra'
+import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -114,6 +115,7 @@ function TodayScreenContent() {
   useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
@@ -124,7 +126,8 @@ function TodayScreenContent() {
     dateTo: date.dateStr,
     includeOverdue: date.dateStr === date.today,
     includeGeneral: showGeneralOnToday || undefined,
-  }), [date.dateStr, date.today, showGeneralOnToday])
+    frequencyUnit,
+  }), [date.dateStr, date.today, frequencyUnit, showGeneralOnToday])
   const habitsQuery = useHabits(filters, { completeDay: true })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
@@ -250,6 +253,8 @@ function TodayScreenContent() {
         onGoToNextDay={date.goToNextDay}
       />
       <SetupChecklistCard />
+      {todayFocused && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
+        ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

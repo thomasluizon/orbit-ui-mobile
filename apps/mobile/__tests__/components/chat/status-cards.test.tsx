@@ -53,7 +53,7 @@ describe('Astra status cards on mobile', () => {
     expect(tree.root.findAll((node: any) => node.type === View && String(node.props?.testID).startsWith('achievement-mark-'))).toHaveLength(6)
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.streakCard.open'))[0]
     TestRenderer.act(() => open.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress/streak')
   })
 
   it('ends the streak strip on the account date across device midnight', () => {

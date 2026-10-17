@@ -3,6 +3,7 @@
 import { PersonalText } from '@/components/ui/personal-text'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   useEffect,
   useId,
@@ -16,7 +17,8 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { CompactComposerMenuContext, useCompactComposerMenu } from './shell-pinned-content'
-import { Search } from '@/components/ui/icons'
+import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
+import { useShellStore } from '@/stores/shell-store'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
@@ -54,11 +56,13 @@ function SidebarItem({
   item,
   active,
   current,
+  collapsed,
   onSelect,
 }: Readonly<{
   item: WebShellWideItem
   active: boolean
   current: boolean
+  collapsed: boolean
   onSelect?: (id: string) => void
 }>) {
   const destination = SHELL_DESTINATION_IDS.find((id) => id === item.icon)
@@ -72,7 +76,7 @@ function SidebarItem({
           color={active ? 'var(--primary)' : 'var(--fg-3)'}
         />
       ) : null}
-      <span className="min-w-0 truncate">{item.label}</span>
+      <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{item.label}</span>
     </>
   )
   const className = [
@@ -90,6 +94,7 @@ function SidebarItem({
       data-habit-create-navigation={onSelect ? '' : undefined}
       className={className}
       aria-current={current ? 'page' : undefined}
+      title={collapsed ? item.label : undefined}
       onClick={(event) => {
         if (!onSelect || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
         event.preventDefault()
@@ -101,93 +106,41 @@ function SidebarItem({
   )
 }
 
-function SidebarAstraRow({ row, open, conversationId }: Readonly<{
+function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
   row: { label: string; onOpen: () => void }
   open: boolean
   conversationId: string
+  collapsed: boolean
 }>) {
   return <button
             type="button"
             data-shell-astra-row=""
             aria-expanded={open}
             aria-controls={open ? conversationId : undefined}
+            title={collapsed ? row.label : undefined}
             onClick={row.onOpen}
             className={`orbit-sidebar-astra orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-start text-[14px] font-medium transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
-            <span translate="no" className="whitespace-nowrap">{row.label}</span>
+            <span translate="no" className={collapsed ? 'sr-only' : 'whitespace-nowrap'}>{row.label}</span>
           </button>
 }
 
-function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string }>) {
-  const client = useIsClient()
-  return (
-    <aside
-      data-shell-sidebar=""
-      onClickCapture={(event) => {
-        if (!props.layerOpen || !(event.target instanceof Element)) return
-        const control = event.target.closest('button, a[href]')
-        if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
-        if (control && !control.hasAttribute('data-shell-astra-row')) props.onSidebarNavigate?.()
-      }}
-      inert={props.layerOpen && !props.wide || undefined}
-      className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
-    >
-      <div className="flex flex-col gap-6">
-        <div className="flex min-h-12 items-center justify-between">
-          <Lockup />
-          {props.notifications}
-        </div>
-
-        {props.onPalette ? (
-          <button
-            type="button"
-            onClick={props.onPalette}
-            className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
-          >
-            <Search size={20} strokeWidth={1.5} aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-left">{props.paletteLabel}</span>
-            {props.paletteHint ? (
-              <Keycap>{props.paletteHint}</Keycap>
-            ) : null}
-          </button>
-        ) : null}
-
-        <nav aria-label={props.navLabel} className="flex flex-col gap-1">
-          {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} /> : null}
-          {props.items.map((item) => (
-            <SidebarItem
-              key={item.id}
-              item={item}
-              active={!props.layerOpen && item.id === props.activeId}
-              current={item.id === props.activeId}
-              onSelect={props.onSelect}
-            />
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex-1" />
-      <div className="flex flex-col gap-6">
-        {props.onCreate ? (
-          <div className="flex flex-col gap-3">
-            <div aria-live="polite" aria-atomic="true">{props.createRefusal}</div>
-            <Button onClick={props.onCreate}>{props.createLabel}</Button>
-          </div>
-        ) : null}
-        {props.account ? (
+function SidebarAccount({ account, accountEmail, collapsed }: Readonly<{ account?: string; accountEmail?: string; collapsed: boolean }>) {
+  return <>{account ? (
           <div className="flex min-w-0 items-center"><Link
             data-shell-account=""
-            aria-label={[props.account, props.accountEmail].filter(Boolean).join(', ')}
+            aria-label={[account, accountEmail].filter(Boolean).join(', ')}
+            title={collapsed ? [account, accountEmail].filter(Boolean).join(', ') : undefined}
             href="/profile"
             className="orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
-              {Array.from(props.account)[0]?.toLocaleUpperCase()}
+              {Array.from(account)[0]?.toLocaleUpperCase()}
             </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="min-h-[2lh]"><PersonalText data-shell-account-name="">{props.account}</PersonalText></span>
-              <span className="min-h-[1lh] text-[12px] font-normal text-[var(--fg-3)]">{props.accountEmail ? <PersonalText data-shell-account-email="">{props.accountEmail}</PersonalText> : null}</span>
+            <span className={collapsed ? 'sr-only' : 'flex min-w-0 flex-1 flex-col gap-1'}>
+              <span className="min-h-[2lh]"><PersonalText data-shell-account-name="">{account}</PersonalText></span>
+              <span className="min-h-[1lh] text-[12px] font-normal text-[var(--fg-3)]">{accountEmail ? <PersonalText data-shell-account-email="">{accountEmail}</PersonalText> : null}</span>
             </span>
           </Link></div>
         ) : (
@@ -195,7 +148,94 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
             <span className="min-h-[2lh]" />
             <span className="min-h-[1lh] text-[12px]" />
           </div>
-        )}
+        )}</>
+}
+
+function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Readonly<{ onPalette?: () => void; paletteLabel?: string; paletteHint?: string; collapsed: boolean }>) {
+  return <>{onPalette ? (
+          <button
+            type="button"
+            onClick={onPalette}
+            title={collapsed ? paletteLabel : undefined}
+            className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
+          >
+            <Search size={20} strokeWidth={1.5} aria-hidden="true" />
+            <span className={collapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-left'}>{paletteLabel}</span>
+            {!collapsed && paletteHint ? (
+              <Keycap>{paletteHint}</Keycap>
+            ) : null}
+          </button>
+        ) : null}</>
+}
+
+function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string; collapsed: boolean }>) {
+  const client = useIsClient()
+  const t = useTranslations()
+  const toggleSidebar = useShellStore(state => state.toggleSidebar)
+  const collapsed = props.collapsed
+  const navigationId = useId()
+  const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
+  useEffect(() => { void useShellStore.persist.rehydrate() }, [])
+  return (
+    <aside
+      data-shell-sidebar=""
+      data-collapsed={collapsed ? 'true' : undefined}
+      onClickCapture={(event) => {
+        if (!props.layerOpen || !(event.target instanceof Element)) return
+        const control = event.target.closest('button, a[href]')
+        if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
+        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle')) props.onSidebarNavigate?.()
+      }}
+      inert={props.layerOpen && !props.wide || undefined}
+      className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex min-h-12 items-center justify-between">
+          <span className={collapsed ? 'sr-only' : undefined}><Lockup /></span>
+          {props.notifications}
+        </div>
+
+        <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
+
+        <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-1">
+          {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
+          {props.items.map((item) => (
+            <SidebarItem
+              key={item.id}
+              item={item}
+              active={!props.layerOpen && item.id === props.activeId}
+              current={item.id === props.activeId}
+              collapsed={collapsed}
+              onSelect={props.onSelect}
+            />
+          ))}
+        </nav>
+      </div>
+
+      <div className="flex-1 shrink-0 min-h-6" />
+      <div className="flex flex-col gap-6">
+        <button
+          type="button"
+          data-shell-sidebar-toggle=""
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          aria-expanded={!collapsed}
+          aria-controls={navigationId}
+          disabled={!client}
+          onClick={toggleSidebar}
+          className="orbit-hover-text flex min-h-[var(--touch-min)] w-full shrink-0 touch-manipulation items-center justify-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40"
+        >
+          {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
+        </button>
+        {props.onCreate ? (
+          <div className="flex flex-col gap-3">
+            <div aria-live="polite" aria-atomic="true">{collapsed ? null : props.createRefusal}</div>
+            {collapsed ? <Button onClick={props.onCreate} iconOnly label={props.createLabel} minimumHeight={48}>
+              <Plus size={20} aria-hidden="true" />
+            </Button> : <Button onClick={props.onCreate}>{props.createLabel}</Button>}
+          </div>
+        ) : null}
+        <SidebarAccount account={props.account} accountEmail={props.accountEmail} collapsed={collapsed} />
       </div>
     </aside>
   )
@@ -261,6 +301,11 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
     : { padding: 'pb-8', minimum: 'min-h-8' }
 }
 
+function getSidebarCreateRefusal(props: ResponsiveShellProps, wide: boolean, collapsed: boolean) {
+  if (props.nav === false || !wide || !collapsed || !props.createRefusal) return null
+  return <div className="py-4">{props.createRefusal}</div>
+}
+
 function ShellWideBackground({
   props: { registerHeaderHost, ...props },
   conversationOpen,
@@ -275,6 +320,10 @@ function ShellWideBackground({
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
+  const client = useIsClient()
+  const savedCollapsed = useShellStore(state => state.sidebarCollapsed)
+  const collapsed = client && savedCollapsed
+  const sidebarRefusal = getSidebarCreateRefusal(props, wide, collapsed)
   const pinnedSlot = getPinnedSlot(props)
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
@@ -298,7 +347,7 @@ function ShellWideBackground({
     <div
       className="flex min-w-0 flex-1"
     >
-      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} /> : null}
+      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
         <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
@@ -314,6 +363,7 @@ function ShellWideBackground({
             ) : null}
           </div>
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} wide={wide} />
+          <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           {conversationOpen ? <div
             id={conversationId}
