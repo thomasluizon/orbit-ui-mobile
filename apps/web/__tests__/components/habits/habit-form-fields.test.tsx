@@ -935,12 +935,19 @@ describe('habit tag suggestions', () => {
   })
 
   it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
-    renderTagForm(title, '', ids)
+    const view = renderTagForm(title, '', ids)
     const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
     expect(action).toBeDisabled()
     fireEvent.click(action)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    if (!title.trim()) {
+      view.helpers.testValues.title = 'Run'
+      view.refresh()
+      expect(action).toBeEnabled()
+      expect(screen.queryByText('habits.form.titleRequired')).toBeNull()
+    }
   })
 
   it('disables remaining proposals at capacity', async () => {

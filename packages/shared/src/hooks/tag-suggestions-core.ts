@@ -20,10 +20,11 @@ export function createTagSuggestionState(): TagSuggestionState {
   return { suggestions: [], pending: null, noResults: false, error: null }
 }
 
-export function tagSuggestionStatusKey(state: TagSuggestionState, atLimit: boolean): string | null {
+export function tagSuggestionStatusKey(state: TagSuggestionState, atLimit: boolean, needsTitle: boolean): string | null {
   if (state.pending === 'suggest') return 'habits.form.suggestingTags'
   if (state.pending === 'accept') return 'common.loading'
   if (atLimit) return 'habits.form.tagLimit'
+  if (needsTitle) return 'habits.form.titleRequired'
   if (state.noResults) return 'habits.form.noTagSuggestions'
   if (state.suggestions.length > 0) return 'habits.form.suggestedTagsLabel'
   return null

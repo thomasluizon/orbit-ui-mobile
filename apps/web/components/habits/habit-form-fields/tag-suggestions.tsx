@@ -19,7 +19,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
   const t = useTranslations()
   const pending = suggestions.pending !== null
   const failure = suggestions.error
-  const statusKey = tagSuggestionStatusKey(suggestions, atLimit)
+  const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <div className="flex flex-col gap-4 pt-4">
     <div className="self-start"><PillButton hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></div>
     <div role="status" aria-label={t('habits.form.suggestTags')} className="text-sm text-[var(--fg-3)]">{statusKey ? t(statusKey) : null}</div>

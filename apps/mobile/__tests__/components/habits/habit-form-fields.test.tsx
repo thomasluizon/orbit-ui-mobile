@@ -998,9 +998,15 @@ describe('habit tag suggestions', () => {
   })
 
   it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', async (title, ids) => {
-    await renderTagForm(title, '', ids)
+    const view = await renderTagForm(title, '', ids)
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(text(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired').filter((node: { props: { accessibilityLiveRegion?: string } }) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+    if (!title.trim()) {
+      await TestRenderer.act(() => { view.helpers.form.setValue('title', 'Run'); view.refresh() })
+      expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+      expect(text('habits.form.titleRequired')).toHaveLength(0)
+    }
   })
 
   it('disables remaining proposals at capacity', async () => {

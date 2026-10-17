@@ -4,6 +4,7 @@ import { useAccountGeneration } from '@/hooks/use-session-reset'
 import type { SuggestedTag } from '@orbit/shared/types/habit'
 
 interface TagSuggestions extends TagSuggestionState {
+  needsTitle: boolean
   canSuggest: boolean
   suggest: () => Promise<void>
   acceptSuggestion: (suggestion: SuggestedTag) => Promise<void>
@@ -11,6 +12,7 @@ interface TagSuggestions extends TagSuggestionState {
 
 export function useTagSuggestions(options: TagSuggestionOptions): TagSuggestions {
   const account = useAccountGeneration()
+  const needsTitle = !options.title.trim()
   const contextKey = JSON.stringify([account, options.language, options.title, options.description])
   const [snapshot, setSnapshot] = useState(() => ({ contextKey, generation: 0, state: createTagSuggestionState() }))
   if (snapshot.contextKey !== contextKey) {
@@ -24,7 +26,8 @@ export function useTagSuggestions(options: TagSuggestionOptions): TagSuggestions
   }), [generation])
   return {
     ...state,
-    canSuggest: Boolean(options.title.trim()) && !options.disabled && state.pending === null,
+    needsTitle,
+    canSuggest: !needsTitle && !options.disabled && state.pending === null,
     suggest: () => actions.suggest(options),
     acceptSuggestion: (suggestion) => actions.acceptSuggestion(suggestion, options),
   }

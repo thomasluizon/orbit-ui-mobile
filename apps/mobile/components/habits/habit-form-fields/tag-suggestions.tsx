@@ -23,7 +23,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const pending = suggestions.pending !== null
   const failure = suggestions.error
-  const statusKey = tagSuggestionStatusKey(suggestions, atLimit)
+  const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <View style={styles.container}>
     <View style={styles.action}><PillButton hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : undefined} accessibleName={t('habits.form.suggestTags')} variant="ghost" leadingIcon={<AstraGlyph size={16} color={tokens.fg1} />} disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}>{t('habits.form.suggestTags')}</PillButton></View>
     <Text accessibilityLiveRegion="polite" style={styles.hint}>{statusKey ? t(statusKey) : null}</Text>
