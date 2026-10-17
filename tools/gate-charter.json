@@ -79,6 +79,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#architecture-map": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "node tools/arch-map.mjs",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#calibration": {
     "scope": "whole-tree-advisory",
     "snapshot": "node tools/reseed-calibration.mjs",
@@ -89,6 +94,11 @@
       }
     ]
   },
+  ".github/workflows/guards.yml#contract-drift": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "cd packages/shared && ORBIT_OPENAPI_SPEC=\"https://raw.githubusercontent.com/thomasluizon/orbit-api/$(cat src/types/__generated__/api.spec.commit)/src/Orbit.Api/openapi.json\" npx --yes orval@8.37.0 --config ./orval.config.ts",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#copy": {
     "scope": "changed-files",
     "snapshot": "node tools/check-copy.mjs --write-baseline",
@@ -97,6 +107,16 @@
   ".github/workflows/guards.yml#dashes": {
     "scope": "whole-tree-blocking",
     "snapshot": "node tools/check-dashes.mjs --write-baseline",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#dependency-audit": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#design-guard": {
+    "scope": "changed-files",
+    "snapshot": "none",
     "constants": "none"
   },
   ".github/workflows/guards.yml#expo-pin": {
@@ -134,6 +154,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#padding-contract": {
+    "scope": "changed-files",
+    "snapshot": "npm run spacing:generate -w @orbit/eslint-rules",
+    "constants": [
+      {
+        "name": "shared spacing scale and padding roles",
+        "source": "packages/shared/src/theme/spacing.json"
+      }
+    ]
+  },
   ".github/workflows/guards.yml#parity": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -142,6 +172,11 @@
   ".github/workflows/guards.yml#performance-workflow": {
     "scope": "changed-files",
     "snapshot": "node tools/generate-performance-workflow.mjs --write",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#react-doctor": {
+    "scope": "changed-files",
+    "snapshot": "none",
     "constants": "none"
   },
   ".github/workflows/guards.yml#review-harness": {

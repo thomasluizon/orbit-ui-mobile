@@ -1,11 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
-
-
-import { useState } from 'react'
-import { Check, Copy } from '@/components/ui/icons'
-import { useTranslations } from 'next-intl'
+import { DescriptionCopyButton } from './description-copy-button'
 import { Sheet } from '@/components/ui/sheet'
 import { Markdown } from '@/components/ui/markdown'
 
@@ -22,58 +17,13 @@ export function DescriptionViewer({
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
-  const t = useTranslations()
-  const [copied, setCopied] = useState(false)
-  const [copyFailed, setCopyFailed] = useState(false)
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) {
-      setCopied(false)
-      setCopyFailed(false)
-    }
-    onOpenChange(nextOpen)
-  }
-
-  function copyDescription() {
-    setCopyFailed(false)
-    void navigator.clipboard
-      .writeText(description)
-      .then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      })
-      .catch(() => {
-        setCopied(false)
-        setCopyFailed(true)
-      })
-  }
-
   return (
-    open ? (<Sheet open onClose={() => (handleOpenChange)(false)} title={title}>
-      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: SPACING.s8 }}>
-        {copyFailed ? (
-          <p role="alert" className="text-xs text-[var(--status-bad-text)]">
-            {t('habits.detail.copyFailed')}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          aria-label={t('habits.detail.copyDescription')}
-          className="icon-btn icon-btn-well"
-          style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-          onClick={copyDescription}
-        >
-          {copied ? (
-            <Check size={20} strokeWidth={1.8} style={{ color: 'var(--status-done)' }} />
-          ) : (
-            <Copy size={20} strokeWidth={1.8} style={{ color: 'var(--fg-2)' }} />
-          )}
-        </button>
-      </div>
+    open ? (<Sheet open onClose={() => onOpenChange(false)} title={title}>
+      <DescriptionCopyButton key={description} description={description} />
       <div
         className="min-w-0 rounded-[18px] bg-[var(--bg-card)]"
         style={{
-          padding: "var(--orbit-space-16)",
+          padding: '16px',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >

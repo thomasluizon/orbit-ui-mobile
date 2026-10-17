@@ -535,7 +535,7 @@ describe('UpgradePage subscription management', () => {
     const online = render(<UpgradePage />)
     expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
     expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
-    expect(screen.getAllByText('usd 9.99', { exact: true })).toHaveLength(2)
+    expect(screen.getAllByText(/ · usd 9\.99$/)).toHaveLength(2)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
     expect(screen.getAllByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).toHaveLength(1)

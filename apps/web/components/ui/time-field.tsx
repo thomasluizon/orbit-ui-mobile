@@ -12,6 +12,8 @@ import {
   commitTimeFieldPickerDraft,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  parseTypedTimeFieldValue,
+  reconcileTimeFieldInput,
   selectTimeFieldHour,
   selectTimeFieldMinute,
   selectTimeFieldPeriod,
@@ -211,7 +213,20 @@ export function TimeField({
   const inputId = id ?? generatedId
   const descriptionId = useId()
   const presentedValue = presentTimeFieldValue(value, resolvedHourCycle)
-  const [inputDraft, setInputDraft] = useState<string | null>(null)
+  const [inputDraft, setInputDraft] = useState<{ text: string; hourCycle: 'h23' | 'h12' } | null>(null)
+  const previousHourCycle = useRef(resolvedHourCycle)
+  if (inputDraft && inputDraft.hourCycle !== resolvedHourCycle) {
+    const reconciledDraft = reconcileTimeFieldInput(inputDraft.text, inputDraft.hourCycle, resolvedHourCycle)
+    setInputDraft({ text: reconciledDraft.draft, hourCycle: resolvedHourCycle })
+  }
+  const inputValue = inputDraft?.text ?? presentedValue
+
+  useEffect(() => {
+    if (previousHourCycle.current === resolvedHourCycle) return
+    previousHourCycle.current = resolvedHourCycle
+    const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
+    if (!disabled && parsed && parsed !== value) onChange(parsed)
+  }, [resolvedHourCycle, inputValue, value, onChange, disabled])
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
@@ -220,8 +235,8 @@ export function TimeField({
   const { hour12, period } = to12Hour(pickerDraft.hour24)
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const change = changeTimeFieldInput(event.target.value, inputDraft ?? presentedValue, resolvedHourCycle)
-    setInputDraft(change.draft)
+    const change = changeTimeFieldInput(event.target.value, inputValue, resolvedHourCycle)
+    setInputDraft({ text: change.draft, hourCycle: resolvedHourCycle })
     if (change.clear) {
       if (!commitTypedClearOnBlur) onClear?.()
       return
@@ -252,15 +267,15 @@ export function TimeField({
         error={error}
         hint={hint}
         inputId={inputId}
-        inputValue={inputDraft ?? presentedValue}
+        inputValue={inputValue}
         label={resolvedLabel}
         onBlur={() => {
-          if (commitTypedClearOnBlur && inputDraft === '') onClear?.()
+          if (commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
           setInputDraft(null)
         }}
         onChange={handleChange}
         onClear={onClear}
-        onFocus={() => setInputDraft(presentedValue)}
+        onFocus={() => setInputDraft({ text: presentedValue, hourCycle: resolvedHourCycle })}
         onOpenPicker={openPicker}
         open={open}
         placeholder={placeholder}
