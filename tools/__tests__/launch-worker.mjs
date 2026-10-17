@@ -48,7 +48,12 @@ const launch = (label, config) => {
 const githubAuthEnv = (pulls = [], existing = [], readError = false) => orcaEnv([
   { match: "auth token --user test-owner", stdout: "test-github-token" },
   { match: "pulls?head=", stdout: JSON.stringify(existing.map((number) => ({ number }))) },
-  { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
+  ...Array.from({ length: Math.floor(pulls.length / 100) + 1 }, (_, page) => ({
+    match: `pulls?state=open&per_page=100&page=${page + 1}`,
+    stdout: JSON.stringify(pulls.slice(page * 100, (page + 1) * 100).map((number) => ({ number }))),
+    exit: readError ? 1 : 0,
+    stderr: readError ? "GitHub unavailable" : "",
+  })),
   { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
 ])
 
@@ -150,22 +155,25 @@ export const cases = async () => {
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const pullRequestCap = realOrchestratorConfig().caps.maxOpenPullRequests
+  const repositoryCount = Object.keys(JSON.parse(readFileSync(fixture.configPath, "utf8")).repos).length
+  const pullsPerRepository = Math.floor(pullRequestCap / repositoryCount) + 1
   const admissionRefusal = check(TOOL, "new work above the pull request cap refuses before spawn", argv,
-    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv(Array.from({ length: pullRequestCap + 1 }, (_, index) => index + 1)) })
-  T("launch-worker: refusal reports both counts and limits", JSON.parse(admissionRefusal.stdout).counts.openPullRequests === pullRequestCap + 1 && JSON.parse(admissionRefusal.stdout).limits.maxOpenPullRequests === pullRequestCap)
+    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv(Array.from({ length: pullsPerRepository }, (_, index) => index + 1)) })
+  T("launch-worker: refusal reports both counts and limits", JSON.parse(admissionRefusal.stdout).counts.openPullRequests === pullsPerRepository * repositoryCount && JSON.parse(admissionRefusal.stdout).limits.maxOpenPullRequests === pullRequestCap)
   T("launch-worker: refusal leaves no wake source", readWakeSources(fixture.base).length === 0)
   const readRefusal = check(TOOL, "GitHub read failure refuses before spawn", argv,
     { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv([], [], true) })
   T("launch-worker: GitHub error is reported", JSON.parse(readRefusal.stdout).error.includes("GitHub unavailable"))
-  const exempt = launch("existing-pr", launchConfig(stubEngine(IMMEDIATE)))
+  const fixturePullRequestCap = 2
+  const exempt = launch("existing-pr", launchConfig({ ...stubEngine(IMMEDIATE), caps: { maxOpenPullRequests: fixturePullRequestCap } }))
   check(TOOL, "existing pull request branch launches above the cap",
     ["--issue", "ORB-201", "--worktree", exempt.worktree, "--prompt", exempt.prompt],
-    { status: 0, stdout: /"outcome": "EXITED"/ }, { path: exempt.path, env: githubAuthEnv(Array.from({ length: pullRequestCap + 1 }, (_, index) => index + 1), [99]) })
-  const concurrent = launch("concurrent-admission", launchConfig(stubEngine(SHORT_HOLD)))
+    { status: 0, stdout: /"outcome": "EXITED"/ }, { path: exempt.path, env: githubAuthEnv(Array.from({ length: fixturePullRequestCap + 1 }, (_, index) => index + 1), [99]) })
+  const concurrent = launch("concurrent-admission", launchConfig({ ...stubEngine(SHORT_HOLD), caps: { maxOpenPullRequests: fixturePullRequestCap } }))
   const concurrentArgv = ["--issue", "ORB-201", "--worktree", concurrent.worktree, "--prompt", concurrent.prompt]
   const startConcurrent = () => new Promise((resolve) => {
     const child = spawn(process.execPath, [concurrent.path, ...concurrentArgv], {
-      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: pullRequestCap }, (_, index) => index + 1)) },
+      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: fixturePullRequestCap }, (_, index) => index + 1)) },
     })
     let stdout = ""
     child.stdout.on("data", (chunk) => { stdout += chunk })

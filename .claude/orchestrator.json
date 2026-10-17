@@ -30,9 +30,9 @@
     "pollSeconds": 60
   },
   "caps": {
-    "maxOpenPullRequests": 16,
-    "maxQueuedRuns": 30,
-    "parallelTickets": 10,
+    "maxOpenPullRequests": 200,
+    "maxQueuedRuns": 1000,
+    "parallelTickets": 40,
     "reviewFixAttempts": 3,
     "workerLogMegabytes": 32
   },
