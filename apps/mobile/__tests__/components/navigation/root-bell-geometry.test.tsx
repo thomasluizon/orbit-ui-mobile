@@ -203,7 +203,7 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
     let reference: ReturnType<typeof measureBell> | undefined
     for (const [name, surface] of surfaces) {
       let tree!: Tree
-      await renderer.act(() => { tree = renderer.create(<Shell412 tabBar={null}>{surface}</Shell412>) as Tree })
+      await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree })
       try {
         const host = tree.toJSON()
         function checkHeaderIcons(node: Host, inHeader = false) {
@@ -257,7 +257,7 @@ it.each([320, 600, 840].flatMap((width) => [1, 2].flatMap((fontScale) => [5, 12]
     let trailingEdge: number | undefined
     for (const surface of surfaces) {
       let tree!: Tree
-      await renderer.act(() => { tree = renderer.create(<Shell412 tabBar={null}>{surface}</Shell412>) as Tree })
+      await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>{surface}</Shell412></QueryClientProvider>) as Tree })
       try {
         const geometry = measureBell(tree.toJSON(), width, fontScale)
         const { bell, row, glyph, count: marker } = geometry

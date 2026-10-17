@@ -92,7 +92,7 @@ for (const { width, height } of windows) {
   test.describe(`foldable destinations at ${width} by ${height}`, () => {
     test.use({ viewport: { width, height } })
 
-    for (const [name, path] of [['Hoje', '/'], ['Calendário', '/calendar'], ['Progresso', '/progress'], ['Perfil', '/profile'], ['Habit detail', `/habits/${habit.id}`]] as const) {
+    for (const [name, path] of [['Hoje', '/'], ['Calendário', '/calendar'], ['Progresso', '/progress'], ['Metas', '/progress/goals'], ['Sequência', '/progress/streak'], ['Conquistas', '/progress/achievements'], ['Perfil', '/profile'], ['Habit detail', `/habits/${habit.id}`]] as const) {
       test(`${name} centres content without overflow or clipped chrome`, async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
         await setLayoutProfileSession(context, profileFixture)
@@ -125,7 +125,9 @@ for (const { width, height } of windows) {
           await page.getByTestId(`calendar-day-select-${fixtureDate}`).click()
           await expect(page.getByText(habits.items[0]!.title, { exact: true })).toBeVisible()
         }
-        if (name === 'Progresso') await expect(page.getByText(goals.items[0]!.title, { exact: true })).toBeVisible()
+        if (name === 'Progresso') await expect(page.locator('a[href="/progress/goals"]')).toBeVisible()
+        if (name === 'Metas') await expect(page.getByText(goals.items[0]!.title, { exact: true })).toBeVisible()
+        if (name === 'Sequência' || name === 'Conquistas') await expect(page.locator(`[data-progress-screen="${name === 'Sequência' ? 'streak' : 'achievements'}"]`)).toBeVisible()
         if (name === 'Perfil') await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)

@@ -2988,6 +2988,7 @@
     }
   },
   "progressScreen": {
+    "back": "Voltar ao Progresso",
     "title": "Progresso",
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
@@ -3080,6 +3081,8 @@
       "lockedAction": "Ver o Orbit Pro"
     },
     "achievements": {
+      "emptyAction": "Ver hábitos",
+      "destination": "Nível e XP",
       "empty": "Registre para conquistar",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progresso até o próximo nível",
