@@ -20,9 +20,10 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
-.calendar-navigation-title:active{background:var(--bg-hover)!important}
-.calendar-navigation-title:focus-visible{background:var(--bg-hover)!important;outline:2px solid var(--fg-1);outline-offset:2px}
-@media(hover:hover){.calendar-navigation-title:hover{background:var(--bg-hover)!important}}
+.calendar-navigation-title:not([aria-disabled="true"]):active{background:var(--bg-hover)!important}
+.calendar-navigation-title:focus-visible{outline:2px solid var(--fg-1);outline-offset:2px}
+.calendar-navigation-title:not([aria-disabled="true"]):focus-visible{background:var(--bg-hover)!important}
+@media(hover:hover){.calendar-navigation-title:not([aria-disabled="true"]):hover{background:var(--bg-hover)!important}}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
 .native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
