@@ -86,6 +86,10 @@ export const cases = async () => {
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
   const shipped = readOrchestratorConfig()
+  T(`${NAME}: the shipped parallel ticket cap is 40`, real.caps.parallelTickets === 40)
+  for (const name of ["parallelTickets", "maxOpenPullRequests", "maxQueuedRuns"]) {
+    T(`${NAME}: the reader preserves the shipped ${name} cap`, shipped.caps[name] === real.caps[name])
+  }
   T(`${NAME}: shipped standing ticket numbers are read`, JSON.stringify(shipped.tickets.standing) === JSON.stringify([556, 746]))
   const repeatedStanding = structuredClone(real)
   repeatedStanding.tickets.standing = [556, 556]
