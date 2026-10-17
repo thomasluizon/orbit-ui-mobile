@@ -114,6 +114,7 @@ function TodayScreenContent() {
   useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
@@ -124,7 +125,8 @@ function TodayScreenContent() {
     dateTo: date.dateStr,
     includeOverdue: date.dateStr === date.today,
     includeGeneral: showGeneralOnToday || undefined,
-  }), [date.dateStr, date.today, showGeneralOnToday])
+    frequencyUnit,
+  }), [date.dateStr, date.today, frequencyUnit, showGeneralOnToday])
   const habitsQuery = useHabits(filters, { completeDay: true })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
