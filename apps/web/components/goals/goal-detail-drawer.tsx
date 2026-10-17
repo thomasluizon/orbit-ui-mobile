@@ -16,7 +16,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { EditGoalModal } from './edit-goal-modal'
-import { GoalMetricsPanel } from './goal-metrics-panel'
+import { GoalForecast } from './goal-detail-drawer/goal-forecast'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
 import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
@@ -123,7 +123,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
-        <GoalMetricsPanel metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
+        <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
         <ListRow placement="column" icon={<AstraGlyph size={24} color="var(--fg-1)" />} title={t('nav.astra')} titleTranslate="no" accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />

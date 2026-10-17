@@ -6,11 +6,11 @@
 
 | Surface | Web owner | Android owner |
 |---|---|---|
-| Goal detail opened from Progresso | `apps/web/app/(app)/progress/_components/progress-content.tsx` through `GoalDetailDrawer` inline | `apps/mobile/components/progress/progress-content.tsx` through `GoalDetailDrawer` inline |
+| Goal detail opened from Metas, `/progress/goals` | `apps/web/app/(app)/progress/goals/page.tsx` through `GoalDetailDrawer` inline | `apps/mobile/app/progress/goals.tsx` through `GoalDetailDrawer` inline |
 | Goal detail opened from an Astra goal card | `apps/web/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet | `apps/mobile/components/chat/conversation.tsx` through `GoalDetailDrawer` in a sheet |
-| Forecast figures | `apps/web/components/goals/goal-metrics-panel.tsx` | `apps/mobile/components/goals/goal-metrics-panel.tsx` |
+| Forecast figures | `apps/web/components/goals/goal-detail-drawer/goal-forecast.tsx` | `apps/mobile/components/goals/goal-detail-drawer/goal-forecast.tsx` |
 
-Both detail presentations share the same panel. The progress heading and ring remain the focal element;
+Both detail presentations share the goal detail forecast rows. The progress heading and ring remain the focal element;
 forecast figures use plain label and value rows, with no card chrome or additional actions.
 
 ## Producer boundary

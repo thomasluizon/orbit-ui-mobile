@@ -6,18 +6,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-interface GoalMetricsPanelProps {
+interface GoalForecastProps {
   metrics: GoalMetrics | null
   unit: string
   isLoading: boolean
 }
 
-export function GoalMetricsPanel({ metrics, unit, isLoading }: Readonly<GoalMetricsPanelProps>) {
+export function GoalForecast({ metrics, unit, isLoading }: Readonly<GoalForecastProps>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const locale = i18n.language
-  if (isLoading) return <GoalMetricsSkeleton label={t('goals.metrics.title')} />
+  if (isLoading) return <GoalForecastSkeleton label={t('goals.metrics.title')} />
   if (!metrics) return null
 
   const figures = [
@@ -42,7 +42,7 @@ export function GoalMetricsPanel({ metrics, unit, isLoading }: Readonly<GoalMetr
 }
 
 
-function GoalMetricsSkeleton({ label }: Readonly<{ label: string }>) {
+function GoalForecastSkeleton({ label }: Readonly<{ label: string }>) {
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.section}>
       <View style={styles.skeletonValue}><Skeleton variant="fill" grouped /></View>

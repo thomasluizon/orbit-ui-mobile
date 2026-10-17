@@ -5,16 +5,16 @@ import type { GoalMetrics } from '@orbit/shared/types/goal'
 import { formatGoalHistoryNumber, formatGoalMetricsDate } from '@orbit/shared/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
-interface GoalMetricsPanelProps {
+interface GoalForecastProps {
   metrics: GoalMetrics | null
   unit: string
   isLoading: boolean
 }
 
-export function GoalMetricsPanel({ metrics, unit, isLoading }: Readonly<GoalMetricsPanelProps>) {
+export function GoalForecast({ metrics, unit, isLoading }: Readonly<GoalForecastProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  if (isLoading) return <GoalMetricsSkeleton label={t('goals.metrics.title')} />
+  if (isLoading) return <GoalForecastSkeleton label={t('goals.metrics.title')} />
   if (!metrics) return null
 
   const figures = [
@@ -38,7 +38,7 @@ export function GoalMetricsPanel({ metrics, unit, isLoading }: Readonly<GoalMetr
   )
 }
 
-function GoalMetricsSkeleton({ label }: Readonly<{ label: string }>) {
+function GoalForecastSkeleton({ label }: Readonly<{ label: string }>) {
   return (
     <div role="progressbar" aria-label={label} aria-busy className="flex flex-col gap-3">
       <div className="h-6 w-24"><Skeleton variant="fill" grouped /></div>
