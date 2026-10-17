@@ -54,7 +54,7 @@ vi.mock('react-i18next', () => ({
 
 const storage = vi.hoisted(() => ({
   getItem: vi.fn(() => Promise.resolve(null as string | null)),
-  setItem: vi.fn(() => Promise.resolve()),
+  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
   removeItem: vi.fn(() => Promise.resolve()),
 }))
 
@@ -1684,6 +1684,7 @@ describe('mobile habit hooks', () => {
   it.each(['success', 'not-found'] as const)(
     'reconciles a dropped single delete after the final replay response is lost and restore returns %s',
     async (restoreOutcome) => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     let serverHasHabit = restoreOutcome === 'not-found'
     mocks.runQueuedMutation.mockImplementationOnce(() => {
       if (restoreOutcome === 'not-found') {
@@ -1713,15 +1714,18 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    storage.setItem.mockClear()
     performUndo()
 
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith({
       habitId: 'habit-1', reconcileNotFound: true,
     }))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
-    expect(storage.setItem).toHaveBeenLastCalledWith(
+    useUIStore.getState().setCalendarShowRecurring(useUIStore.getState().calendarShowRecurring)
+    const noticeWrites = storage.setItem.mock.calls.filter(([key]) => key === '@orbit/offline-sync-notices')
+    expect(noticeWrites.at(-1)).toEqual([
       '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
-    )
+    ])
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(2))
     expect(serverHasHabit).toBe(true)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
@@ -2802,6 +2806,7 @@ describe('mobile habit hooks', () => {
   it.each(['success', 'not-found'] as const)(
     'reconciles a dropped bulk delete after the final replay response is lost and restore returns %s',
     async (restoreOutcome) => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
     const serverHabits = new Set(restoreOutcome === 'not-found' ? ['habit-1', 'habit-2'] : [])
     const restore = useRestoreHabit() as unknown as MutationConfig<unknown, RestoreInput, undefined>
@@ -2845,13 +2850,16 @@ describe('mobile habit hooks', () => {
     }, ['habit-1', 'habit-2'], context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    storage.setItem.mockClear()
     performUndo()
 
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
-    expect(storage.setItem).toHaveBeenLastCalledWith(
+    useUIStore.getState().setCalendarShowRecurring(useUIStore.getState().calendarShowRecurring)
+    const noticeWrites = storage.setItem.mock.calls.filter(([key]) => key === '@orbit/offline-sync-notices')
+    expect(noticeWrites.at(-1)).toEqual([
       '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
-    )
+    ])
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-1', reconcileNotFound: true })
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-2', reconcileNotFound: true })
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(3))

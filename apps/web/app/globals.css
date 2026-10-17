@@ -538,6 +538,14 @@
   opacity: 0.4;
 }
 
+.orbit-menu-content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .orbit-menu-label {
   min-width: 0;
   flex: 1;
