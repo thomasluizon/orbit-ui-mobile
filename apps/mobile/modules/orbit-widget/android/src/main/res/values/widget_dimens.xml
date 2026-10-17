@@ -9,7 +9,6 @@
   <dimen name="widget_row_inset_block">12dp</dimen>
   <dimen name="widget_child_inset">32dp</dimen>
   <dimen name="widget_touch_target">48dp</dimen>
-  <dimen name="widget_content_expanded_height">144dp</dimen>
   <dimen name="widget_row_height">68dp</dimen>
   <dimen name="widget_ring_size">24dp</dimen>
   <dimen name="widget_status_size">20dp</dimen>

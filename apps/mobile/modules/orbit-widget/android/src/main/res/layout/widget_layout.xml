@@ -142,17 +142,27 @@
         <!-- Content area: list, empty message, and loading skeleton overlap so the
              skeleton can cover the area during the cold/first-load window instead of
              leaving the widget blank. -->
-        <FrameLayout
+        <RelativeLayout
             android:id="@+id/widget_content"
             android:visibility="gone"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/widget_row_height"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/widget_header_list_gap"
             android:minHeight="@dimen/widget_touch_target">
+
+            <TextView
+                android:id="@+id/widget_content_height"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:importantForAccessibility="no"
+                android:visibility="invisible" />
 
             <!-- Habit list -->
             <ListView
                 android:id="@+id/widget_list"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:divider="@android:color/transparent"
@@ -166,6 +176,8 @@
             <!-- Empty state (genuinely no habits / signed out) -->
             <LinearLayout
                 android:id="@+id/widget_empty"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
@@ -186,6 +198,8 @@
                  so a freshly added widget never renders as an empty card) -->
             <LinearLayout
                 android:id="@+id/widget_loading"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="@string/widget_loading"
@@ -357,7 +371,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-        </FrameLayout>
+        </RelativeLayout>
 
     </LinearLayout>
 </FrameLayout>

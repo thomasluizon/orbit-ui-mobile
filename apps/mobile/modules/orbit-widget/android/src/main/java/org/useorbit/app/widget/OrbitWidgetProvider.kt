@@ -286,10 +286,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             widthDp: Float,
             spacing: WidgetSpacing,
             label: String,
-            count: String,
-            streak: Int,
-            lang: String,
-            showUnit: Boolean,
             ownsRows: Boolean
         ) {
             val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -305,21 +301,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val labelWidth = paint.measureText(label)
             paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             paint.textSize = dimension(R.dimen.widget_label_text_size)
-            val headerWidth = labelWidth + paint.measureText(count) + gap * 3
-            val unitWidth = if (streak > 0 && showUnit) {
-                paint.measureText(OrbitWidgetFactory.streakUnit(context, lang, streak)) +
-                    dimension(R.dimen.widget_unit_gap)
-            } else 0f
-            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            paint.textSize = dimension(R.dimen.widget_streak_text_size)
-            paint.fontFeatureSettings = "tnum"
-            val streakWidth = if (streak > 0) paint.measureText("$streak") + gap + unitWidth else 0f
-            paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            paint.textSize = dimension(R.dimen.widget_label_text_size)
-            paint.fontFeatureSettings = null
             val availableWidth = (widthDp - 2 * spacing.insetDp) * density -
                 dimension(R.dimen.widget_ring_size) - gap - dimension(R.dimen.widget_touch_target) -
-                headerWidth - streakWidth
+                labelWidth - gap * 2
             val showTitle = title != null && !title.contains('\n') && !title.contains('\r') && paint.measureText(title) <= availableWidth
             views.setTextViewText(R.id.widget_next_habit, if (showTitle) title else "")
             views.setViewVisibility(R.id.widget_next_habit, if (showTitle) View.VISIBLE else View.GONE)
@@ -366,8 +350,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val layout = when {
                 widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP -> R.layout.widget_layout_narrow
                 compact && !signedOut -> R.layout.widget_layout_compact
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.S && geometry.contentHeightDp > spacing.rowHeightDp ->
-                    R.layout.widget_layout_expanded
                 else -> R.layout.widget_layout
             }
             val views = RemoteViews(context.packageName, layout)
@@ -375,7 +357,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)
             views.setViewVisibility(R.id.widget_content, if (compact) View.GONE else View.VISIBLE)
             views.setInt(
-                R.id.widget_content, "setMinimumHeight", (geometry.contentHeightDp * density).toInt()
+                R.id.widget_content_height, "setHeight", (geometry.contentHeightDp * density).toInt()
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 views.setViewLayoutHeight(
@@ -395,7 +377,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
 
             applyProgressRing(context, views, colorModes, completedCount, habitCount, syncedOnce && !signedOut)
-            if (layout == R.layout.widget_layout || layout == R.layout.widget_layout_expanded) {
+            if (layout == R.layout.widget_layout) {
                 val ringInset = if (syncedOnce && !signedOut) {
                     context.resources.getDimensionPixelSize(R.dimen.widget_header_ring_offset)
                 } else 0
@@ -477,8 +459,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             if (compact && !signedOut && widgetWidthDp > STREAK_UNIT_BREAKPOINT_DP) {
                 applyNextHabit(context, views, widgetWidthDp, spacing, safeHeaderLabel,
-                    if (syncedOnce) "$completedCount/$habitCount" else "", streak, lang,
-                    unitVisibility == View.VISIBLE, ownsRows && !showSkeleton)
+                    ownsRows && !showSkeleton)
             }
             applyOpenAppActions(context, views)
             views.setViewVisibility(

@@ -21,15 +21,45 @@ class OrbitWidgetDayStateTest {
     }
 
     @Test
-    fun `legacy widget body is bounded before runtime height setters are available`() {
-        val source = java.io.File("src/main/res/layout/widget_layout.xml").readText()
-        val content = Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
-            .find(source)?.groupValues?.get(1)
-        assertEquals("@dimen/widget_row_height", content)
-        val expanded = java.io.File("src/main/res/layout/widget_layout_expanded.xml").readText()
-        assertEquals("@dimen/widget_content_expanded_height",
-            Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
-                .find(expanded)?.groupValues?.get(1))
+    fun `legacy widget body follows collection capacity at every resize`() {
+        for (layout in listOf("widget_layout", "widget_layout_narrow")) {
+            val source = java.io.File("src/main/res/layout/$layout.xml").readText()
+            val content = Regex("""android:id="@\+id/widget_content"[\s\S]*?android:layout_height="([^"]+)"""")
+                .find(source)?.groupValues?.get(1)
+            assertEquals(layout, "wrap_content", content)
+            val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder().parse(java.io.File("src/main/res/layout/$layout.xml"))
+            val elements = document.getElementsByTagName("*")
+            val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
+                .associateBy { it.getAttribute("android:id") }
+            assertEquals("wrap_content", views.getValue("@+id/widget_content_height")
+                .getAttribute("android:layout_height"))
+            for (child in listOf("widget_list", "widget_empty", "widget_loading")) {
+                for (edge in listOf("android:layout_alignTop", "android:layout_alignBottom")) {
+                    assertEquals(layout, "@id/widget_content_height", views.getValue("@+id/$child").getAttribute(edge))
+                }
+            }
+        }
+        val narrow = calculateWidgetGeometry(288f, 3, narrowSpacing)
+        assertEquals(144f, narrow.contentHeightDp)
+        assertEquals(true, narrow.canStateRemainder)
+        val wide = calculateWidgetGeometry(384f, 5, cardSpacing)
+        assertEquals(220f, wide.contentHeightDp)
+        assertEquals(true, wide.canStateRemainder)
+    }
+
+    @Test
+    fun `short header places the day above the complete count and streak`() {
+        val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+            .newDocumentBuilder().parse(java.io.File("src/main/res/layout/widget_layout_compact.xml"))
+        val elements = document.getElementsByTagName("*")
+        val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
+            .associateBy { it.getAttribute("android:id") }
+        val day = views.getValue("@+id/widget_header")
+        val count = views.getValue("@+id/widget_subtitle")
+        val streak = views.getValue("@+id/widget_streak_group")
+        assertEquals(false, day.parentNode === count.parentNode)
+        assertEquals(count.parentNode, streak.parentNode)
     }
 
     @Test
@@ -37,7 +67,7 @@ class OrbitWidgetDayStateTest {
         val provider = java.io.File("src/main/res/xml/orbit_widget_info.xml").readText()
         val layout = Regex("""android:initialLayout="@layout/(\w+)"""").find(provider)!!.groupValues[1]
         val source = java.io.File("src/main/res/layout/$layout.xml").readText()
-        val content = Regex("""<FrameLayout\b[^>]*android:id="@\+id/widget_content"[^>]*>""")
+        val content = Regex("""<RelativeLayout\b[^>]*android:id="@\+id/widget_content"[^>]*>""")
             .find(source)!!.value
         assertEquals(true, content.contains("""android:visibility="gone""""))
         val header = Regex("""<LinearLayout\b[^>]*android:id="@\+id/widget_header_left"[^>]*>""")
