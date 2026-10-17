@@ -657,6 +657,12 @@ function CalendarScreenContent({
       <CalendarHeader
         currentMonth={currentMonth}
         todayKey={todayKey}
+        isTodaySelected={{
+          month: selectedDay === todayKey,
+          week: formatAPIDate(weekStart) === formatAPIDate(startOfWeek(parseAPIDate(todayKey), { weekStartsOn })),
+          range: rangeOffset === 0,
+          agenda: agendaOffset === 0,
+        }[view]}
         previousMonthLabel={t('common.previousMonth')}
         nextMonthLabel={t('common.nextMonth')}
         onPreviousMonth={prevMonth}
