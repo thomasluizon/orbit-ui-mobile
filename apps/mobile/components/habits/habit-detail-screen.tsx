@@ -194,7 +194,7 @@ function HabitDescription({ description, tokens }: Readonly<{ description: strin
         onPress={() => setDescriptionOpen((open) => !open)}
         onHoverIn={() => setDescriptionHovered(true)}
         onHoverOut={() => setDescriptionHovered(false)}
-        style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: pressed || descriptionHovered ? tokens.bgHover : 'transparent' })}
+        style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: pressed || descriptionHovered ? tokens.bgHover : 'transparent' })}
       >
         {({ pressed, focused }) => <>
           <Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { flex: 1, color: pressed || focused || descriptionHovered ? tokens.fg2 : tokens.fg3 }]}>{descriptionOpen ? t('common.collapse') : description}</Text>
