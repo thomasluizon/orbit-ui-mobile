@@ -75,7 +75,7 @@ describe('BarChart measured geometry', () => {
           const plot = chart.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
           const targets = [...chart.querySelectorAll('[role="radio"]')].map((radio) => {
             const box = radio.getBoundingClientRect()
-            return { left: box.left - bounds.left, right: box.right - bounds.left, height: box.height, hit: [1, box.height - 1].every((offset) => document.elementFromPoint(box.left + box.width / 2, box.top + offset) === radio) }
+            return { left: box.left - bounds.left, right: box.right - bounds.left, height: box.height, hit: [1, box.width / 2, box.width - 1].every((inline) => [1, box.height - 1].every((offset) => document.elementFromPoint(box.left + inline, box.top + offset) === radio)) }
           })
           return { width: bounds.width, targets, readoutLeft: readout.left - bounds.left, readoutRight: readout.right - bounds.left,
             stubs: [...chart.querySelectorAll<SVGGraphicsElement>('path[data-empty]')].map((stub) => stub.getBBox().height),

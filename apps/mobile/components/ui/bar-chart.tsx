@@ -55,8 +55,13 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           onBlur={() => setFocused(null)}
           onHoverIn={() => setHovered(index)}
           onHoverOut={() => setHovered(null)}
-          style={({ pressed }) => [styles.target, { left: index * width / points.length, width: width / points.length, borderColor: focused === index ? tokens.fg1 : 'transparent', backgroundColor: pressed || hovered === index ? tokens.bgHover : 'transparent' }]}
-        />)}
+          style={[styles.target, { left: index * width / points.length, width: width / points.length }]}
+        >
+          {({ pressed }) => <>
+            <View pointerEvents="none" accessible={false} style={[styles.feedback, { backgroundColor: pressed || hovered === index ? tokens.bgHover : 'transparent' }]} />
+            {focused === index ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { borderColor: tokens.fg1 }]} /> : null}
+          </>}
+        </Pressable>)}
         <Svg style={styles.paint} accessible={false} pointerEvents="none" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`}>
           {bars.map((bar, index) => <Path key={points[index]!.startDate} d={barChartPath(bar)} fill={index === selectedIndex ? tokens.fg1 : tokens.fg2} />)}
         </Svg>
@@ -73,8 +78,10 @@ const styles = StyleSheet.create({
   container: { width: '100%', gap: 8 },
   readout: { alignSelf: 'flex-start', maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, fontVariant: ['tabular-nums'] },
   plot: { height: BAR_CHART_HEIGHT, width: '100%' },
+  feedback: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 8, overflow: 'hidden' },
   paint: { position: 'absolute', top: 0, left: 0 },
-  target: { position: 'absolute', top: 0, height: BAR_CHART_HEIGHT, borderWidth: 2 },
+  target: { position: 'absolute', top: 0, height: BAR_CHART_HEIGHT },
+  focusRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2 },
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
   axisLabel: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
 })

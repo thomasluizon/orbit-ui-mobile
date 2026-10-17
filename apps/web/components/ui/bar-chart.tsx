@@ -72,8 +72,10 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           tabIndex={index === selectedIndex ? 0 : -1}
           onClick={() => setSelectedDate(point.startDate)}
           onKeyDown={handleKey}
-          className="relative min-w-0 flex-1 cursor-pointer touch-manipulation bg-transparent p-0 transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]"
-        />)}
+          className="group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]"
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[8px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-reduce:transition-none" />
+        </button>)}
         <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
           {bars.map((bar, index) => <path key={points[index]!.startDate} d={barChartPath(bar)} data-state={index === selectedIndex ? 'selected' : 'resting'} data-empty={points[index]!.rate == null || points[index]!.rate === 0 || undefined} fill={index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} />)}
         </svg>
