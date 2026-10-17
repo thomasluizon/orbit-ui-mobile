@@ -31,12 +31,13 @@ export function useTodaySelection({
   habitListRef,
 }: TodaySelectionParams) {
   const { profile } = useProfile()
+  const frequencyUnit = useUIStore((s) => s.activeFilters.frequencyUnit)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
   const completionReadOnly = getTodayBoundary(selectedDateStr, today) === 'read-only'
-  const previousSelectedDateRef = useRef(selectedDateStr)
+  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit })
 
   const getDescendantIds = useCallback(
     (parentId: string): string[] =>
@@ -80,12 +81,13 @@ export function useTodaySelection({
   const { setShowBulkDeleteConfirm } = bulkActions
 
   useEffect(() => {
-    const dateChanged = previousSelectedDateRef.current !== selectedDateStr
-    previousSelectedDateRef.current = selectedDateStr
-    if (!dateChanged) return
+    const scopeChanged = previousScopeRef.current.selectedDateStr !== selectedDateStr ||
+      previousScopeRef.current.frequencyUnit !== frequencyUnit
+    previousScopeRef.current = { selectedDateStr, frequencyUnit }
+    if (!scopeChanged) return
     setShowBulkDeleteConfirm(false)
     clearSelection()
-  }, [clearSelection, selectedDateStr, setShowBulkDeleteConfirm])
+  }, [clearSelection, frequencyUnit, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,

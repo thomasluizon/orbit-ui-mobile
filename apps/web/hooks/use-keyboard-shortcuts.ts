@@ -17,12 +17,6 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
-/**
- * Global keyboard shortcuts for the desktop shell. Cmd/Ctrl+K toggles the command
- * palette anywhere; a `g`-prefixed chord jumps to Today, Calendar, or Profile with
- * the tab-switch transition. Chords are ignored while typing in a field or while an
- * overlay is open. The command palette rebuild owns the final destination shortcut set.
- */
 export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
@@ -57,6 +51,9 @@ export function useKeyboardShortcuts(enabled = true): void {
           return true
         case 'c':
           navigate('/calendar')
+          return true
+        case 'i':
+          navigate('/progress')
           return true
         case 'p':
           navigate('/profile')
