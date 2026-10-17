@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   recapPeriodLabelKey,
   SHARE_CARD_HEIGHT,
@@ -15,22 +16,23 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 
 interface ShareCardProps {
   recap: Recap
+  variant?: 'progress' | 'wrapped'
 }
 
 /** The 9 by 16 composed Wrapped image captured by react-native-view-shot. */
-export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ recap }, ref) {
+export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ recap, variant = 'wrapped' }, ref) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const stats = buildShareCardStats(recap.metrics, recap.goalCompletions)
+  const stats = variant === 'progress' ? buildProgressShareCardStats(recap.metrics) : buildShareCardStats(recap.metrics, recap.goalCompletions)
   const weekday = buildShareCardWeekday(recap.metrics.weeklyConsistency)
 
   return (
     <View
       ref={ref}
       testID="share-card"
-      style={styles.card}
+      style={[styles.card, variant === 'progress' ? styles.progressCard : null]}
     >
       <View style={styles.brandRow}>
         <OrbitMark size={28} accent />
@@ -41,7 +43,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ r
 
       <View style={styles.body}>
         <View style={styles.primaryFigure}>
-          <Text testID="share-card-figure" style={styles.primaryValue}>
+          <Text testID="share-card-figure" style={[styles.primaryValue, variant === 'progress' ? styles.progressValue : null]}>
             {stats[0]!.value}
           </Text>
           <Text style={styles.primaryLabel}>{t(stats[0]!.labelKey)}</Text>
@@ -83,6 +85,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
+    progressCard: { width: '100%', maxWidth: SHARE_CARD_WIDTH, height: 'auto', minHeight: SHARE_CARD_HEIGHT, padding: 24, backgroundColor: tokens.bg },
+    progressValue: { fontSize: 44, lineHeight: 47 },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -130,6 +134,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     supportingFigure: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'baseline',
       gap: 8,
     },

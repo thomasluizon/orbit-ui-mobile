@@ -1,3 +1,4 @@
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ActionRow } from '@/components/ui/action-row'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
@@ -450,6 +451,7 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
       </WindowFigureGrid>
       <TopHabitRow habit={topHabit} tokens={tokens} />
+      <ActionRow><ShareCardEntryButton variant="button" /></ActionRow>
     </WindowFrame>
   )
 }

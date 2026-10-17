@@ -1076,6 +1076,7 @@ describe('ProfileScreen', () => {
         .map((node: SettingsRowStubNode) => node.props.label),
     ).toEqual([
       'profile.settingsRows.wrapped',
+      'shareCard.entry',
       'profile.widgetTitle',
       'profile.calendarSync.title',
       'profile.support.rowTitle',
@@ -1109,14 +1110,14 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('keeps the share card off Perfil', async () => {
+  it('restores the share progress entry beside Wrapped', async () => {
     const tree = await renderProfileScreen()
     expect(
       tree.root.findAll(
         (node: SettingsRowStubNode) =>
           node.type === 'SettingsRowStub' && node.props.label === 'shareCard.entry',
       ),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
   })
 
   it('puts Sign out first in Ending things', async () => {

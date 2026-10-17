@@ -887,9 +887,10 @@ describe('ProfilePage', () => {
     expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
 
-  it('keeps the share card off Perfil', () => {
+  it('restores the share progress entry beside Wrapped', () => {
     render(<ProfilePage />)
-    expect(screen.queryByRole('button', { name: /shareCard\.entry/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /shareCard\.entry/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /profile\.settingsRows\.wrapped/i })).toHaveAttribute('href', '/wrapped')
   })
 
   it('puts Sign out first in Ending things', () => {

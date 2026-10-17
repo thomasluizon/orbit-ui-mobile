@@ -210,6 +210,11 @@ async function selectGoalFilter(view: string) {
 }
 
 describe('ProgressContent', () => {
+  it('offers Share progress from the populated period window', () => {
+    render(<ProgressContent />)
+    expect(screen.getByRole('button', { name: 'shareCard.entry' })).toBeInTheDocument()
+  })
+
   function renderPortugueseGoals() {
     mocks.usePortugueseCatalog = true
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Ler doze livros' })]

@@ -626,6 +626,7 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,

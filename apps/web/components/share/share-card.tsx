@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   recapPeriodLabelKey,
   SHARE_CARD_HEIGHT,
@@ -14,13 +15,14 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 
 interface ShareCardProps {
   recap: Recap
+  variant?: 'progress' | 'wrapped'
   ref?: Ref<HTMLDivElement>
 }
 
 /** The 9 by 16 composed Wrapped image captured by html-to-image. */
-export function ShareCard({ recap, ref }: Readonly<ShareCardProps>) {
+export function ShareCard({ recap, ref, variant = 'wrapped' }: Readonly<ShareCardProps>) {
   const t = useTranslations()
-  const stats = buildShareCardStats(recap.metrics, recap.goalCompletions)
+  const stats = variant === 'progress' ? buildProgressShareCardStats(recap.metrics) : buildShareCardStats(recap.metrics, recap.goalCompletions)
   const weekday = buildShareCardWeekday(recap.metrics.weeklyConsistency)
 
   return (
@@ -28,16 +30,18 @@ export function ShareCard({ recap, ref }: Readonly<ShareCardProps>) {
       ref={ref}
       data-testid="share-card"
       style={{
-        width: SHARE_CARD_WIDTH,
-        height: SHARE_CARD_HEIGHT,
+        width: variant === 'progress' ? '100%' : SHARE_CARD_WIDTH,
+        maxWidth: SHARE_CARD_WIDTH,
+        height: variant === 'progress' ? undefined : SHARE_CARD_HEIGHT,
+        minHeight: SHARE_CARD_HEIGHT,
         flex: '0 0 auto',
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
         overflow: 'hidden',
-        padding: 32,
+        padding: variant === 'progress' ? 24 : 32,
         borderRadius: 20,
-        background: 'var(--bg-card)',
+        background: variant === 'progress' ? 'var(--bg)' : 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
         color: 'var(--fg-1)',
         fontFamily: 'var(--font-sans)',
@@ -83,8 +87,8 @@ export function ShareCard({ recap, ref }: Readonly<ShareCardProps>) {
             data-testid="share-card-figure"
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 88,
-              lineHeight: 0.92,
+              fontSize: variant === 'progress' ? 44 : 88,
+              lineHeight: variant === 'progress' ? 1.05 : 0.92,
               fontWeight: 600,
               letterSpacing: '-0.04em',
               fontVariantNumeric: 'tabular-nums',
@@ -97,7 +101,7 @@ export function ShareCard({ recap, ref }: Readonly<ShareCardProps>) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {stats.slice(1).map((stat) => (
-            <div key={stat.labelKey} className="flex items-baseline" style={{ gap: 8 }}>
+            <div key={stat.labelKey} className="flex flex-wrap items-baseline" style={{ gap: 8 }}>
               <span
                 data-testid="share-card-figure"
                 style={{
