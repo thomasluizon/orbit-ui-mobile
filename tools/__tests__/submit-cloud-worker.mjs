@@ -19,6 +19,7 @@ import {
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
 import { RELEASE_HOLD_MS, checkAdmission, releaseAdmission } from "../lib/admission.mjs"
+import { runBounded } from "../lib/bounded-process.mjs"
 import {
   receiptBlocksTicketAdmission,
   acquireSubmissionLock,
@@ -84,7 +85,11 @@ const spawnTool = (entry, args, env) => {
   return { child, result }
 }
 
-const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
+const runConcurrent = (entry, args, env) => runBounded(process.execPath, [entry.path, ...args], {
+  cwd: entry.repo.path,
+  env: { ...process.env, ...env },
+  timeoutMs: 30000,
+})
 
 const cloudAdmissionAfterHold = (entry, now = Date.now() + RELEASE_HOLD_MS + 1000) => checkAdmission({
   config: { ...entry.config, repos: { ui: entry.repo.path }, caps: { maxOpenPullRequests: 0, maxQueuedRuns: 0 } },
@@ -1437,21 +1442,74 @@ if (args[1] === "list") {
   const concurrentEnv = {
     ORBIT_FAKE_CODEX_LOG: concurrent.log,
     ORBIT_FAKE_LIST: taskPage(concurrentTasks),
-    ORBIT_FAKE_EXEC_DELAY_MS: "1000",
     ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d4",
   }
-  const concurrentResults = await Promise.all([
-    runConcurrent(concurrent, concurrentEnv),
-    runConcurrent(concurrent, concurrentEnv),
-  ])
+  const concurrentGate = stage("submit-cloud/concurrent/exec-gate", "waiting")
+  writeFileSync(concurrent.codex.script, readFileSync(concurrent.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "exec" && process.env.ORBIT_FAKE_EXEC_GATE) {
+  const gate = process.env.ORBIT_FAKE_EXEC_GATE
+  writeFileSync(gate, "entered")
+  const deadline = Date.now() + 30000
+  while (readFileSync(gate, "utf8") !== "released") {
+    if (Date.now() >= deadline) throw new Error("coordinated Cloud execution was not released")
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
+  // Start the contender after admission has released its lock, while Cloud still owns its slot.
+  const concurrentFirst = runConcurrent(concurrent, argvOf(concurrent), {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_GATE: concurrentGate,
+  })
+  let concurrentFirstResult
+  concurrentFirst.then((result) => { concurrentFirstResult = result })
+  const contenderOrder = stage("submit-cloud/concurrent/contender.md", "Implement the competing ticket.\n")
+  const contenderArguments = argvFor(concurrent, "#399", contenderOrder)
+  const contenderEnvironment = {
+    ...concurrentEnv,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_e5",
+  }
+  let concurrentBusyResult
+  let concurrentCoordinationError
+  try {
+    const deadline = Date.now() + 30000
+    while (readFileSync(concurrentGate, "utf8") !== "entered") {
+      if (concurrentFirstResult) throw new Error(`first submitter exited before Cloud execution: ${JSON.stringify(concurrentFirstResult)}`)
+      if (Date.now() >= deadline) throw new Error("first submitter did not reach coordinated Cloud execution")
+      await wait(10)
+    }
+    concurrentBusyResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
+  } catch (error) {
+    concurrentCoordinationError = error.message
+  } finally {
+    writeFileSync(concurrentGate, "released")
+    concurrentFirstResult = await concurrentFirst
+  }
+  // A lock refusal proves exclusion only. Retry the distinct ticket to require the capacity check.
+  const concurrentCapResult = await runConcurrent(concurrent, contenderArguments, contenderEnvironment)
   const concurrentInvocations = readFileSync(concurrent.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   const concurrentExecs = concurrentInvocations.filter((args) => args[0] === "cloud" && args[1] === "exec")
+  const concurrentDiagnostics = JSON.stringify({
+    coordinationError: concurrentCoordinationError,
+    first: concurrentFirstResult,
+    busy: concurrentBusyResult,
+    cap: concurrentCapResult,
+    invocations: concurrentInvocations,
+  })
+  T(
+    `${TOOL}: a concurrent contender reaches the Cloud submission lock after admission`,
+    !concurrentCoordinationError && concurrentFirstResult.status === 0 &&
+      concurrentBusyResult?.status === 2 && /cloud submission is already running/.test(concurrentBusyResult.stderr),
+    concurrentDiagnostics,
+  )
   T(
     `${TOOL}: concurrent submitters cannot collectively exceed the fleet cap`,
-    concurrentResults.some((result) => result.status === 0) &&
-      concurrentResults.every((result) => [0, 2, 3].includes(result.status)) &&
+    concurrentFirstResult.status === 0 && concurrentCapResult.status === 3 &&
+      concurrentCapResult.stderr.includes(`cloud capacity is full: ${concurrent.config.caps.cloudParallelTasks}/${concurrent.config.caps.cloudParallelTasks} tasks are in flight`) &&
       concurrentExecs.length === 1,
-    `${JSON.stringify(concurrentResults)}\n${JSON.stringify(concurrentInvocations)}`,
+    concurrentDiagnostics,
   )
 
   const breaker = fixture("session-empty-breaker")
