@@ -66,10 +66,10 @@ export const stagingServiceIds = (client = githubClient) => ({
 
 export const productionServiceIds = (client = githubClient, environment = "production") => environment === "production-redesign"
   ? { web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_REDESIGN_SERVICE_ID") }
-  : ({
-  api: serviceVariable(client, "orbit-api", "RENDER_PRODUCTION_SERVICE_ID"),
-  web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_SERVICE_ID"),
-})
+  : {
+    api: serviceVariable(client, "orbit-api", "RENDER_PRODUCTION_SERVICE_ID"),
+    web: serviceVariable(client, "orbit-ui-mobile", "RENDER_WEB_SERVICE_ID"),
+  }
 
 const expectArray = (value, path) => {
   if (!Array.isArray(value)) throw new Error(`GitHub returned an unexpected array at ${path}`)
