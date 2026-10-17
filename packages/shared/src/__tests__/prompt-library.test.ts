@@ -47,7 +47,7 @@ describe('prompt library', () => {
     }
     const options = { category: 'start' as const, query: '', locale: 'pt-BR', categories: promptCategories(true, true), translate }
     expect(filterPromptTemplates(options)).toHaveLength(6)
-    expect(filterPromptTemplates({ ...options, query: 'protecoes' }).map(template => template.id)).toEqual(['freezes'])
+    expect(filterPromptTemplates({ ...options, query: 'congelamentos da sequencia' }).map(template => template.id)).toEqual(['freezes'])
     expect(filterPromptTemplates({ ...options, query: 'Google', categories: promptCategories(false, true) })).toEqual([])
     expect(filterPromptTemplates({ ...options, query: 'nada assim' })).toEqual([])
   })
