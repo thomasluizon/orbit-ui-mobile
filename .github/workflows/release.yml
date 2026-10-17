@@ -73,6 +73,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Redesign keeps the production site URL because the routing Worker serves it on the same public origin.
       - name: Build and push production image
         if: inputs.environment == 'production' || inputs.environment == 'production-redesign'
         id: build_production
@@ -217,6 +218,33 @@ jobs:
             check_health "$deployment_url"
             echo "Verified public host ${deployment_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
             echo "smoke_base_url=${deployment_url}" >> "$GITHUB_OUTPUT"
+          else
+            if [ -z "$PRODUCTION_WEB_HOST" ]; then echo "::error::Missing PRODUCTION_WEB_HOST" >&2; exit 1; fi
+            route_response=$(curl -sS --max-time 15 --output /dev/null --write-out '%header{location}\n%{http_code}' \
+              -H "X-Forwarded-Host: ${PRODUCTION_WEB_HOST}" -H 'X-Forwarded-Proto: https' "${origin}/login")
+            route_status="${route_response##*$'\n'}"
+            route_location="${route_response%$'\n'*}"
+            echo "Worker /login check at ${origin}: HTTP ${route_status}" >> "$GITHUB_STEP_SUMMARY"
+            node - "$route_status" "$route_location" "$PRODUCTION_WEB_HOST" <<'NODE'
+          const [status, location, publicHost] = process.argv.slice(2)
+          if (status === '200') process.exit(0)
+          if (!['301', '302', '303', '307', '308'].includes(status) || !location) {
+            console.error(`Application route returned HTTP ${status} without an acceptable redirect`)
+            process.exit(1)
+          }
+          const publicRoute = new URL(`https://${publicHost}/login`)
+          let destination
+          try { destination = new URL(location, publicRoute) }
+          catch {
+            console.error('Application route returned an invalid Location header')
+            process.exit(1)
+          }
+          if (destination.origin !== publicRoute.origin ||
+              (destination.pathname === publicRoute.pathname && destination.search === publicRoute.search)) {
+            console.error('Application redirect must stay on the public origin without looping back to /login')
+            process.exit(1)
+          }
+          NODE
           fi
           echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
           echo "Verified ${RELEASE_ENVIRONMENT} ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"

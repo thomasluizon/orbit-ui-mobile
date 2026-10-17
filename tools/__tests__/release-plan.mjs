@@ -111,7 +111,7 @@ async function redesignCases() {
   T("redesign resolves only its own service and branch", redesignIds.web === REDESIGN &&
     Object.keys(redesignIds).join(",") === "web" &&
     redesignClient.calls.includes(`services/${REDESIGN}`) &&
-    redesignClient.calls.includes("https://redesign.example.invalid/api/health") &&
+    redesignClient.calls.some((value) => value === "https://redesign.example.invalid/api/health") &&
     redesignClient.calls.includes("repos/thomasluizon/orbit-ui-mobile/commits/redesign%2Fmain") &&
     !redesignClient.calls.some((path) => path.includes("android-release") || path.includes("orbit-api") || path.includes("orbit-landing-page")))
   for (const branch of ["main", "feature/release"]) {

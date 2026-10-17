@@ -9,11 +9,49 @@ const guard = workflow.match(/      - name: Validate release selection\n[\s\S]*?
 const stepScript = (name) => {
   const script = workflow.split(`      - name: ${name}\n`)[1]?.match(/        run: \|\n((?:          .*\n|\n)+)/)?.[1]
   if (!script) throw new Error(`Missing release script: ${name}`)
-  return script
+  return script.replace(/^ {10}/gm, "")
 }
 
 const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release-fixture.json"), "utf8"))
 const releaseFixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
+
+function checkApplicationRoute(run, healthStub, calls, summary) {
+  for (const [status, location, accepted] of [
+    ["200", "", true],
+    ...["301", "302", "303", "307", "308"].map((status) => [status, "https://public.example.invalid/", true]),
+    ["302", "/home", true],
+    ["307", "//public.example.invalid/home", true],
+    ["308", "https://public.example.invalid/login", false],
+    ["308", "/login", false],
+    ["307", "/login#fragment", false],
+    ["302", `${renderFixture.service.serviceDetails.url}/login`, false],
+    ["302", `${renderFixture.service.serviceDetails.url}/`, false],
+    ["302", "https://public.example.invalid.attacker.invalid/", false],
+    ["302", "https://attacker.invalid/public.example.invalid", false],
+    ["302", "https://public.example.invalid@attacker.invalid/", false],
+    ["302", "http://public.example.invalid/", false],
+    ["302", "https://public.example.invalid:444/", false],
+    ["302", "http://[", false],
+    ["302", "", false],
+    ["304", "https://public.example.invalid/", false],
+    ["404", "", false],
+    ["500", "", false],
+  ]) {
+    stage("release-workflow/calls", "")
+    stage("release-workflow/summary", "")
+    const result = run("Check web health", healthStub, {
+      RELEASE_ENVIRONMENT: "production-redesign", ROUTE_STATUS: status, ROUTE_LOCATION: location,
+    })
+    const observed = readFileSync(calls, "utf8").trim().split("\n")
+    T(`redesign application route ${status} ${location || "without Location"} ${accepted ? "passes" : "fails"}`,
+      result.status === (accepted ? 0 : 1), result.stderr)
+    T("redesign application check uses Worker headers without following redirects", observed.some((value) =>
+      value === `${renderFixture.service.serviceDetails.url}/login`) &&
+      observed.includes("X-Forwarded-Host: public.example.invalid") && observed.includes("X-Forwarded-Proto: https") &&
+      !observed.some((value) => value === "--location" || /^-[^-]*L/.test(value)))
+    T("redesign application status reaches the step summary", readFileSync(summary, "utf8").includes(`HTTP ${status}`))
+  }
+}
 
 function checkProductionSteps() {
   T("redesign shares the production build and credential environment", workflow.includes("if: inputs.environment == 'production' || inputs.environment == 'production-redesign'") &&
@@ -39,10 +77,11 @@ function checkProductionSteps() {
   })
   const healthStub = `
     curl() {
-      printf '%s\\n' "$*" >> "$CALLS"
+      printf '%s\\n' "$@" >> "$CALLS"
       case "$*" in
         *api.render.com*) cat "$SERVICE_RESPONSE" ;;
         */api/health*) cat "$HEALTH_RESPONSE" ;;
+        */login*) printf '%s\\n%s' "\${ROUTE_LOCATION:-}" "\${ROUTE_STATUS:-200}" ;;
         *) return 1 ;;
       esac
     }
@@ -52,14 +91,17 @@ function checkProductionSteps() {
     stage("release-workflow/output", "")
     stage("release-workflow/calls", "")
     const result = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: target })
-    const observed = readFileSync(calls, "utf8")
+    const observed = readFileSync(calls, "utf8").trim().split("\n")
     const outputs = readFileSync(output, "utf8")
-    const publicCheck = observed.includes("https://public.example.invalid/api/health")
+    const publicCheck = observed.some((value) => value === "https://public.example.invalid/api/health")
     const url = target === "production" ? "https://public.example.invalid" : renderFixture.service.serviceDetails.url
     T(`${target} checks its health commit and records its own URL`, result.status === 0 &&
-      observed.includes(`${renderFixture.service.serviceDetails.url}/api/health`) &&
+      observed.some((value) => value === `${renderFixture.service.serviceDetails.url}/api/health`) &&
       publicCheck === (target === "production") && outputs.includes(`deployment_url=${url}\n`), result.stderr)
+    T(`${target} checks the application route only for redesign`,
+      observed.some((value) => value === `${renderFixture.service.serviceDetails.url}/login`) === (target === "production-redesign"))
   }
+  checkApplicationRoute(run, healthStub, calls, summary)
   const staleHealth = stage("release-workflow/stale-health.json", JSON.stringify({ ...renderFixture.health, commit: "b".repeat(40) }))
   const mismatch = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production-redesign", HEALTH_RESPONSE: staleHealth })
   T("redesign rejects a healthy service running another commit", mismatch.status === 1 && mismatch.stderr.includes("did not report status ok and commit"), mismatch.stderr)
