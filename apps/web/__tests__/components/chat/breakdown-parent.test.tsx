@@ -25,7 +25,7 @@ function approve() {
 }
 function expectCompleted() {
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-  for (const name of ['chat.preview.approve', 'chat.preview.edit', 'chat.preview.reject', 'chat.batch.retry']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  for (const name of ['chat.preview.approve', 'habits.actions.more', 'chat.batch.retry']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   expect(screen.getByText('chat.action.completed')).toHaveAttribute('role', 'status')
 }
 function expectParentRequest() {
@@ -90,7 +90,8 @@ describe('breakdown parent choice', () => {
       return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
     })
     render(<BreakdownSuggestion {...props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'chat.preview.edit' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wash dishes' } })
     fireEvent.blur(screen.getByRole('textbox'))
     fireEvent.click(grouping())
@@ -224,8 +225,8 @@ describe('breakdown parent choice', () => {
     approve()
     expect(grouping()).toBeDisabled()
     expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'chat.preview.edit' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.actions.more' })).toBeDisabled()
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
     fireEvent.click(grouping())
     expect(grouping()).toBeChecked()
     expect(bulkCreate).toHaveBeenCalledTimes(1)

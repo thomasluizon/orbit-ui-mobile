@@ -354,7 +354,7 @@ it('keeps an all-failed response editable and rejectable', async () => {
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
   fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
   expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
 })
 

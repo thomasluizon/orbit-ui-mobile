@@ -34,7 +34,7 @@ function grouping(tree: ReactTestRenderer) {
   return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox' && node.props.accessibilityLabel === 'habits.breakdown.createAsParent')[0]!.props as ControlProps
 }
 function button(tree: ReactTestRenderer, label: string) {
-  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes(label))[0]!.props as ControlProps
+  return tree.root.findAll(node => typeof node.type === 'string' && (node.props.accessibilityRole === 'button' || node.props.accessibilityRole === 'menuitem') && (renderedText(node.props.children).includes(label) || node.props.accessibilityLabel === label))[0]!.props as ControlProps
 }
 async function approve(tree: ReactTestRenderer) {
   await act(() => button(tree, 'chat.preview.approve').onPress())
@@ -112,6 +112,7 @@ describe('breakdown parent choice on Android', () => {
       return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
     })
     const tree = await renderBreakdown()
+    await act(() => button(tree, 'habits.actions.more').onPress())
     await act(() => button(tree, 'chat.preview.edit').onPress())
     const input = () => tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith('chat.preview.editName'))[0]!.props as { onChangeText: (title: string) => void; onBlur: () => void }
     await act(() => input().onChangeText('Wash dishes'))
@@ -242,7 +243,8 @@ describe('breakdown parent choice on Android', () => {
     await act(() => grouping(tree).onPress())
     await approve(tree)
     expect(grouping(tree).disabled).toBe(true)
-    for (const label of ['chat.preview.approve', 'chat.preview.edit', 'chat.preview.reject']) expect(button(tree, label).disabled).toBe(true)
+    for (const label of ['chat.preview.approve', 'habits.actions.more']) expect(button(tree, label).disabled).toBe(true)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem')).toHaveLength(0)
     await act(() => grouping(tree).onPress())
     expect(grouping(tree).accessibilityState.checked).toBe(true)
     expect(bulkCreate).toHaveBeenCalledTimes(1)
