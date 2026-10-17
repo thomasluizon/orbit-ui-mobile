@@ -1281,7 +1281,7 @@
           "prompt": "Help me change the times of several habits together."
         },
         "skipToday": {
-          "label": "Skip today's remaining",
+          "label": "Skip what's left today",
           "prompt": "Skip today's remaining habits."
         },
         "logMany": {

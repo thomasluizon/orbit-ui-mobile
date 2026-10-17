@@ -1289,19 +1289,19 @@
           "prompt": "Registre '{'hábitos'}' como feitos hoje."
         },
         "tagGroup": {
-          "label": "Agrupar com etiqueta",
-          "prompt": "Adicione a etiqueta '{'etiqueta'}' a '{'hábitos'}'."
+          "label": "Agrupar com tag",
+          "prompt": "Adicione a tag '{'tag'}' a '{'hábitos'}'."
         },
         "pauseMany": {
           "label": "Pausar vários hábitos",
           "prompt": "Me ajude a pausar vários hábitos nesta semana."
         },
         "afterDay": {
-          "label": "Voltar depois de um dia",
+          "label": "Voltar após um dia parado",
           "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
         },
         "afterWeek": {
-          "label": "Voltar após uma semana",
+          "label": "Voltar após uma semana difícil",
           "prompt": "Me ajude a recomeçar depois de uma semana difícil."
         },
         "smallerHabit": {
@@ -1333,8 +1333,8 @@
           "prompt": "Me explique como funciona minha sequência."
         },
         "freezes": {
-          "label": "Entender as proteções",
-          "prompt": "Me explique como funcionam as proteções de sequência."
+          "label": "Entender os congelamentos",
+          "prompt": "Me explique como funcionam os congelamentos da sequência."
         },
         "whatWorks": {
           "label": "Ver o que funciona",
@@ -1350,7 +1350,7 @@
         },
         "importWeek": {
           "label": "Importar esta semana",
-          "prompt": "Importe os eventos desta semana do Google Calendar."
+          "prompt": "Importe os eventos desta semana do Google Agenda."
         },
         "todayEvents": {
           "label": "Ver os eventos de hoje",
