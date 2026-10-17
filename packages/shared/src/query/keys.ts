@@ -117,3 +117,8 @@ export const uploadMutationKeys = {
   all: ['uploads'] as const,
   sign: () => [...uploadMutationKeys.all, 'sign'] as const,
 }
+
+export const connectionKeys = {
+  all: ['connections'] as const,
+  notion: () => [...connectionKeys.all, 'notion'] as const,
+}

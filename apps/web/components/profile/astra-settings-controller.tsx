@@ -1,10 +1,22 @@
 'use client'
 
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Profile } from '@orbit/shared/types/profile'
-import { habitKeys } from '@orbit/shared/query'
-import { updateAiSummary, updateProactiveAstra } from '@/lib/actions/profile'
+import { habitKeys, connectionKeys } from '@orbit/shared/query'
+import { updateAiSummary, updateProactiveAstra, authorizeNotion, disconnectNotion } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { NOTION_CALLBACK_PATH, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
+import { useConfig } from '@/hooks/use-config'
+import { useOffline } from '@/hooks/use-offline'
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
+import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared/utils'
+
+async function fetchNotionConnection(): Promise<NotionConnection> {
+  const response = await fetchWithThrottle(API.connections.notion)
+  if (!response.ok) throw createApiClientError(response.status, null, 'Connection unavailable')
+  return notionConnectionSchema.parse(await response.json())
+}
 
 export interface AstraSettingsController {
   aiSummaryEnabled: boolean
@@ -65,4 +77,28 @@ export function useAstraSettingsController(
     onToggleSummary: () => aiSummaryMutation.mutate(!aiSummaryEnabled),
     onToggleProactive: () => proactiveMutation.mutate(!proactiveAstraEnabled),
   }
+}
+
+export function useNotionConnectionController(hasProAccess: boolean) {
+  const { config } = useConfig()
+  const { isOnline } = useOffline()
+  const queryClient = useQueryClient()
+  const visible = config.features.notion_integration?.enabled === true
+  const enabled = visible && hasProAccess
+  const connection = useQuery({
+    queryKey: connectionKeys.notion(),
+    queryFn: fetchNotionConnection,
+    enabled: enabled && isOnline,
+    staleTime: 0,
+  })
+  const authorize = useAccountScopedMutation({
+    mutationFn: (_input: void, intendedAccountId) => authorizeNotion({ redirectUri: `${window.location.origin}${NOTION_CALLBACK_PATH}` }, intendedAccountId),
+  })
+  const disconnect = useAccountScopedMutation({
+    mutationFn: (_input: void, intendedAccountId) => disconnectNotion(intendedAccountId),
+    onSuccess: () => {
+      void queryClient.resetQueries({ queryKey: connectionKeys.notion() })
+    },
+  })
+  return { visible, enabled, isOnline, connection, authorize, disconnect }
 }

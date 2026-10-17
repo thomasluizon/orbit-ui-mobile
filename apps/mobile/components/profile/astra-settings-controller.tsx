@@ -1,8 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { habitKeys } from '@orbit/shared/query'
+import { habitKeys, connectionKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { NOTION_CALLBACK_PATH, notionAuthorizationSchema, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
+import { useConfig } from '@/hooks/use-config'
+import { useOffline } from '@/hooks/use-offline'
+import { apiClient } from '@/lib/api-client'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
+
+async function fetchNotionConnection(): Promise<NotionConnection> {
+  return apiClient(API.connections.notion, {}, notionConnectionSchema)
+}
 
 export interface AstraSettingsController {
   aiSummaryEnabled: boolean
@@ -75,4 +85,36 @@ export function useAstraSettingsController(
     onToggleSummary: () => aiSummaryMutation.mutate(!aiSummaryEnabled),
     onToggleProactive: () => proactiveMutation.mutate(!proactiveAstraEnabled),
   }
+}
+
+export function useNotionConnectionController(hasProAccess: boolean) {
+  const { config } = useConfig()
+  const { isOnline } = useOffline()
+  const queryClient = useQueryClient()
+  const visible = config.features.notion_integration?.enabled === true
+  const enabled = visible && hasProAccess
+  const connection = useQuery({
+    queryKey: connectionKeys.notion(),
+    queryFn: fetchNotionConnection,
+    enabled: enabled && isOnline,
+    staleTime: 0,
+  })
+  const authorize = useMutation({
+    mutationFn: async (generation: number) => {
+      const authorization = await apiClient(API.connections.notionAuthorize, {
+        method: 'POST', body: JSON.stringify({ redirectUri: `${APP_LINK_ORIGIN}${NOTION_CALLBACK_PATH}` }),
+        isCurrent: () => getAccountGeneration() === generation,
+      }, notionAuthorizationSchema)
+      if (getAccountGeneration() !== generation) throw new Error('Account changed')
+      return authorization
+    },
+  })
+  const disconnect = useMutation({
+    mutationFn: (generation: number) => apiClient<void>(API.connections.notion, { method: 'DELETE', isCurrent: () => getAccountGeneration() === generation }),
+    onSuccess: (_response, generation) => {
+      if (getAccountGeneration() !== generation) return
+      void queryClient.resetQueries({ queryKey: connectionKeys.notion() })
+    },
+  })
+  return { visible, enabled, isOnline, connection, authorize, disconnect }
 }
