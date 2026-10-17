@@ -549,7 +549,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
-      threadScroll.followLatest()
+      threadScroll.followLatest(chatContainerRef.current?.scrollTop)
       activeStepsRef.current = []
       setActiveSteps([])
       setSendError(null)

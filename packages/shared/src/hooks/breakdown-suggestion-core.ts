@@ -2,21 +2,26 @@ import type { SuggestedSubHabit } from '../types/chat'
 import type { BulkCreateResponse } from '../types/habit'
 import { nextBreakdownCadence, type BreakdownEditableHabit } from '../utils/breakdown-suggestion'
 
-export type BreakdownDraftHabit = BreakdownEditableHabit & { id: string }
+export type BreakdownDraftHabit = BreakdownEditableHabit & { id: string; proposed: boolean }
 export type BreakdownItemResult = 'done' | 'failed' | undefined
 
+export function createBreakdownDraft(id: string, source?: SuggestedSubHabit): BreakdownDraftHabit {
+  return {
+    id,
+    proposed: source !== undefined,
+    title: source?.title ?? '',
+    description: source?.description ?? '',
+    frequencyUnit: source?.frequencyUnit ?? null,
+    frequencyQuantity: source?.frequencyQuantity ?? null,
+    days: source?.days ?? null,
+    isBadHabit: source?.isBadHabit ?? false,
+    dueDate: source?.dueDate ?? null,
+    checklistItems: source?.checklistItems ?? null,
+  }
+}
+
 export function createBreakdownDrafts(subHabits: readonly SuggestedSubHabit[]): BreakdownDraftHabit[] {
-  return subHabits.map((habit, index) => ({
-    id: `proposal-${index}`,
-    title: habit.title,
-    description: habit.description ?? '',
-    frequencyUnit: habit.frequencyUnit ?? null,
-    frequencyQuantity: habit.frequencyQuantity ?? null,
-    days: habit.days ?? null,
-    isBadHabit: habit.isBadHabit ?? false,
-    dueDate: habit.dueDate ?? null,
-    checklistItems: habit.checklistItems ?? null,
-  }))
+  return subHabits.map((habit, index) => createBreakdownDraft(`proposal-${index}`, habit))
 }
 
 export function editBreakdownTitle(habits: BreakdownDraftHabit[], id: string, title: string): BreakdownDraftHabit[] {
@@ -33,11 +38,14 @@ export function mergeBreakdownResults(
   results: Record<string, BreakdownItemResult>,
   selected: BreakdownDraftHabit[],
   response: BulkCreateResponse,
+  createAsParent = false,
 ): Record<string, BreakdownItemResult> {
   const nextResults = { ...results }
   response.results.forEach((result) => {
-    const habit = selected[result.index]
-    if (habit) nextResults[habit.id] = result.status === 'Success' ? 'done' : 'failed'
+    const affected = createAsParent ? (result.index === 0 ? selected : []) : selected.slice(result.index, result.index + 1)
+    affected.forEach((habit) => {
+      nextResults[habit.id] = result.status === 'Success' ? 'done' : 'failed'
+    })
   })
   return nextResults
 }
