@@ -79,13 +79,18 @@ describe('notification-actions', () => {
   })
 
   it.each([
-    '/streak',
-    '/achievements?earned=latest',
-    '/insights?range=year',
-    '/goals/legacy-detail',
-    '/retrospective/year',
-  ])('resolves the absorbed route %s to Progresso', (url) => {
-    expect(resolveNotificationUrl(url)).toBe('/progress')
+    ['/progress', '/progress'],
+    ['/progress?source=push#bank', '/progress?source=push#bank'],
+    ['/progress/streak', '/progress/streak'],
+    ['/progress/goals?status=Active', '/progress/goals?status=Active'],
+    ['/progress/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/streak?source=push#bank', '/progress/streak?source=push#bank'],
+    ['/achievements?earned=latest', '/progress/achievements?earned=latest'],
+    ['/insights?range=year', '/progress?range=year'],
+    ['/goals/legacy-detail?status=Active#goal-1', '/progress/goals?status=Active#goal-1'],
+    ['/retrospective/year', '/progress'],
+  ])('resolves the progress route %s to its owning screen', (url, expected) => {
+    expect(resolveNotificationUrl(url)).toBe(expected)
   })
 
   it('preserves current notification routes', () => {

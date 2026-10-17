@@ -66,11 +66,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
         expect(profileInset).toEqual({ column: width < 1024 ? 100 : 32, scroller: width < 1024 ? 100 : 0 })
 
         await page.goto('/progress')
-        const streak = page.getByRole('region', { name: words.progressScreen.sections.streak, exact: true })
-        await expect(streak).toBeVisible()
+        const overview = page.getByRole('region', { name: words.progressScreen.sections.window, exact: true })
+        await expect(overview).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
-        expect(await measureTopInset(streak)).toEqual({ column: width < 1024 ? 120 : 48, scroller: width < 1024 ? 120 : 16 })
+        expect(await measureTopInset(overview)).toEqual({ column: width < 1024 ? 88 : 48, scroller: width < 1024 ? 88 : 16 })
       })
     })
   }

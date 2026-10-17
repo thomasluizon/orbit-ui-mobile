@@ -13,10 +13,10 @@ describe('legacy Progresso routes', () => {
     },
   )
 
-  it('redirects saved streak links through the Next.js route table', () => {
+  it.each(['streak', 'goals', 'achievements'])('redirects saved %s links through the Next.js route table', (section) => {
     expect(getLegacyRedirects()).toContainEqual({
-      source: '/streak',
-      destination: '/progress',
+      source: `/${section}`,
+      destination: `/progress/${section}`,
       permanent: true,
     })
   })

@@ -14,13 +14,16 @@ describe('legacy Progresso routes', () => {
   )
 
   it.each([
-    '/streak',
-    '/streak?source=saved',
-    'orbit://streak',
-    'orbit:///streak',
-    'https://app.useorbit.org/streak',
-  ])('redirects the saved streak link %s to Progresso', (path) => {
-    expect(redirectSystemPath({ path, initial: true })).toBe('/progress')
+    ['/streak', '/progress/streak'],
+    ['/streak?source=saved#freezes', '/progress/streak?source=saved#freezes'],
+    ['orbit://streak', '/progress/streak'],
+    ['orbit:///streak', '/progress/streak'],
+    ['https://app.useorbit.org/streak?source=saved#freezes', '/progress/streak?source=saved#freezes'],
+    ['orbit-staging://streak?source=saved#freezes', '/progress/streak?source=saved#freezes'],
+    ['/achievements?earned=latest#first', '/progress/achievements?earned=latest#first'],
+    ['/goals?status=Active#goal-1', '/progress/goals?status=Active#goal-1'],
+  ])('redirects the saved link %s to its detail', (path, destination) => {
+    expect(redirectSystemPath({ path, initial: true })).toBe(destination)
   })
 
   it('does not retain the replaced standalone goal list components', () => {

@@ -1,11 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
-import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
@@ -13,22 +10,12 @@ import { measureScrollbarGutter } from './scrollbar-geometry'
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const calendarMonth = calendarMonthResponseSchema.parse({ habits: [], logs: {} })
-const goals = paginatedGoalResponseSchema.parse(emptyGoalsPageFixture)
-const overflowingGoals = paginatedGoalResponseSchema.parse({
-  ...emptyGoalsPageFixture,
-  items: Array.from({ length: 40 }, (_, index) => createMockGoal({
-    id: `goal-${index}`, title: `Livro ${index + 1}`, position: index,
-  })),
-  totalCount: 40,
-})
-
-async function waitForRoot(page: Page, root: string, words: typeof en | typeof ptBR, content: 'short' | 'long' = 'short') {
+async function waitForRoot(page: Page, root: string) {
   if (root === '/calendar') {
     await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
     await expect(page.getByTestId('calendar-grid').getByRole('progressbar')).toHaveCount(0)
   } else if (root === '/progress') {
-    if (content === 'short') await expect(page.getByText(words.progressScreen.goals.empty, { exact: true })).toBeVisible()
-    else await expect(page.locator('[data-goal-id]')).toHaveCount(overflowingGoals.items.length)
+    await expect(page.locator('a[href="/progress/goals"]')).toBeVisible()
   } else if (root === '/profile') {
     await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
   }
@@ -63,10 +50,7 @@ test.beforeEach(async ({ context }) => {
     (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
     (route) => route.fulfill({ json: calendarMonth }),
   )
-  await context.route(
-    (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
-    (route) => route.fulfill({ json: goals }),
-  )
+
 })
 
 for (const locale of ['en', 'pt-BR'] as const) {
@@ -78,16 +62,13 @@ for (const locale of ['en', 'pt-BR'] as const) {
       const words = locale === 'pt-BR' ? ptBR : en
 
       for (const content of width < 1024 ? ['short', 'long'] as const : ['short'] as const) {
-        test(`aligns every root to Hoje with ${content} content and opens Avisos`, async ({ page, context }) => {
-          if (content === 'long') await context.route(
-            (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
-            (route) => route.fulfill({ json: overflowingGoals }),
-          )
+        test(`aligns every root to Hoje with ${content} content and opens Avisos`, async ({ page }) => {
+          await page.setViewportSize({ width, height: content === 'long' ? 480 : 915 })
           let today: Awaited<ReturnType<typeof measureBell>> | undefined
           const rootOverflow = new Map<string, boolean>()
           for (const root of ['/', '/calendar', '/progress', '/profile']) {
             await page.goto(root)
-            await waitForRoot(page, root, words, content)
+            await waitForRoot(page, root)
             const row = root === '/' ? page.locator('[data-today-header-actions]')
               : root === '/calendar' ? page.getByTestId('calendar-shell-header')
                 : page.locator('[data-root-notification-header]')
@@ -145,7 +126,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         for (const root of ['/', '/calendar', '/progress', '/profile']) {
           await page.setViewportSize({ width: 1023, height: 915 })
           await page.goto(root)
-          await waitForRoot(page, root, words)
+          await waitForRoot(page, root)
           await expect(page.locator('[data-shell-tab-bar]')).toBeVisible()
           const bells = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
           await expect(bells).toHaveCount(1)

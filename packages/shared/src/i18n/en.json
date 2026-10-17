@@ -1204,6 +1204,7 @@
     }
   },
   "chat": {
+    "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
     "offline": {
       "title": "You’re offline"
@@ -2988,6 +2989,7 @@
     }
   },
   "progressScreen": {
+    "back": "Back to Progress",
     "title": "Progress",
     "loading": "Loading your progress",
     "error": "We could not load your progress. Check the connection and try again.",
@@ -3080,6 +3082,8 @@
       "lockedAction": "See Orbit Pro"
     },
     "achievements": {
+      "emptyAction": "View habits",
+      "destination": "Level and XP",
       "empty": "Log habits to earn them",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progress to the next level",
