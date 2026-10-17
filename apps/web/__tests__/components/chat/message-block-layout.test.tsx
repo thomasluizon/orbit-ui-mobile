@@ -43,6 +43,68 @@ describe('Astra block layout in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 1352])('aligns the first Astra avatar and every reply block at %s', async width => {
+    const scenario = chatBlockLayoutCases[0]!
+    const messages = [
+      makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
+      makeChatBlockLayoutMessage(scenario, false),
+      makeHeldHabitMessage({ id: 'person', role: 'user', content: 'My reply.', pendingOperations: [] }),
+      { ...makeChatBlockLayoutMessage(scenario, false), id: 'next-turn' },
+      makeHeldHabitMessage({ id: 'continuation', content: 'Another reply.', pendingOperations: [] }),
+    ]
+    const chat = {
+      threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages,
+      activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
+      confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
+      scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+        words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send,
+          actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
+      },
+    } as unknown as ChatController
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={chat} /></div>
+    </NextIntlClientProvider>)
+    const turns = [...container.querySelectorAll('article')]
+    expect(turns.map(turn => turn.querySelectorAll('[data-astra-avatar]').length)).toEqual([1, 0, 0, 1, 0])
+    for (const turn of [turns[0]!, turns[3]!]) {
+      expect(turn.querySelector('[data-astra-avatar]')).toHaveAttribute('aria-hidden', 'true')
+      expect(turn.querySelector('[data-astra-avatar] svg')).toHaveAttribute('data-asset', 'astra-mark')
+    }
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
+      await loadAppFonts(page)
+      const geometry = await page.getByRole('article').evaluateAll(turns => turns.map(turn => {
+        const rect = (element: Element) => {
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right, top: bounds.top, width: bounds.width, height: bounds.height }
+        }
+        const avatar = turn.querySelector('[data-astra-avatar]')
+        const content = turn.querySelector('[data-bubble-role], section[data-state]')!
+        return { turn: rect(turn), avatar: avatar ? rect(avatar) : null, content: rect(content),
+          blocks: [...turn.querySelectorAll('section[data-state]')].map(rect),
+          color: avatar ? getComputedStyle(avatar.querySelector('svg')!).color : null,
+          textColor: getComputedStyle(content).color }
+      }))
+      for (const index of [0, 1, 3, 4]) {
+        const reply = geometry[index]!
+        expect(reply.content.left - reply.turn.left).toBeCloseTo(32, 1)
+        for (const block of reply.blocks) {
+          expect(block.left).toBeCloseTo(reply.content.left, 1)
+          expect(block.right).toBeCloseTo(reply.turn.right, 1)
+        }
+        if (reply.avatar) {
+          expect(reply.avatar.width).toBe(24)
+          expect(reply.avatar.height).toBe(24)
+          expect(reply.avatar.left).toBeCloseTo(reply.turn.left, 1)
+          expect(reply.avatar.top).toBeCloseTo(reply.content.top, 1)
+          expect(reply.color).toBe(reply.textColor)
+        }
+      }
+      expect(geometry[2]!.content.right).toBeCloseTo(geometry[2]!.turn.right, 1)
+    } finally { await page.close() }
+  })
+
   it.each([320, 412, 1352])('keeps three replies and a sent message natively selectable at %s', async width => {
     const contents = ['First reply.', 'Second **reply** with a [link](https://example.com).', 'Third reply with `code`.', 'My sent message.']
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
@@ -165,12 +227,12 @@ describe('Astra block layout in Chromium', () => {
       expect.soft(geometry.turn.top - geometry.previousProse.bottom).toBeCloseTo(16, 1)
       expect.soft(geometry.blocks[0]!.top - (geometry.currentProse?.bottom ?? geometry.previousProse.bottom)).toBeCloseTo(16, 1)
       for (const [index, block] of geometry.blocks.entries()) {
-        expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
+        expect.soft(block.left).toBeCloseTo(geometry.composer.left + 32, 1)
         expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)
         expect.soft(block.right).toBeCloseTo(geometry.chips.right, 1)
         if (index > 0) expect.soft(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)
       }
-      if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThan(geometry.blocks[0]!.width)
+      if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThanOrEqual(geometry.blocks[0]!.width)
     } finally { await page.close() }
   })
 })

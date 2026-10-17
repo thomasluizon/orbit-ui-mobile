@@ -44,5 +44,20 @@ export function createStyles(tokens: Tokens) {
       padding: 16,
       gap: 16,
     },
+    messageRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    avatarColumn: {
+      width: 24,
+      height: 24,
+      flexShrink: 0,
+    },
+    messageContent: {
+      flex: 1,
+      minWidth: 0,
+      gap: 16,
+    },
   });
 }

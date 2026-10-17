@@ -14,6 +14,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { ChevronDown, X } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
@@ -235,8 +236,12 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-labelledby={`${senderIdPrefix}-${msg.id}`}
             aria-posinset={index + 1}
             aria-setsize={messages.length}
-            className="flex min-w-0 flex-col gap-[16px]"
+            className="flex min-w-0 items-start gap-2"
           >
+          {msg.role === 'ai' ? <span aria-hidden="true" className="block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar={messages[index - 1]?.role !== 'ai' ? '' : undefined}>
+            {messages[index - 1]?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
+          </span> : null}
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
@@ -253,6 +258,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           />
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+          </div>
           </article>
         ))}
         {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}

@@ -1,6 +1,6 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
-import { FlatList, View, type FlatListProps } from 'react-native'
+import { FlatList, Text, View, type FlatListProps } from 'react-native'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
@@ -21,7 +21,7 @@ vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayClock: (value: string) => value }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
-vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <View>{children}</View> }))
+vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <Text style={{ fontSize: 16, lineHeight: 24 }}>{children}</Text> }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
@@ -33,6 +33,60 @@ const cases = [412, 600, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =
 afterEach(async () => {
   __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
   await i18n.changeLanguage('en')
+})
+
+it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks at %s', async width => {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  const messages = [
+    makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
+    makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false),
+    makeHeldHabitMessage({ id: 'person', role: 'user', content: 'My reply.', pendingOperations: [] }),
+    { ...makeChatBlockLayoutMessage(chatBlockLayoutCases[0]!, false), id: 'next-turn' },
+    makeHeldHabitMessage({ id: 'continuation', content: 'Another reply.', pendingOperations: [] }),
+  ]
+  const chat = {
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages,
+    activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
+    confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
+    scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
+  } as unknown as ChatController
+  let conversation!: GeometryTree
+  let feed!: GeometryTree
+  await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+  try {
+    const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+    const items = Array.from(list.data!)
+    await renderer.act(() => { feed = renderer.create(<View style={list.contentContainerStyle}>
+      {items.map((item, index) => <View key={item.id} testID={`turn-${index}`}>
+        {list.renderItem!({ item, index, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}
+      </View>)}
+    </View>) as GeometryTree })
+    const turns = items.map((_, index) => feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === `turn-${index}`)[0]!)
+    expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length)).toEqual([1, 0, 0, 1, 0])
+    let avatarIndex = 0
+    let proseIndex = 0
+    let blockIndex = 0
+    const geometry = measureSafeArea(feed.toJSON(), host => {
+      if (host.props.testID?.startsWith('turn-')) return host.props.testID
+      if (host.props.testID === 'astra-avatar') return `avatar-${avatarIndex++}`
+      if (host.props.testID === 'message-prose') return `prose-${proseIndex++}`
+      if (host.props.testID === 'block-frame-resting') return `block-${blockIndex++}`
+    }, { width, height: 30000 })
+    for (const [avatar, turn] of [[0, 0], [1, 3]]) {
+      const mark = geometry.get(`avatar-${avatar}`)!
+      expect(mark.left).toBe(geometry.get(`turn-${turn}`)!.left)
+      expect(mark.width).toBe(24)
+      expect(mark.bottom - mark.top).toBe(24)
+    }
+    for (const key of ['prose-0', 'prose-2', 'block-0', 'block-1', 'block-2', 'block-3']) {
+      expect(geometry.get(key)!.left).toBe(48)
+    }
+    expect(geometry.get('avatar-0')!.top).toBe(geometry.get('prose-0')!.top)
+    expect(geometry.get('avatar-1')!.top).toBe(geometry.get('block-2')!.top)
+    expect(geometry.get('block-0')!.width).toBe(width - 64)
+  } finally {
+    await renderer.act(() => { feed.unmount(); conversation.unmount() })
+  }
 })
 
 it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', async ({ width, locale, scenario, prose }) => {
@@ -67,8 +121,8 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
     expect(geometry.get('block-0')!.top - currentProse.bottom).toBeCloseTo(16, 1)
     for (let index = 0; index < scenario.count; index++) {
       const block = geometry.get(`block-${index}`)!
-      expect(block.left).toBeCloseTo(16, 1)
-      expect(block.width).toBeCloseTo(width - 32, 1)
+      expect(block.left).toBeCloseTo(48, 1)
+      expect(block.width).toBeCloseTo(width - 64, 1)
       if (index > 0) expect(block.top - geometry.get(`block-${index - 1}`)!.bottom).toBeCloseTo(16, 1)
     }
   } finally {

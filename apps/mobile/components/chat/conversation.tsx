@@ -24,6 +24,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { AstraGlyph } from "@/components/ui/astra-glyph";
 import { MotionPressable } from "@/components/ui/motion-pressable";
 import { ChevronDown, X } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
@@ -186,8 +187,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, []);
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
-    ({ item }) => (
-      <View style={{ gap: 16 }}>
+    ({ item, index }) => (
+      <View style={styles.messageRow}>
+      {item.role === 'ai' ? <View testID={messages[index - 1]?.role !== 'ai' ? 'astra-avatar' : undefined} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatarColumn}>
+        {messages[index - 1]?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
+      </View> : null}
+      <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
@@ -203,6 +208,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       />
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+      </View>
       </View>
     ),
     [
@@ -221,6 +227,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       streamingMessageId,
       isTyping,
       verifyStepUpForBubble,
+      styles,
     ],
   );
 
