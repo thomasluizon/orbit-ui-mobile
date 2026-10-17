@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { join, sep } from "node:path"
 
 import { check, root, stage, T } from "./_harness.mjs"
@@ -74,16 +75,17 @@ export const cases = () => {
     { status: 0, stdout: /No dependency was edited in place/ },
   )
   T("archive verification leaves installed contents and mtimes untouched", JSON.stringify(snapshot()) === JSON.stringify(before))
-  for (const mutation of ["modified", "missing", "extra"]) {
+  for (const mutation of ["modified", "missing", "extra", "missing manifest"]) {
     const changed = stageLockedPackage(`locked-${mutation}`)
     if (mutation === "modified") writeAt(join(changed.packageDirectory, "index.js"), "edited bytes\n", at(338))
     if (mutation === "missing") rmSync(join(changed.packageDirectory, "index.js"))
     if (mutation === "extra") writeAt(join(changed.packageDirectory, "extra.js"), "extra bytes\n", at(0))
+    if (mutation === "missing manifest") rmSync(join(changed.packageDirectory, "package.json"))
     check(
       TOOL,
       `${mutation} installed files fail locked archive comparison`,
       ["--root", changed.repository],
-      { status: 1, stderr: new RegExp(`${mutation}.*${mutation === "extra" ? "extra.js" : "index.js"}`) },
+      { status: 1, stderr: mutation === "missing manifest" ? /missing:.*package\.json/ : new RegExp(`${mutation}.*${mutation === "extra" ? "extra.js" : "index.js"}`) },
     )
   }
 
@@ -141,6 +143,14 @@ globalThis.fetch = async (url, options) => {
       ARCHIVE_FIXTURE: archivePath, ARCHIVE_STATUS: String(status),
     } })
   }
+
+  const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+  const alternateArchive = join(slow.repository, "alternate.tgz")
+  tar.c({ file: alternateArchive, cwd: slow.repository, gzip: true, sync: true }, ["published"])
+  locked.resolved = "file:alternate.tgz"
+  locked.integrity = `sha512-${createHash("sha512").update(readFileSync(alternateArchive)).digest("base64")}`
+  rewriteLock()
+  check(TOOL, "archive roots are stripped like npm extraction", ["--root", slow.repository], { status: 0 })
 
   const clean = stageTree("clean")
   stagePackage(clean.nodeModules, "react-native", { "index.js": 0, "src/deep/flags.kt": 90 })

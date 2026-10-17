@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto"
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join, relative, resolve, sep } from "node:path"
@@ -101,20 +101,27 @@ function collectPackageFiles(directory, collected, installed = true) {
 }
 
 function scanPackage(packageDirectory) {
+  let missingManifest = false
   try {
     statSync(join(packageDirectory, "package.json"))
   } catch {
-    /** No package.json means this directory is not an installed package, so it is not judged. */
-    return
+    try {
+      /** A locked package remains installed content even when its manifest has been removed. */
+      if (!findLockedArchive(packageDirectory)) return
+      missingManifest = true
+    } catch (error) {
+      findings.push({ path: packageDirectory, packageDirectory, reason: `could not read package lock: ${error.message}` })
+      return
+    }
   }
   packagesScanned += 1
   const collected = []
   collectPackageFiles(packageDirectory, collected)
-  if (collected.length === 0) return
-  let extractedAtMs = collected[0].modifiedAtMs
+  if (collected.length === 0 && !missingManifest) return
+  let extractedAtMs = collected.length > 0 ? collected[0].modifiedAtMs : 0
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
   const lateFiles = collected.filter((file) => file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000)
-  if (lateFiles.length > 0) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
+  if (missingManifest || lateFiles.length > 0) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
 }
 
 function findLockedArchive(packageDirectory) {
@@ -124,7 +131,7 @@ function findLockedArchive(packageDirectory) {
       if (!lockfiles.has(lockPath)) lockfiles.set(lockPath, JSON.parse(readFileSync(lockPath, "utf8")))
       const packagePath = relative(directory, packageDirectory).split(sep).join("/")
       const locked = lockfiles.get(lockPath).packages?.[packagePath]
-      if (locked?.resolved && locked.integrity) return { directory, ...locked }
+      if (locked?.resolved && locked.integrity) return { directory, resolved: locked.resolved, integrity: locked.integrity }
     }
     if (dirname(directory) === directory) return null
   }
@@ -155,17 +162,19 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
   const scratch = mkdtempSync(join(tmpdir(), "dependency-archive-"))
   try {
     const archivePath = join(scratch, "package.tgz")
+    const unpacked = join(scratch, "contents")
+    mkdirSync(unpacked)
     writeFileSync(archivePath, archive)
     /** Reuse the archive reader shipped with the existing web dependency. */
     const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
-    await tar.x({ file: archivePath, cwd: scratch, strict: true })
+    await tar.x({ file: archivePath, cwd: unpacked, strip: 1, strict: true })
     const expected = []
-    collectPackageFiles(join(scratch, "package"), expected, false)
+    collectPackageFiles(unpacked, expected, false)
     if (expected.length === 0) throw new Error("locked archive contains no regular package files")
     const installed = new Set(collected.map((file) => relative(packageDirectory, file.path)))
     const differences = []
     for (const file of expected) {
-      const name = relative(join(scratch, "package"), file.path)
+      const name = relative(unpacked, file.path)
       const path = join(packageDirectory, name)
       if (!installed.delete(name)) differences.push({ path, packageDirectory, reason: "missing" })
       else if (!readFileSync(path).equals(readFileSync(file.path))) differences.push({ path, packageDirectory, reason: "modified" })
