@@ -2982,6 +2982,13 @@
     "linkedHabits": "Linked habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
+      "title": "Forecast",
+      "projectedCompletion": "Projected completion",
+      "velocity": "Daily pace",
+      "daysToDeadline": "Days to deadline",
+      "noData": "No data",
+      "dailyPace": "{value} {unit}/day",
+      "weeklyAdherence": "Weekly rate: {percent}%",
       "onTrack": "On track",
       "atRisk": "At risk",
       "behind": "Behind schedule",

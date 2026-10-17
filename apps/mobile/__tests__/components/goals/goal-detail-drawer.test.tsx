@@ -47,7 +47,7 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
-let forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null as string | null, daysToDeadline: null as number | null }
+let forecastMetrics: Pick<GoalDetailWithMetrics['metrics'], 'velocityPerDay' | 'projectedCompletionDate' | 'daysToDeadline' | 'trackingStatus'> = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
 let detailLoading = false
 let detailLoadError = false
 let detailAvailable = true
@@ -141,7 +141,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, trackingStatus: forecastMetrics.daysToDeadline === null ? 'no_deadline' : 'on_track', habitAdherence } } : null,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, habitAdherence } } : null,
     isLoading: detailLoading,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -181,7 +181,7 @@ describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
-    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null }
+    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
     detailLoading = false
     detailLoadError = false
     detailAvailable = true
@@ -227,9 +227,9 @@ describe('GoalDetailDrawer', () => {
 
 
   it.each(['Standard', 'Streak'] as const)('shows the producer forecast for a %s goal', (type) => {
-    detailGoal = { ...listGoal, type, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
-    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25' }
-    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 }]
+    detailGoal = { ...listGoal, type, isProgressDerived: true, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25', trackingStatus: 'on_track' }
+    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 3 }]
     const tree = renderDrawer()
     const text = collectText(tree.toJSON())
     expect(text).toContain('goals.metrics.daysToDeadline13')
@@ -240,17 +240,19 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('keeps no-deadline and no-data forecasts explicit', () => {
+    detailGoal = { ...listGoal, currentValue: 0, progressPercentage: 0, progressHistory: [] }
     const tree = renderDrawer()
     const text = collectText(tree.toJSON())
     expect(text).toContain('goals.metrics.daysToDeadlinegoals.metrics.noDeadline')
     expect(text).toContain('goals.metrics.velocitygoals.metrics.noData')
     expect(text).toContain('goals.metrics.projectedCompletiongoals.metrics.noData')
-    expect(text).not.toContain('goals.metrics.habitAdherence')
+    expect(text).not.toContain('goals.metrics.weeklyAdherence')
     TestRenderer.act(() => tree.unmount())
   })
 
   it.each([0, -3])('preserves %s deadline days instead of treating them as missing', (daysToDeadline) => {
-    forecastMetrics = { ...forecastMetrics, daysToDeadline }
+    detailGoal = { ...listGoal, deadline: daysToDeadline === 0 ? '2025-01-07' : '2025-01-04', progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, projectedCompletionDate: '2025-01-25', daysToDeadline, trackingStatus: daysToDeadline === 0 ? 'at_risk' : 'behind' }
     const tree = renderDrawer()
     expect(collectText(tree.toJSON())).toContain(`goals.metrics.daysToDeadline${daysToDeadline}`)
     TestRenderer.act(() => tree.unmount())
@@ -420,8 +422,8 @@ describe('GoalDetailDrawer', () => {
       { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
     ]
     const tree = renderDrawer()
-    const readLabel = 'Read every night, goals.detail.linkedHabitStreak:{"count":12}'
-    const stretchLabel = 'Stretch, goals.detail.linkedHabitStreak:{"count":4}'
+    const readLabel = 'Read every night, goals.metrics.weeklyAdherence:{"percent":"90"}, goals.detail.linkedHabitStreak:{"count":12}'
+    const stretchLabel = 'Stretch, goals.metrics.weeklyAdherence:{"percent":"75"}, goals.detail.linkedHabitStreak:{"count":4}'
 
     expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":12}')
     expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":4}')
@@ -450,7 +452,7 @@ describe('GoalDetailDrawer', () => {
     sheetTestControls.defer(true)
     const tree = renderDrawer(onClose)
 
-    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+    press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
@@ -485,7 +487,7 @@ describe('GoalDetailDrawer', () => {
       )
     })
 
-    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+    press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
 
     expect(sheetTestControls.isDismissPending).toBe(false)
     expect(mockPush).toHaveBeenCalledOnce()
