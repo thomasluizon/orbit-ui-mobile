@@ -1,4 +1,5 @@
 import { ESLint, RuleTester } from 'eslint'
+import { setImmediate } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -86,7 +87,7 @@ describe('installed web configuration lifecycle', () => {
     const teardown = runHooks(integration.teardown)
       .then(() => { drained = true })
     try {
-      await Promise.resolve()
+      await setImmediate()
       expect(drained).toBe(false)
       expect(loading.completed()).toBe(false)
     } finally {
