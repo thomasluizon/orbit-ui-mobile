@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
 
 describe('chat thread scroll', () => {
+  it.each([587, undefined])('starts a new baseline when following resumes at offset %s', currentOffset => {
+    const scroll = createChatThreadScroll()
+    scroll.recordScroll(627, 627)
+    scroll.followLatest(currentOffset)
+    scroll.recordScroll(587, 627)
+    expect(scroll.isFollowing()).toBe(true)
+    scroll.recordScroll(560, 722)
+    expect(scroll.isFollowing()).toBe(false)
+  })
+
   it('stops following when small fractional upward steps leave the bottom', () => {
     const scroll = createChatThreadScroll()
     scroll.recordScroll(900, 900)

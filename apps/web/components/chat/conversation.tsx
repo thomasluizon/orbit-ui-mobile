@@ -110,7 +110,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     chatContainerRef.current = element
     if (!element) return
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
-    threadScroll.followLatest()
+    threadScroll.followLatest(element.scrollTop)
     if (!element.querySelector('article')) return
     element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
@@ -129,9 +129,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [chatContainerRef, scrollToBottom, threadScroll])
 
   const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
-    threadScroll.followLatest()
+    threadScroll.followLatest(chatContainerRef.current?.scrollTop)
     return trackOperation(operation)
-  }, [trackOperation, threadScroll])
+  }, [chatContainerRef, trackOperation, threadScroll])
 
   const senderIdPrefix = useId()
   const announcedMessageIds = useRef(new Set<string>())

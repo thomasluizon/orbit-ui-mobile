@@ -152,6 +152,7 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   await act(() => { listProps().onContentSizeChange?.(412, 1400) })
   scroll(900)
   start('clarification')
+  scroll(860)
   if (reading) scroll(100)
   scrollToEnd.mockClear()
   await act(async () => {

@@ -747,6 +747,7 @@ describe('mobile useChatComposer', () => {
     let send!: Promise<void>
     TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    composer.current.threadScroll.recordScroll(900, 900)
     composer.current.threadScroll.recordScroll(100, 900)
     TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":"First"}')))
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
