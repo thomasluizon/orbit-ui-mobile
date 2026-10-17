@@ -1,7 +1,16 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, fireEvent, act, cleanup } from '@testing-library/react'
+
+vi.mock('next-intl', () => ({ useTranslations: (namespace?: string) => (key: string) => namespace ? `${namespace}.${key}` : key }))
+
+afterEach(() => { cleanup(); vi.useRealTimers() })
 
 import { Markdown } from '@/components/ui/markdown'
+import { MessageBubble } from '@/components/chat/message-bubble'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 
 describe('Markdown', () => {
   it.each(['bare', 'linked'])('preserves hard breaks in an inline %s image label', (context) => {
@@ -211,5 +220,92 @@ describe('Markdown', () => {
     expect(container.querySelector('pre')?.textContent).toContain('command --flag=')
     expect(container.querySelector('table')).toHaveAttribute('tabindex', '0')
     expect(container.querySelector('table')?.textContent).toContain('two')
+  })
+})
+
+
+describe('Astra block copying', () => {
+  it.each([
+    ['```sh\nprintf "<tag> & café"  \n  next\n```', ['printf "<tag> & café"  \n  next']],
+    ['```\nfirst\n```\n\n    second', ['first', 'second']],
+    ['A paragraph and `inline code`.', []],
+  ])('copies only blocks in %s and confirms each independently', async (content, blocks) => {
+    vi.useFakeTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const { queryAllByRole, getAllByRole, container } = render(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content, pendingOperations: [] })} />)
+    const controls = queryAllByRole('button')
+    expect(controls).toHaveLength(blocks.length)
+    for (const [index, text] of blocks.entries()) {
+      await act(async () => { fireEvent.click(controls[index]!) })
+      expect(writeText).toHaveBeenLastCalledWith(text)
+      expect(controls[index]).toHaveAccessibleName('chat.blockCopy.copied')
+      expect(getAllByRole('status')[index]).toHaveTextContent('chat.blockCopy.copied')
+      for (const other of controls.filter((_, otherIndex) => otherIndex !== index)) expect(other).toHaveAccessibleName('chat.blockCopy.copy')
+      act(() => { vi.advanceTimersByTime(5000) })
+      expect(controls[index]).toHaveAccessibleName('chat.blockCopy.copy')
+      expect(getAllByRole('status')[index]).toBeEmptyDOMElement()
+    }
+    expect([...container.querySelectorAll('pre code')].map(node => node.textContent)).toEqual(blocks)
+  })
+
+  it('keeps ordinary markdown free of controls even with a block', () => {
+    const { queryAllByRole } = render(<Markdown content={'```\nprivate\n```'} />)
+    expect(queryAllByRole('button')).toHaveLength(0)
+  })
+
+  it('never gives user code blocks a control and keeps the text selectable', () => {
+    const { container, queryAllByRole } = render(<MessageBubble message={makeHeldHabitMessage({ role: 'user', content: '```\nprivate\n```', pendingOperations: [] })} />)
+    expect(queryAllByRole('button')).toHaveLength(0)
+    expect(container.querySelector('pre code')).toHaveTextContent('private')
+    expect(container.querySelector('[data-bubble-role="user"]')).toHaveClass('select-text')
+  })
+
+  it('preserves a copied block and keyboard focus when more reply prose streams in', async () => {
+    vi.useFakeTimers()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    const content = '```\nkeep me\n```\n\nA reply'
+    const { getByRole, rerender } = render(<Markdown content={content} copyableBlocks />)
+    const button = getByRole('button')
+    const region = getByRole('status')
+    button.focus()
+    await act(async () => { fireEvent.click(button) })
+    rerender(<Markdown content={`${content} that continues.`} copyableBlocks />)
+    expect(getByRole('button')).toBe(button)
+    expect(getByRole('status')).toBe(region)
+    expect(button).toHaveFocus()
+    expect(button).toHaveAccessibleName('chat.blockCopy.copied')
+    act(() => { button.blur() })
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copy')
+  })
+
+  it.each(['focus', 'hover'])('retains copied feedback during %s and resets after attention leaves', async (attention) => {
+    vi.useFakeTimers()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    const { getByRole } = render(<Markdown content={'```\nkeep me\n```'} copyableBlocks />)
+    const button = getByRole('button')
+    await act(async () => { fireEvent.click(button) })
+    if (attention === 'focus') act(() => { button.focus() })
+    else fireEvent.mouseEnter(button)
+    act(() => { vi.advanceTimersByTime(6000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copied')
+    expect(getByRole('status')).toHaveTextContent('chat.blockCopy.copied')
+    if (attention === 'focus') act(() => { button.blur() })
+    else fireEvent.mouseLeave(button)
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(button).toHaveAccessibleName('chat.blockCopy.copy')
+    expect(getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('announces a failed clipboard write without claiming success and permits retry', async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('denied')).mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const { getByRole } = render(<MessageBubble message={makeHeldHabitMessage({ role: 'ai', content: '```\nretry\n```', pendingOperations: [] })} />)
+    await act(async () => { fireEvent.click(getByRole('button')) })
+    expect(getByRole('button')).toHaveAccessibleName('chat.blockCopy.copy')
+    expect(getByRole('status')).toHaveTextContent('chat.blockCopy.copyError')
+    await act(async () => { fireEvent.click(getByRole('button')) })
+    expect(getByRole('status')).toHaveTextContent('chat.blockCopy.copied')
   })
 })

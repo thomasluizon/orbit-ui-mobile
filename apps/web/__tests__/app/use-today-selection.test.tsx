@@ -6,6 +6,7 @@ import { useTodaySelection } from '@/app/(app)/use-today-selection'
 
 const mocks = vi.hoisted(() => ({
   store: {
+    activeFilters: {},
     selectedHabitIds: new Set<string>(),
     toggleSelectionCascade: vi.fn(),
     selectAllHabits: vi.fn(),

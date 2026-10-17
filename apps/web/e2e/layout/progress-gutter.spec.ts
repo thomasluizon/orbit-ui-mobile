@@ -75,21 +75,21 @@ for (const width of [1352, 1100, 840, 412]) {
 
           await page.goto(panelOpen ? '/progress?astra=open' : '/progress')
           await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
-          const streak = page.getByRole('region', { name: messages.progressScreen.sections.streak, includeHidden: true })
+          const overview = page.getByRole('region', { name: messages.progressScreen.sections.window, includeHidden: true })
           if (panelOpen) {
             await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
             await expect(page.locator('[data-shell-scroller]')).toBeHidden()
             await page.getByRole('button', { name: messages.common.closeConversation }).click()
           }
-          await expect(streak).toBeVisible()
+          await expect(overview).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
-          const surfaces = [
-            streak,
-            page.getByRole('heading', { name: messages.progressScreen.sections.goals, exact: true, includeHidden: true }),
-            page.getByRole('heading', { name: messages.progressScreen.sections.window, exact: true, includeHidden: true }),
-            page.locator('[data-goal-id]').first(),
-          ]
-          for (const surface of surfaces) {
+          const overviewBounds = await readContentEdgesOnceStill(overview)
+          expect(overviewBounds.left).toBeCloseTo(today.left, 1)
+          expect(overviewBounds.right).toBeCloseTo(today.right, 1)
+          for (const destination of ['goals', 'streak'] as const) {
+            await page.goto(`/progress/${destination}`)
+            const surface = destination === 'goals' ? page.locator('[data-goal-id]').first() : page.getByRole('region', { name: messages.progressScreen.sections.streak })
+            await expect(surface).toBeVisible()
             const bounds = await readContentEdgesOnceStill(surface)
             expect(bounds.left).toBeCloseTo(today.left, 1)
             expect(bounds.right).toBeCloseTo(today.right, 1)

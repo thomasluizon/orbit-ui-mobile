@@ -9,11 +9,12 @@ import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import type { BulkCreateRequest } from '@orbit/shared/types/habit'
 import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
-import { AlertTriangle } from '@/components/ui/icons'
+import { AlertTriangle, Plus, X } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -28,22 +29,26 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: createHabits, onConfirmed })
+  const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
   if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
   const rows = card.habits.map((habit) => ({
     id: habit.id,
     wrapLabel: true,
-    label: card.editingId === habit.id ? <TypedTextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    label: card.editingId === habit.id || habit.title.trim() === '' ? <TypedTextInput autoFocus={card.editingId === habit.id} editable={!bulkCreate.isPending && !card.hasSubmitted} placeholder={t('habits.form.newHabit')} accessibilityLabel={t('chat.preview.editName', { name: habit.title.trim() || t('habits.form.newHabit') })} value={habit.title} onFocus={() => card.setEditingId(habit.id)} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: card.editingId === habit.id ? tokens.primary : tokens.borderControl, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={habit.proposed && card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],
-    proposed: card.results[habit.id] == null,
+    proposed: habit.proposed && card.results[habit.id] == null,
     irreversible: card.results[habit.id] == null,
     control: card.results[habit.id] == null ? (
-      <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
+      <><Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} disabled={bulkCreate.isPending || card.hasSubmitted} accessibilityState={{ disabled: bulkCreate.isPending || card.hasSubmitted }} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
+      {!card.hasSubmitted ? <Pressable accessibilityRole="button" accessibilityLabel={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('habits.form.newHabit') })} disabled={bulkCreate.isPending} accessibilityState={{ disabled: bulkCreate.isPending }} onPress={() => card.removeHabit(habit.id)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', padding: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><X accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} /></Pressable> : null}</>
     ) : undefined,
   }))
   return <><BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<>
+    <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.atCapacity && !card.hasSubmitted ? {} : { position: 'absolute', height: 0 }) }}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</Text>
+    <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ flexBasis: '100%', color: tokens.statusBadText, ...(card.createError ? {} : { position: 'absolute', height: 0 }) }}>{card.createError ? t(createErrorKey) : ''}</Text>
     {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
     {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-    {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
+    {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : card.hasSubmitted ? null : <><Button size="sm" variant="ghost" leadingIcon={<Plus accessible={false} size={16} color={tokens.fg1} />} disabled={bulkCreate.isPending || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
   </>} /><ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} /></>
 }

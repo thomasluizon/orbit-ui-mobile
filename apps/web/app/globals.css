@@ -538,6 +538,14 @@
   opacity: 0.4;
 }
 
+.orbit-menu-content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .orbit-menu-label {
   min-width: 0;
   flex: 1;
@@ -2021,7 +2029,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   background: var(--bg-elev);
 }
 
-[data-bubble-role] .prose-orbit > :last-child {
+[data-bubble-role] .prose-orbit > :last-child,
+[data-bubble-role] .prose-orbit > [data-prose-html]:last-child > :last-child {
   margin-bottom: 0;
 }
 
@@ -2364,4 +2373,27 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 @media (hover: hover) and (pointer: fine) {
   .orbit-day-target:hover .orbit-day-well { background: transparent; }
   .orbit-day-target:hover [data-press-fill] { opacity: 1; }
+}
+
+.prose-orbit [data-copyable-block] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.prose-orbit [data-copy-control] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+}
+.markdown-copy-error {
+  color: var(--status-bad-text);
+  font-size: var(--fs-sm);
+}
+.prose-orbit [data-copy-control] .orbit-pill-action:focus-visible {
+  outline: 2px solid var(--fg-1);
+  outline-offset: 2px;
 }
