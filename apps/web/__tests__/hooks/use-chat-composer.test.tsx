@@ -7,7 +7,8 @@ import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import { chatResponseSchema, type ChatResponse } from '@orbit/shared/types/chat'
+import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -480,6 +481,49 @@ describe('web useChatComposer streaming send', () => {
     useThrottleStore.getState().clear()
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it('holds the reading position when ordered final parts replace streaming text, including resize callbacks', async () => {
+    vi.useFakeTimers()
+    const resized: (() => void)[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { resized.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    const view = render(<AstraConversation chat={result.current} />)
+    const feed = screen.getByRole('feed')
+    Object.defineProperty(feed, 'scrollHeight', { value: 1400, configurable: true })
+    Object.defineProperty(feed, 'clientHeight', { value: 500 })
+    feed.scrollTop = 900
+    fireEvent.scroll(feed)
+    let sending!: Promise<void>
+    await act(async () => { sending = result.current.sendMessage('hello'); await Promise.resolve() })
+    await act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })))
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(feed.scrollTo).toHaveBeenCalled()
+    vi.mocked(feed.scrollTo).mockClear()
+    Object.defineProperty(feed, 'scrollHeight', { value: 2000, configurable: true })
+    await act(async () => {
+      stream.enqueue(finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await sending
+    })
+    view.rerender(<AstraConversation chat={result.current} />)
+    await act(async () => { resized.forEach(callback => callback()); await vi.advanceTimersByTimeAsync(100) })
+    expect(feed.scrollTo).not.toHaveBeenCalled()
+    expect(feed.scrollTop).toBe(900)
+    expect(feed.getAttribute('aria-busy')).toBe('false')
+    expect(feed.querySelectorAll('section[data-state]')).toHaveLength(2)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.sendMessage('another question'); await vi.advanceTimersByTimeAsync(100) })
+    expect(feed.scrollTo).toHaveBeenCalledWith({ top: 2000, behavior: 'smooth' })
+    view.unmount()
   })
 
   it('leaves earlier messages in place when a queued send and later stream reply settle, then resumes on another send', async () => {

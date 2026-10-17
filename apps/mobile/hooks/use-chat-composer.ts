@@ -453,6 +453,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const applyFinalResponse = useCallback(
     async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
+      if (draftMessageId && response.parts?.some(part => part?.type === 'block')) threadScroll.holdPosition();
       setIsTyping(false);
       activeStepsRef.current = [];
       setActiveSteps([]);
@@ -509,6 +510,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
+      threadScroll,
       updateMessage,
     ],
   );

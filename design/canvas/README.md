@@ -56,6 +56,8 @@ that disagrees with production is a trap rather than an authority.
 | Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
 
 Chromium unit geometry covers the first text offset and scroll position during final replacement.
+Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
+the reading position until the next send or a deliberate return to the bottom.
 Native component tests cover ordering and the existing spacing cases. Whole-page layout remains
 owned by the layout workflow, and native text geometry remains a device-verification boundary.
 

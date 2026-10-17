@@ -337,6 +337,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
+    if (draftMessageId && response.parts?.some(part => part?.type === 'block')) threadScroll.holdPosition()
     setIsTyping(false)
     activeStepsRef.current = []
     setActiveSteps([])
@@ -380,7 +381,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, updateMessage])
+  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, threadScroll, updateMessage])
 
   useEffect(() => {
     if (!draftHydrated) {
