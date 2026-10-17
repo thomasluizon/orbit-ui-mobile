@@ -1,13 +1,20 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
-import { readFileSync, readdirSync } from 'node:fs'
 
-const chromiumTests = readdirSync(path.resolve(__dirname, '__tests__'), { recursive: true })
-  .map(String)
-  .filter((file) => /\.test\.tsx?$/.test(file))
-  .map((file) => `__tests__/${file.split(path.sep).join('/')}`)
-  .filter((file) => /\bfrom\s+['"][^'"]*\/chromium['"]/.test(readFileSync(path.resolve(__dirname, file), 'utf8')))
+function findChromiumTests(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const filename = path.join(directory, name)
+    if (statSync(filename).isDirectory()) return findChromiumTests(filename)
+    if (!/\.test\.tsx?$/.test(name)) return []
+    const source = readFileSync(filename, 'utf8')
+    if (!/\bfrom\s+['"][^'"]*\/chromium['"]/.test(source)) return []
+    return [path.relative(__dirname, filename).split(path.sep).join('/')]
+  })
+}
+
+const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
   .sort((left, right) => left.localeCompare(right))
 
 export default defineConfig({
@@ -16,6 +23,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./__tests__/setup.ts'],
     globals: true,
+    /**
+     * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
+     * the whole machine, so together they oversubscribe the CPU and time out module-graph
+     * imports. The cap keeps the aggregate near one machine's worth. The cap alone still went
+     * red in 1 of 3 runs, so the margin over the 5s default covers the residual import cost.
+     */
     maxWorkers: '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
@@ -36,6 +49,7 @@ export default defineConfig({
           name: 'chromium',
           include: chromiumTests,
           maxWorkers: 1,
+          fileParallelism: false,
           sequence: { groupOrder: 2 },
         },
       },
