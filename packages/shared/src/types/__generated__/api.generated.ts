@@ -83,6 +83,19 @@ export const PostApiAdminMarketingBroadcastBody = zod.object({
 export const PostApiAdminMarketingBroadcastResponse = zod.void()
 
 
+export const GetApiAdminFeatureFlagsResponse = zod.unknown()
+
+
+export const PostApiAdminFeatureFlagsBody = zod.object({
+  "action": zod.string(),
+  "key": zod.string().nullish(),
+  "emails": zod.array(zod.string()).nullish(),
+  "description": zod.string().nullish()
+})
+
+export const PostApiAdminFeatureFlagsResponse = zod.unknown()
+
+
 export const GetApiAiCapabilitiesResponse = zod.unknown()
 
 
@@ -93,6 +106,74 @@ export const GetApiAiDataCatalogResponse = zod.unknown()
 
 
 export const GetApiAiSurfacesResponse = zod.unknown()
+
+
+export const PostApiAiPendingOperationsIdPreviewRefreshParams = zod.object({
+  "id": zod.uuid()
+})
+
+export const postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangesItemIsEditableDefault = false;
+export const postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangeTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoItemsItemFieldsItemIsEditableDefault = false;
+export const postApiAiPendingOperationsIdPreviewRefreshResponseCancelledDefault = false;
+
+export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
+  "isSuccess": zod.boolean(),
+  "error": zod.string().nullable(),
+  "pendingOperationId": zod.uuid().nullable(),
+  "preview": zod.union([zod.null(),zod.object({
+  "changes": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangesItemIsEditableDefault)
+})),
+  "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangeTargetCountRegExpTwo)]),
+  "items": zod.array(zod.object({
+  "itemId": zod.string(),
+  "entityId": zod.uuid().nullable(),
+  "entityName": zod.string(),
+  "fields": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoItemsItemFieldsItemIsEditableDefault)
+})),
+  "stateFingerprint": zod.string(),
+  "removesData": zod.boolean().nullish(),
+  "validationErrors": zod.array(zod.object({
+  "field": zod.string(),
+  "errorCode": zod.string(),
+  "error": zod.string()
+})).nullish()
+})).nullish(),
+  "previewFingerprint": zod.string().nullish()
+})]),
+  "cancelled": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponseCancelledDefault)
+})
+
+
+export const PostApiAiPendingOperationsIdReviseParams = zod.object({
+  "id": zod.uuid()
+})
+
+export const PostApiAiPendingOperationsIdReviseBody = zod.object({
+  "previewFingerprint": zod.string(),
+  "items": zod.array(zod.object({
+  "itemId": zod.string(),
+  "edits": zod.unknown().optional()
+}))
+})
+
+export const PostApiAiPendingOperationsIdReviseResponse = zod.unknown()
 
 
 export const PostApiAiPendingOperationsIdConfirmParams = zod.object({
@@ -322,7 +403,35 @@ export const PostApiAuthConfirmDeletionBody = zod.object({
 export const PostApiAuthConfirmDeletionResponse = zod.unknown()
 
 
-export const GetApiCalendarEventsResponse = zod.unknown()
+export const getApiCalendarEventsQueryIncludeImportedDefault = false;
+
+export const GetApiCalendarEventsQueryParams = zod.object({
+  "includeImported": zod.boolean().default(getApiCalendarEventsQueryIncludeImportedDefault)
+})
+
+export const getApiCalendarEventsResponseRemindersItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiCalendarEventsResponseCalendarIdDefault = ``;
+export const getApiCalendarEventsResponseCalendarNameDefault = ``;
+
+export const GetApiCalendarEventsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "startDate": zod.string().nullable(),
+  "startTime": zod.string().nullable(),
+  "endTime": zod.string().nullable(),
+  "isRecurring": zod.boolean(),
+  "recurrenceRule": zod.string().nullable(),
+  "reminders": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiCalendarEventsResponseRemindersItemRegExpTwo)])),
+  "startUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "calendarId": zod.string().default(getApiCalendarEventsResponseCalendarIdDefault),
+  "calendarName": zod.string().default(getApiCalendarEventsResponseCalendarNameDefault),
+  "endUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "recurrenceTimeZone": zod.string().nullish(),
+  "isImported": zod.boolean().nullish(),
+  "importedHabitId": zod.uuid().nullish()
+})
+export const GetApiCalendarEventsResponse = zod.array(GetApiCalendarEventsResponseItem)
 
 
 export const GetApiCalendarCalendarsResponse = zod.unknown()
@@ -414,6 +523,35 @@ export const GetApiChallengesChallengeIdParams = zod.object({
 export const GetApiChallengesChallengeIdResponse = zod.unknown()
 
 
+export const GetApiChatRecordsKindParams = zod.object({
+  "kind": zod.string()
+})
+
+export const GetApiChatRecordsKindQueryParams = zod.object({
+  "cursor": zod.string().optional()
+})
+
+export const getApiChatRecordsKindResponseTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiChatRecordsKindResponseItemsItemCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiChatRecordsKindResponse = zod.object({
+  "kind": zod.string(),
+  "totalCount": zod.union([zod.int(),zod.stringFormat('int32', getApiChatRecordsKindResponseTotalCountRegExpTwo)]),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "detail": zod.string().nullish(),
+  "date": zod.iso.datetime({"offset":true}).nullish(),
+  "isRead": zod.boolean().nullish(),
+  "count": zod.union([zod.int(),zod.stringFormat('int32', getApiChatRecordsKindResponseItemsItemCountRegExpTwo)]).nullish(),
+  "state": zod.string().nullish()
+})),
+  "surfaceId": zod.string().nullish(),
+  "nextCursor": zod.string().nullish()
+})
+
+
 export const PostApiChatBody = zod.object({
   "message": zod.string().optional()
 }).and(zod.object({
@@ -428,16 +566,60 @@ export const PostApiChatBody = zod.object({
 
 export const postApiChatResponseActionsItemSuggestedSubHabitsItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseActionsItemSuggestedSubHabitsItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePendingOperationsItemChangesItemIsEditableDefault = false;
+export const postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePendingOperationsItemItemsItemFieldsItemIsEditableDefault = false;
 export const postApiChatResponseHabitListTwoItemsItemDepthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseGoalListTwoItemsItemCurrentRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const postApiChatResponseGoalListTwoItemsItemTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiChatResponseGoalListTwoItemsItemProgressPercentageRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiChatResponseGoalListTwoItemsItemDaysToDeadlineRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoTotalCompletionsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoTotalScheduledRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoActiveDaysRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseMetricsCardTwoBestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
+export const postApiChatResponseMetricsCardTwoSeriesTwoPointsItemScheduledRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseMetricsCardTwoSeriesTwoPointsItemCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseMetricsCardTwoSeriesTwoPointsItemCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseMetricsCardTwoWeeklyCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiChatResponseMetricsCardTwoMonthlyCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
+export const postApiChatResponsePeriodInsightTwoCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoActiveDaysRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoPeriodDaysRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTotalCompletionsRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTotalScheduledRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoBestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTopHabitsItemCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTopHabitsItemCompletedCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTopHabitsItemScheduledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoTopHabitsItemIsOneTimeDefault = false;
+export const postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletedCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoNeedsAttentionItemScheduledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoNeedsAttentionItemIsOneTimeDefault = false;
+export const postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemScheduledRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemCompletedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePeriodInsightTwoSurfaceIdDefault = `progress`;
+export const postApiChatResponseDaySummaryTwoDueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseDaySummaryTwoDoneRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseDaySummaryTwoCompletionRateRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseDaySummaryTwoOverdueCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseDaySummaryTwoCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseDaySummaryTwoSurfaceIdDefault = `today`;
+export const postApiChatResponseStreakTwoCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseStreakTwoLongestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseStreakTwoLevelRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseStreakTwoTotalXpRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseStreakTwoXpForNextLevelRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseStreakTwoSurfaceIdDefault = `progress`;
+export const postApiChatResponseCalendarTwoSurfaceIdDefault = `calendar`;
+export const postApiChatResponseRecordListsItemTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseRecordListsItemItemsItemCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponseAccountRowsTwoSurfaceIdDefault = `profile`;
 
 export const PostApiChatResponse = zod.object({
   "aiMessage": zod.string().nullable(),
@@ -502,7 +684,42 @@ export const PostApiChatResponse = zod.object({
   "summary": zod.string(),
   "riskClass": zod.int(),
   "confirmationRequirement": zod.int(),
-  "expiresAtUtc": zod.iso.datetime({"offset":true})
+  "expiresAtUtc": zod.iso.datetime({"offset":true}),
+  "changes": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemChangesItemIsEditableDefault)
+})).nullish(),
+  "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo)]).nullish(),
+  "items": zod.array(zod.object({
+  "itemId": zod.string(),
+  "entityId": zod.uuid().nullable(),
+  "entityName": zod.string(),
+  "fields": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string(),
+  "proposedValue": zod.unknown().optional(),
+  "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemItemsItemFieldsItemIsEditableDefault)
+})),
+  "stateFingerprint": zod.string(),
+  "removesData": zod.boolean().nullish(),
+  "validationErrors": zod.array(zod.object({
+  "field": zod.string(),
+  "errorCode": zod.string(),
+  "error": zod.string()
+})).nullish()
+})).nullish(),
+  "previewFingerprint": zod.string().nullish(),
+  "actionKey": zod.string().nullish()
 })).nullish(),
   "policyDenials": zod.array(zod.object({
   "operationId": zod.string(),
@@ -532,7 +749,11 @@ export const PostApiChatResponse = zod.object({
   "current": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseGoalListTwoItemsItemCurrentRegExpTwo)]),
   "target": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseGoalListTwoItemsItemTargetRegExpTwo)]),
   "unit": zod.string(),
-  "deadline": zod.string().nullable()
+  "deadline": zod.string().nullable(),
+  "trackingStatus": zod.string().nullish(),
+  "progressPercentage": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseGoalListTwoItemsItemProgressPercentageRegExpTwo)]).nullish(),
+  "projectedCompletionDate": zod.string().nullish(),
+  "daysToDeadline": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseGoalListTwoItemsItemDaysToDeadlineRegExpTwo)]).nullish()
 }))
 })]).optional(),
   "metricsCard": zod.union([zod.null(),zod.object({
@@ -544,8 +765,143 @@ export const PostApiChatResponse = zod.object({
   "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoCurrentStreakRegExpTwo)]),
   "bestStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoBestStreakRegExpTwo)]),
   "hasData": zod.boolean(),
-  "surfaceId": zod.string()
-})]).optional()
+  "surfaceId": zod.string(),
+  "series": zod.union([zod.null(),zod.object({
+  "granularity": zod.string(),
+  "points": zod.array(zod.object({
+  "startDate": zod.iso.date(),
+  "endDate": zod.iso.date(),
+  "scheduled": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoSeriesTwoPointsItemScheduledRegExpTwo)]),
+  "completed": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoSeriesTwoPointsItemCompletedRegExpTwo)]),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoSeriesTwoPointsItemCompletionRateRegExpTwo)]).nullable()
+}))
+})]).optional(),
+  "topHabitName": zod.string().nullish(),
+  "topHabitEmoji": zod.string().nullish(),
+  "habitId": zod.uuid().nullish(),
+  "habitTitle": zod.string().nullish(),
+  "weeklyCompletionRate": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseMetricsCardTwoWeeklyCompletionRateRegExpTwo)]).nullish(),
+  "monthlyCompletionRate": zod.union([zod.number(),zod.stringFormat('double', postApiChatResponseMetricsCardTwoMonthlyCompletionRateRegExpTwo)]).nullish(),
+  "lastCompletedDate": zod.iso.date().nullish()
+})]).optional(),
+  "periodInsight": zod.union([zod.null(),zod.object({
+  "period": zod.string(),
+  "dateFrom": zod.iso.date(),
+  "dateTo": zod.iso.date(),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoCompletionRateRegExpTwo)]),
+  "activeDays": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoActiveDaysRegExpTwo)]),
+  "periodDays": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoPeriodDaysRegExpTwo)]),
+  "totalCompletions": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTotalCompletionsRegExpTwo)]),
+  "totalScheduled": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTotalScheduledRegExpTwo)]),
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoCurrentStreakRegExpTwo)]),
+  "bestStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoBestStreakRegExpTwo)]),
+  "topHabits": zod.array(zod.object({
+  "name": zod.string(),
+  "emoji": zod.string().nullable(),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemCompletionRateRegExpTwo)]),
+  "completedCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemCompletedCountRegExpTwo)]),
+  "scheduledCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemScheduledCountRegExpTwo)]),
+  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoTopHabitsItemIsOneTimeDefault),
+  "habitId": zod.uuid().nullish()
+})),
+  "needsAttention": zod.array(zod.object({
+  "name": zod.string(),
+  "emoji": zod.string().nullable(),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletionRateRegExpTwo)]),
+  "completedCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletedCountRegExpTwo)]),
+  "scheduledCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemScheduledCountRegExpTwo)]),
+  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoNeedsAttentionItemIsOneTimeDefault),
+  "habitId": zod.uuid().nullish()
+})),
+  "narrative": zod.object({
+  "highlights": zod.string(),
+  "missed": zod.string(),
+  "trends": zod.string(),
+  "suggestion": zod.string()
+}),
+  "series": zod.union([zod.null(),zod.object({
+  "granularity": zod.string(),
+  "points": zod.array(zod.object({
+  "startDate": zod.iso.date(),
+  "endDate": zod.iso.date(),
+  "scheduled": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemScheduledRegExpTwo)]),
+  "completed": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemCompletedRegExpTwo)]),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoSeriesTwoPointsItemCompletionRateRegExpTwo)]).nullable()
+}))
+})]),
+  "surfaceId": zod.string().default(postApiChatResponsePeriodInsightTwoSurfaceIdDefault)
+})]).optional(),
+  "daySummary": zod.union([zod.null(),zod.object({
+  "date": zod.iso.date(),
+  "due": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoDueRegExpTwo)]),
+  "done": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoDoneRegExpTwo)]),
+  "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoCompletionRateRegExpTwo)]).nullable(),
+  "overdueCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoOverdueCountRegExpTwo)]),
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoCurrentStreakRegExpTwo)]),
+  "surfaceId": zod.string().default(postApiChatResponseDaySummaryTwoSurfaceIdDefault)
+})]).optional(),
+  "streak": zod.union([zod.null(),zod.object({
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoCurrentStreakRegExpTwo)]),
+  "longestStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoLongestStreakRegExpTwo)]),
+  "level": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoLevelRegExpTwo)]),
+  "totalXp": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoTotalXpRegExpTwo)]),
+  "xpForNextLevel": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoXpForNextLevelRegExpTwo)]),
+  "lastActiveDate": zod.iso.date().nullable(),
+  "isFrozenToday": zod.boolean(),
+  "recentFreezeDates": zod.array(zod.iso.date()),
+  "recentAchievements": zod.array(zod.object({
+  "id": zod.string(),
+  "iconKey": zod.string(),
+  "earnedAt": zod.iso.datetime({"offset":true})
+})),
+  "surfaceId": zod.string().default(postApiChatResponseStreakTwoSurfaceIdDefault),
+  "achievementDiscs": zod.array(zod.object({
+  "id": zod.string(),
+  "iconKey": zod.string(),
+  "earnedAt": zod.iso.datetime({"offset":true}).nullable()
+})).nullish()
+})]).optional(),
+  "calendar": zod.union([zod.null(),zod.object({
+  "events": zod.array(zod.object({
+  "title": zod.string(),
+  "start": zod.string(),
+  "end": zod.string().nullable(),
+  "isAllDay": zod.boolean()
+})),
+  "sync": zod.union([zod.null(),zod.object({
+  "enabled": zod.boolean(),
+  "status": zod.string(),
+  "lastSyncedAt": zod.iso.datetime({"offset":true}).nullable()
+})]),
+  "surfaceId": zod.string().default(postApiChatResponseCalendarTwoSurfaceIdDefault)
+})]).optional(),
+  "recordLists": zod.array(zod.object({
+  "kind": zod.string(),
+  "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseRecordListsItemTotalCountRegExpTwo)]),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "detail": zod.string().nullish(),
+  "date": zod.iso.datetime({"offset":true}).nullish(),
+  "isRead": zod.boolean().nullish(),
+  "count": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseRecordListsItemItemsItemCountRegExpTwo)]).nullish(),
+  "state": zod.string().nullish()
+})),
+  "surfaceId": zod.string().nullish(),
+  "nextCursor": zod.string().nullish()
+})).nullish(),
+  "accountRows": zod.union([zod.null(),zod.object({
+  "kind": zod.string(),
+  "rows": zod.array(zod.object({
+  "key": zod.string(),
+  "value": zod.string().nullable(),
+  "valueType": zod.string()
+})),
+  "referralCode": zod.string().nullish(),
+  "referralLink": zod.string().nullish(),
+  "surfaceId": zod.string().default(postApiChatResponseAccountRowsTwoSurfaceIdDefault)
+})]).optional(),
+  "followUps": zod.array(zod.string()).nullish()
 })
 
 
@@ -1157,10 +1513,19 @@ export const PostApiHabitsIdSkipParams = zod.object({
 })
 
 export const PostApiHabitsIdSkipBody = zod.union([zod.null(),zod.object({
-  "date": zod.iso.date().nullish()
+  "date": zod.iso.date().nullish(),
+  "skipId": zod.uuid().nullish()
 })])
 
 export const PostApiHabitsIdSkipResponse = zod.void()
+
+
+export const PostApiHabitsIdSkipSkipIdUndoParams = zod.object({
+  "id": zod.uuid(),
+  "skipId": zod.uuid()
+})
+
+export const PostApiHabitsIdSkipSkipIdUndoResponse = zod.void()
 
 
 export const PutApiHabitsIdChecklistParams = zod.object({
@@ -1376,6 +1741,20 @@ export const PostApiMarketingUnsubscribeResponse = zod.unknown()
 export const GetApiNotificationsResponse = zod.unknown()
 
 
+export const getApiNotificationsSubscriptionsResponseMaxRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiNotificationsSubscriptionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.uuid(),
+  "transport": zod.string(),
+  "createdAtUtc": zod.iso.datetime({"offset":true}),
+  "endpointHash": zod.string()
+})),
+  "max": zod.union([zod.int(),zod.stringFormat('int32', getApiNotificationsSubscriptionsResponseMaxRegExpTwo)])
+})
+
+
 export const PutApiNotificationsIdReadParams = zod.object({
   "id": zod.uuid()
 })
@@ -1443,6 +1822,13 @@ export const GetOauthAuthorizeQueryParams = zod.object({
 })
 
 export const GetOauthAuthorizeResponse = zod.unknown()
+
+
+export const GetOauthAssetsNameParams = zod.object({
+  "name": zod.string()
+})
+
+export const GetOauthAssetsNameResponse = zod.unknown()
 
 
 export const postOauthSendCodeBodyLanguageDefault = `en`;
@@ -1514,6 +1900,8 @@ export const getApiProfileResponseLongestStreakRegExpTwo = new RegExp('^-?(?:0|[
 export const getApiProfileResponseStreakFreezesAvailableRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiProfileResponseUses24HourClockDefault = true;
 export const getApiProfileResponseProactiveAstraEnabledDefault = false;
+export const getApiProfileResponseActiveApiKeyCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
 
 export const GetApiProfileResponse = zod.object({
   "userId": zod.uuid(),
@@ -1570,7 +1958,8 @@ export const GetApiProfileResponse = zod.object({
 })]).optional(),
   "proactiveAstraEnabled": zod.boolean().default(getApiProfileResponseProactiveAstraEnabledDefault),
   "marketingEmailConsent": zod.boolean().nullish(),
-  "lastCompletionDate": zod.iso.date().nullish()
+  "lastCompletionDate": zod.iso.date().nullish(),
+  "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish()
 })
 
 
@@ -1624,6 +2013,13 @@ export const PutApiProfileWeekStartDayBody = zod.object({
 })
 
 export const PutApiProfileWeekStartDayResponse = zod.void()
+
+
+export const PutApiProfileClockFormatBody = zod.object({
+  "uses24HourClock": zod.boolean()
+})
+
+export const PutApiProfileClockFormatResponse = zod.void()
 
 
 export const PutApiProfileThemePreferenceBody = zod.object({
