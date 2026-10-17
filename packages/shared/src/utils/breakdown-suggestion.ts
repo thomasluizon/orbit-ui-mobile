@@ -1,3 +1,4 @@
+import { extractBackendErrorCode, extractBackendStatus, isPayGateError } from './error-utils'
 import type {
   BulkCreateRequest,
   BulkHabitItem,
@@ -61,7 +62,8 @@ function resolveBreakdownFrequencyQuantity(
 /**
  * Builds the bulk-create request for a chat breakdown suggestion. With
  * `createAsParent` the rows become sub-habits of a parent named after the
- * suggestion, inheriting the first row's frequency and the earliest due date.
+ * suggestion, using a recurring parent only when every child recurs so API
+ * inheritance preserves one-time children, and the earliest due date.
  */
 export function buildBreakdownCreateRequest(
   validHabits: readonly BreakdownEditableHabit[],
@@ -83,7 +85,9 @@ export function buildBreakdownCreateRequest(
     return { habits: subItems }
   }
 
-  const firstWithFrequency = validHabits.find((habit) => habit.frequencyUnit)
+  const firstWithFrequency = validHabits.every((habit) => habit.frequencyUnit)
+    ? validHabits[0]
+    : undefined
   const earliestDueDate =
     validHabits
       .map((habit) => habit.dueDate)
@@ -103,4 +107,8 @@ export function buildBreakdownCreateRequest(
       },
     ],
   }
+}
+
+export function isBreakdownNoWriteRejection(error: unknown): boolean {
+  return isPayGateError(error) || (extractBackendStatus(error) === 400 && extractBackendErrorCode(error) === 'HABIT_LIMIT_REACHED')
 }

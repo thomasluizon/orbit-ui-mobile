@@ -4,11 +4,11 @@ export default defineConfig({
   test: {
     include: ['__tests__/**/*.test.mjs'],
     /**
-     * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
-     * the whole machine, so together they oversubscribe the CPU and time out module-graph
-     * imports. The cap keeps the aggregate near one machine's worth.
+     * RuleTester files load parser graphs while the installed-config assertion loads web
+     * plugins. Run files serially so these imports do not compete within this suite when
+     * the other workspace verifications are active. Keep worker isolation between files.
      */
-    maxWorkers: '25%',
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

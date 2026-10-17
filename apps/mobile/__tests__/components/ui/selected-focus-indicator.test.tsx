@@ -6,7 +6,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { RadioRow } from '@/components/ui/select-check'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { buildHabitUnderstandingLabels, formatLocaleDate } from '@orbit/shared/utils'
+import { buildHabitUnderstandingLabels, formatLocaleDate, HOURS_24, MINUTES, padTimePart } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
 import { DateField } from '@/components/ui/date-field'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
@@ -106,11 +106,24 @@ function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, reuseMou
   }
 }
 
-it('TimeField options use one indicator with and without selection', () => {
+it.each([
+  ...HOURS_24.map((hour) => ['common.hours', padTimePart(hour), hour === 9] as const),
+  ...MINUTES.map((minute) => ['common.minutes', padTimePart(minute), minute === 0] as const),
+])('TimeField %s option %s uses one indicator, selected %s', (columnLabel, optionLabel, selected) => {
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" onChange={vi.fn()} />) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" hourCycle="h23" onChange={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
-  verifyAllChoices(tree, true)
+  const choice = () => tree!.root.findAllByType('View')
+    .find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === columnLabel)
+    .findAllByType('Pressable')
+    .find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === optionLabel)
+  expect(ringCount(choice())).toBe(selected ? 1 : 0)
+  const target = {}
+  const event = { target, currentTarget: target }
+  TestRenderer.act(() => choice().props.onFocus(event))
+  expect(ringCount(choice())).toBe(1)
+  TestRenderer.act(() => choice().props.onBlur(event))
+  expect(ringCount(choice())).toBe(choice().props.accessibilityState.checked ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
 })
 
