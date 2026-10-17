@@ -15,7 +15,7 @@ import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ push: vi.fn(), language: 'pt-BR', uses24HourClock: false }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({
   t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
   i18n: { language: mocks.language },
@@ -88,7 +88,7 @@ describe('Astra status cards on mobile', () => {
 
   it('shows ten events and no sync row when absent', () => {
     const tree = render(<CalendarCard calendarCard={{ events: Array.from({ length: 10 }, (_, index) => ({ title: `Event ${index}`, start: '2026-09-26', end: null, isAllDay: true })), surfaceId: 'calendar' }} />)
-    expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'card-row')).toHaveLength(10)
+    expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'event-row-all-day')).toHaveLength(10)
     expect(renderedText(tree.toJSON())).toContain('chat.calendarCard.allDay')
     expect(renderedText(tree.toJSON())).not.toContain('chat.calendarCard.sync')
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.calendarCard.open'))[0]
@@ -135,3 +135,11 @@ it('renders API streak, calendar and both record list blocks in the final messag
   expect(tree.root.findAllByType(CalendarCard)).toHaveLength(0)
   TestRenderer.act(() => tree.unmount())
 })
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }), useLogHabit: () => ({ mutate: vi.fn() }), useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

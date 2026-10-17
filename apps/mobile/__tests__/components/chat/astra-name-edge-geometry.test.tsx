@@ -18,7 +18,8 @@ import { measureProfileRow } from '../../support/profile-row-geometry'
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 const bulkCreate = vi.fn()
-vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }), useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 afterEach(__resetTestHostConfig)
 
@@ -99,3 +100,9 @@ describe('Astra name and metadata start edges on Android', () => {
     } finally { await act(() => tree.update(<></>)) }
   })
 })
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

@@ -1211,6 +1211,10 @@
     }
   },
   "chat": {
+    "liveBlock": {
+      "stale": "This block could not be updated. Reload to see the latest state.",
+      "error": "We could not update this block. Try again."
+    },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
     "offline": {
@@ -1423,7 +1427,8 @@
       "overdue": "Overdue",
       "streak": "Current streak",
       "ring": "{done} of {due} done today",
-      "open": "Open Today"
+      "open": "Open Today",
+      "rowCount": "{shown} of {total} habits shown"
     },
     "streakCard": {
       "title": "Your streak and XP",
@@ -1443,7 +1448,8 @@
         "TransientError": "Sync failed. Try again later",
         "disabled": "Sync is off"
       },
-      "open": "Open Calendar"
+      "open": "Open Calendar",
+      "makeHabit": "Make a habit from {title}"
     },
     "recordList": {
       "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },

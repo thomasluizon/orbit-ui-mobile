@@ -1,5 +1,7 @@
 'use client'
 
+import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
+
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useCalendars } from '@/hooks/use-calendars'
@@ -794,7 +796,7 @@ function CalendarPageContent({
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
-          initialEventId={initialImportEventId}
+          initialEventId={calendarImportInitialEventId(importRequested, searchParams.get('event'), initialImportEventId)}
           actionRef={importActionRef}
           onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}

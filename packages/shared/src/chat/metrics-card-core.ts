@@ -21,3 +21,18 @@ export function getMetricsRows(card: MetricsCard): readonly MetricsRow[] {
     { id: 'topHabit', labelKey: 'chat.metrics.topHabit', value: card.topHabitName ?? null },
   ]
 }
+
+export function metricsFigureLabelKey(id: string, labelKey: string): string {
+  const keys: Readonly<Record<string, string>> = {
+    completionRate: 'progressScreen.window.completionRate', activeDays: 'progressScreen.window.activeDays',
+    currentStreak: 'chat.streakCard.current', bestStreak: 'progressScreen.streak.longest',
+  }
+  return keys[id] ?? labelKey
+}
+
+export function liveMetricsCard(snapshot: MetricsCard, habit: import('../types/habit').HabitMetrics | undefined, retrospective: import('../utils/retrospective').RetrospectiveResponse | undefined): MetricsCard {
+  if (snapshot.habitId) return habit ? { ...snapshot, ...habit, bestStreak: habit.longestStreak } : snapshot
+  if (!retrospective) return snapshot
+  const metrics = retrospective.metrics
+  return { ...snapshot, ...metrics, hasData: metrics.totalScheduled > 0, series: metrics.completionSeries, topHabitName: metrics.topHabits[0]?.name }
+}

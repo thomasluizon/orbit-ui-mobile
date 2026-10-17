@@ -1,3 +1,4 @@
+import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { useCalendars } from '@/hooks/use-calendars';
 import { CalendarOptions } from './calendar/_components/calendar-options';
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
@@ -280,7 +281,7 @@ function CalendarScreenContent({
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, []));
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string; import?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; import?: string; event?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
   const { displayTime } = useTimeFormat();
@@ -856,7 +857,7 @@ function CalendarScreenContent({
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
-          initialEventId={initialImportEventId}
+          initialEventId={calendarImportInitialEventId(importRequested, params.event ?? null, initialImportEventId)}
           actionRef={importActionRef}
           onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}

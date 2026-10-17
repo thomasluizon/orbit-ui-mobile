@@ -32,8 +32,8 @@ describe('Astra metrics card on web', () => {
   it('renders overview rows, seven bars and the Progress chip', () => {
     const { container } = render(<MetricsCard metricsCard={overview} />)
     expect(container.querySelectorAll('[data-status]')).toHaveLength(0)
-    expect(screen.getByText('chat.metrics.completionRate')).toBeInTheDocument()
-    expect(screen.getByText('chat.metrics.daysLogged')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.window.completionRate')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.window.activeDays')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(7)
     expect(screen.getByRole('link', { name: 'chat.metrics.progressLink' })).toHaveAttribute('href', '/progress')
@@ -42,8 +42,8 @@ describe('Astra metrics card on web', () => {
   it('renders one habit with thirty bars and a habit chip', () => {
     const habitId = '92ca0543-c3e1-4f41-9370-c55e1bfa8157'
     const { container } = render(<MetricsCard metricsCard={{ ...overview, period: 'habit', habitId, habitTitle: 'Walk', monthlyCompletionRate: 60, series: series(30) }} />)
-    expect(screen.getByText('chat.metrics.currentStreak')).toBeInTheDocument()
-    expect(screen.getByText('chat.metrics.longestStreak')).toBeInTheDocument()
+    expect(screen.getByText('chat.streakCard.current')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.monthlyRate')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(30)
     expect(screen.getByRole('link', { name: 'chat.metrics.habitLink' })).toHaveAttribute('href', `/habits/${habitId}`)
@@ -89,3 +89,11 @@ describe('Astra metrics card on web', () => {
 
   })
 })
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }), useLogHabit: () => ({ mutate: vi.fn() }), useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

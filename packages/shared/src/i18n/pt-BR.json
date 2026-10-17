@@ -1211,6 +1211,10 @@
     }
   },
   "chat": {
+    "liveBlock": {
+      "stale": "Não foi possível atualizar este bloco. Recarregue para ver como está agora.",
+      "error": "Não foi possível atualizar este bloco. Tente de novo."
+    },
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
     "title": "Astra",
     "offline": {
@@ -1423,7 +1427,8 @@
       "overdue": "Atrasados",
       "streak": "Sequência atual",
       "ring": "{done} de {due} concluídos hoje",
-      "open": "Abrir Hoje"
+      "open": "Abrir Hoje",
+      "rowCount": "{shown} de {total} hábitos exibidos"
     },
     "streakCard": {
       "title": "Sua sequência e XP",
@@ -1443,7 +1448,8 @@
         "TransientError": "Falha na sincronização. Tente mais tarde",
         "disabled": "Sincronização desativada"
       },
-      "open": "Abrir Calendário"
+      "open": "Abrir Calendário",
+      "makeHabit": "Criar hábito a partir de {title}"
     },
     "recordList": {
       "title": { "notifications": "Avisos", "tags": "Tags", "templates": "Modelos de checklist", "keys": "Chaves de API" },

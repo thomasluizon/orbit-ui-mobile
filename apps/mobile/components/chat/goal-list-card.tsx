@@ -9,14 +9,15 @@ import { Text, View } from 'react-native'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
-import { ProgressRing } from '@/components/ui/progress-ring'
-import { StatusRing } from '@/components/ui/status-ring'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { useGoals } from '@/hooks/use-goals'
+import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import { Button } from '@/components/ui/pill-button'
 import { Badge } from '@/components/ui/badge'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function percentage(item: GoalListCardItem): number {
+function percentage(item: Pick<GoalListCardItem, 'current' | 'target'>): number {
   return item.target <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
 }
 
@@ -39,7 +40,13 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const items = goalList.items.map((item) => {
+  const goals = useGoals()
+  const missing = goals.data != null && goalList.items.some((item) => !goals.data.goalsById.has(item.id))
+  const frameState = liveBlockState(goals, { stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void goals.refetch() } })
+  const items = goalList.items.map((snapshot) => {
+    const live = goals.data?.goalsById.get(snapshot.id)
+    const item = live ? { ...snapshot, title: live.title, current: live.currentValue, target: live.targetValue, unit: live.unit, deadline: live.deadline, trackingStatus: live.trackingStatus } : snapshot
+    const derived = live?.isProgressDerived && live.linkedHabits.length > 0 ? `${t('goals.linkedHabits')}: ${live.linkedHabits.map((habit) => habit.title).join(', ')}` : null
     const value = percentage(item)
     const progress = t('chat.goalList.progress', { current: item.current, target: item.target, unit: item.unit })
     const deadline = item.deadline ? t('chat.goalList.deadline', { date: formatGoalMetricsDate(item.deadline, i18n.language) }) : null
@@ -48,18 +55,17 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     return {
       id: item.id,
       wrapLabel: true,
-      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <GoalName name={item.title} onOpen={() => onOpenGoal(item.id)} /> : <PersonalTextDetails outset>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</View>,
+      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <GoalName name={item.title} onOpen={() => onOpenGoal(item.id)} /> : <PersonalTextDetails outset>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}<View style={{ alignSelf: 'stretch' }}><ProgressBar value={value} label={t('chat.goalList.ring', { name: item.title })} /></View>{derived ? <PersonalTextDetails outset>{derived}</PersonalTextDetails> : null}</View>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
-      wrapMeta: projected != null,
-      control: value === 100
-        ? <StatusRing status="done" size={28} label={t('chat.goalList.done', { name: item.title })} />
-        : <ProgressRing value={value} size={28} label={t('chat.goalList.ring', { name: item.title })} />,
+      wrapMeta: true,
+
     }
   })
   return (
     <View style={{ width: '100%' }}>
-      <BlockFrame state="resting" title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('chat.goalList.empty')}</Text> : undefined} actions={(
+      <BlockFrame {...frameState} title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('chat.goalList.empty')}</Text> : undefined} actions={(
         <>
+          {goals.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
           <Button variant="ghost" size="sm" onClick={() => router.push('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
         </>

@@ -247,6 +247,8 @@ export const daySummaryCardSchema = z.object({
   overdueCount: z.number(),
   currentStreak: z.number(),
   surfaceId: z.string(),
+  rows: z.array(habitListCardItemSchema).nullish(),
+  totalRows: z.number().nullish(),
 })
 
 export type DaySummaryCard = z.infer<typeof daySummaryCardSchema>
@@ -279,6 +281,8 @@ export const calendarCardSchema = z.object({
     start: z.string(),
     end: z.string().nullable(),
     isAllDay: z.boolean(),
+    id: z.string().nullish(),
+    calendarName: z.string().nullish(),
   })),
   sync: z.object({
     enabled: z.boolean(),

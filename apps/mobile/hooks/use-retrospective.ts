@@ -2,18 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import { i18n } from '@/lib/i18n'
-import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
+import { type RetrospectivePeriod, buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
 import { apiClient } from '@/lib/api-client'
 
-export function useProgressRetrospective() {
+export function useProgressRetrospective(period: RetrospectivePeriod = 'month', enabled = true) {
   return useQuery({
-    queryKey: habitKeys.retrospective('month'),
+    queryKey: habitKeys.retrospective(period),
     queryFn: () =>
       apiClient(
-        buildRetrospectiveRequestUrl('month', i18n.language),
+        buildRetrospectiveRequestUrl(period, i18n.language),
         undefined,
         retrospectiveResponseSchema,
       ),
+    enabled,
     staleTime: QUERY_STALE_TIMES.gamification,
   })
 }

@@ -44,8 +44,8 @@ describe('Astra metrics card on mobile', () => {
     const control = root.findByProps({ testID: 'bar-chart-control' })
     void act(() => { (control.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { width: 320 } } }) })
     expect(root.findByProps({ testID: 'bar-chart-control' }).findAllByType('Path')).toHaveLength(7)
-    expect(root.findByProps({ testID: 'block-frame-item-completionRate-pending' })).toBeDefined()
-    expect(root.findByProps({ testID: 'block-frame-item-activeDays-pending' })).toBeDefined()
+    expect(root.findAllByType('Text').some(node => node.props.children === 'progressScreen.window.completionRate')).toBe(true)
+    expect(root.findAllByType('Text').some(node => node.props.children === 'progressScreen.window.activeDays')).toBe(true)
     expect(root.findByProps({ testID: 'block-frame-item-topHabit-pending' })).toBeDefined()
     const button = root.findByProps({ testID: 'button-ghost-sm' })
     ;(button.props.onPress as () => void)()
@@ -90,3 +90,11 @@ describe('Astra metrics card on mobile', () => {
 
   })
 })
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }), useLogHabit: () => ({ mutate: vi.fn() }), useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

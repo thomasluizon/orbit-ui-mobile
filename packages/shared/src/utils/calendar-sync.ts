@@ -804,3 +804,7 @@ export function selectInitialCalendarImportEvent(
     event.id === initialEventId && isCalendarSyncEventImportable(event, weekStartDay),
   ).map((event) => event.id))
 }
+
+export function calendarImportInitialEventId(importRequested: boolean, requestedEventId: string | null, selectedEventId: string | null): string | null {
+  return importRequested ? requestedEventId : selectedEventId
+}

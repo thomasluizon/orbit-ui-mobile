@@ -11,7 +11,7 @@ import { CalendarCard } from '@/components/chat/calendar-card'
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), language: 'pt-BR', uses24HourClock: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
 vi.mock('next-intl', () => ({ useLocale: () => mocks.language, useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
@@ -65,9 +65,9 @@ describe('Astra status cards on web', () => {
 
   it('renders all ten calendar events without an omitted sync row', () => {
     render(<CalendarCard calendarCard={{ events: Array.from({ length: 10 }, (_, index) => ({ title: `Event ${index}`, start: '2026-09-26', end: null, isAllDay: true })), surfaceId: 'calendar' }} />)
-    expect(screen.getAllByTestId('card-row')).toHaveLength(10)
-    expect(screen.getByRole('button', { name: 'Event 0' })).toBeInTheDocument()
-    expect(screen.getAllByTestId('card-row')[0]).toHaveTextContent('chat.calendarCard.allDay')
+    expect(screen.getAllByRole('img')).toHaveLength(10)
+    expect(screen.getByRole('img', { name: /Event 0/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('img')[0]).toHaveTextContent('chat.calendarCard.allDay')
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
     expect(mocks.push).toHaveBeenCalledWith('/calendar')
@@ -80,8 +80,8 @@ describe('Astra status cards on web', () => {
     mocks.language = language
     mocks.uses24HourClock = uses24HourClock
     render(<CalendarCard calendarCard={{ events: [{ title: 'Meeting', start: '2026-09-26T19:30:00', end: null, isAllDay: false }], surfaceId: 'calendar' }} />)
-    expect(screen.getByTestId('card-row')).toHaveTextContent(expected)
-    expect(screen.getByTestId('card-row')).not.toHaveTextContent(excluded)
+    expect(screen.getByRole('img')).toHaveTextContent(expected)
+    expect(screen.getByRole('img')).not.toHaveTextContent(excluded)
   })
 
   it('shows disabled sync without a failure mark', () => {
@@ -97,7 +97,7 @@ it('renders API streak, calendar and both record list blocks in the final messag
   const message = { id: 'status', role: 'ai' as const, timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) }
   const { container, rerender } = render(<MessageBubble message={message} />)
   expect(screen.getByRole('button', { name: 'chat.streakCard.open' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Dentist' })).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /Dentist/ })).toBeInTheDocument()
   expect(screen.getByText('Morning')).toBeInTheDocument()
   expect(screen.getByText('Evening')).toBeInTheDocument()
   expect(container.querySelectorAll('section')).toHaveLength(4)
@@ -106,3 +106,11 @@ it('renders API streak, calendar and both record list blocks in the final messag
   rerender(<MessageBubble message={{ ...message, role: 'user' }} />)
   expect(container.querySelectorAll('section')).toHaveLength(0)
 })
+
+vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }), useLogHabit: () => ({ mutate: vi.fn() }), useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
