@@ -181,8 +181,9 @@ Hoje lists the selected day's habits and overdue work when viewing today. Todos 
 habits across dates, grouped with overdue work first and then by due date; completed one-time
 habits appear through Show completed. Geral lists habits with no set day, with completed habits
 behind the same control. Showing general habits on Hoje is a separate preference. Every view
-retains sub-habits, row actions, search, selection and creation. The header search control expands
-an Input above the view switch and filters the current view in place. Todos and Geral act on the current
+retains sub-habits, row actions, search, selection and creation. At every width, the header search control expands
+an Input above the view switch and filters the current view in place, preserving its date and frequency scope.
+Wide web keeps the global command palette in the sidebar separately. Todos and Geral act on the current
 account day regardless of the day last visited in Hoje; creation in Geral defaults to no set day.
 
 ### Perfil settings navigation

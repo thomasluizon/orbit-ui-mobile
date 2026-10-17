@@ -87,16 +87,19 @@ describe('Hoje header geometry', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([412, 1024, 1280])('keeps search in its owning shell at %i pixels', async (width) => {
+  it.each([412, 1024, 1280])('keeps scoped search in the destination header at %i pixels', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
       <DestinationShell onCreate={noop}><TodayDateControl {...props} isTodaySelected beforeDate={<HabitViewSwitch value="today" onChange={noop} />} /></DestinationShell>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const compactSearch = page.locator(`button[aria-label="${props.searchLabel}"]`)
-      expect(await compactSearch.count()).toBe(1)
-      expect(await compactSearch.isVisible()).toBe(width < 1024)
+      const scopedSearch = page.locator('[data-today-header-actions]').getByRole('button', { name: props.searchLabel })
+      expect(await scopedSearch.count()).toBe(1)
+      expect(await scopedSearch.isVisible()).toBe(true)
+      const bounds = await scopedSearch.boundingBox()
+      expect(bounds?.width).toBeGreaterThanOrEqual(48)
+      expect(bounds?.height).toBeGreaterThanOrEqual(48)
       if (width >= 1024) expect(await page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.nav.search }).isVisible()).toBe(true)
     } finally { await page.close() }
   })
