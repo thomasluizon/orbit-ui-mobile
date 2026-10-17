@@ -1655,7 +1655,7 @@
       "unnamedHabit": "Hábito sem nome",
       "removeTitle": "Remover hábito?",
       "removeBody": "Remover “{name}” desta proposta? Ele não será criado quando você aprovar.",
-      "empty": "Sem hábitos propostos.",
+      "empty": "Não sobrou nenhum hábito proposto.",
       "title": "Dividir {name}",
       "frequency": "Mudar a frequência de {name}",
       "conflict": "Já existe um hábito chamado {name}.",
