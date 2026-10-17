@@ -3345,6 +3345,7 @@
     "revealHeading": "Chave de API criada",
     "noKeys": "Nenhuma chave de API ainda",
     "keyName": "Nome da chave",
+    "keyNamePlaceholder": "ex: Claude Desktop",
     "keyNameRequired": "Dê um nome à chave",
     "keyNameMaxLength": "O nome da chave pode ter no máximo 50 caracteres",
     "created": "Criada em",

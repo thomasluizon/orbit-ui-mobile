@@ -1,6 +1,6 @@
 import { MAX_API_KEY_NAME_LENGTH } from './constants'
 
-export function getApiKeyNameError(name: string) {
+export function getApiKeyNameError(name: string): 'orbitMcp.keyNameRequired' | 'orbitMcp.keyNameMaxLength' | null {
   const trimmedName = name.trim()
   if (!trimmedName) return 'orbitMcp.keyNameRequired'
   if (trimmedName.length > MAX_API_KEY_NAME_LENGTH) return 'orbitMcp.keyNameMaxLength'
