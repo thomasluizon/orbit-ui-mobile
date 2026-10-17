@@ -44,6 +44,32 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  const consolidated = structuredClone(currentGuards)
+  consolidated.jobs.guards.steps = consolidated.jobs.guards.steps.filter((step) =>
+    !step.id || step.id === "timeless__1")
+  consolidated.jobs.guards.steps.find((step) => step.id === "timeless__1").id = "existing__1"
+  check(
+    "check-gate-charter.mjs",
+    "accepts a consolidated guard with the same scope contract",
+    ["--root", stageRepository("consolidated", completeCharter(), { guardWorkflow: yaml.dump(consolidated) })],
+    { status: 0 },
+  )
+  const unregisteredStep = structuredClone(consolidated)
+  unregisteredStep.jobs.guards.steps.push({ name: "Unregistered gate", run: "node unregistered.mjs" })
+  check(
+    "check-gate-charter.mjs",
+    "rejects an unregistered run in the consolidated job",
+    ["--root", stageRepository("unregistered-step", completeCharter(), { guardWorkflow: yaml.dump(unregisteredStep) })],
+    { status: 2, stderr: /each guard step must have a registered group id/ },
+  )
+  const successDependent = structuredClone(consolidated)
+  successDependent.jobs.guards.steps.find((step) => step.id === "existing__1").if = "${{ success() }}"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a guard that would be skipped after another guard fails",
+    ["--root", stageRepository("success-dependent", completeCharter(), { guardWorkflow: yaml.dump(successDependent) })],
+    { status: 2, stderr: /independent !cancelled/ },
+  )
   const missingGate = stageRepository("missing-gate", completeCharter())
   writeFileSync(join(missingGate, "tools", "check-new-gate.mjs"), "process.exit(0)\n")
   check(

@@ -61,12 +61,21 @@ function workflowJobs(repositoryRoot, path) {
     throw new Error(`${path} has no jobs mapping`)
   }
   if (path !== ".github/workflows/guards.yml" || !workflow.jobs.guards) return workflow.jobs
+  if (Object.keys(workflow.jobs).length !== 1) throw new Error(`${path}: script guards must share one job`)
   const steps = workflow.jobs.guards.steps
   const preparation = steps.filter((step) => step.name === "Resolve pull request changed paths")
   const groups = {}
   for (const step of steps) {
     const group = step.id?.match(/^([a-zA-Z0-9_-]+)__\d+$/)?.[1]
-    if (!group) continue
+    if (!group) {
+      const prerequisite = step.uses?.startsWith("actions/checkout@") || step.uses?.startsWith("actions/setup-node@") ||
+        step.run === "npm ci --no-audit" ||
+        step.run === "npm install --global \"$(node -p \"require('./package.json').packageManager\")\" --no-audit --no-fund" ||
+        (step.name === "Resolve pull request changed paths" &&
+          step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"')
+      if (!prerequisite) throw new Error(`${path}: each guard step must have a registered group id`)
+      continue
+    }
     if (!step.name || !step.if?.includes("!cancelled()") || step.if.includes("success()")) {
       throw new Error(`${path}#${step.id}: each guard needs a name and an independent !cancelled() condition`)
     }

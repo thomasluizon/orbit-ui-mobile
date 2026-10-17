@@ -99,7 +99,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Test guard workflow behavior
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs
+
       - name: Run tools harness
+        if: ${{ !cancelled() }}
         run: node tools/test-tools.mjs
 
       - name: Run hooks harness

@@ -131,3 +131,20 @@ test("script guards share one checkout and install, and run after another guard 
     assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
   }
 })
+
+test("surface scope keeps findings advisory and checker errors blocking", () => {
+  const step = guardGroups(workflow)["surface-scope-report"].steps.find((candidate) =>
+    candidate.name === "Report declared token surface scopes")
+  assert.equal(step["continue-on-error"], undefined)
+  for (const status of [0, 1, 2]) {
+    const result = spawnSync("bash", ["-e", "-c", `node() { return ${status}; }\n${step.run}`], {
+      encoding: "utf8", env: { ...process.env, ...step.env },
+    })
+    assert.equal(result.status, status === 1 ? 0 : status, result.stderr)
+  }
+})
+
+test("calibration stays advisory and React Doctor retains its time limit", () => {
+  assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
+  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+})
