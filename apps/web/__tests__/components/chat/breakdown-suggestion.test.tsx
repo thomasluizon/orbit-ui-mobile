@@ -14,14 +14,15 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button type="button" onClick={onConfirm}>confirm-breakdown</button> : null,
+  ConfirmSheet: ({ open, onConfirm, onCancel, destructive, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; destructive?: boolean; message: string }) =>
+    open ? <div role="dialog" aria-label={message}><button type="button" onClick={onConfirm}>{destructive ? 'confirm-remove' : 'confirm-breakdown'}</button><button type="button" onClick={onCancel}>cancel-confirmation</button></div> : null,
 }))
 
+let isPending = false
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
 const defaultProps = {
@@ -32,8 +33,71 @@ const defaultProps = {
 }
 
 beforeEach(() => {
+  isPending = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
+})
+
+it('confirms removal of a named proposal and submits only the retained row', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody.*Dishes/)
+  expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'cancel-confirmation' }))
+  expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-remove' }))
+  expect(screen.queryByRole('button', { name: 'Dishes' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toHaveFocus()
+  expect(screen.getByRole('button', { name: 'Laundry' })).toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[0]?.[0]).toEqual({ habits: [expect.objectContaining({ title: 'Laundry', frequencyUnit: 'Week' })] })
+  expect(screen.queryByRole('button', { name: /habits\.breakdown\.removeHabit/ })).not.toBeInTheDocument()
+})
+
+it('disables approval when every proposed row has been removed', () => {
+  render(<BreakdownSuggestion {...defaultProps} />)
+  for (const name of ['Dishes', 'Laundry']) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`habits\\.breakdown\\.removeHabit.*${name}`) }))
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-remove' }))
+  }
+  expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'chat.preview.edit' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+})
+
+it('disables proposal removal while creation is pending', () => {
+  isPending = true
+  render(<BreakdownSuggestion {...defaultProps} />)
+  const remove = screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ })
+  expect(remove).toBeDisabled()
+  fireEvent.click(remove)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+it('keeps a removed row out of the error recovery request', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-remove' }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: /habits\.breakdown\.removeHabit/ })).not.toBeInTheDocument()
+  fireEvent.click(retry)
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate).toHaveBeenCalledTimes(2)
+  for (const [request] of bulkCreate.mock.calls) expect(request).toEqual({ habits: [expect.objectContaining({ title: 'Laundry' })] })
 })
 
 describe('BreakdownSuggestion', () => {

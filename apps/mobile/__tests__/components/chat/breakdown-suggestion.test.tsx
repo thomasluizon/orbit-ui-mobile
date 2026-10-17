@@ -12,15 +12,16 @@ import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
+let isPending = false
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
-  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
+  useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+  ConfirmSheet: ({ open, onConfirm, onCancel, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; message: string }) =>
+    open ? React.createElement('ConfirmSheet', { onConfirm, onCancel, message }) : null,
 }))
 
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -53,6 +54,7 @@ function press(tree: any, label: string) {
 }
 
 beforeEach(() => {
+  isPending = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
@@ -180,4 +182,78 @@ describe('BreakdownSuggestion (mobile)', () => {
     await act(() => tree.update(<></>))
   })
 
+})
+
+function removalControl(tree: ReactTestRenderer, name: string) {
+  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes(name))[0]
+  expect(control).toBeDefined()
+  return control!
+}
+
+function openConfirmation(tree: ReactTestRenderer) {
+  const sheet = tree.root.findAll((node) => String(node.type) === 'ConfirmSheet')[0]!
+  return sheet.props as { onConfirm: () => void; onCancel: () => void; message: string }
+}
+
+it('confirms removal and creates only the retained proposal on Android', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+  const tree = renderBreakdown() as ReactTestRenderer
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  expect(openConfirmation(tree).message).toContain('Dishes')
+  expect(renderedText(tree.root)).toContain('Dishes')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => openConfirmation(tree).onCancel())
+  expect(removalControl(tree, 'Dishes')).toBeDefined()
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  await act(() => openConfirmation(tree).onConfirm())
+  expect(renderedText(tree.root)).not.toContain('Dishes')
+  expect(renderedText(tree.root)).toContain('Laundry')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  await act(async () => { openConfirmation(tree).onConfirm(); await Promise.resolve() })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[0]?.[0]).toEqual({ habits: [expect.objectContaining({ title: 'Laundry', frequencyUnit: 'Week' })] })
+  expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit'))).toHaveLength(0)
+  await act(() => tree.update(<></>))
+})
+
+it('disables approval and editing after removing every Android proposal', async () => {
+  const tree = renderBreakdown() as ReactTestRenderer
+  for (const name of ['Dishes', 'Laundry']) {
+    await act(() => pressTextControl(removalControl(tree, name)))
+    await act(() => openConfirmation(tree).onConfirm())
+  }
+  expect(renderedText(tree.root)).toContain('chat.breakdown.empty')
+  expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)
+  expect(press(tree, 'chat.preview.edit').props.accessibilityState.disabled).toBe(true)
+  expect(press(tree, 'chat.preview.reject').props.accessibilityState.disabled).toBe(false)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => tree.update(<></>))
+})
+
+it('disables removal while Android creation is pending', async () => {
+  isPending = true
+  const tree = renderBreakdown() as ReactTestRenderer
+  const remove = removalControl(tree, 'Dishes')
+  expect(remove.props.disabled).toBe(true)
+  expect(remove.props.accessibilityState).toMatchObject({ disabled: true })
+  expect(tree.root.findAll((node) => String(node.type) === 'ConfirmSheet')).toHaveLength(0)
+  await act(() => tree.update(<></>))
+})
+
+it('keeps removed proposals out of Android failure recovery', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  const tree = renderBreakdown() as ReactTestRenderer
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  await act(() => openConfirmation(tree).onConfirm())
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  await act(async () => { openConfirmation(tree).onConfirm(); await Promise.resolve() })
+  expect(renderedText(tree.root)).toContain('blockFrame.status.failed')
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit'))).toHaveLength(0)
+  await act(async () => { press(tree, 'chat.batch.retry').props.onPress(); await Promise.resolve() })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate).toHaveBeenCalledTimes(2)
+  for (const [request] of bulkCreate.mock.calls) expect(request).toEqual({ habits: [expect.objectContaining({ title: 'Laundry' })] })
+  await act(() => tree.update(<></>))
 })

@@ -10,6 +10,9 @@ import {
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
+  removalId: string | null
+  setRemovalId: Dispatch<SetStateAction<string | null>>
+  removeHabit: () => void
   confirmOpen: boolean
   editingId: string | null
   failedIds: string[]
@@ -39,6 +42,7 @@ export function useBreakdownSuggestionState({
   const [habits, setHabits] = useState<BreakdownDraftHabit[]>(() =>
     createBreakdownDrafts(subHabits),
   )
+  const [removalId, setRemovalId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -68,7 +72,16 @@ export function useBreakdownSuggestionState({
     }
   }, [habits, onBulkCreate, onConfirmed, parentName, results])
 
+  const removeHabit = () => {
+    setHabits((current) => current.filter((habit) => habit.id !== removalId))
+    if (editingId === removalId) setEditingId(null)
+    setRemovalId(null)
+  }
+
   return {
+    removalId,
+    setRemovalId,
+    removeHabit,
     confirmOpen,
     editingId,
     failedIds,
