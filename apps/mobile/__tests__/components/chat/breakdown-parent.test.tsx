@@ -35,6 +35,11 @@ async function approve(tree: ReactTestRenderer) {
   expect(bulkCreate).not.toHaveBeenCalled()
   await act(async () => { confirmation(tree).onConfirm(); await Promise.resolve() })
 }
+function expectCompleted(tree: ReactTestRenderer) {
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')).toHaveLength(0)
+  for (const label of ['chat.preview.approve', 'chat.preview.edit', 'chat.preview.reject', 'chat.batch.retry']) expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && renderedText(node.props.children).includes(label))).toHaveLength(0)
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && renderedText(node.props.children) === 'chat.action.completed')).toHaveLength(1)
+}
 function expectParentRequest() {
   const request = bulkCreate.mock.calls[0]![0]
   expect(request.habits).toHaveLength(1)
@@ -55,6 +60,7 @@ describe('breakdown parent choice on Android', () => {
     expect(onConfirmed).toHaveBeenCalledTimes(1)
     expect(bulkCreate.mock.calls[0]![0].habits.map(habit => habit.title)).toEqual(['Dishes', 'Laundry'])
     expect(bulkCreate.mock.calls[0]![0].habits.every(habit => habit.subHabits === undefined)).toBe(true)
+    expectCompleted(tree)
   })
 
   it('creates a parent only after confirmation and marks every child done', async () => {
@@ -66,8 +72,7 @@ describe('breakdown parent choice on Android', () => {
     expect(onConfirmed).toHaveBeenCalledTimes(1)
     expectParentRequest()
     expectRowStatuses(tree, 'done', 2)
-    expect(grouping(tree).disabled).toBe(true)
-    expect(button(tree, 'chat.preview.approve').disabled).toBe(true)
+    expectCompleted(tree)
   })
 
   it('retains the parent choice when confirmation is cancelled', async () => {
@@ -100,6 +105,21 @@ describe('breakdown parent choice on Android', () => {
     expect(bulkCreate).toHaveBeenCalledTimes(2)
     expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])
     expectRowStatuses(tree, 'done', 2)
+    expectCompleted(tree)
+  })
+
+  it.each([false, true])('keeps omitted blanks locked through failure and retry with grouping %s', async (createAsParent) => {
+    bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Failed'])).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+    const tree = await renderBreakdown([{ title: ' ' }, { title: 'Dishes', frequencyUnit: 'Day' }])
+    if (createAsParent) await act(() => grouping(tree).onPress())
+    await approve(tree)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'chat.preview.editItem')).toHaveLength(0)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith('chat.breakdown.frequency'))[0]!.props.disabled).toBe(true)
+    await act(async () => { button(tree, 'chat.batch.retry').onPress(); await Promise.resolve() })
+    expect(onConfirmed).toHaveBeenCalledTimes(1)
+    expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])
+    expectRowStatuses(tree, 'done', 1)
+    expectCompleted(tree)
   })
 
   it('locks grouping, editing and approval while the parent request is pending', async () => {
@@ -124,5 +144,9 @@ describe('breakdown parent choice on Android', () => {
     await approve(tree)
     expect(onConfirmed).toHaveBeenCalledTimes(1)
     expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-item-proposal-1-done')).toHaveLength(1)
+    expectCompleted(tree)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).startsWith('block-frame-item-') && String(node.props.testID).endsWith('-proposed'))).toHaveLength(0)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && renderedText(node.props.children) === 'chat.breakdown.confirmNote')).toHaveLength(0)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith('chat.breakdown.frequency'))).toHaveLength(0)
   })
 })

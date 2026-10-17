@@ -18,6 +18,11 @@ function approve() {
   expect(bulkCreate).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Confirm breakdown' }))
 }
+function expectCompleted() {
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  for (const name of ['chat.preview.approve', 'chat.preview.edit', 'chat.preview.reject', 'chat.batch.retry']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  expect(screen.getByText('chat.action.completed')).toHaveAttribute('role', 'status')
+}
 function expectParentRequest() {
   const request = bulkCreate.mock.calls[0]![0]
   expect(request.habits).toHaveLength(1)
@@ -35,6 +40,7 @@ describe('breakdown parent choice', () => {
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
     expect(bulkCreate.mock.calls[0]![0].habits.map(habit => habit.title)).toEqual(['Dishes', 'Laundry'])
     expect(bulkCreate.mock.calls[0]![0].habits.every(habit => habit.subHabits === undefined)).toBe(true)
+    expectCompleted()
   })
 
   it('creates a parent only after confirmation and marks every child done', async () => {
@@ -46,8 +52,7 @@ describe('breakdown parent choice', () => {
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
     expectParentRequest()
     expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(2)
-    expect(grouping()).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
+    expectCompleted()
   })
 
   it('retains the parent choice when confirmation is cancelled', () => {
@@ -81,6 +86,22 @@ describe('breakdown parent choice', () => {
     expect(bulkCreate).toHaveBeenCalledTimes(2)
     expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])
     expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(2)
+    expectCompleted()
+  })
+
+  it.each([false, true])('keeps omitted blanks locked through failure and retry with grouping %s', async (createAsParent) => {
+    bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Failed'])).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+    render(<BreakdownSuggestion {...props} subHabits={[{ title: ' ' }, { title: 'Dishes', frequencyUnit: 'Day' }]} />)
+    if (createAsParent) fireEvent.click(grouping())
+    approve()
+    const retry = await screen.findByRole('button', { name: 'chat.batch.retry' })
+    expect(screen.queryByRole('button', { name: 'chat.preview.editItem' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.breakdown.frequency' })).toBeDisabled()
+    fireEvent.click(retry)
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
+    expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])
+    expect(document.querySelectorAll('[data-status="done"]')).toHaveLength(1)
+    expectCompleted()
   })
 
   it('locks grouping, editing and approval while the parent request is pending', async () => {
@@ -107,5 +128,9 @@ describe('breakdown parent choice', () => {
     approve()
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('button', { name: 'Dishes' }).closest('[data-status]')).toHaveAttribute('data-status', 'done')
+    expectCompleted()
+    expect(document.querySelectorAll('[data-proposed]')).toHaveLength(0)
+    expect(screen.queryByText('chat.breakdown.confirmNote')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.breakdown.frequency' })).not.toBeInTheDocument()
   })
 })
