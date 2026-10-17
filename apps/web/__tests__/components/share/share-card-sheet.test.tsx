@@ -89,9 +89,11 @@ describe('Share progress sheet', () => {
   })
 
   it('announces export errors and saved files persistently', () => {
-    mocks.hasError = true
     const view = render(<ShareCardEntryButton />)
     openSheet()
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+    mocks.hasError = true
+    view.rerender(<ShareCardEntryButton />)
     expect(screen.getByRole('alert')).toHaveTextContent('shareCard.shareError')
     mocks.hasError = false
     mocks.savedFileName = 'orbit-recap.png'

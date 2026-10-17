@@ -98,10 +98,13 @@ describe('Share progress sheet', () => {
   })
 
   it('announces export errors and save confirmation', () => {
-    mocks.hasError = true
     const tree = renderEntry()
     openSheet(tree)
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
+    const alerts = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+    expect(alerts).toHaveLength(1)
+    expect(alerts[0]!.props.children).toBe('')
+    mocks.hasError = true
+    TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
     expect(JSON.stringify(tree.toJSON())).toContain('shareCard.shareError')
     mocks.hasError = false
     mocks.savedFileName = 'orbit-recap.png'

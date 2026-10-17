@@ -43,7 +43,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
         {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
         {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
         {ready && recap ? <ShareCard ref={captureRef} recap={recap} variant="progress" /> : null}
-        {hasError ? <p role="alert" className="text-base text-[var(--status-bad-text)]">{t('shareCard.shareError')}</p> : null}
+        <p role="alert" className="text-base text-[var(--status-bad-text)]">{hasError ? t('shareCard.shareError') : ''}</p>
         <p role="status" className="text-sm text-[var(--fg-2)]">{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</p>
       </div>
     </Sheet>
