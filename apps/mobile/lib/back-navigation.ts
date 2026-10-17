@@ -54,6 +54,10 @@ export function getAndroidBackFallbackRoute(
     case '/about':
     case '/support':
       return '/profile'
+    case '/progress/streak':
+    case '/progress/goals':
+    case '/progress/achievements':
+      return '/progress'
     case '/privacy':
       return options.isAuthenticated ? '/' : '/login'
     case '/upgrade':
