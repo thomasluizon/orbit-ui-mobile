@@ -186,8 +186,12 @@ export const cases = () => {
     const originalGuide = files[guide]
     files[guide] = 'export function ProfileMcpGuide() { return null }'
     const afterGuide = compare(guideCapabilities, scan(current, platform), rules)
-    T(`${platform} removing the MCP web guide loses every guide capability`, afterGuide.every((entry) => entry.disposition === 'missing'))
-    T(`${platform} deleting the MCP web guide blocks every restored capability`, newLosses(afterGuide, beforeGuide).length === guideCapabilities.length)
+    const selectorCapabilities = new Set([
+      `${platform}:control:orbitMcp.claudeWeb`,
+      `${platform}:${platform === 'web' ? 'control' : 'display'}:orbitMcp.webNoApiKey`,
+    ])
+    T(`${platform} removing the MCP web guide retains only selector-owned capabilities`, afterGuide.every((entry) => entry.disposition === (selectorCapabilities.has(entry.id) ? 'retained' : 'missing')))
+    T(`${platform} deleting the MCP web guide blocks every guide-owned capability`, newLosses(afterGuide, beforeGuide).length === guideCapabilities.length - selectorCapabilities.size)
     files[guide] = originalGuide
     const id = `${platform}:control:chat.attachFile`
     const capability = inventory.entries.filter((entry) => entry.id === id)
