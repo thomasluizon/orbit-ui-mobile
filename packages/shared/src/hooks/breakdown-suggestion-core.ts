@@ -38,11 +38,14 @@ export function mergeBreakdownResults(
   results: Record<string, BreakdownItemResult>,
   selected: BreakdownDraftHabit[],
   response: BulkCreateResponse,
+  createAsParent = false,
 ): Record<string, BreakdownItemResult> {
   const nextResults = { ...results }
   response.results.forEach((result) => {
-    const habit = selected[result.index]
-    if (habit) nextResults[habit.id] = result.status === 'Success' ? 'done' : 'failed'
+    const affected = createAsParent ? (result.index === 0 ? selected : []) : selected.slice(result.index, result.index + 1)
+    affected.forEach((habit) => {
+      nextResults[habit.id] = result.status === 'Success' ? 'done' : 'failed'
+    })
   })
   return nextResults
 }

@@ -985,6 +985,8 @@
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
       "createAsParent": "Agrupar como hábito principal",
+      "groupingDenied": "Não foi possível agrupar os hábitos. Nada foi salvo. Desmarque a opção de agrupar para criar os hábitos separados.",
+      "capacityDenied": "A proposta passa do limite de hábitos. Remova um hábito da proposta e tente de novo.",
       "every": "a cada",
       "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"

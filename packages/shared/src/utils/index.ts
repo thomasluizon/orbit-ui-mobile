@@ -589,6 +589,7 @@ export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
   getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
   nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'

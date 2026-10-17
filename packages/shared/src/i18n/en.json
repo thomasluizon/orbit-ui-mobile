@@ -985,6 +985,8 @@
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
+      "groupingDenied": "Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.",
+      "capacityDenied": "This proposal exceeds the habit limit. Remove a habit from the proposal and try again.",
       "every": "every",
       "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
