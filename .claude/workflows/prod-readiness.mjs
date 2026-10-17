@@ -101,7 +101,7 @@ function a11yPrompt(c) {
     `Static accessibility sweep "${c.check}" for Orbit. The floor is WCAG 2.2 Level AA and the objective is accessible task completion, never a score. This is a source read: claim only what source can prove.`,
     `Where to look: ${c.where}.`,
     `Judge the a11y judgement no gate owns: native-element-first (a pressable div/View where a button belongs); every ARIA role or RN accessibility prop as a keyboard and focus contract the code must honour (a role added without its key handling or focus management); focus on open, trapped while open, returned on close for dialogs and menus; a localized label in both locales for icon-only controls; colour as the only signal; the 3:1 non-text contrast floor for icons, borders, and state indicators; hit targets under 44 grown by glyph instead of padding; and materially different UI states (empty, loading, validation-error, dialog, menu, toast) that lose semantics the populated state has.`,
-    `Gate-owned, do NOT flag: anything the react-doctor.yml a11y rules already fail on, and anything ESLint local/* or the Design Token Guard owns. Runtime-only claims (200% zoom, screen-reader output, the route x state x viewport x input-mode matrix) are OUT of scope: the workflow defers them as a11y-runtime-matrix, so never emit a finding that needs the live DOM.`,
+    `Gate-owned, do NOT flag: anything the React Doctor a11y rules in guards.yml already fail on, and anything ESLint local/* or the Design Token Guard owns. Runtime-only claims (200% zoom, screen-reader output, the route x state x viewport x input-mode matrix) are OUT of scope: the workflow defers them as a11y-runtime-matrix, so never emit a finding that needs the live DOM.`,
     `Severity ladder: [${A11Y_LADDER}]. For each finding return: severity, check ("${c.check}"), title, location (repo-relative path:line), risk (which user and which task is blocked, and how), evidence (the exact line that proves it), fix (the concrete change). Findings only; return an empty array if the surface is clean.`,
   ].join('\n')
 }
@@ -184,7 +184,7 @@ const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result
 phase('Verify')
 const REFUTE_FRAMING = {
   ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global.',
-  a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a react-doctor.yml rule already fails on it, or the severity is inflated.',
+  a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a React Doctor rule in guards.yml already fails on it, or the severity is inflated.',
 }
 const verifyTargets = [
   ...opsRaw.filter(isSerious).map((f) => ({ f, layer: 'ops' })),
