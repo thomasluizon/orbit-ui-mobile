@@ -312,9 +312,9 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
-    press(tree, 'common.save')
-    press(tree, 'common.save')
     const button = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
+    const submit = button.props.onPress
+    TestRenderer.act(() => { submit(); submit() })
     expect(button.props.disabled).toBe(true)
     expect(button.props.accessibilityState.busy).toBe(true)
     for (const label of ['goals.progress', 'goals.progressNote']) {

@@ -109,7 +109,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditPr
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} color={tokens.fg1} /></PillButton>
         <Text style={[styles.body, { color: tokens.fg3 }]}>{goal.unit}</Text>
         </ActionRow></View>
-        <View style={styles.progressAction}><PillButton variant="ghost" disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></View>
+        <ActionRow><PillButton variant="ghost" accessibleName={t('goals.updateProgress')} disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></ActionRow>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.screenReader}>{announcement}</Text>
@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
   value: { minWidth: 32, textAlign: 'center', fontFamily: 'GeistMono_400Regular', fontSize: 20, fontVariant: ['tabular-nums'] },
   manual: { gap: 8 },
   stepper: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  progressAction: { alignItems: 'flex-end' },
   completion: { alignItems: 'flex-start', gap: 8 },
   screenReader: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
 })

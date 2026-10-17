@@ -42,8 +42,8 @@ export function GoalProgressForm({ goal, refetchDetail, onClose }: Readonly<Goal
   return <>
     <Sheet ref={sheetRef} open title={t('goals.updateProgress')} onClose={!busy && dismiss.canDismiss ? onClose : undefined} onAttemptDismiss={requestDismiss} actions={
       <ActionRow>
-        <PillButton variant="ghost" disabled={busy} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
-        <PillButton disabled={busy} loading={busy} onClick={() => void submit()} leadingIcon={<Check size={16} color={tokens.fgOnPrimary} />}>{t('common.save')}</PillButton>
+        <PillButton variant="ghost" accessibleName={t('common.cancel')} disabled={busy} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
+        <PillButton accessibleName={t('common.save')} disabled={busy} loading={busy} onClick={() => void submit()} leadingIcon={<Check size={16} color={tokens.fgOnPrimary} />}>{t('common.save')}</PillButton>
       </ActionRow>
     }>
       <View style={styles.form} accessibilityState={{ busy }}>

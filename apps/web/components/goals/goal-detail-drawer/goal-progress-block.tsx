@@ -104,7 +104,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditPr
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} aria-hidden="true" /></PillButton>
         <span className="text-[14px] text-[var(--fg-3)]">{goal.unit}</span>
         </ActionRow></div>
-        <div className="flex justify-end"><PillButton variant="ghost" disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></div>
+        <ActionRow><PillButton variant="ghost" accessibleName={t('goals.updateProgress')} disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></ActionRow>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
       <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
