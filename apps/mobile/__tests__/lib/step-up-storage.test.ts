@@ -5,6 +5,9 @@ import {
   beginStepUpChallenge,
   bindStepUpStateToAccount,
   clearStepUpState,
+  clearPendingApiKeyPermission,
+  readPendingApiKeyPermission,
+  rememberApiKeyCreationPermission,
   consumeApiKeyCreationGrant,
   hasApiKeyCreationGrant,
   isStepUpVerified,
@@ -90,5 +93,45 @@ describe('mobile step up timing storage', () => {
 
     expect(isStepUpVerified('keys')).toBe(false)
     expect(hasApiKeyCreationGrant()).toBe(false)
+  })
+})
+
+
+describe('pending API key permission', () => {
+  beforeEach(() => {
+    clearStepUpState()
+    bindStepUpStateToAccount('account-a')
+  })
+
+  it('restores permission only after verification and clears it for the next flow', () => {
+    rememberApiKeyCreationPermission(true)
+    expect(readPendingApiKeyPermission()).toBe(false)
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(true)
+    clearPendingApiKeyPermission()
+    expect(readPendingApiKeyPermission()).toBe(false)
+  })
+
+  it('retains the intent for the same account and forgets it on account replacement', () => {
+    rememberApiKeyCreationPermission(true)
+    markStepUpVerified('keys')
+    bindStepUpStateToAccount('account-a')
+    expect(readPendingApiKeyPermission()).toBe(true)
+    bindStepUpStateToAccount('account-b')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+    bindStepUpStateToAccount('account-a')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+  })
+
+  it('forgets the intent on sign-out and keeps the off choice explicit', () => {
+    rememberApiKeyCreationPermission(true)
+    clearStepUpState()
+    bindStepUpStateToAccount('account-a')
+    markStepUpVerified('keys')
+    expect(readPendingApiKeyPermission()).toBe(false)
+    rememberApiKeyCreationPermission(false)
+    expect(readPendingApiKeyPermission()).toBe(false)
   })
 })

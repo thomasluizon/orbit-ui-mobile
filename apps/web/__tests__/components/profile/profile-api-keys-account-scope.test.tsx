@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { readStepUpTiming } from '@/lib/step-up-storage'
-import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
+import { clearApiKeyCreationGrant, hasApiKeyCreationGrant, markStepUpVerified, readStepUpTiming } from '@/lib/step-up-storage'
+import { confirmApiKeyCreationChallenge, requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { resetAuthStore, retireHeldAccount } from '@/__tests__/support/account-change'
 import type { Profile } from '@orbit/shared/types/profile'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
@@ -15,20 +15,20 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null }))
+const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), replace: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null }))
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: management.push }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => management, useSearchParams: () => new URLSearchParams('operation=keys') }))
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
   const messages = (await import('@orbit/shared/i18n/en.json')).default
   return {
     ...actual,
     useLocale: () => 'en',
-    useTranslations: () => actual.createTranslator({ locale: 'en', messages }),
+    useTranslations: (namespace?: 'stepUp') => actual.createTranslator({ locale: 'en', messages, namespace }),
   }
 })
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/lib/actions/api-keys', () => ({ requestApiKeyCreationChallenge: vi.fn() }))
+vi.mock('@/lib/actions/api-keys', () => ({ requestApiKeyCreationChallenge: vi.fn(), confirmApiKeyCreationChallenge: vi.fn() }))
 vi.mock('@/hooks/use-api-key-management', () => ({
   useApiKeyManagement: () => ({
     apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
@@ -44,6 +44,11 @@ vi.mock('@/hooks/use-api-key-management', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
+vi.mock('@/hooks/use-date-format', () => ({ useDateFormat: () => ({ displayDate: (value: string) => value }) }))
+vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <div>{children}{action}</div> }))
+
+import { StepUpScreen } from '@/app/step-up/step-up-screen'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -98,6 +103,8 @@ beforeEach(async () => {
   management.error = null
   management.handleCreateKey.mockReset()
   management.push.mockReset()
+  management.replace.mockReset()
+  vi.mocked(confirmApiKeyCreationChallenge).mockReset()
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   management.handleCreateKey.mockResolvedValue({ id: 'key-1', name: 'Orbit key', key: ACCOUNT_A_KEY })
 })
@@ -322,4 +329,52 @@ it('hides permission at key capacity and retains fresh authentication for scoped
   expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
   expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
   expect(management.handleCreateKey).not.toHaveBeenCalled()
+})
+
+async function submitScopedKey() {
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
+  fireEvent.change(screen.getByLabelText(en.profile.apiKeys.scopeLabel), { target: { value: 'habits:read' } })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
+}
+
+it.each([
+  ['missing', 'simple'], ['missing', 'scoped'], ['expired', 'simple'], ['expired', 'scoped'],
+] as const)('keeps read-only intent after %s-grant authentication for %s creation', async (grant, mode) => {
+  const view = renderUnlockedKeys()
+  markStepUpVerified('keys')
+  if (grant === 'missing') clearApiKeyCreationGrant()
+  management.grantAvailable = grant === 'expired'
+  management.handleCreateKey.mockImplementationOnce(async (_request, requireGrant) => {
+    clearApiKeyCreationGrant()
+    await requireGrant()
+    return null
+  })
+  vi.mocked(requestApiKeyCreationChallenge).mockResolvedValue(undefined as never)
+  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
+  if (mode === 'scoped' && grant === 'expired') await submitScopedKey()
+  else await act(async () => { fireEvent.click(screen.getByRole('button', { name: mode === 'scoped' ? en.profile.apiKeys.createScoped : en.profile.apiKeys.create })) })
+  expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
+  expect(hasApiKeyCreationGrant()).toBe(false)
+  view.unmount()
+
+  vi.mocked(confirmApiKeyCreationChallenge).mockResolvedValue({ success: true })
+  respondWithAccount('user-1')
+  const challenge = render(<StepUpScreen serverAccountId="user-1" />)
+  const input = screen.getByRole('textbox', { name: en.stepUp.codeLabel })
+  fireEvent.change(input, { target: { value: '123456' } })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.stepUp.confirm })) })
+  expect(confirmApiKeyCreationChallenge).toHaveBeenCalledWith('123456', 'user-1')
+  expect(management.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(hasApiKeyCreationGrant()).toBe(true)
+  challenge.unmount()
+
+  management.grantAvailable = true
+  management.handleCreateKey.mockReset().mockResolvedValue(null)
+  const returned = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  if (mode === 'scoped') await submitScopedKey()
+  else await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create })) })
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: true, ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  returned.unmount()
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).not.toBeChecked()
 })

@@ -2,7 +2,7 @@
 
 import { ActionRow } from '@/components/ui/action-row'
 
-import { type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -24,7 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission } from '@/lib/step-up-storage'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
@@ -322,7 +322,7 @@ function ApiKeyCreateControls({
   )
 }
 
-function useApiKeyStepUp() {
+function useApiKeyStepUp(isReadOnly: boolean) {
   const router = useRouter()
   const t = useTranslations()
   const accountId = useHeldAccountId()
@@ -344,6 +344,7 @@ function useApiKeyStepUp() {
         return
       }
       beginStepUpChallenge('keys', accountId)
+      rememberApiKeyCreationPermission(isReadOnly)
       router.push('/step-up?operation=keys')
     } catch (error) {
       setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
@@ -376,9 +377,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
-  const [isReadOnly, setIsReadOnly] = useAccountScopedState(false)
+  const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
   const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp()
+  const stepUp = useApiKeyStepUp(isReadOnly)
+
+  useEffect(clearPendingApiKeyPermission, [])
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,

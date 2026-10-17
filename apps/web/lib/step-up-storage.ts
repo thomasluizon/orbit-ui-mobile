@@ -8,6 +8,7 @@ import {
 
 const visibleManagementOperations = new Set<StepUpOperation>()
 let apiKeyCreationGrantAvailable = false
+let pendingApiKeyReadOnly: boolean | null = null
 let accountId: string | null = null
 
 export function bindStepUpStateToAccount(nextAccountId: string): void {
@@ -18,6 +19,7 @@ export function bindStepUpStateToAccount(nextAccountId: string): void {
 
 export function clearStepUpState(): void {
   visibleManagementOperations.clear()
+  clearPendingApiKeyPermission()
   apiKeyCreationGrantAvailable = false
   accountId = null
 }
@@ -33,6 +35,18 @@ export function isStepUpVerified(operation: StepUpOperation): boolean {
 
 export function hasApiKeyCreationGrant(): boolean {
   return apiKeyCreationGrantAvailable
+}
+
+export function rememberApiKeyCreationPermission(isReadOnly: boolean): void {
+  pendingApiKeyReadOnly = isReadOnly
+}
+
+export function readPendingApiKeyPermission(): boolean {
+  return apiKeyCreationGrantAvailable && pendingApiKeyReadOnly === true
+}
+
+export function clearPendingApiKeyPermission(): void {
+  pendingApiKeyReadOnly = null
 }
 
 export function consumeApiKeyCreationGrant(): void {

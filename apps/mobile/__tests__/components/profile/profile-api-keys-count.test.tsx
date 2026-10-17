@@ -8,13 +8,31 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null }))
+import StepUpScreen from '@/app/step-up'
+import { Input } from '@/components/ui/input'
+import { OtpInput } from '@/components/ui/otp-input'
+import { API } from '@orbit/shared/api'
+import { bindStepUpStateToAccount, clearApiKeyCreationGrant, clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/lib/step-up-storage'
+
+
+const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), apiClient: vi.fn(), accountId: 'user-1', create: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null }))
+
 
 const TestRenderer = require('react-test-renderer')
 
+vi.mock('@react-native-async-storage/async-storage', () => {
+  const entries = new Map<string, string>()
+  return { default: { getItem: (key: string) => Promise.resolve(entries.get(key) ?? null), setItem: (key: string, value: string) => { entries.set(key, value); return Promise.resolve() }, removeItem: (key: string) => { entries.delete(key); return Promise.resolve() } } }
+})
+
 vi.mock('@/components/ui/icons', () => ({ Key: () => null, Lock: () => null, ChevronDown: () => null, ChevronRight: () => null, Shield: () => null }))
 vi.mock('@/components/ui/icon', () => ({ Icon: () => null }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useRouter: () => mocks, useLocalSearchParams: () => ({ operation: 'keys' }) }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.apiClient(...args) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
+vi.mock('@/hooks/use-date-format', () => ({ useDateFormat: () => ({ displayDate: (value: string) => value }) }))
+vi.mock('@/hooks/use-logout', () => ({ useLogout: () => vi.fn() }))
+vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <>{children}{action}</> }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
 vi.mock('@/app/advanced-api-keys', () => ({
@@ -32,7 +50,10 @@ vi.mock('@/app/advanced-api-keys', () => ({
   }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => null }))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: Object.assign(
+  (selector: (state: unknown) => unknown) => selector({ user: { userId: mocks.accountId }, sessionPhase: 'signed-in' }),
+  { getState: () => ({ user: { userId: mocks.accountId }, sessionPhase: 'signed-in' }) },
+) }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -105,6 +126,12 @@ it('keeps key metadata legible on the pressed card surface', () => {
 })
 
 beforeEach(() => {
+  clearStepUpState()
+  mocks.accountId = 'user-1'
+  bindStepUpStateToAccount(mocks.accountId)
+  mocks.push.mockReset()
+  mocks.replace.mockReset()
+  mocks.apiClient.mockReset().mockResolvedValue(undefined)
   mocks.create.mockReset()
   mocks.canCreate = true
   mocks.grantAvailable = true
@@ -177,4 +204,50 @@ it('hides permission at key capacity', () => {
   expect(permissionSwitch(tree)).toBeUndefined()
   expect(tree.root.findAllByType(Text).some((node: { props: { children?: string } }) => node.props.children === 'orbitMcp.maxKeysReached')).toBe(true)
   TestRenderer.act(() => tree.unmount())
+})
+
+async function submitScopedKey(tree: ReturnType<typeof TestRenderer.create>) {
+  TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.createScoped').props.onClick())
+  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('habits:read'))
+  await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
+}
+
+it.each([
+  ['missing', 'simple'], ['missing', 'scoped'], ['expired', 'simple'], ['expired', 'scoped'],
+] as const)('keeps read-only intent after %s-grant authentication for %s creation', async (grant, mode) => {
+  markStepUpVerified('keys')
+  if (grant === 'missing') clearApiKeyCreationGrant()
+  mocks.grantAvailable = grant === 'expired'
+  mocks.create.mockImplementationOnce(async (_request, requireGrant) => {
+    clearApiKeyCreationGrant()
+    await requireGrant()
+    return null
+  })
+  const tree = renderUnlockedKeys()
+  TestRenderer.act(() => permissionSwitch(tree).props.onPress())
+  if (mode === 'scoped' && grant === 'expired') await submitScopedKey(tree)
+  else await TestRenderer.act(async () => { await buttonByLabel(tree, mode === 'scoped' ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick() })
+  expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=keys')
+  expect(hasApiKeyCreationGrant()).toBe(false)
+  TestRenderer.act(() => tree.unmount())
+
+  let challenge!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => { challenge = TestRenderer.create(<StepUpScreen />); await Promise.resolve() })
+  TestRenderer.act(() => challenge.root.findByType(OtpInput).props.onChange('123456'))
+  await TestRenderer.act(async () => { await buttonByLabel(challenge, 'stepUp.confirm').props.onClick() })
+  expect(mocks.apiClient).toHaveBeenCalledWith(API.apiKeys.confirmCreationChallenge, { method: 'POST', body: JSON.stringify({ code: '123456' }) }, expect.anything())
+  expect(mocks.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(hasApiKeyCreationGrant()).toBe(true)
+  TestRenderer.act(() => challenge.unmount())
+
+  mocks.grantAvailable = true
+  mocks.create.mockReset().mockResolvedValue(null)
+  const returned = renderUnlockedKeys()
+  if (mode === 'scoped') await submitScopedKey(returned)
+  else await TestRenderer.act(async () => { await buttonByLabel(returned, 'profile.apiKeys.create').props.onClick() })
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: true, ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  TestRenderer.act(() => returned.unmount())
+  const fresh = renderUnlockedKeys()
+  expect(permissionSwitch(fresh).props.accessibilityState.checked).toBe(false)
+  TestRenderer.act(() => fresh.unmount())
 })
