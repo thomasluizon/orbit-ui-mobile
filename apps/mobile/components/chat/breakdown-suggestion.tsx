@@ -45,6 +45,10 @@ function buildBreakdownRows({ card, t, editingDisabled, tokens }: Readonly<{ car
 function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, tokens }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
+  const isEmpty = card.habits.length === 0
+  const addVariant = isEmpty ? 'primary' : 'ghost'
+  const approveVariant = isEmpty ? 'secondary' : 'primary'
+  const addIconColor = isEmpty ? tokens.fgOnPrimary : tokens.fg1
   return (
 <>
     <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.capacityDenied ? {} : { position: 'absolute', height: 0 }) }}>{card.capacityDenied ? t('habits.breakdown.capacityDenied') : ''}</Text>
@@ -52,7 +56,7 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
     <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ flexBasis: '100%', color: tokens.statusBadText, ...(card.createError ? {} : { position: 'absolute', height: 0 }) }}>{card.createError ? t(createErrorKey) : ''}</Text>
     {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
     {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-    {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant="ghost" leadingIcon={<Plus accessible={false} size={16} color={tokens.fg1} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled || card.habits.length === 0} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
+    {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant={addVariant} leadingIcon={<Plus accessible={false} size={16} color={addIconColor} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled || card.habits.length === 0} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" variant={approveVariant} disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
   </>
   )
 }

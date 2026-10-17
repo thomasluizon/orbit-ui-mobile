@@ -68,6 +68,8 @@ it('disables approval when every proposed row has been removed', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   }
   expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'primary')
+  expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toHaveAttribute('data-variant', 'secondary')
   expect(screen.getByRole('button', { name: 'chat.preview.edit' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()

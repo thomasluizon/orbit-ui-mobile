@@ -46,6 +46,9 @@ function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: Retur
 function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, rejectRef }: Readonly<{ rejectRef: RefObject<HTMLButtonElement | null>; card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string }>) {
   const t = useTranslations()
   const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
+  const isEmpty = card.habits.length === 0
+  const addVariant = isEmpty ? 'primary' : 'ghost'
+  const approveVariant = isEmpty ? 'secondary' : 'primary'
   return (
 <>
     <p role="status" className={card.capacityDenied ? 'basis-full text-sm text-[var(--fg-2)]' : 'sr-only'}>{card.capacityDenied ? t('habits.breakdown.capacityDenied') : ''}</p>
@@ -55,10 +58,10 @@ function BreakdownActions({ card, isPending, editingDisabled, warning, parentNam
         {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
         {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
           <>
-            <Button size="sm" variant="ghost" leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
+            <Button size="sm" variant={addVariant} leadingIcon={<Plus aria-hidden="true" size={16} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button>
             <Button size="sm" variant="ghost" disabled={editingDisabled || card.habits.length === 0} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button>
             <Button buttonRef={rejectRef} size="sm" variant="ghost" disabled={editingDisabled} onClick={card.reject}>{t('chat.preview.reject')}</Button>
-            <Button size="sm" disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
+            <Button size="sm" variant={approveVariant} disabled={editingDisabled || card.habits.length === 0} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>
           </>
         )}
     </>

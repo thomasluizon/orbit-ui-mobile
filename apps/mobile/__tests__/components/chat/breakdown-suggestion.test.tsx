@@ -225,6 +225,8 @@ it('disables approval and editing after removing every Android proposal', async 
     await act(() => openConfirmation(tree).onConfirm())
   }
   expect(renderedText(tree.root)).toContain('chat.breakdown.empty')
+  expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-primary-sm')
+  expect(press(tree, 'chat.preview.approve').props.testID).toBe('button-secondary-sm')
   expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)
   expect(press(tree, 'chat.preview.edit').props.accessibilityState.disabled).toBe(true)
   expect(press(tree, 'chat.preview.reject').props.accessibilityState.disabled).toBe(false)
