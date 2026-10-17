@@ -77,6 +77,18 @@ describe("mobile ui store", () => {
     useUIStore.persist.setOptions({ name: "orbit-ui-store" });
   });
 
+  it.each(["all", "general"] as const)("restores the saved %s view on account re-entry", async (activeView) => {
+    await setUIAccountScope("saved-view-account");
+    useUIStore.getState().setActiveView(activeView);
+    await setUIAccountScope(null);
+    expect(useUIStore.getState().activeView).toBe("today");
+
+    await setUIAccountScope("saved-view-account");
+
+    expect(useUIStore.getState().activeView).toBe(activeView);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
   it("merges filters and updates search state", () => {
     const {
       setFilters,

@@ -87,6 +87,20 @@ describe('Hoje header geometry', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
+  it.each([412, 1024, 1280])('keeps search in its owning shell at %i pixels', async (width) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+      <DestinationShell onCreate={noop}><TodayDateControl {...props} isTodaySelected beforeDate={<HabitViewSwitch value="today" onChange={noop} />} /></DestinationShell>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const compactSearch = page.locator(`button[aria-label="${props.searchLabel}"]`)
+      expect(await compactSearch.count()).toBe(1)
+      expect(await compactSearch.isVisible()).toBe(width < 1024)
+      if (width >= 1024) expect(await page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.nav.search }).isVisible()).toBe(true)
+    } finally { await page.close() }
+  })
+
   it.each([320, 360, 384, 412, 600, 768, 840, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))(
     'keeps all three habit views on one line in $locale at $width', async ({ width, locale }) => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
