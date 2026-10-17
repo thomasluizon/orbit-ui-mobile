@@ -22,14 +22,13 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 afterEach(async () => { await i18n.changeLanguage('en') })
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale })))))('keeps Android preference labels whole in $locale at $width and scale $scale', async ({ locale, width, scale }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 384, 412, 480].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale })))))('keeps Android preference labels whole in $locale at $width and scale $scale', async ({ locale, width, scale }) => {
   preferences.locale = locale
   await i18n.changeLanguage(locale)
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })} patchProfile={vi.fn()} />) })
   try {
     const labels = tree.root.findAllByType(Text)
-    const description = i18n.t('settings.homeScreen.showGeneralDesc')
     expect(labels).toHaveLength(13)
     for (const text of labels) expect(text.props.numberOfLines, text.props.children).toBeUndefined()
     const measured = measureProfileRow(tree.toJSON(), width - 32, scale)
@@ -38,7 +37,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
       expect(text.clipped, text.label).toBe(false)
       expect(text.left, text.label).toBeGreaterThanOrEqual(0)
       expect(text.right, text.label).toBeLessThanOrEqual(width - 32)
-      if (scale === 1 && text.label !== description) expect(text.lines, text.label).toBe(1)
+      if (scale === 1) expect(text.lines, text.label).toBe(1)
     }
     const switchLabel = labels.find((text: { props: { children: string } }) => text.props.children === i18n.t('settings.homeScreen.showGeneral'))!
     let row = switchLabel.parent!
