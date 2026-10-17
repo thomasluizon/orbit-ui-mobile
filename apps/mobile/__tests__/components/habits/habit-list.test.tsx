@@ -51,6 +51,7 @@ const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
+const setFrequencyFilters = vi.hoisted(() => vi.fn())
 
 const skipFlow = vi.hoisted(() => ({ active: false }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '22222222-2222-4222-8222-222222222222' }))
@@ -399,6 +400,7 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
 vi.mock('@/stores/ui-store', () => {
   const getState = () => ({
+      setFilters: setFrequencyFilters,
       toggleSelectMode,
       toggleSelectionCascade,
       ...replaySelection,
@@ -1117,6 +1119,18 @@ describe('HabitList', () => {
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
   })
 
+  it('names an empty frequency view and offers all frequencies', () => {
+    seedHabits([])
+    let tree: ReturnType<typeof createTestTree>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{ frequencyUnit: 'Week' }} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(flattenRenderedText(tree!.toJSON())).toContain('habits.filter.weekly')
+    const button = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.all').length > 0)[0]!
+    TestRenderer.act(() => button.props.onPress())
+    expect(setFrequencyFilters).toHaveBeenCalledWith({ frequencyUnit: undefined })
+  })
+
   it('keeps the plain line visible if the account count cannot load', () => {
     accountHabitCount.isLoaded = false
     seedHabits([])
@@ -1151,6 +1165,24 @@ describe('HabitList', () => {
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.nothingOpen')
     expect(text).not.toContain('habits.allDoneToday')
+  })
+
+  it.each([false, true])('does not announce whole-day completion from a monthly subset, showCompleted=%s', (showCompleted) => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 2
+    const daily = createMockHabit({ id: 'daily-pending', frequencyUnit: 'Day', scheduledDates: [TODAY] })
+    const monthly = createMockHabit({ id: 'monthly-done', frequencyUnit: 'Month', scheduledDates: [TODAY], isLoggedInRange: true })
+    seedHabits([daily, monthly])
+    let tree: import('react-test-renderer').ReactTestRenderer
+    const list = (frequencyUnit?: 'Month') => <HabitList view="today" filters={{ frequencyUnit }} showCompleted={showCompleted} onCreatePress={vi.fn()} />
+    TestRenderer.act(() => { tree = createTestTree(list()) })
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
+    seedHabits([monthly])
+    TestRenderer.act(() => { tree!.update(list('Month')) })
+    expect(tree!.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.allDoneHint')).toHaveLength(0)
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
+    TestRenderer.act(() => { tree!.update(list()) })
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {

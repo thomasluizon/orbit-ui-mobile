@@ -8,6 +8,9 @@ import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
+import type { HabitFrequencyFilter } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -117,6 +120,16 @@ export function HabitListNothingOpen() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
   return <Text style={[styles.nothingOpen, { color: tokens.fg3 }]}>{t('habits.nothingOpen')}</Text>
+}
+
+export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequencyUnit: HabitFrequencyFilter }>) {
+  const { t } = useTranslation()
+  const option = HABIT_FREQUENCY_FILTER_OPTIONS.find(({ value }) => value === frequencyUnit)!
+  return <HabitListEmptyState
+    title={t(option.labelKey)} description={t('habits.nothingOpen')}
+    actionLabel={t('common.all')}
+    onAction={() => useUIStore.getState().setFilters({ frequencyUnit: undefined })}
+  />
 }
 
 const styles = StyleSheet.create({

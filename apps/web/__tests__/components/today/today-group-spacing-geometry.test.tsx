@@ -93,16 +93,18 @@ describe('Hoje group spacing', () => {
       state.surface = 'list'
       state.date = '2026-09-04'
       await load()
-      const spacing = await page.evaluate(() => {
+      const spacing = await page.evaluate((summaryTitle) => {
         const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
-        return { lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
+        const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)!.getBoundingClientRect()
+        return { lineToDate: date.top - line.bottom, dateToSummary: summary.top - date.bottom, summaryToList: list.top - summary.bottom,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
-      })
+      }, messages.summary.title)
       expect.soft(spacing.lineToDate).toBeCloseTo(24 * textScale, 1)
-      expect(spacing.dateToList).toBeCloseTo(24, 1)
+      expect(spacing.dateToSummary).toBeCloseTo(24, 1)
+      expect(spacing.summaryToList).toBeCloseTo(24, 1)
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
       const line = page.locator('.today-astra-line')
       await line.focus()
@@ -140,14 +142,15 @@ describe('Hoje group spacing', () => {
       for (const surface of ['list', 'empty', 'loading']) {
         state.surface = surface
         await load()
-        const spacing = await page.evaluate(() => {
+        const spacing = await page.evaluate((summaryTitle) => {
           const owner = document.querySelector('[data-today-day-transition]')!.getBoundingClientRect()
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
-          return { dateInset: date.top - owner.top, dateToList: list.top - date.bottom,
-            hasLine: Boolean(document.querySelector('.today-astra-line')) }
-        })
-        expect(spacing).toMatchObject({ dateInset: 0, dateToList: 24, hasLine: false })
+          const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)?.getBoundingClientRect()
+          return { dateInset: date.top - owner.top, dateToNext: (summary ?? list).top - date.bottom,
+            summaryToList: summary ? list.top - summary.bottom : null, hasLine: Boolean(document.querySelector('.today-astra-line')) }
+        }, messages.summary.title)
+        expect(spacing).toMatchObject({ dateInset: 0, dateToNext: 24, summaryToList: surface === 'loading' ? null : 24, hasLine: false })
       }
       state.date = '2026-09-03'
       await load()

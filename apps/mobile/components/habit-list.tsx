@@ -71,7 +71,7 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import { HabitListAllDone, HabitListEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
+import { HabitListAllDone, HabitListEmptyState, HabitListFrequencyEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
@@ -391,7 +391,9 @@ function renderDayListEmptyState(
   showAllDone: boolean,
   renderFirstRun: () => ReactElement,
   sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+  frequencyUnit: HabitsFilter['frequencyUnit'],
 ): ReactElement | null {
+  if (frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={frequencyUnit} />
   if (showAllDone) return null
   if (isCountLoaded && accountCount === 0) return renderFirstRun()
   return <View style={sectionInsetStyle}><HabitListNothingOpen /></View>
@@ -1749,7 +1751,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+    const showAllDone = !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
       selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     const activeListHeader = renderAllDoneListHeader(
@@ -1782,6 +1784,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             showAllDone,
             renderEmptyState,
             styles.sectionInset,
+            filters.frequencyUnit,
           )}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
