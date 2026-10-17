@@ -720,7 +720,6 @@ export {
   achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
-  deriveProgressViewState,
   filterProgressGoals,
   formatStreakDate,
   formatStreakRepairDates,
@@ -731,7 +730,6 @@ export {
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
-  isProgressEmpty,
 } from './progress'
 export type {
   AchievementGlyphKey,
