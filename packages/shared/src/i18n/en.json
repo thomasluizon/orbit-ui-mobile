@@ -978,6 +978,9 @@
     },
     "breakdown": {
       "breakInto": "Break down {name} into:",
+      "limit": "{limit} habits max. Remove one to add another.",
+      "retryError": "Could not create the remaining habits. Try again.",
+      "createError": "Could not create these habits. Edit the proposal and try again.",
       "addHabit": "Add habit",
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
