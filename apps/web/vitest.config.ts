@@ -1,23 +1,45 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { readFileSync, readdirSync } from 'node:fs'
+
+const chromiumTests = readdirSync(path.resolve(__dirname, '__tests__'), { recursive: true })
+  .map(String)
+  .filter((file) => /\.test\.tsx?$/.test(file))
+  .map((file) => `__tests__/${file.split(path.sep).join('/')}`)
+  .filter((file) => /\bfrom\s+['"][^'"]*\/chromium['"]/.test(readFileSync(path.resolve(__dirname, file), 'utf8')))
+  .sort((left, right) => left.localeCompare(right))
 
 export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
     setupFiles: ['./__tests__/setup.ts'],
-    include: ['__tests__/**/*.test.{ts,tsx}'],
     globals: true,
-    /**
-     * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
-     * the whole machine, so together they oversubscribe the CPU and time out module-graph
-     * imports. The cap keeps the aggregate near one machine's worth. The cap alone still went
-     * red in 1 of 3 runs, so the margin over the 5s default covers the residual import cost.
-     */
     maxWorkers: '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
+    // WHY: Chrome owns a process tree per suite, so CPU-based worker percentages do not bound browser contention. https://github.com/thomasluizon/orbit-tickets/issues/1451
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          include: ['__tests__/**/*.test.{ts,tsx}'],
+          exclude: chromiumTests,
+          sequence: { groupOrder: 0 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium',
+          include: chromiumTests,
+          maxWorkers: 1,
+          sequence: { groupOrder: 1 },
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
