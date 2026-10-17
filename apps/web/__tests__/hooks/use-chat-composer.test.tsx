@@ -483,6 +483,36 @@ describe('web useChatComposer streaming send', () => {
     vi.useRealTimers()
   })
 
+  it('reveals streaming text before coalesced final blocks can move the reply below the viewport', async () => {
+    vi.useFakeTimers()
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    const view = render(<AstraConversation chat={result.current} />)
+    const feed = screen.getByRole('feed')
+    Object.defineProperty(feed, 'scrollHeight', { get: () => useChatStore.getState().streamingMessageId ? 1400 : 3000 })
+    Object.defineProperty(feed, 'clientHeight', { value: 500 })
+    feed.scrollTop = 900
+    fireEvent.scroll(feed)
+    let sending!: Promise<void>
+    await act(async () => { sending = result.current.sendMessage('hello'); await vi.advanceTimersByTimeAsync(100) })
+    vi.mocked(feed.scrollTo).mockClear()
+    await act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })) + finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await vi.advanceTimersByTimeAsync(100)
+      await sending
+    })
+    view.rerender(<AstraConversation chat={result.current} />)
+    expect(feed.scrollTo).toHaveBeenCalledWith({ top: 1400, behavior: 'smooth' })
+    expect(feed.scrollTo).not.toHaveBeenCalledWith({ top: 3000, behavior: 'smooth' })
+    expect(feed.querySelectorAll('section[data-state]')).toHaveLength(2)
+    expect(result.current.threadScroll.isFollowing()).toBe(false)
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(feed.scrollTo).not.toHaveBeenCalledWith({ top: 3000, behavior: 'smooth' })
+    view.unmount()
+  })
+
   it('holds the reading position when ordered final parts replace streaming text, including resize callbacks', async () => {
     vi.useFakeTimers()
     const resized: (() => void)[] = []

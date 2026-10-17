@@ -735,6 +735,39 @@ describe('mobile useChatComposer', () => {
     })
   })
 
+  it('reveals streaming text before coalesced final blocks can move the reply below the viewport', async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    const revealedMessages: ChatMessage[] = []
+    const scrollToEnd = vi.fn(() => {
+      const message = useChatStore.getState().messages.at(-1)
+      if (message) revealedMessages.push(message)
+    })
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    composer.current.threadScroll.recordScroll(900, 900)
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    scrollToEnd.mockClear()
+    revealedMessages.length = 0
+    await TestRenderer.act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })) + finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await vi.advanceTimersByTimeAsync(100)
+      await send
+    })
+    expect(scrollToEnd).toHaveBeenCalled()
+    expect(revealedMessages.every(message => message.content === partsFixture.response.aiMessage && !message.parts?.some(part => part?.type === 'block'))).toBe(true)
+    expect(composer.current.messages.at(-1)?.parts?.filter(part => part?.type === 'block')).toHaveLength(2)
+    expect(composer.current.threadScroll.isFollowing()).toBe(false)
+    scrollToEnd.mockClear()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).not.toHaveBeenCalled()
+  })
+
   it('holds the reading position when ordered final parts replace streaming text', async () => {
     vi.useFakeTimers()
     onTestFinished(() => { vi.useRealTimers() })
