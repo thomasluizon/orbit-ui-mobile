@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -15,8 +15,11 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: createMockProactiveItem({ text: 'Sua rotina mudou. Vamos conversar?' }), openItem: vi.fn() }),
+}))
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: new Date().toISOString() })] }),
+  useNotifications: () => ({ notifications: [] }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))

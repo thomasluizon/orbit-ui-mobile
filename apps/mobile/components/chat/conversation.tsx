@@ -222,6 +222,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       </View>
     ),
     [
+      chat.isOnline,
       confirmAndExecutePendingOperation,
       claimAnnouncement,
       handleActionChipClick,
