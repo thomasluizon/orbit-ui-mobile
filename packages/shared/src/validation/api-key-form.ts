@@ -1,3 +1,12 @@
+import { MAX_API_KEY_NAME_LENGTH } from './constants'
+
+export function getApiKeyNameError(name: string) {
+  const trimmedName = name.trim()
+  if (!trimmedName) return 'orbitMcp.keyNameRequired'
+  if (trimmedName.length > MAX_API_KEY_NAME_LENGTH) return 'orbitMcp.keyNameMaxLength'
+  return null
+}
+
 const API_KEY_EXPIRY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
 
 /**
