@@ -428,7 +428,6 @@ export function createHabitFormController({
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', dueTime)
-      target.setField('dueEndTime', '')
     },
     clearDueTime: (): void => {
       releaseOwnership('dueTime')

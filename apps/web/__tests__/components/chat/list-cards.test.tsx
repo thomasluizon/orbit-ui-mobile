@@ -94,7 +94,7 @@ describe('Astra list cards on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run 10 km' }))
     expect(onOpenGoal).toHaveBeenCalledWith('goal-1')
     fireEvent.click(screen.getByRole('button', { name: 'chat.goalList.progressLink' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
   })
 
   it('shows API goal tracking and a localized projection without changing older rows', () => {

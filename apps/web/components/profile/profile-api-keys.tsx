@@ -10,6 +10,7 @@ import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/s
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Input } from '@/components/ui/input'
@@ -20,6 +21,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -31,6 +33,30 @@ import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
+}
+
+function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
+  const t = useTranslations()
+  const { displayDateMedium } = useDateFormat()
+  return (
+    <div className="flex min-w-0 flex-col font-mono text-[12px] leading-[1.4] tracking-[0.02em] tabular-nums text-[var(--fg-3)]" style={{ gap: 8, paddingInline: 16, paddingBottom: 16 }}>
+      <p className="[overflow-wrap:anywhere]" translate={apiKey.scopes.length > 0 ? 'no' : undefined}>{apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : t('orbitMcp.noScopes')}</p>
+      <p>{apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}</p>
+      <dl className="flex flex-col tabular-nums" style={{ gap: 4 }}>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.created')}</dt>
+          <dd><time dateTime={apiKey.createdAtUtc}>{displayDateMedium(apiKey.createdAtUtc)}</time></dd>
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          <dt>{t('orbitMcp.lastUsed')}</dt>
+          <dd>{apiKey.lastUsedAtUtc
+            ? <time dateTime={apiKey.lastUsedAtUtc}>{displayDateMedium(apiKey.lastUsedAtUtc)}</time>
+            : t('orbitMcp.never')}</dd>
+        </div>
+      </dl>
+      {apiKey.expiresAtUtc ? <p>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</p> : null}
+    </div>
+  )
 }
 
 interface ApiKeyListProps {
@@ -61,22 +87,24 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   return (
     <RowList>
       {apiKeys.map((apiKey) => (
-        <ListRow
-          compact
-          key={apiKey.id}
-          icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
-          title={apiKey.name}
-          textMode="personal"
-          wrapTitle
-          value={`${apiKey.keyPrefix}…`}
-          chevron={false}
-          action={{
-            icon: 'trash',
-            label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
-            danger: true,
-            onPress: () => onRevoke(apiKey.id),
-          }}
-        />
+        <div key={apiKey.id}>
+          <ListRow
+            compact
+            icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+            title={apiKey.name}
+            textMode="personal"
+            wrapTitle
+            value={`${apiKey.keyPrefix}…`}
+            chevron={false}
+            action={{
+              icon: 'trash',
+              label: t('profile.apiKeys.revokeNamed', { name: apiKey.name }),
+              danger: true,
+              onPress: () => onRevoke(apiKey.id),
+            }}
+          />
+          <ApiKeyDetails apiKey={apiKey} />
+        </div>
       ))}
     </RowList>
   )
@@ -447,11 +475,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
           ) : null}
           {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
-          <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
-            <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
-            <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
-            <p className="break-all font-mono text-[12px] text-[var(--fg-2)]">{getMcpEndpointUrl(accountEventApiBase())}</p>
-          </div>
+          <McpCodeClient endpoint={getMcpEndpointUrl(accountEventApiBase())} />
         </>
       </ApiKeyAccessContent>
 

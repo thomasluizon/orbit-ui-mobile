@@ -34,7 +34,7 @@ import { toTime24,
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { validateTagForm } from '@orbit/shared/validation'
+import { validateTagForm, validateEndTime } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -59,6 +59,24 @@ import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { TagPickerField } from './habit-form-fields/tag-picker-field'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
+
+function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: HabitFormHelpers; dueTime: string }>) {
+  const t = useTranslations()
+  const dueEndTime = formHelpers.form.watch('dueEndTime') ?? ''
+  const error = validateEndTime(dueTime, dueEndTime)
+  if (formHelpers.isGeneral) return null
+  return (
+    <TimeField
+      label={t('habits.form.dueEndTime')}
+      value={toTime24(dueEndTime)}
+      disabled={!dueTime}
+      hint={dueTime ? undefined : t('habits.form.endTimeRequiresStart')}
+      error={error ? t(error) : undefined}
+      onChange={(value) => formHelpers.form.setValue('dueEndTime', value, { shouldDirty: true })}
+      onClear={() => formHelpers.form.setValue('dueEndTime', '', { shouldDirty: true })}
+    />
+  )
+}
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   titleInputRef?: RefObject<HTMLInputElement | null>
@@ -456,7 +474,7 @@ export function HabitFormFields({
           >
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
 
-            <section>
+            <section className="flex flex-col gap-4">
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
@@ -464,6 +482,7 @@ export function HabitFormFields({
                 onChange={controller.setDueTime}
                 onClear={controller.clearDueTime}
               />
+              <HabitEndTimeField formHelpers={formHelpers} dueTime={dueTime} />
             </section>
 
             <section className="flex flex-col gap-2">

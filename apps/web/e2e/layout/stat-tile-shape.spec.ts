@@ -84,6 +84,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           loadedGeometry.forEach((tile, index) => {
             expect(Math.abs(tile.height - loadingGeometry[index]!.height)).toBeLessThanOrEqual(0.5)
           })
+          await page.goto('/progress/streak')
           const streakSection = page.getByRole('region', { name: words.progressScreen.sections.streak })
           const streakTiles = streakSection.locator('[data-state="default"]')
           await expect(streakTiles).toHaveCount(2)

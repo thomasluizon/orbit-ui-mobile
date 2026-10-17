@@ -12,7 +12,8 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import type { HabitFormProposal } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, type HabitFormProposal } from '@orbit/shared/utils'
+import { habitFormSchema } from '@orbit/shared/validation'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
@@ -80,7 +81,7 @@ vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string,
 function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
   const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
   return {
-    form: { control: { values }, getValues: vi.fn((field: string) => values[field]), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
+    form: { control: { values }, getValues: vi.fn((field?: string) => field ? values[field] : values), setValue: vi.fn((field: string, value: unknown) => { values[field] = value }), formState: { errors: {} } } as unknown as HabitFormHelpers['form'],
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false, showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
     backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false), clearBackendErrors: vi.fn(),
@@ -234,9 +235,9 @@ describe('HabitFormFields mobile', () => {
   })
 
   it.each([
-    ['en', 'Log it when you do it, not when you resist.'],
-    ['pt-BR', 'Registre quando fizer, não quando resistir.'],
-  ])('explains slip logging and clean-day streaks in %s', (locale, expected) => {
+    ['en', 'A habit you want to avoid. Log each slip.'],
+    ['pt-BR', 'Um hábito que você quer evitar. Registre cada deslize.'],
+  ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
     formLocale.language = locale
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -586,7 +587,7 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findAll((node: any) => node.props?.testID === 'date-field')).toHaveLength(0)
   })
 
-  it('clears a prefilled end time when the exact time changes', async () => {
+  it('preserves a prefilled end time when the exact time changes', async () => {
     const formHelpers = createFormHelpers({ dueTime: '08:00', dueEndTime: '09:00' })
     let tree: any
     await TestRenderer.act(async () => {
@@ -594,10 +595,10 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    TestRenderer.act(() => tree.root.findByType('TimeField').props.onChange('10:00'))
+    TestRenderer.act(() => tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === 'habits.form.exactTime').props.onChange('10:00'))
 
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '10:00', { shouldDirty: true })
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '', { shouldDirty: true })
+    expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
   })
 
   it('routes the free sub-habit row to upgrade', async () => {
@@ -889,4 +890,40 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
     await TestRenderer.act(() => tree.unmount())
     __setFocusImpl(() => {})
   }
+})
+
+
+it('edits end times, reports ordering errors, and disables the field after clearing the start', async () => {
+  const helpers = createFormHelpers()
+  const renderNode = () => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
+  const field = (label: string) => tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === label)
+  const refresh = async (action: () => void) => {
+    await TestRenderer.act(action)
+    await TestRenderer.act(() => tree.update(renderNode()))
+  }
+  expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
+  expect(field('habits.form.dueEndTime').props.hint).toBe('habits.form.endTimeRequiresStart')
+  await refresh(() => field('habits.form.exactTime').props.onChange('08:00'))
+  expect(field('habits.form.dueEndTime').props.disabled).toBe(false)
+  await refresh(() => field('habits.form.dueEndTime').props.onChange('09:00'))
+  expect(helpers.form.getValues('dueEndTime')).toBe('09:00')
+  const values = habitFormSchema.parse(helpers.form.getValues())
+  expect(buildCreateHabitRequest(values, [], [], [], [])).toMatchObject({ dueTime: '08:00', dueEndTime: '09:00' })
+  expect(buildUpdateHabitRequest(values, true, '', [], [])).toMatchObject({ dueTime: '08:00', dueEndTime: '09:00' })
+  expect(field('habits.form.dueEndTime').props.value).toBe('09:00')
+  for (const invalid of ['08:00', '07:00']) {
+    await refresh(() => field('habits.form.dueEndTime').props.onChange(invalid))
+    expect(field('habits.form.dueEndTime').props.error).toBe('habits.form.endTimeBeforeStartTime')
+  }
+  await refresh(() => field('habits.form.dueEndTime').props.onChange('10:00'))
+  expect(field('habits.form.dueEndTime').props.error).toBeUndefined()
+  await refresh(() => field('habits.form.dueEndTime').props.onClear())
+  expect(field('habits.form.dueEndTime').props.value).toBe('')
+  await refresh(() => field('habits.form.dueEndTime').props.onChange('10:00'))
+  await refresh(() => field('habits.form.exactTime').props.onClear())
+  expect(field('habits.form.dueEndTime').props.value).toBe('')
+  expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
+  await TestRenderer.act(() => tree.unmount())
 })

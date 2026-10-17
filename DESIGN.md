@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -116,12 +116,24 @@ passes no bottom content. Transient notices keep the separate `notice` slot.
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces
 the destination's header, scroller and bottom chrome in the centred column, capped at 740, from
 its top inset to the viewport bottom. Its header, thread, chips and composer have the same layout
-at every width. The header is NavHeader: minimum height 56, start-aligned mono 12/500 title
-`Astra`, and a 48 close control with a 20 X. The composer has a top hairline and 16 padding,
+at every width. The header is NavHeader: minimum height 56, a start-aligned 16 Astra glyph
+at the 16 header inset, centred vertically with a 48 close control carrying a 20 X. The glyph
+replaces the visible title; the header heading keeps the accessible name `Astra` once.
+The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
+
+**Conversation header surface inventory:**
+
+| Surface | Owner | States sharing the header |
+|---|---|---|
+| Web conversation in the compact shell and wide content column | `apps/web/components/chat/conversation.tsx`, mounted by `apps/web/app/(app)/layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
+| Android conversation at every window width | `apps/mobile/components/chat/conversation.tsx`, mounted by `apps/mobile/app/_layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
+
+Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
+all open these owners through the conversation store; no entry owns a separate header.
 
 **Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
 control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
@@ -190,6 +202,30 @@ in that order. Calendar sync opens the Calendários sheet, its one home, and kee
 Mais do Orbit rows carry no descriptions that repeat their titles. Sign out is the final top-level row. Each setting
 has one home; the retired Preferências, Avançado and Recursos de IA pages redirect to the new
 sub-screens and never carry a second copy.
+
+### Progresso overview and detail navigation
+
+Progresso opens with the last 30 days: one neutral bar chart, three short figures
+(completion rate, active days and best weekday), then the most consistent habit as a row.
+Each figure answers one question. There are at most four figures, including the habit row.
+The root never opens with a large streak numeral or repeats the detail below its entries.
+
+Three icon-led rows follow, using the Perfil sub-menu pattern. Sequência opens
+`/progress/streak` and owns the current and longest streak, day strip, tier, legend,
+freeze bank, next freeze, protected days and repair. Metas opens `/progress/goals`
+and owns creation, filters, reordering and the existing goal detail actions.
+Conquistas opens `/progress/achievements` and owns the level and XP row followed by the
+achievement categories. Its supporting line names level and XP so that home is findable.
+Keeping those together preserves the granted level and achievement composition with three
+choices on the root, rather than adding a fourth screen for one row.
+
+Each detail has its own URL, PageHeader and a visible back control to Progresso. A failed
+or loading detail never blocks the overview or the other entries. Empty and locked states
+stay with the subject they explain. The overview keeps its navigation rows in every state.
+All existing figures and actions have one home, reachable by one row from the overview.
+Both platforms keep a centred column capped at 740px, 16px content insets and small,
+label-hugging actions in wide windows. This amendment supersedes the inline detail stack
+in the Progresso drawing; its detail compositions and semantic tokens remain authoritative.
 
 ### The month completion rate has one definition
 

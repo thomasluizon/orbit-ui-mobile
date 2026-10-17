@@ -66,7 +66,7 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/relay-at-threshold.mjs\"", "timeout": 1 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/relay-at-threshold.mjs\"", "timeout": 5 }
         ]
       },
       {
@@ -80,7 +80,7 @@
       {
         "matcher": ".*",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/relay-at-threshold.mjs\"", "timeout": 1 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/relay-at-threshold.mjs\"", "timeout": 5 }
         ]
       },
       {

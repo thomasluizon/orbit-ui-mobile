@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
+import type { Locator, Page } from '@playwright/test'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -65,6 +66,25 @@ function assertHeaderControls(controls: { left: number; right: number; top: numb
   if (scale === 1) expect(controls[0]!.top + controls[0]!.height / 2).toBeCloseTo(centers[0]!, 0)
 }
 
+async function expectHeaderFillClearance(page: Page, control: Locator, content: Locator, mode: 'dark' | 'light') {
+  const background = mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)'
+  for (const state of ['hover', 'press'] as const) {
+    await control.hover()
+    if (state === 'press') await page.mouse.down()
+    try {
+      await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(background)
+      const fill = await control.boundingBox()
+      const next = await content.boundingBox()
+      expect(fill!.width).toBeGreaterThanOrEqual(48)
+      expect(fill!.height).toBeGreaterThanOrEqual(48)
+      expect(next!.y - fill!.y - fill!.height).toBeGreaterThanOrEqual(24)
+    } finally {
+      await page.mouse.move(0, 914)
+      await page.mouse.up()
+    }
+  }
+}
+
 describe('Hoje header geometry', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
@@ -85,6 +105,44 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([412, 1352].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
+    'separates destination interaction fills from following content at $width in $mode', async ({ width, mode }) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+      const surfaces = [
+        <TodayDateControl key="today" {...props} isTodaySelected beforeDate={<TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />} />,
+        <CalendarOptions key="calendar" />,
+        <RootNotificationHeader key="progress" />,
+        <RootNotificationHeader key="profile" />,
+      ]
+      try {
+        for (const [index, surface] of surfaces.entries()) {
+          const { container, unmount } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+            <DestinationShell onCreate={noop}>{surface}<div data-first-content="" style={{ height: 48 }} /></DestinationShell>
+          </NextIntlClientProvider>)
+          const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+          unmount()
+          await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
+          const content = page.locator(index === 0 ? '.today-astra-line' : '[data-first-content]')
+          await expect.poll(() => content.count()).toBe(1)
+          const controls = page.locator('[data-today-header-actions] button, [data-testid="calendar-shell-header"] button, [data-root-notification-header] button')
+          let inspected = 0
+          for (const control of (await controls.all()).reverse()) {
+            if (!await control.isVisible()) continue
+            inspected += 1
+            await expectHeaderFillClearance(page, control, content, mode)
+          }
+          expect(inspected).toBe(width < 1024 ? [3, 2, 1, 1][index] : index < 2 ? 1 : 0)
+          if (width >= 1024) {
+            const bell = page.locator('[data-shell-sidebar] button[aria-label^="' + ptBr.notifications.bell + '"]')
+            const next = page.locator('[data-shell-sidebar] > div').first().locator(':scope > button')
+            await expectHeaderFillClearance(page, bell, next, mode)
+          }
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each([320, 412, 1352].flatMap((width) => ['today', 'calendar'].map((destination) => ({ width, destination }))))(
     'keeps the server-rendered $destination header and content in place through hydration at $width', async ({ width, destination }) => {
@@ -562,7 +620,7 @@ describe('Hoje header geometry', () => {
       } finally { await page.close() }
     },
   )
-  it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {
+  it.each([['en', 1], ['pt-BR', 1], ['en', 2], ['pt-BR', 2]] as const)('fits the open %s menu at 320 pixels and text scale %i', async (locale, textScale) => {
     const messages = locale === 'en' ? en : ptBr
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
       menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
@@ -572,20 +630,34 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
-      await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
+      await page.evaluate(async (scale) => { await document.fonts.ready; document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
       const geometry = await page.evaluate(() => {
         const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
           const range = document.createRange()
           range.selectNodeContents(label)
-          return { text: label.textContent, textWidth: range.getBoundingClientRect().width, available: label.getBoundingClientRect().width, lines: range.getClientRects().length }
+          const bounds = label.getBoundingClientRect()
+          const text = range.getBoundingClientRect()
+          const row = label.closest('.orbit-menu-item')
+          const rowBounds = row?.getBoundingClientRect()
+          const icon = row?.querySelector('[data-icon]')?.getBoundingClientRect()
+          return { text: label.textContent, textWidth: text.width, textHeight: text.height,
+            available: bounds.width, lines: range.getClientRects().length,
+            rowHeight: rowBounds?.height,
+            centerOffset: rowBounds ? (bounds.top + bounds.bottom - rowBounds.top - rowBounds.bottom) / 2 : undefined,
+            iconOffset: icon ? icon.top - bounds.top : undefined,
+            lineHeight: Number.parseFloat(getComputedStyle(label).lineHeight) }
         })
         const close = document.querySelector('.orbit-sheet-close')!.getBoundingClientRect()
         return { labels, close: { width: close.width, height: close.height } }
       })
-      expect(geometry.labels).toHaveLength(5)
+      expect(geometry.labels).toHaveLength(6)
       for (const label of geometry.labels) {
         expect(label.textWidth, label.text).toBeLessThanOrEqual(label.available)
-        expect(label.lines).toBe(1)
+        expect(label.lines).toBeGreaterThanOrEqual(1)
+        if (textScale === 1) expect(label.lines).toBe(1)
+        if (label.rowHeight !== undefined) expect(label.textHeight).toBeLessThanOrEqual(label.rowHeight)
+        if (textScale === 1 && label.centerOffset !== undefined) expect(Math.abs(label.centerOffset)).toBeLessThanOrEqual(1)
+        if (label.iconOffset !== undefined) expect(label.iconOffset).toBeLessThanOrEqual(label.lineHeight / 2)
       }
       expect(geometry.close.width).toBeGreaterThanOrEqual(48)
       expect(geometry.close.height).toBeGreaterThanOrEqual(48)
