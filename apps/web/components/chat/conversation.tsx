@@ -20,7 +20,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
-import { PromptLibrary } from './prompt-library'
+import { PromptLibrary } from '@/components/chat/prompt-library'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
 
