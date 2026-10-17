@@ -13,7 +13,8 @@ export {
   BAR_CHART_EMPTY_HEIGHT,
   BAR_CHART_HEIGHT,
   barChartPath,
-  nearestBarIndex,
+  resolveBarChartReadout,
+  resolveBarChartSelection,
   resolveBarChartGeometry,
   stepSelection,
 } from './BarChart'

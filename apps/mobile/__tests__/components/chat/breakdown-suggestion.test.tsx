@@ -1,6 +1,7 @@
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
+import { createApiClientError } from '@orbit/shared/utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import type { ConflictWarning } from '@orbit/shared/types/chat'
@@ -254,7 +255,7 @@ it('keeps multiple added drafts distinct and retries the failed named row after 
 
 it('keeps a rejected batch editable until it fits a persistent capacity constraint', async () => {
   bulkCreate.mockImplementation((request) => {
-    if (request.habits.length > 2) return Promise.reject(new Error('habit capacity'))
+    if (request.habits.length > 2) return Promise.reject(createApiClientError(400, { error: 'Habit limit reached', errorCode: 'HABIT_LIMIT_REACHED' }, 'Bad Request'))
     return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
   })
   const tree: ReactTestRenderer = renderBreakdown()
@@ -265,7 +266,8 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     await act(() => press(tree, 'chat.preview.approve').props.onPress())
     await act(() => (tree.root.findAll(node => String(node.type) === 'ConfirmSheet')[0]!.props.onConfirm as () => void)())
     expect(bulkCreate).toHaveBeenCalledTimes(attempt)
-    expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.createError')
+    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite' && renderedText(node.props.children) === 'habits.breakdown.capacityDenied')).toHaveLength(1)
+    expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert' && renderedText(node.props.children).length > 0)).toHaveLength(0)
     expect(press(tree, 'chat.preview.reject').props.disabled).toBe(false)
     expect(press(tree, 'chat.batch.retry')).toBeUndefined()
     expect(defaultProps.onConfirmed).not.toHaveBeenCalled()

@@ -4,7 +4,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import type { BulkCreateRequest } from '@orbit/shared/types/habit'
 import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
@@ -12,6 +12,8 @@ import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/cha
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { Checkbox } from '@/components/ui/checkbox'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import { AlertTriangle, Plus, X } from '@/components/ui/icons'
@@ -19,8 +21,43 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+function buildBreakdownRows({ card, t, editingDisabled, tokens, hoveredRemoveId, setHoveredRemoveId }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; t: ReturnType<typeof useTranslation>['t']; editingDisabled: boolean; tokens: ReturnType<typeof createTokensV2>; hoveredRemoveId: string | null; setHoveredRemoveId: (id: string | null) => void }>) {
+  const visibleHabits = card.completed ? card.habits.filter((habit) => card.results[habit.id] === 'done') : card.habits
+  return visibleHabits.map((habit) => ({
+    id: habit.id,
+    wrapLabel: true,
+    editable: !editingDisabled,
+    label: card.editingId === habit.id || habit.title.trim() === '' ? <TypedTextInput editable={!editingDisabled} autoFocus={card.editingId === habit.id} placeholder={t('habits.form.newHabit')} onFocus={() => card.setEditingId(habit.id)} accessibilityLabel={t('chat.preview.editName', { name: habit.title.trim() || t('habits.form.newHabit') })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: card.editingId === habit.id ? tokens.primary : tokens.borderControl, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={habit.proposed && card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
+    meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
+    status: card.results[habit.id],
+    proposed: habit.proposed && card.results[habit.id] == null,
+    irreversible: card.results[habit.id] == null,
+    control: card.results[habit.id] == null ? (
+      <><Pressable disabled={editingDisabled} accessibilityState={{ disabled: editingDisabled }} accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title.trim() || t('habits.form.newHabit') })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
+       {!card.hasSubmitted ? <InsetFocusPressable onHoverIn={() => setHoveredRemoveId(habit.id)} onHoverOut={() => setHoveredRemoveId(null)} accessibilityRole="button" accessibilityLabel={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('habits.form.newHabit') })} disabled={editingDisabled} accessibilityState={{ disabled: editingDisabled }} onPress={() => card.removeHabit(habit.id)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', padding: 12, backgroundColor: (pressed || hoveredRemoveId === habit.id) && !editingDisabled ? tokens.bgHover : 'transparent' })}><X accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} /></InsetFocusPressable> : null}</>
+    ) : undefined,
+  }))
+}
+
+function BreakdownActions({ card, isPending, editingDisabled, warning, parentName, tokens }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; isPending: boolean; editingDisabled: boolean; warning?: ConflictWarning | null; parentName: string; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
+  return (
+<>
+    <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.capacityDenied ? {} : { position: 'absolute', height: 0 }) }}>{card.capacityDenied ? t('habits.breakdown.capacityDenied') : ''}</Text>
+    <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.atCapacity && !card.hasSubmitted ? {} : { position: 'absolute', height: 0 }) }}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</Text>
+    <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ flexBasis: '100%', color: tokens.statusBadText, ...(card.createError ? {} : { position: 'absolute', height: 0 }) }}>{card.createError ? t(createErrorKey) : ''}</Text>
+    {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
+    {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+    {card.partiallyFailed ? <Button size="sm" disabled={isPending} loading={isPending} onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : <><Button size="sm" variant="ghost" leadingIcon={<Plus accessible={false} size={16} color={tokens.fg1} />} disabled={editingDisabled || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={editingDisabled} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" disabled={editingDisabled} loading={isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
+  </>
+  )
+}
+
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const { t } = useTranslation()
+  const [hoveredRemoveId, setHoveredRemoveId] = useState<string | null>(null)
+  const [groupingHovered, setGroupingHovered] = useState(false)
   const bulkCreate = useBulkCreateHabits()
   const trackCardOperation = useChatCardOperation()
   const { mutateAsync } = bulkCreate
@@ -29,26 +66,16 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: createHabits, onConfirmed })
-  const createErrorKey = card.hasSubmitted ? 'habits.breakdown.retryError' : 'habits.breakdown.createError'
+  const isPending = bulkCreate.isPending || card.isSubmitting
+  const editingDisabled = isPending || card.groupingLocked
+
   if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
-  const rows = card.habits.map((habit) => ({
-    id: habit.id,
-    wrapLabel: true,
-    label: card.editingId === habit.id || habit.title.trim() === '' ? <TypedTextInput autoFocus={card.editingId === habit.id} editable={!bulkCreate.isPending && !card.hasSubmitted} placeholder={t('habits.form.newHabit')} accessibilityLabel={t('chat.preview.editName', { name: habit.title.trim() || t('habits.form.newHabit') })} value={habit.title} onFocus={() => card.setEditingId(habit.id)} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: card.editingId === habit.id ? tokens.primary : tokens.borderControl, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails outset proposed={habit.proposed && card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
-    meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
-    status: card.results[habit.id],
-    proposed: habit.proposed && card.results[habit.id] == null,
-    irreversible: card.results[habit.id] == null,
-    control: card.results[habit.id] == null ? (
-      <><Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} disabled={bulkCreate.isPending || card.hasSubmitted} accessibilityState={{ disabled: bulkCreate.isPending || card.hasSubmitted }} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
-      {!card.hasSubmitted ? <Pressable accessibilityRole="button" accessibilityLabel={t('habits.breakdown.removeHabit', { name: habit.title.trim() || t('habits.form.newHabit') })} disabled={bulkCreate.isPending} accessibilityState={{ disabled: bulkCreate.isPending }} onPress={() => card.removeHabit(habit.id)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', padding: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><X accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} /></Pressable> : null}</>
-    ) : undefined,
-  }))
-  return <><BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<>
-    <Text accessibilityLiveRegion="polite" style={{ flexBasis: '100%', color: tokens.fg2, ...(card.atCapacity && !card.hasSubmitted ? {} : { position: 'absolute', height: 0 }) }}>{card.atCapacity && !card.hasSubmitted ? t('habits.breakdown.limit', { limit: MAX_BULK_OPERATION_SIZE }) : ''}</Text>
-    <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ flexBasis: '100%', color: tokens.statusBadText, ...(card.createError ? {} : { position: 'absolute', height: 0 }) }}>{card.createError ? t(createErrorKey) : ''}</Text>
-    {warning?.hasConflict ? <View style={{ flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle accessible={false} size={16} color={tokens.statusOverdue} /><Text style={{ flex: 1, color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
-    {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-    {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : card.hasSubmitted ? null : <><Button size="sm" variant="ghost" leadingIcon={<Plus accessible={false} size={16} color={tokens.fg1} />} disabled={bulkCreate.isPending || card.confirmOpen || card.atCapacity} onClick={card.addHabit}>{t('habits.breakdown.addHabit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => card.setEditingId(card.habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={card.reject}>{t('chat.preview.reject')}</Button><Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button></>}
-  </>} /><ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} /></>
+  const rows = buildBreakdownRows({ card, t, editingDisabled, tokens, hoveredRemoveId, setHoveredRemoveId })
+
+  return <><BlockFrame state={isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} body={card.completed ? null : <View style={{ minWidth: 0, flexShrink: 0 }}><InsetFocusPressable accessibilityRole="checkbox" accessibilityLabel={t('habits.breakdown.createAsParent')} accessibilityState={{ checked: card.createAsParent, disabled: isPending || card.groupingLocked }} disabled={isPending || card.groupingLocked} onHoverIn={() => setGroupingHovered(true)} onHoverOut={() => setGroupingHovered(false)} onPress={() => card.setCreateAsParent(!card.createAsParent)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 4, borderRadius: 12, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 12, backgroundColor: (pressed || groupingHovered) && !isPending && !card.groupingLocked ? tokens.bgHover : 'transparent', opacity: isPending || card.groupingLocked ? 0.6 : 1 })}>
+    <Checkbox as="span" checked={card.createAsParent} onChange={card.setCreateAsParent} />
+    <Text style={{ flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.4, color: tokens.fg2 }}>{t('habits.breakdown.createAsParent')}</Text>
+  </InsetFocusPressable>
+  <View accessibilityLiveRegion="polite">{card.groupingDenied ? <Text style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.4, color: tokens.fg2 }}>{t('habits.breakdown.groupingDenied')}</Text> : null}</View>
+  </View>} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={card.completed ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.4, color: tokens.fg2 }}>{t('chat.action.completed')}</Text> : <BreakdownActions card={card} isPending={isPending} editingDisabled={editingDisabled} warning={warning} parentName={parentName} tokens={tokens} />} /><ConfirmSheet open={card.confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.submit() }} /></>
 }

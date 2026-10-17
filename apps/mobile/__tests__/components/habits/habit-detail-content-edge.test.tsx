@@ -11,6 +11,7 @@ import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const state = vi.hoisted(() => ({ loading: false, profileLoading: false }))
 
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: state.profileLoading ? undefined : createMockProfile() }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({

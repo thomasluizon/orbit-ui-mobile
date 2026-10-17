@@ -369,6 +369,7 @@ export {
   formatTimeFieldInput,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  reconcileTimeFieldInput,
   parseTypedTimeFieldValue,
   selectTimeFieldHour,
   selectTimeFieldMinute,
@@ -590,6 +591,7 @@ export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
   getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
   nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'

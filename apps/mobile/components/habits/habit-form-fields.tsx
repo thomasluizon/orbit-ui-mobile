@@ -27,7 +27,7 @@ import { toTime24,
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
+import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm, validateEndTime } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -56,6 +56,24 @@ import { TagPickerField } from './habit-form-fields/tag-picker-field'
 import { createStyles as createFormStyles } from './habit-form-fields/styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: HabitFormHelpers; dueTime: string }>) {
+  const { t } = useTranslation()
+  const dueEndTime = useWatch({ control: formHelpers.form.control, name: 'dueEndTime' }) ?? ''
+  const error = validateEndTime(dueTime, dueEndTime)
+  if (formHelpers.isGeneral) return null
+  return (
+    <TimeField
+      label={t('habits.form.dueEndTime')}
+      value={toTime24(dueEndTime)}
+      disabled={!dueTime}
+      hint={dueTime ? undefined : t('habits.form.endTimeRequiresStart')}
+      error={error ? t(error) : undefined}
+      onChange={(value) => formHelpers.form.setValue('dueEndTime', value, { shouldDirty: true })}
+      onClear={() => formHelpers.form.setValue('dueEndTime', '', { shouldDirty: true })}
+    />
+  )
+}
 
 const DISCLOSURE_ENTER = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.95 }] },
@@ -447,7 +465,7 @@ export function HabitFormFields({
               onChange={controller.setSchedule}
             />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
-            <View>
+            <View style={{ gap: 16 }}>
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
@@ -455,6 +473,7 @@ export function HabitFormFields({
                 onChange={controller.setDueTime}
                 onClear={controller.clearDueTime}
               />
+              <HabitEndTimeField formHelpers={formHelpers} dueTime={dueTime} />
             </View>
             <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>

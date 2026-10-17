@@ -1,4 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import * as typesBarrel from '../types/index'
+import * as utilsBarrel from '../utils/index'
+import * as apiBarrel from '../api/index'
+import * as queryBarrel from '../query/index'
+import * as validationBarrel from '../validation/index'
 import {
   normalizedHabitSchema,
   createPaginatedSchema,
@@ -2027,8 +2032,8 @@ describe('api error schema', () => {
 
 
 describe('barrel re-exports', () => {
-  it('types/index re-exports all type modules', async () => {
-    const barrel = await import('../types/index')
+  it('types/index re-exports all type modules', () => {
+    const barrel = typesBarrel
     expect(barrel.userSchema).toBeDefined()
     expect(barrel.loginResponseSchema).toBeDefined()
     expect(barrel.chatMessageSchema).toBeDefined()
@@ -2052,8 +2057,8 @@ describe('barrel re-exports', () => {
     expect(barrel.profileSchema).toBeDefined()
   })
 
-  it('utils/index re-exports utility functions', async () => {
-    const barrel = await import('../utils/index')
+  it('utils/index re-exports utility functions', () => {
+    const barrel = utilsBarrel
     expect(barrel.parseAPIDate).toBeDefined()
     expect(barrel.formatAPIDate).toBeDefined()
     expect(barrel.getTimezoneList).toBeDefined()
@@ -2062,15 +2067,15 @@ describe('barrel re-exports', () => {
     expect(barrel.extractBackendError).toBeDefined()
   })
 
-  it('api/index re-exports API helpers', async () => {
-    const barrel = await import('../api/index')
+  it('api/index re-exports API helpers', () => {
+    const barrel = apiBarrel
     expect(barrel.API).toBeDefined()
     expect(barrel.getErrorMessage).toBeDefined()
     expect(barrel.extractBackendError).toBeDefined()
   })
 
-  it('query/index re-exports query key factories', async () => {
-    const barrel = await import('../query/index')
+  it('query/index re-exports query key factories', () => {
+    const barrel = queryBarrel
     expect(barrel.habitKeys).toBeDefined()
     expect(barrel.goalKeys).toBeDefined()
     expect(barrel.profileKeys).toBeDefined()
@@ -2085,8 +2090,8 @@ describe('barrel re-exports', () => {
     expect(barrel.QUERY_STALE_TIMES).toBeDefined()
   })
 
-  it('validation/index re-exports form schemas', async () => {
-    const barrel = await import('../validation/index')
+  it('validation/index re-exports form schemas', () => {
+    const barrel = validationBarrel
     expect(barrel.habitFormSchema).toBeDefined()
     expect(barrel.goalFormSchema).toBeDefined()
     expect(barrel.validateEndDate).toBeDefined()

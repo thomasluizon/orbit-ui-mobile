@@ -27,21 +27,39 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
     { selector: `input[aria-label^=${JSON.stringify(messages.habits.form.checklistItemLabel.split('{n}')[0])}]`, padding: 8 },
   ]
   const fields = (scope ?? page).locator('input:visible:not([type="file"]):not([autocomplete="one-time-code"]), textarea:visible')
-  expect(await fields.count()).toBeGreaterThan(0)
-  for (const field of await fields.all()) {
+  const identities = await fields.evaluateAll(elements => elements.map(element => {
+    const field = element as HTMLInputElement | HTMLTextAreaElement
+    const selector = ['[data-composer-input]', '[cmdk-input]', '[data-habit-phrase-field] textarea'].find(candidate => field.matches(candidate))
+    const label = field.getAttribute('aria-label') ?? Array.from(field.labels ?? []).map(label => label.textContent.trim()).join(' ')
+    return { selector, label }
+  }))
+  expect(identities.length).toBeGreaterThan(0)
+  for (const { selector, label } of identities) {
+    expect(selector || label, 'a stable attribute or accessible name for every field').toBeTruthy()
+    const field = (selector ? (scope ?? page).locator(selector) : (scope ?? page).getByLabel(label, { exact: true })).and(fields).filter({ visible: true })
+    await expect(field).toHaveCount(1)
     const expected = await field.evaluate((element, registry) => registry.find(rule => element.matches(rule.selector))?.padding, rules)
     expect(expected, `inventory entry for ${await field.getAttribute('aria-label') ?? await field.getAttribute('placeholder')}`).toBeDefined()
     const before = await field.evaluate(measureFieldInset)
     expect(before.paddingStart).toBe(expected)
     expect(before.inset - before.borderStart).toBeCloseTo(expected!, 1)
     if (await field.getAttribute('data-composer-input') !== null) continue
+    await expect(field).toBeEnabled()
     const original = await field.inputValue()
     const value = await field.getAttribute('type') === 'number' ? '3'
-      : await field.getAttribute('data-hour-cycle') ? '08:00' : 'M'
+      : await field.getAttribute('data-hour-cycle') ? original || '08:00' : 'M'
     await field.fill(value)
     const typed = await field.evaluate(measureFieldInset)
     expect(typed.inset - typed.borderStart).toBeCloseTo(expected!, 1)
     expect(typed.inset).toBeCloseTo(before.inset, 1)
+    const foreground = await field.evaluate(element => {
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--fg-1)'
+      element.parentElement!.append(probe)
+      try { return { actual: getComputedStyle(element).color, expected: getComputedStyle(probe).color } }
+      finally { probe.remove() }
+    })
+    expect(foreground.actual).toBe(foreground.expected)
     await field.fill(original)
   }
 }
@@ -58,7 +76,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       for (const path of ['/search', '/support']) {
         test(`measures every visible field on ${path}`, async ({ page }) => {
           await page.goto(path)
-          await expect(page.locator('input:visible, textarea:visible').first()).toBeVisible()
+          await expect(path === '/search' ? page.locator('[cmdk-input]') : page.getByLabel(messages.profile.support.message, { exact: true })).toBeVisible()
           await expectVisibleFieldInsets(page, messages)
         })
       }
@@ -85,7 +103,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await expectVisibleFieldInsets(page, messages)
       })
 
-      test('measures sentence, checklist, description, tag and goal search fields', async ({ page, context }) => {
+      test('measures sentence, start and end time, checklist, description, tag and goal search fields', async ({ page, context }) => {
         const tags = tagListSchema.parse(Array.from({ length: 21 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#808080' })))
         const goals = Array.from({ length: 21 }, (_, index) => goalSchema.parse({
           id: `goal-${index}`, title: `Goal ${index}`, description: null, targetValue: 10, currentValue: 0,
@@ -100,6 +118,13 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await expect(screen).toBeVisible()
         await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
         await expect(screen.getByPlaceholder(messages.habits.form.checklistPlaceholder)).toBeVisible()
+        const startTime = screen.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
+        const endTime = screen.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })
+        await expect(endTime).toBeDisabled()
+        await expect(startTime).toHaveAttribute('data-hour-cycle', profile.uses24HourClock ? 'h23' : 'h12')
+        await startTime.fill('08:00')
+        await expect(endTime).toBeEnabled()
+        await endTime.fill('09:00')
         await expectVisibleFieldInsets(page, messages)
         await screen.getByPlaceholder(messages.habits.form.checklistPlaceholder).fill('M')
         await screen.getByPlaceholder(messages.habits.form.checklistPlaceholder).press('Enter')

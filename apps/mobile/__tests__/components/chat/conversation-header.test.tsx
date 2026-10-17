@@ -1,14 +1,15 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StyleSheet } from 'react-native'
+import { AccessibilityInfo, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { AstraConversation } from '@/components/chat/conversation'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'pt-BR' } }),
+  useTranslation: () => ({ t: (key: string) => key === 'chat.title' ? 'Astra' : key, i18n: { language: 'pt-BR' } }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -39,7 +40,7 @@ vi.mock('@/hooks/use-overlay-back', () => ({
   },
 }))
 
-const TestRenderer = require('react-test-renderer')
+const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
@@ -69,15 +70,15 @@ function buildChat(): ChatController {
 }
 
 function render() {
-  let tree: any
-  TestRenderer.act(() => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  void TestRenderer.act(() => {
     tree = TestRenderer.create(<AstraConversation chat={buildChat()} />)
   })
   return tree
 }
 
-function hosts(tree: any) {
-  return tree.root.findAll((node: any) => typeof node.type === 'string')
+function hosts(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findAll((node) => typeof node.type === 'string')
 }
 
 describe('AstraConversation header (mobile)', () => {
@@ -90,36 +91,51 @@ describe('AstraConversation header (mobile)', () => {
     useUIStore.getState().setAstraConversationOpen(true)
     const tree = render()
 
-    expect(hosts(tree).filter((node: any) => node.props.testID === 'nav-header-plain')).toHaveLength(1)
-    expect(hosts(tree).filter((node: any) => node.props.testID === 'nav-header-back')).toHaveLength(0)
+    expect(hosts(tree).filter((node) => node.props.testID === 'nav-header-plain')).toHaveLength(1)
+    expect(hosts(tree).filter((node) => node.props.testID === 'nav-header-back')).toHaveLength(0)
     const close = hosts(tree).filter(
-      (node: any) => node.props.accessibilityLabel === 'common.closeConversation',
+      (node) => node.props.accessibilityLabel === 'common.closeConversation',
     )
     expect(close).toHaveLength(1)
 
-    TestRenderer.act(() => close[0].props.onPressIn())
-    expect(StyleSheet.flatten(close[0].props.style)).toMatchObject({
+    void TestRenderer.act(() => (close[0]!.props.onPressIn as () => void)())
+    expect(StyleSheet.flatten(close[0]!.props.style as StyleProp<ViewStyle>)).toMatchObject({
       width: 48,
       height: 48,
       borderRadius: 999,
       overflow: 'hidden',
       backgroundColor: createTokensV2('orange', 'dark').bgHover,
     })
-    TestRenderer.act(() => close[0].props.onPressOut())
-    expect(StyleSheet.flatten(close[0].props.style).backgroundColor).toBe('transparent')
+    void TestRenderer.act(() => (close[0]!.props.onPressOut as () => void)())
+    expect(StyleSheet.flatten(close[0]!.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
 
-    TestRenderer.act(() => {
-      close[0].props.onPress()
+    void TestRenderer.act(() => {
+      (close[0]!.props.onPress as () => void)()
     })
 
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it('shows one named heading containing a decorative Astra mark and receives opening focus', () => {
+    const focus = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
+    const tree = render()
+    try {
+      const header = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'nav-header-plain')[0]!
+      expect(header.findAll((node) => node.type === AstraGlyph)).toHaveLength(1)
+      const headings = hosts(tree).filter((node) => node.props.accessibilityRole === 'header')
+      expect(headings).toHaveLength(1)
+      expect(headings[0]!.props.accessibilityLabel).toBe('Astra')
+      expect(header.findAll((node) => typeof node.type === 'string' && node.props.children === 'Astra')).toHaveLength(0)
+      expect(header.findAll((node) => node.props.testID === 'astra-mark-16')[0]!.props.accessible).toBe(false)
+      expect(focus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: headings[0]!.props.__nativeTag }), 'focus')
+    } finally { focus.mockRestore(); void TestRenderer.act(() => tree.update(<></>)) }
   })
 
   it('still closes the conversation on the Android back button', () => {
     useUIStore.getState().setAstraConversationOpen(true)
     render()
 
-    TestRenderer.act(() => {
+    void TestRenderer.act(() => {
       overlayBack.handler?.()
     })
 

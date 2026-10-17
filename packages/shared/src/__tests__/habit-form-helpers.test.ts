@@ -580,10 +580,12 @@ describe('habit form helpers', () => {
       consumed: [],
     }, '')
     expect(fields.get('dueTime')?.value).toBe('15:00')
+    fields.set('dueEndTime', { value: '17:00', validate: false })
     controller.setDueTime('16:00')
     expect(fields.get('dueTime')?.value).toBe('16:00')
-    expect(fields.get('dueEndTime')?.value).toBe('')
+    expect(fields.get('dueEndTime')?.value).toBe('17:00')
     controller.clearDueTime()
+    expect(fields.get('dueEndTime')?.value).toBe('')
     expect(fields.get('dueTime')?.value).toBe('')
     controller.toggleDay('Monday')
     expect(ownership.cadence).toBe(false)
