@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { AppBar } from '@/components/ui/app-bar'
 
 describe('AppBar', () => {
@@ -19,6 +20,11 @@ describe('AppBar', () => {
     rerender(<AppBar title="Habit" action={action} />)
     expect(screen.getByRole('button', { name: 'Share' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Back to walking' })).not.toBeInTheDocument()
+  })
+  it('names a visual title when the caller does not use a heading', () => {
+    render(<AppBar title="Astra" titleVisual={<AstraGlyph size={16} />} titleIsHeading={false} />)
+    expect(screen.getByRole('img', { name: 'Astra' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   })
   it('keeps an object view title visible without adding a page heading', () => {
     render(<AppBar title="Habit" titleIsHeading={false} />)

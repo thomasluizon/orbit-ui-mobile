@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => key === 'chat.title' ? 'Astra' : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -69,10 +69,17 @@ it('closes the conversation from one trailing control, with no back control', ()
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
-it('keeps the title on the brand, untranslatable', () => {
+it('shows the decorative Astra mark with one named heading and no visible title', () => {
   render(<AstraConversation chat={buildChat()} />)
 
-  expect(screen.getByRole('heading', { name: 'chat.title' })).toHaveAttribute('translate', 'no')
+  const header = screen.getByRole('banner')
+  const heading = screen.getByRole('heading', { name: 'Astra' })
+  expect(heading).toHaveAttribute('translate', 'no')
+  expect(header.querySelector('[data-asset="astra-mark-16"]')).not.toBeNull()
+  expect(heading.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  expect(heading).toHaveTextContent('')
+  expect(header).toHaveTextContent('')
+  expect(screen.getAllByRole('heading', { name: 'Astra' })).toHaveLength(1)
 })
 
 it('still closes the conversation on Escape', () => {
