@@ -239,6 +239,10 @@ descendant.once("spawn", () => process.send(descendant.pid))
   } finally {
     cleanup()
     await closed
+    const cleanupDeadline = Date.now() + 5000
+    while (processIsRunning(descendantPid) && Date.now() < cleanupDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
     process.removeListener("exit", cleanup)
     process.removeListener("SIGINT", interrupt)
     process.removeListener("SIGTERM", interrupt)
