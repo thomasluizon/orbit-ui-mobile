@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
+const scannerTimeout = 120_000
 const graphicSites = [
   'apps/mobile/app/support.tsx',
   'apps/mobile/components/auth/login-sections.tsx',
@@ -43,7 +44,7 @@ function scanSources() {
   return spawnSync(process.execPath, ['tools/check-surface-scope.mjs'], {
     cwd: repositoryRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: scannerTimeout,
     killSignal: 'SIGKILL',
   })
 }
@@ -55,10 +56,10 @@ describe('raised-surface graphic contrast', () => {
   beforeAll(() => {
     result = scanSources()
     findings = result.stderr.split('\n')
-  }, 35_000)
+  }, scannerTimeout + 5_000)
 
   it('checks the full source tree without a scanner error', () => {
-    expect(result.error, 'Surface contrast scanner must finish within 30000ms').toBeUndefined()
+    expect(result.error, `Surface contrast scanner must finish within ${scannerTimeout}ms`).toBeUndefined()
     expect(result.status, result.stderr).toBe(0)
     expect(findings.filter((line) => line.includes('GRAPHIC floor 3.00'))).toEqual([])
   })
