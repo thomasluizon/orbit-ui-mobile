@@ -17,8 +17,8 @@ export function ProactiveAction({ item, acted, onSend }: Readonly<{
   const { reason, allowance, act } = useProactiveAction(item, acted, onSend)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? t(reason, { allowance }) : undefined
-  return <div className="flex flex-col items-start gap-[8px] py-[8px]">
+  return <div className="flex flex-col items-start py-[8px]" style={{ gap: explanation ? 8 : 0 }}>
     <Button variant="ghost" disabled={reason !== null} descriptionId={reason ? reasonId : undefined} onClick={act}>{label}</Button>
-    {explanation ? <p id={reasonId} role="status" className="text-sm text-[var(--fg-2)]">{explanation}</p> : null}
+    <p id={reasonId} role="status" className="text-sm text-[var(--fg-2)]">{explanation}</p>
   </div>
 }

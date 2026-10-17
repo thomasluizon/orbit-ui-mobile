@@ -48,7 +48,7 @@ export function useProactiveAction(item: ProactiveItem, acted: boolean, onSend: 
     online: isOnline,
     atLimit,
     busy: busy || action.isPending,
-    failed: status.isError || action.isError,
+    failed: status.isError,
     ready: status.data !== undefined,
   })
 

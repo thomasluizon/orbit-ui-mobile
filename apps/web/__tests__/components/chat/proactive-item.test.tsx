@@ -95,16 +95,19 @@ describe('proactive conversation', () => {
     render(<ProactiveAction item={item} acted={false} onSend={send} />, { wrapper })
     const button = screen.getByRole('button', { name: item.actionLabel })
     await waitFor(() => expect(button).toBeEnabled())
+    const explanation = screen.getByRole('status')
+    expect(explanation).toBeEmptyDOMElement()
     mocks.status.mockResolvedValue(proactiveItemStatusSchema.parse({ id: item.id, status: 'ended' }))
     fireEvent.click(button)
     await waitFor(() => expect(button).toHaveAccessibleDescription('proactive.ended'))
+    expect(screen.getByRole('status')).toBe(explanation)
     expect(button).toBeDisabled()
     expect(send).not.toHaveBeenCalled()
     expect(mocks.acted).not.toHaveBeenCalled()
   })
 
-  it('does not send when the status refresh fails', async () => {
-    const { wrapper } = setup()
+  it('recovers after a failed status refresh without sending while unavailable', async () => {
+    const { wrapper, client } = setup()
     const send = vi.fn()
     render(<ProactiveAction item={item} acted={false} onSend={send} />, { wrapper })
     const button = screen.getByRole('button', { name: item.actionLabel })
@@ -113,6 +116,12 @@ describe('proactive conversation', () => {
     fireEvent.click(button)
     await waitFor(() => expect(button).toBeDisabled())
     expect(send).not.toHaveBeenCalled()
+    mocks.status.mockResolvedValue(proactiveItemStatusSchema.parse({ id: item.id, status: 'active' }))
+    await client.invalidateQueries({ queryKey: proactiveKeys.status(item.id) })
+    await waitFor(() => expect(button).toBeEnabled())
+    useChatStore.getState().openProactiveItem(item)
+    fireEvent.click(button)
+    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(item.actionPrompt))
   })
 
   it('uses the trigger fallback and silently consumes outcome failures', async () => {

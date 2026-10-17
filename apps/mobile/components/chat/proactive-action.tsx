@@ -18,8 +18,8 @@ export function ProactiveAction({ item, acted, onSend }: Readonly<{
   const { reason, allowance, act } = useProactiveAction(item, acted, onSend)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? t(reason, { allowance }) : undefined
-  return <View style={{ alignItems: 'flex-start', gap: 8, paddingVertical: 8 }}>
+  return <View style={{ alignItems: 'flex-start', gap: explanation ? 8 : 0, paddingVertical: 8 }}>
     <Button variant="ghost" disabled={reason !== null} hint={explanation} onClick={act}>{label}</Button>
-    {explanation ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14, lineHeight: 14 * 1.55, fontFamily: 'Geist_400Regular' }}>{explanation}</Text> : null}
+    <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14, lineHeight: 14 * 1.55, fontFamily: 'Geist_400Regular' }}>{explanation}</Text>
   </View>
 }

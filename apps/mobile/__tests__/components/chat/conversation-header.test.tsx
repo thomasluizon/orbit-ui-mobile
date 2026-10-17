@@ -1,3 +1,6 @@
+import { __setScrollToImpl, __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { useChatStore } from '@/stores/chat-store'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +22,8 @@ vi.mock('expo-router', () => ({
 vi.mock('@/components/chat/chat-empty-state', () => ({
   ChatEmptyState: () => React.createElement('ChatEmptyStateStub'),
 }))
+
+vi.mock('@/components/chat/proactive-action', () => ({ ProactiveAction: () => null }))
 
 vi.mock('@/components/shell/composer', () => ({
   Composer: () => React.createElement('ComposerStub'),
@@ -141,4 +146,27 @@ describe('AstraConversation header (mobile)', () => {
 
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
+})
+
+it('opens and reopens the proactive message without following a previous streaming thread', () => {
+  useChatStore.setState({ messages: [], proactiveOutcomes: {} })
+  const item = createMockProactiveItem()
+  for (let index = 0; index < 30; index++) useChatStore.getState().addMessage({ id: `old-${index}`, role: 'ai', content: 'Previous reply', timestamp: new Date() })
+  useChatStore.getState().openProactiveItem(item)
+  const chat = { ...buildChat(), showSuggestions: false, messages: useChatStore.getState().messages, streamingMessageId: 'old-29' }
+  const scroll = vi.fn()
+  __setScrollToImpl(scroll)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  void TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={chat} />) })
+  try {
+    const list = tree.root.findAll((node) => String(node.type) === 'FlatList')[0]!
+    void TestRenderer.act(() => (list.props.onContentSizeChange as () => void)())
+    expect(scroll).toHaveBeenCalledWith({ y: 0, animated: false })
+    expect(chat.threadScroll.isFollowing()).toBe(false)
+    scroll.mockClear()
+    void TestRenderer.act(() => { useChatStore.getState().openProactiveItem(item) })
+    void TestRenderer.act(() => (list.props.onContentSizeChange as () => void)())
+    expect(scroll).toHaveBeenCalledWith({ y: 0, animated: false })
+    expect(useChatStore.getState().messages.some((message) => message.id === 'old-29')).toBe(true)
+  } finally { void TestRenderer.act(() => tree.update(<></>)); __resetTestHostConfig() }
 })

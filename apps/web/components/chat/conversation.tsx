@@ -16,6 +16,7 @@ import { ChevronDown, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
 import { ProactiveAction } from './proactive-action'
@@ -107,16 +108,25 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     verifyStepUpForBubble,
     composerProps,
   } = chat
+  const proactiveEntryId = useChatStore((state) => state.proactiveEntryId)
   const threadContentRef = useRef<HTMLDivElement>(null)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
-    if (!element) return
+    if (!element || useChatStore.getState().proactiveEntryId) return
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
     threadScroll.followLatest(element.scrollTop)
     if (!element.querySelector('article')) return
     element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
   }, [chatContainerRef, threadScroll])
+
+  useEffect(() => {
+    const feed = chatContainerRef.current
+    if (!proactiveEntryId || !feed) return
+    threadScroll.stopFollowing()
+    feed.scrollTo({ top: 0, behavior: 'auto' })
+    useChatStore.getState().clearProactiveEntry(proactiveEntryId)
+  }, [chatContainerRef, proactiveEntryId, threadScroll])
 
   useEffect(() => {
     const feed = chatContainerRef.current

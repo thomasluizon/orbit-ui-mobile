@@ -103,8 +103,11 @@ describe('proactive conversation', () => {
     const send = vi.fn()
     useChatStore.getState().openProactiveItem(item)
     const tree = await render(<ProactiveAction item={item} acted={false} onSend={send} />)
+    const explanation = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(explanation.props.children).toBeUndefined()
     mocks.ended = true
     await press(tree, item.actionLabel)
+    expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!).toBe(explanation)
     expect(button(tree, item.actionLabel).props.disabled).toBe(true)
     expect(button(tree, item.actionLabel).props.accessibilityHint).toBe('proactive.ended')
     expect(send).not.toHaveBeenCalled()
@@ -112,14 +115,23 @@ describe('proactive conversation', () => {
     await TestRenderer.act(() => tree.unmount())
   })
 
-  it('disables the action after a status failure and uses the trigger fallback label', async () => {
-    const { render } = setup()
+  it('recovers after a status failure and uses the trigger fallback label', async () => {
+    const { render, client } = setup()
     const send = vi.fn()
     const tree = await render(<ProactiveAction item={{ ...item, actionLabel: '' }} acted={false} onSend={send} />)
     mocks.api.mockRejectedValue(new Error('Network unavailable'))
     await press(tree, 'proactive.actions.eveningCheckin')
     expect(button(tree, 'proactive.actions.eveningCheckin').props.disabled).toBe(true)
     expect(send).not.toHaveBeenCalled()
+    mocks.api.mockImplementation((path: string) => path === API.proactive.status(item.id) ? Promise.resolve({ id: item.id, status: 'active' }) : Promise.resolve(undefined))
+    await TestRenderer.act(async () => {
+      await client.invalidateQueries({ queryKey: proactiveKeys.status(item.id) })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    expect(button(tree, 'proactive.actions.eveningCheckin').props.disabled).toBe(false)
+    useChatStore.getState().openProactiveItem(item)
+    await press(tree, 'proactive.actions.eveningCheckin')
+    expect(send).toHaveBeenCalledExactlyOnceWith(item.actionPrompt)
     await TestRenderer.act(() => tree.unmount())
   })
 
