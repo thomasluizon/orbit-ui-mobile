@@ -14,6 +14,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { ChevronDown, Lightbulb, X } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
@@ -238,6 +239,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       <div className="relative z-10 shrink-0">
         <AppBar
           title={t('chat.title')}
+          titleVisual={<AstraGlyph size={16} />}
           titleIsBrandName
           action={<>
             <button ref={browseHeaderRef} type="button" aria-label={t('chat.templates.browse')} className={APP_BAR_CONTROL_CLASS} onClick={() => openLibrary(browseHeaderRef)}><Lightbulb size={20} strokeWidth={2} aria-hidden="true" /></button>

@@ -40,8 +40,9 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
   ]),
 })
 
+// Loading the real web config needs a bounded startup budget during concurrent verification (#1421).
 it('enforces the web e2e scope through the installed ESLint config', async () => {
   const eslint = new ESLint({ cwd: webRoot })
   const config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
   expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
-})
+}, 15000)

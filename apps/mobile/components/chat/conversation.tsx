@@ -1,3 +1,4 @@
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
@@ -110,7 +111,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
-  const titleRef = useRef<Text>(null);
+  const titleRef = useRef<View>(null);
 
   useEffect(() => {
     if (Platform.OS === "android" && titleRef.current) {
@@ -279,6 +280,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <AppBar
           titleRef={titleRef}
           title={t("chat.title")}
+          titleVisual={<AstraGlyph size={16} />}
           action={<>
             <MotionPressable ref={browseHeaderRef} accessibilityRole="button" accessibilityLabel={t('chat.templates.browse')} onPress={() => openLibrary(browseHeaderRef)} style={({ pressed }) => [styles.headerClose, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Lightbulb size={20} strokeWidth={2} color={tokens.fg1} /></MotionPressable>
             <MotionPressable
