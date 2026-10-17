@@ -1,6 +1,7 @@
 import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApiClientError } from '@orbit/shared/utils'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import { breakdownSubHabits, makeBulkCreateResponse } from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
@@ -51,6 +52,47 @@ function expectRowStatuses(tree: ReactTestRenderer, status: string, count: numbe
 beforeEach(() => { bulkCreate.mockReset(); onConfirmed.mockReset() })
 
 describe('breakdown parent choice on Android', () => {
+  it('preserves mixed child schedules after API cadence inheritance', async () => {
+    bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+    const tree = await renderBreakdown([{ title: 'Dishes', frequencyUnit: 'Day', frequencyQuantity: 2 }, { title: 'Buy detergent' }])
+    await act(() => grouping(tree).onPress())
+    await approve(tree)
+    expect(onConfirmed).toHaveBeenCalledTimes(1)
+    const parent = bulkCreate.mock.calls[0]![0].habits[0]!
+    expect(parent.subHabits?.map(child => ({ title: child.title, frequencyUnit: child.frequencyUnit ?? parent.frequencyUnit ?? null, frequencyQuantity: child.frequencyQuantity ?? parent.frequencyQuantity ?? null }))).toEqual([
+      { title: 'Dishes', frequencyUnit: 'Day', frequencyQuantity: 2 },
+      { title: 'Buy detergent', frequencyUnit: null, frequencyQuantity: null },
+    ])
+  })
+
+  it('recovers from a persistent grouping denial without losing edited drafts', async () => {
+    bulkCreate.mockImplementation(request => {
+      if (request.habits.some(habit => habit.subHabits?.length)) return Promise.reject(createApiClientError(403, { error: 'Sub-habits require Pro', errorCode: 'PAY_GATE' }, 'Forbidden'))
+      return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
+    })
+    const tree = await renderBreakdown()
+    await act(() => button(tree, 'chat.preview.edit').onPress())
+    const input = () => tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith('chat.preview.editName'))[0]!.props as { onChangeText: (title: string) => void; onBlur: () => void }
+    await act(() => input().onChangeText('Wash dishes'))
+    await act(() => input().onBlur())
+    await act(() => grouping(tree).onPress())
+    await approve(tree)
+    expect(grouping(tree).disabled).toBe(false)
+    expect(onConfirmed).not.toHaveBeenCalled()
+    expect(renderedText(tree.root)).toContain('errors.api.payGate')
+    await act(() => button(tree, 'chat.preview.approve').onPress())
+    await act(async () => { confirmation(tree).onConfirm(); await Promise.resolve() })
+    expect(bulkCreate).toHaveBeenCalledTimes(2)
+    expect(grouping(tree).disabled).toBe(false)
+    await act(() => grouping(tree).onPress())
+    await act(() => button(tree, 'chat.preview.approve').onPress())
+    await act(async () => { confirmation(tree).onConfirm(); await Promise.resolve() })
+    expect(onConfirmed).toHaveBeenCalledTimes(1)
+    expect(bulkCreate.mock.calls[2]![0].habits.map(habit => habit.title)).toEqual(['Wash dishes', 'Laundry'])
+    expect(bulkCreate.mock.calls[2]![0].habits.every(habit => habit.subHabits === undefined)).toBe(true)
+    expectCompleted(tree)
+  })
+
   it.each([false, true])('creates independent habits after opting back out: %s', async (toggle) => {
     bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success']))
     const tree = await renderBreakdown()
@@ -85,8 +127,24 @@ describe('breakdown parent choice on Android', () => {
     expect(onConfirmed).not.toHaveBeenCalled()
   })
 
-  it.each(['response', 'transport'])('retries the entire parent after a %s failure', async (failure) => {
+  it('keeps grouping locked if a denial follows an ambiguous write', async () => {
+    bulkCreate.mockRejectedValueOnce(new Error('Connection lost'))
+      .mockRejectedValueOnce(createApiClientError(403, { error: 'Sub-habits require Pro', errorCode: 'PAY_GATE' }, 'Forbidden'))
+    const tree = await renderBreakdown()
+    await act(() => grouping(tree).onPress())
+    await approve(tree)
+    await act(async () => { button(tree, 'chat.batch.retry').onPress(); await Promise.resolve() })
+    expect(bulkCreate).toHaveBeenCalledTimes(2)
+    expect(grouping(tree).disabled).toBe(true)
+    expect(grouping(tree).accessibilityState.checked).toBe(true)
+    expectRowStatuses(tree, 'failed', 2)
+    expect(onConfirmed).not.toHaveBeenCalled()
+  })
+
+  it.each(['response', 'transport', 'uncoded denial', 'server'])('retries the entire parent after a %s failure', async (failure) => {
     if (failure === 'transport') bulkCreate.mockRejectedValueOnce(new Error('Unavailable'))
+    else if (failure === 'uncoded denial') bulkCreate.mockRejectedValueOnce(createApiClientError(403, { error: 'Forbidden' }, 'Forbidden'))
+    else if (failure === 'server') bulkCreate.mockRejectedValueOnce(createApiClientError(500, { error: 'Unavailable', errorCode: 'PAY_GATE' }, 'Unavailable'))
     else bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Failed']))
     let finish!: (response: BulkCreateResponse) => void
     bulkCreate.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))

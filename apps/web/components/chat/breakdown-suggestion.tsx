@@ -57,11 +57,14 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   return (
     <>
     <BlockFrame state={isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} titleMode="typed" items={rows} body={card.completed ? null : (
+      <div className="min-w-0 shrink-0">
       <label className="flex min-h-[var(--touch-min)] w-full shrink-0 items-start gap-1 rounded-[12px] px-2 py-3 text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--fg-1)] has-[:disabled]:pointer-events-none has-[:disabled]:opacity-60">
         <input type="checkbox" name="createAsParent" className="sr-only" checked={card.createAsParent} disabled={isPending || card.groupingLocked} onChange={(event) => card.setCreateAsParent(event.target.checked)} />
         <Checkbox as="span" checked={card.createAsParent} onChange={card.setCreateAsParent} />
         <span className="min-w-0 flex-1">{t('habits.breakdown.createAsParent')}</span>
       </label>
+      <div role="status">{card.groupingDenied ? <p className="text-pretty text-sm text-[var(--fg-2)]">{t('errors.api.payGate')}</p> : null}</div>
+      </div>
     )} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={card.completed ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('chat.action.completed')}</p> : (
       <>
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}

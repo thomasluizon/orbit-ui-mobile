@@ -5,11 +5,13 @@ import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/
 import {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
+  isPayGateError,
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
   createAsParent: boolean
   completed: boolean
+  groupingDenied: boolean
   groupingLocked: boolean
   isSubmitting: boolean
   confirmOpen: boolean
@@ -43,6 +45,7 @@ export function useBreakdownSuggestionState({
     createBreakdownDrafts(subHabits),
   )
   const [createAsParent, setCreateAsParent] = useState(false)
+  const [groupingDenied, setGroupingDenied] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
@@ -67,14 +70,19 @@ export function useBreakdownSuggestionState({
     const valid = filterValidBreakdownHabits(selected)
     if (valid.length === 0 || valid.every((habit) => results[habit.id] === 'done')) return
 
+    setGroupingDenied(false)
     setIsSubmitting(true)
     try {
       const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, createAsParent))
       const nextResults = mergeBreakdownResults(results, valid, response, createAsParent)
       setResults(nextResults)
       if (valid.every((habit) => nextResults[habit.id] === 'done')) onConfirmed()
-    } catch {
-      setResults((current) => failBreakdownResults(current, valid))
+    } catch (error) {
+      if (createAsParent && isPayGateError(error) && Object.keys(results).length === 0) {
+        setGroupingDenied(true)
+      } else {
+        setResults((current) => failBreakdownResults(current, valid))
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -83,6 +91,7 @@ export function useBreakdownSuggestionState({
   return {
     createAsParent,
     completed,
+    groupingDenied,
     groupingLocked,
     isSubmitting,
     confirmOpen,
