@@ -1,8 +1,7 @@
 import { render, waitFor, cleanup } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { createNotionCallback } from '@orbit/shared/__tests__/notion-fixtures'
-import { NotionCallbackContent as Callback } from '@/app/(auth)/auth-callback/notion/notion-callback-content'
+import Callback from '@/app/(auth)/auth-callback/notion/page'
 import { useAuthStore } from '@/stores/auth-store'
 const mocks = vi.hoisted(() => ({ params: {}, replace: vi.fn(), complete: vi.fn() }))
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(mocks.params), useRouter: () => ({ replace: mocks.replace }) }))
@@ -12,7 +11,7 @@ beforeEach(() => { vi.clearAllMocks(); mocks.params = { code: 'oauth-code', stat
 afterEach(cleanup)
 function mount() {
   useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Account', email: 'account@example.com' })
-  render(<QueryClientProvider client={new QueryClient()}><Callback /></QueryClientProvider>)
+  render(<Callback />)
 }
 it('posts code, state and redirect URI once and returns to Astra settings', async () => {
   mount()

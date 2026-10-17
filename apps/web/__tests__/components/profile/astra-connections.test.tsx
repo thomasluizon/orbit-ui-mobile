@@ -83,6 +83,8 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL only
   sheetTestControls.defer(false)
 })
 it('shows workspace, sync time and page picker, then confirms one disconnect', async () => {
+  let finishDisconnect!: () => void
+  mocks.disconnect.mockReturnValue(new Promise<void>((resolve) => { finishDisconnect = resolve }))
   mocks.fetch.mockResolvedValueOnce({ ok: true, json: async () => createNotionConnection({ connected: true, workspaceName: 'Shared tasks', lastPollAtUtc: '2026-10-17T12:00:00Z' }) })
   mount()
   await screen.findByText(en.profile.connections.connected)
@@ -99,6 +101,8 @@ it('shows workspace, sync time and page picker, then confirms one disconnect', a
   expect(mocks.disconnect).not.toHaveBeenCalled()
   fireEvent.click(within(confirmation).getByRole('button', { name: en.profile.connections.disconnect }))
   await waitFor(() => expect(mocks.disconnect).toHaveBeenCalledExactlyOnceWith('account-a'))
+  expect(screen.getByRole('button', { name: en.profile.connections.disconnect })).toHaveAttribute('aria-busy', 'true')
+  await act(async () => finishDisconnect())
   await screen.findByText(en.profile.connections.notConnected)
 })
 it('shows Reconnect for an expired connection', async () => {

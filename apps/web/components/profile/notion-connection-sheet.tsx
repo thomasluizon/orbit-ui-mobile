@@ -45,7 +45,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   const actionKey = reconnect ? 'reconnect' : hasConnection ? 'choosePages' : 'connect'
   const error = [callbackFailed, connection.isError, authorize.isError, disconnect.isError, current?.status === 'TransientError'].some(Boolean)
   const actions = <>
-    {hasConnection ? <PillButton variant="ghost" disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
+    {hasConnection ? <PillButton variant="ghost" loading={disconnect.isPending} disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
     {connection.isError ? <PillButton disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}>{t('common.retry')}</PillButton>
       : <PillButton disabled={disabled} loading={authorize.isPending || leaving} onClick={connect}>{t(`profile.connections.${actionKey}`)}</PillButton>}
   </>

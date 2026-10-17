@@ -86,9 +86,11 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL afte
 })
 it('shows the workspace and last sync, then deletes only after confirmation', async () => {
   let disconnected = false
+  let finishDisconnect!: () => void
+  const pendingDelete = new Promise<void>((resolve) => { finishDisconnect = resolve })
   mocks.api.mockImplementation(async (_path: string, options?: { method?: string }) => {
     await Promise.resolve()
-    if (options?.method === 'DELETE') { disconnected = true; return undefined }
+    if (options?.method === 'DELETE') { await pendingDelete; disconnected = true; return undefined }
     return disconnected ? createNotionConnection() : createNotionConnection({ connected: true, workspaceName: 'Shared tasks', lastPollAtUtc: '2026-10-17T12:00:00Z' })
   })
   mount(); await openNotion()
@@ -102,6 +104,8 @@ it('shows the workspace and last sync, then deletes only after confirmation', as
   const confirm = confirmation.findAllByType(PillButton).find((node: { props: { children: string } }) => node.props.children === en.profile.connections.disconnect)!
   TestRenderer.act(() => confirm.props.onClick()); await settle()
   expect(mocks.api.mock.calls.filter((call: unknown[]) => (call[1] as { method?: string } | undefined)?.method === 'DELETE')).toHaveLength(1)
+  expect(action(en.profile.connections.disconnect).props.loading).toBe(true)
+  await TestRenderer.act(async () => { finishDisconnect(); await pendingDelete }); await settle()
   expect(row('Notion').props.value).toBe(en.profile.connections.notConnected)
 })
 it('offers Reconnect for expired authorization', async () => {
