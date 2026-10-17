@@ -1,5 +1,6 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { act, fireEvent, render, screen } from '@testing-library/react'
@@ -99,6 +100,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
   afterEach(() => { vi.useRealTimers() })
 
   beforeEach(() => {
+    expect(browser.contexts(), 'previous geometry case released its contexts').toHaveLength(0)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 1, 12))
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
@@ -107,68 +109,75 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
-  async function measureSlide(viewport: { width: number; height: number }, markup: string, safeArea = false) {
-    const page = await browser.newPage({ viewport })
-    try {
-      const session = await page.context().newCDPSession(page)
-      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: playerInsets(viewport.width, safeArea) })
-      await page.setContent(`<style>${stylesheet}</style>${markup}`)
-      await loadAppFonts(page)
-      return await page.evaluate(() => {
-        const dialog = document.querySelector('[role="dialog"]')!
-        const notice = dialog.querySelector('[data-shell-notice]')!
-        const pager = dialog.querySelector('[data-testid="wrapped-pager"]')!
-        const frame = dialog.querySelector('[data-testid="wrapped-frame"]')!.getBoundingClientRect()
-        const banner = notice.querySelector('[data-update-banner]')!.getBoundingClientRect()
-        const slideParts = dialog.querySelectorAll('[data-testid="wrapped-motion-part"]')
-        const close = dialog.querySelector('button')!
-        const unavailableValueOverflow = [...dialog.querySelectorAll('[data-unavailable]')].filter((column) => {
-          const bounds = column.getBoundingClientRect()
-          const range = document.createRange()
-          range.selectNodeContents(column.firstElementChild!)
-          return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
-        }).length
-        const atStart = {
-          undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
-            const bounds = button.getBoundingClientRect()
-            return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
-          }).map((button) => ({
-            name: button.getAttribute('aria-label') ?? button.textContent,
-            target: button.getAttribute('data-testid'),
-            width: button.getBoundingClientRect().width,
-            height: button.getBoundingClientRect().height,
-          })),
-          unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
-          unavailableValueOverflow,
-          controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
-            const bounds = element.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right }
-          }),
-          closeTop: close.getBoundingClientRect().top,
-          closeBottom: close.getBoundingClientRect().bottom,
-          noticeTop: notice.getBoundingClientRect().top,
-          noticeBottom: notice.getBoundingClientRect().bottom,
-          pagerTop: pager.getBoundingClientRect().top,
-          pagerBottom: pager.getBoundingClientRect().bottom,
-          bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
-        }
-        const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
-        scroller.scrollTop = scroller.scrollHeight
-        return {
-          ...atStart,
-          closeTopAtEnd: close.getBoundingClientRect().top,
-          closeBottomAtEnd: close.getBoundingClientRect().bottom,
-          pagerBottomAtEnd: pager.getBoundingClientRect().bottom,
-          noticeTopAtEnd: notice.getBoundingClientRect().top,
-          lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
-        }
-      })
-    } finally {
-      await page.close()
-    }
+  async function createPage(options: Parameters<Browser['newContext']>[0]) {
+    const controller = new AbortController()
+    const contextLaunch = browser.newContext(options)
+    onTestFinished(async () => {
+      controller.abort()
+      await (await contextLaunch).close()
+    })
+    const context = await contextLaunch
+    controller.signal.throwIfAborted()
+    const page = await context.newPage()
+    controller.signal.throwIfAborted()
+    return { page, signal: controller.signal }
   }
 
-  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, safeArea = false, ...viewport }) => {
+  async function measureSlide(page: Page, markup: string) {
+    return await page.evaluate((slideMarkup) => {
+      document.body.innerHTML = slideMarkup
+      const dialog = document.querySelector('[role="dialog"]')!
+      const notice = dialog.querySelector('[data-shell-notice]')!
+      const pager = dialog.querySelector('[data-testid="wrapped-pager"]')!
+      const frame = dialog.querySelector('[data-testid="wrapped-frame"]')!.getBoundingClientRect()
+      const banner = notice.querySelector('[data-update-banner]')!.getBoundingClientRect()
+      const slideParts = dialog.querySelectorAll('[data-testid="wrapped-motion-part"]')
+      const close = dialog.querySelector('button')!
+      const unavailableValueOverflow = [...dialog.querySelectorAll('[data-unavailable]')].filter((column) => {
+        const bounds = column.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(column.firstElementChild!)
+        return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
+      }).length
+      const atStart = {
+        undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
+          const bounds = button.getBoundingClientRect()
+          return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
+        }).map((button) => ({
+          name: button.getAttribute('aria-label') ?? button.textContent,
+          target: button.getAttribute('data-testid'),
+          width: button.getBoundingClientRect().width,
+          height: button.getBoundingClientRect().height,
+        })),
+        unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
+        unavailableValueOverflow,
+        controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, right: bounds.right }
+        }),
+        closeTop: close.getBoundingClientRect().top,
+        closeBottom: close.getBoundingClientRect().bottom,
+        noticeTop: notice.getBoundingClientRect().top,
+        noticeBottom: notice.getBoundingClientRect().bottom,
+        pagerTop: pager.getBoundingClientRect().top,
+        pagerBottom: pager.getBoundingClientRect().bottom,
+        bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
+      }
+      const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
+      scroller.scrollTop = scroller.scrollHeight
+      return {
+        ...atStart,
+        closeTopAtEnd: close.getBoundingClientRect().top,
+        closeBottomAtEnd: close.getBoundingClientRect().bottom,
+        pagerBottomAtEnd: pager.getBoundingClientRect().bottom,
+        noticeTopAtEnd: notice.getBoundingClientRect().top,
+        lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
+      }
+    }, markup)
+  }
+
+  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast, safe area $safeArea', async ({ locale, toast, safeArea = false, ...viewport }) => {
+    const { page, signal } = await createPage({ viewport })
     const messages = locale === 'en' ? en : pt
     const insets = playerInsets(viewport.width, safeArea)
     useVersionGateStore.getState().requireReload('appUpdated')
@@ -177,7 +186,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         kind: 'neutral', message: messages.errors.api.appUpdated, actionLabel: messages.errors.api.reload, onAction: vi.fn(),
       })
     }
-    const { container } = render(
+    const { container, getByTestId } = render(
       <NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>,
     )
     fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
@@ -185,8 +194,17 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
     if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
-    for (const slide of wrapped.slides as { id: string }[]) {
-      const measured = await measureSlide(viewport, container.innerHTML, safeArea)
+    const session = await page.context().newCDPSession(page)
+    await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
+    await page.setContent(`<style>${stylesheet}</style>`)
+    await loadAppFonts(page)
+
+    for (const [index, slide] of (wrapped.slides as { id: string }[]).entries()) {
+      signal.throwIfAborted()
+      expect(container.querySelector('[data-testid="wrapped-pager"] [data-index]'), `slide ${slide.id} pager index`)
+        .toHaveAttribute('data-index', String(index))
+      const measured = await measureSlide(page, container.innerHTML)
+      signal.throwIfAborted()
 
       expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
         .toBeLessThanOrEqual(viewport.height - insets.bottom)
@@ -207,8 +225,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
       expect(measured.lastSlidePartBottomAtEnd).toBeLessThanOrEqual(measured.noticeTopAtEnd + 0.5)
 
-      const next = screen.queryByTestId('wrapped-next-zone')
-      if (next) fireEvent.click(next)
+      if (index < wrapped.slides.length - 1) fireEvent.click(getByTestId('wrapped-next-zone'))
     }
   })
 
@@ -219,11 +236,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     { width: 1200, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
     { width: 1600, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
   ])('restores the cover inset after closing the player at $width', async ({ width, height, ...insets }) => {
+    const { page } = await createPage({ viewport: { width, height } })
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.close }))
     await act(async () => {})
-    const page = await browser.newPage({ viewport: { width, height } })
     try {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
@@ -237,10 +254,10 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
   })
 
   it.each(['dark', 'light'] as const)('fills the whole close target on hover and press in %s mode', async (mode) => {
+    const { page } = await createPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
     await act(async () => {})
-    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
     try {
       const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root{${declarations}} button{transition:none !important}</style>${container.innerHTML}`)
