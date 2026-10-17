@@ -309,7 +309,8 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mockApiClient,
 }))
 
-vi.mock('@/lib/step-up-storage', () => ({
+vi.mock('@/lib/step-up-storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/step-up-storage')>()),
   beginStepUpChallenge: vi.fn(),
   isStepUpVerified: () => mockStepUpVerified.current,
   hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
