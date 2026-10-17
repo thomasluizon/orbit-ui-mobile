@@ -9,6 +9,9 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslations } from 'next-intl'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
+import type { HabitFrequencyFilter } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -150,6 +153,16 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
 export function HabitListNothingOpen() {
   const t = useTranslations()
   return <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--fg-3)', textWrap: 'pretty' }}>{t('habits.nothingOpen')}</p>
+}
+
+export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequencyUnit: HabitFrequencyFilter }>) {
+  const t = useTranslations()
+  const option = HABIT_FREQUENCY_FILTER_OPTIONS.find(({ value }) => value === frequencyUnit)!
+  return <HabitListEmptyState
+    title={t(option.labelKey)} description={t('habits.nothingOpen')}
+    actionLabel={t('common.all')}
+    onAction={() => useUIStore.getState().setFilters({ frequencyUnit: undefined })}
+  />
 }
 
 export function HabitListSkeleton() {

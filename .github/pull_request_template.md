@@ -8,7 +8,7 @@
 
 <!--
 Required on a UI pull request based on redesign/main, and checked by the "Redesign Review Harness"
-job in guards.yml. Delete this whole section on any other pull request.
+step in the Guards job in guards.yml. Delete this whole section on any other pull request.
 
 Run jakubkrehel/interface-review FIRST, because it decides what belongs in this pull request and
 what becomes a ticket, then jakubkrehel/better-interface in full mode. Both live in
