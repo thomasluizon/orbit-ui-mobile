@@ -117,6 +117,7 @@ it('shows the MCP endpoint for the selected API environment', () => {
     </QueryClientProvider>,
   )
 
+  fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.connectionInstructions }))
   expect(screen.getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
 })
 
