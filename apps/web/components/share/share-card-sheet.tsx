@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { isRecapShareEmpty, recapPeriodLabelKey, type RecapSharePeriod } from '@orbit/shared/utils'
+import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
 import { Sheet } from '@/components/ui/sheet'
@@ -36,7 +36,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   return (
     <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
       <div className="flex min-w-0 flex-col gap-6">
-        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t(recapPeriodLabelKey('week')) }, { value: 'month', label: t(recapPeriodLabelKey('month')) }, { value: 'year', label: t(recapPeriodLabelKey('year')) }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
         {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-6">
           {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
         </div> : null}

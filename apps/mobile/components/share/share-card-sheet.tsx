@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { isRecapShareEmpty, recapPeriodLabelKey, type RecapSharePeriod } from '@orbit/shared/utils'
+import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
 import { Sheet } from '@/components/ui/sheet'
@@ -39,7 +39,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   return (
     <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
       <View style={styles.content}>
-        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t(recapPeriodLabelKey('week')) }, { value: 'month', label: t(recapPeriodLabelKey('month')) }, { value: 'year', label: t(recapPeriodLabelKey('year')) }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
         {isLoading || (!recap && !isError) ? <View accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('shareCard.loading')} style={styles.loading}>
           {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
         </View> : null}

@@ -43,7 +43,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ r
 
       <View style={styles.body}>
         <View style={styles.primaryFigure}>
-          <Text testID="share-card-figure" style={[styles.primaryValue, variant === 'progress' ? styles.progressValue : null]}>
+          <Text testID="share-card-figure" style={styles.primaryValue}>
             {stats[0]!.value}
           </Text>
           <Text style={styles.primaryLabel}>{t(stats[0]!.labelKey)}</Text>
@@ -86,7 +86,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.hairline,
     },
     progressCard: { width: '100%', maxWidth: SHARE_CARD_WIDTH, height: 'auto', minHeight: SHARE_CARD_HEIGHT, padding: 24, backgroundColor: tokens.bg },
-    progressValue: { fontSize: 44, lineHeight: 47 },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',

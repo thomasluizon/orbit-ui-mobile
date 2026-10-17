@@ -87,8 +87,8 @@ export function ShareCard({ recap, ref, variant = 'wrapped' }: Readonly<ShareCar
             data-testid="share-card-figure"
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: variant === 'progress' ? 44 : 88,
-              lineHeight: variant === 'progress' ? 1.05 : 0.92,
+              fontSize: 88,
+              lineHeight: 0.92,
               fontWeight: 600,
               letterSpacing: '-0.04em',
               fontVariantNumeric: 'tabular-nums',
