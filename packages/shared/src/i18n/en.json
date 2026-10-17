@@ -763,7 +763,7 @@
       "titleTooLong": "Shorten the habit title to 200 characters or fewer.",
       "descriptionTooLong": "Shorten the habit description to 10,000 characters or fewer.",
       "frequency": "Frequency",
-      "flexibleDescription": "{n, plural, =0 {Complete # times within each {unit}} one {Complete once within each {unit}} other {Complete # times within each {unit}}}",
+      "flexibleDescription": "{unit, select, Day {{n, plural, =0 {Complete # times a day} one {Complete once a day} other {Complete # times a day}}} Week {{n, plural, =0 {Complete # times a week} one {Complete once a week} other {Complete # times a week}}} Month {{n, plural, =0 {Complete # times a month} one {Complete once a month} other {Complete # times a month}}} Year {{n, plural, =0 {Complete # times a year} one {Complete once a year} other {Complete # times a year}}} other {{n, plural, =0 {Complete # times} one {Complete once} other {Complete # times}}}}",
       "timesPerUnit": "Times per",
       "every": "Every",
       "unit": "Unit",

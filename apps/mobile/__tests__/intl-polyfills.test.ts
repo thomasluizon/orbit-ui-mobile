@@ -32,7 +32,7 @@ function collectIcuMessages(catalog: MessageCatalog, prefix = ''): { key: string
 }
 
 function messageValues(count: number) {
-  return { count, days: count, needed: count, banked: count, overage: count,
+  return { count, n: count, unit: 'Week', days: count, needed: count, banked: count, overage: count,
     streak: 4, limit: 80, time: '08:00', date: 'Oct 1' }
 }
 

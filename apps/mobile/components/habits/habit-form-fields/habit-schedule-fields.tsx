@@ -19,7 +19,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   }
   return (
     <View style={styles.container}>
-      <RadioGroup accessibilityLabel={t('habits.form.frequency')} style={styles.choices}>
+      <RadioGroup accessibilityLabel={t('habits.form.frequency')}>
         <RadioRow label={t('habits.form.every')} selected={Boolean(unit) && !flexible} {...availability} onSelect={() => change(unit ?? 'Day', quantity ?? 1, false)} />
         <RadioRow label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => change(unit ?? 'Week', quantity ?? 3, true)} />
       </RadioGroup>
@@ -37,20 +37,19 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
       />
       <View style={styles.group}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>{t('habits.form.unit')}</Text>
-        <RadioGroup accessibilityLabel={t('habits.form.unit')} style={styles.choices}>
+        <RadioGroup accessibilityLabel={t('habits.form.unit')}>
           {buildHabitFrequencyUnits({ unitDay: t('habits.form.unitDay'), unitWeek: t('habits.form.unitWeek'), unitMonth: t('habits.form.unitMonth'), unitYear: t('habits.form.unitYear') }).map((option) => (
             <RadioRow key={option.value} label={option.label} selected={unit === option.value} {...availability} onSelect={() => change(option.value, quantity ?? 1, flexible)} />
           ))}
         </RadioGroup>
       </View>
-      {flexible && unit && quantity !== null && !invalid ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.flexibleDescription', { n: quantity, unit: t(`habits.form.unit${unit}`) })}</Text> : null}
+      {flexible && unit && quantity !== null && !invalid ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.flexibleDescription', { n: quantity, unit })}</Text> : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { gap: 16 },
-  choices: { marginHorizontal: -16 },
   group: { gap: 8 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   hint: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },

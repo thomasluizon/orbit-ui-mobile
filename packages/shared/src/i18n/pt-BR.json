@@ -763,7 +763,7 @@
       "titleTooLong": "Encurte o título do hábito para até 200 caracteres.",
       "descriptionTooLong": "Encurte a descrição do hábito para até 10.000 caracteres.",
       "frequency": "Frequência",
-      "flexibleDescription": "{n, plural, =0 {Conclua # vezes a cada {unit}} one {Conclua uma vez a cada {unit}} other {Conclua # vezes a cada {unit}}}",
+      "flexibleDescription": "{unit, select, Day {{n, plural, =0 {Conclua # vezes por dia} one {Conclua uma vez por dia} other {Conclua # vezes por dia}}} Week {{n, plural, =0 {Conclua # vezes por semana} one {Conclua uma vez por semana} other {Conclua # vezes por semana}}} Month {{n, plural, =0 {Conclua # vezes por mês} one {Conclua uma vez por mês} other {Conclua # vezes por mês}}} Year {{n, plural, =0 {Conclua # vezes por ano} one {Conclua uma vez por ano} other {Conclua # vezes por ano}}} other {{n, plural, =0 {Conclua # vezes} one {Conclua uma vez} other {Conclua # vezes}}}}",
       "timesPerUnit": "Vezes por",
       "every": "A cada",
       "unit": "Unidade",

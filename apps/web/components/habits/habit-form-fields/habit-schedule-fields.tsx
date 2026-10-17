@@ -16,7 +16,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   }
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <RadioGroup aria-label={t('habits.form.frequency')} className="-mx-4">
+      <RadioGroup aria-label={t('habits.form.frequency')}>
         <RadioRow label={t('habits.form.every')} selected={Boolean(unit) && !flexible} {...availability} onSelect={() => change(unit ?? 'Day', quantity ?? 1, false)} />
         <RadioRow label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => change(unit ?? 'Week', quantity ?? 3, true)} />
       </RadioGroup>
@@ -34,13 +34,13 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
       />
       <div className="flex min-w-0 flex-col gap-2">
         <span className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.unit')}</span>
-        <RadioGroup aria-label={t('habits.form.unit')} className="-mx-4">
+        <RadioGroup aria-label={t('habits.form.unit')}>
           {buildHabitFrequencyUnits({ unitDay: t('habits.form.unitDay'), unitWeek: t('habits.form.unitWeek'), unitMonth: t('habits.form.unitMonth'), unitYear: t('habits.form.unitYear') }).map((option) => (
             <RadioRow key={option.value} label={option.label} selected={unit === option.value} {...availability} onSelect={() => change(option.value, quantity ?? 1, flexible)} />
           ))}
         </RadioGroup>
       </div>
-      {flexible && unit && quantity !== null && !invalid ? <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.flexibleDescription', { n: quantity, unit: t(`habits.form.unit${unit}`) })}</span> : null}
+      {flexible && unit && quantity !== null && !invalid ? <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.flexibleDescription', { n: quantity, unit })}</span> : null}
     </section>
   )
 }
