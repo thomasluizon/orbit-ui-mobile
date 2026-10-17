@@ -28,6 +28,7 @@ export function HabitUnderstanding({
   consumed,
   proposed = false,
   scheduleLocked = false,
+  showCountCorrection = true,
   onValueChange,
   onEmojiSelect,
   isSuggestionDisabled = false,
@@ -91,14 +92,14 @@ export function HabitUnderstanding({
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
             <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>
         </Proposed>
       ) : null}
       {hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>
-          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
         </div>
       ) : null}
     </div>

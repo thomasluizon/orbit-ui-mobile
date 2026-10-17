@@ -32,6 +32,7 @@ export function HabitUnderstanding({
   consumed,
   proposed = false,
   scheduleLocked = false,
+  showCountCorrection = true,
   onValueChange,
   onEmojiSelect,
   isSuggestionDisabled = false,
@@ -103,14 +104,14 @@ export function HabitUnderstanding({
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
             <Text style={styles.sentence}>{sentence}</Text>
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
         </Proposed>
       ) : null}
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
           <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
-          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
         </View>
       ) : null}
     </View>

@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
+import { habitFormSchema } from '@orbit/shared/validation'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
@@ -781,4 +782,50 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   await waitFor(() => expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull())
   expect(tagMutations.create).toHaveBeenLastCalledWith({ name: 'Updated', color: expect.any(String) })
   expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
+})
+
+
+describe('manual schedule creation', () => {
+  beforeEach(() => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+  })
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+    mockProfileState.aiMessagesUsed = 5
+    const ask = vi.fn()
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    fireEvent.click(screen.getByRole('radio', { name: `habits.form.unit${unit}` }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '12' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '0' } })
+    expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('habits.form.frequencyRequired')
+    expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    expect(helpers.validateAll()).toBeNull()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  it('disables manual scheduling for a locked parent', () => {
+    renderForm(createFormHelpers({ title: 'Read', isGeneral: true }), undefined, true, false, true)
+    expect(screen.getByRole('radio', { name: /habits.form.every/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /habits.form.unitMonth/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toBeDisabled()
+  })
 })

@@ -12,6 +12,8 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { buildCreateHabitRequest } from '@orbit/shared/utils'
+import { habitFormSchema } from '@orbit/shared/validation'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
@@ -822,4 +824,60 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
     await TestRenderer.act(() => tree.unmount())
     __setFocusImpl(() => {})
   }
+})
+
+
+describe('manual schedule creation', () => {
+  beforeEach(() => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+    useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  })
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    mockProfileState.aiMessagesUsed = 5
+    const ask = vi.fn()
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
+    }
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    await TestRenderer.act(() => tree!.root.findByType(ListRow).props.onClick())
+    const radio = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === `habits.form.${label}`)[0]!
+    await TestRenderer.act(() => radio('every').props.onPress())
+    await TestRenderer.act(() => radio(`unit${unit}`).props.onPress())
+    const quantity = () => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
+    await TestRenderer.act(() => quantity().props.onChangeText('12'))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
+    await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.repeatMore')[0]!.props.onPress())
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
+    await TestRenderer.act(() => radio('timesPerUnit').props.onPress())
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
+    await TestRenderer.act(() => quantity().props.onChangeText('0'))
+    expect(quantity().props.accessibilityHint).toBe('habits.form.frequencyRequired')
+    expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
+    await TestRenderer.act(() => quantity().props.onChangeText(''))
+    expect(tree!.root.findByType(HabitUnderstanding).props.sentence).toBe('')
+    await TestRenderer.act(() => quantity().props.onChangeText('4'))
+    expect(helpers.validateAll()).toBeNull()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    await TestRenderer.act(() => tree!.root.findByType(HabitUnderstanding).props.onValueChange('Read books'))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    expect(ask).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('disables manual scheduling for a locked parent', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isGeneral: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded lockedGeneral />) })
+    const quantity = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
+    expect(quantity.props.editable).toBe(false)
+    const options = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(options).toHaveLength(6)
+    for (const option of options) expect(option.props.accessibilityState).toMatchObject({ disabled: true })
+    await TestRenderer.act(() => tree!.unmount())
+  })
 })

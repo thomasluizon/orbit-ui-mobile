@@ -51,6 +51,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
+import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
@@ -250,9 +251,9 @@ export function HabitFormFields({
   const emoji = watch('emoji') ?? ''
   const watchedDays = watch('days')
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
-  const frequencyQuantity = watch('frequencyQuantity') ?? 3
   const intervalWeeks = watch('intervalWeeks') ?? 1
   const frequencyUnit = watch('frequencyUnit')
+  const frequencyQuantity = watch('frequencyQuantity') ?? (frequencyUnit ? 0 : 3)
   const isFlexible = watch('isFlexible') ?? false
   const dueDate = watch('dueDate') ?? ''
   const dueTime = watch('dueTime') ?? ''
@@ -388,6 +389,7 @@ export function HabitFormFields({
         dayOptions={daysList}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
+        showCountCorrection={!frequencyUnit || frequencyUnit === 'Week'}
         sentence={sentence}
         consumed={localRead.consumed}
         proposed={proposal.setup}
@@ -439,6 +441,13 @@ export function HabitFormFields({
               if (!detailsOpen && event.propertyName === 'opacity') setDetailsPresented(false)
             }}
           >
+            <HabitScheduleFields
+              unit={frequencyUnit ?? null}
+              quantity={watch('frequencyQuantity') ?? null}
+              flexible={isFlexible}
+              disabled={lockedGeneral === true}
+              onChange={controller.setSchedule}
+            />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
 
             <section>
