@@ -169,7 +169,13 @@ describe('privacy policy disclosures', () => {
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
     expect(en.privacy.dataResidency.body).toContain('Render hosts the web application, API, and database')
     expect(ptBR.privacy.dataResidency.body).toContain('A Render hospeda o aplicativo web, a API e o banco de dados')
-    expect(en.privacy.lastUpdated).toBe('Last updated: September 2026')
-    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: setembro de 2026')
+    expect(en.privacy.lastUpdated).toBe('Last updated: October 2026')
+    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: outubro de 2026')
   })
+})
+
+it.each([['en', en], ['pt-BR', ptBR]] as const)('renders Notion access and retention disclosures in %s', (locale, messages) => {
+  render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+  expect(screen.getByText(messages.privacy.thirdParty.notion)).toBeInTheDocument()
+  expect(screen.getByText(messages.privacy.retention.notion)).toBeInTheDocument()
 })

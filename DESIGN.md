@@ -82,7 +82,7 @@ its conversation as a layer; that row is navigation chrome, not a fifth destinat
 4. **Astra speaks first.** Proactive check-ins are part of the architecture, not a preference buried
    in settings. See **The proactive line** below.
 
-**The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
+**The remit is curated.** Astra reads tasks from the Notion pages the person shares, read-only. Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
 notifications, metrics, feature explanation, and read-only record rows for API keys, profile, plan,
 and referral. Key rows show name, prefix, dates, and state. Plan rows describe the current plan
 without prices or upgrade actions. **Billing management, API-key management and account deletion
@@ -193,7 +193,7 @@ keeps the name and email; the position directly beneath it stays available for O
 
 Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
 Deletion is last and keeps its danger label, confirmation and step-up. Preferências owns timezone,
-week start, clock, language, theme and showing general habits on Hoje. Astra owns today's allowance,
+week start, clock, language, theme and showing general habits on Hoje. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
 feature switches and Pro gates, then API keys and MCP. Notificações owns the current push-device
 controls, product email consent and the note that habit reminders live on each habit.
 
