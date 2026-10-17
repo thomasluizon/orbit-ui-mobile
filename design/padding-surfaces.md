@@ -1,7 +1,7 @@
 # Padding surface inventory
 
 > **At a glance** - the owners of the shared screen, card, section, row and sheet padding
-> contract, its drawn variants, the fixed daily-summary section gap and its geometry evidence on web and Android.
+> contract, its drawn variants, the fixed daily-summary and date-boundary gaps and its geometry evidence on web and Android.
 
 `DESIGN.md` defines the roles. `packages/shared/src/theme/spacing.json` owns their values on the
 existing scale. Native styles read `PADDING` or `SPACING`. Web reads those constants for inline
@@ -9,7 +9,7 @@ styles and the generated aliases for CSS and Tailwind utilities, including numer
 
 | Surface family | Web owner | Android owner | Padding ownership |
 |---|---|---|---|
-| Hoje | `app/(app)/today-page-client.tsx`, `components/today/today-ai-summary.tsx`, `components/habits/habit-list.tsx` | `app/(tabs)/index.tsx`, `components/today/today-ai-summary.tsx`, `components/habit-list.tsx`, `components/habit-list/styles.ts` | One 16 gutter; proactive-line to date gap scales from 24 with text enlargement; 24 between the date, daily summary and list; habit-family wrappers stay unpadded, with 8 body insets and 4 on child rows |
+| Hoje | `app/(app)/today-page-client.tsx`, `components/today/today-ai-summary.tsx`, `components/habits/habit-list.tsx` | `app/(tabs)/index.tsx`, `components/today/today-ai-summary.tsx`, `components/habit-list.tsx`, `components/habit-list/styles.ts` | One 16 gutter; proactive-line to date gap scales from 24 with text enlargement; fixed 24 from the date to the daily summary or boundary notice and from either surface to the list; habit-family wrappers stay unpadded, with 8 body insets and 4 on child rows |
 | Calendário | `app/(app)/calendar/page.tsx`, `components/calendar/` | `app/(tabs)/calendar.tsx`, `app/(tabs)/calendar/_components/` | One 16 gutter in each mode; 24 between sections; day card owns its 24 inset |
 | Progresso | `app/(app)/progress/_components/progress-content.tsx` | `components/progress/progress-content.tsx` | Overview, Sequência, Metas and Conquistas share the 16 gutter and 32 section stack; overview title gap is 12, goal and achievement records keep their drawn 16 inset, streak content keeps its drawn 16 gap, and category groups retain 16 with 12 from each category title to its grid |
 | Perfil | `app/(app)/profile/`, `components/profile/profile-settings-frame.tsx` | `app/(tabs)/profile.tsx`, `components/profile/profile-settings-frame.tsx`, `hooks/use-content-frame-style.ts` | 16 gutter, 32 group stack, 12 title gap; RowList adds no second content inset |
@@ -41,7 +41,11 @@ Android coverage renders the owning Hoje list and screen, Calendário frame and 
 screen and Perfil frame at the same widths. The row and card suites use Yoga for geometry and
 preserve their enlarged-text cases. These renderer cases do not claim device-rendered text evidence.
 The owning Hoje composition also measures the proactive-line gap at both text scales while
-keeping the daily-summary section gap at 24.
+keeping the daily-summary section gap at 24. Date-boundary cases on both platforms cover the
+last loggable day, the read-only past and the future at 320, 412, 840 and 1352 with text scales
+1 and 2, keeping 24 from the date control to the notice and from the notice to the list.
+Android renders the real boundary lookup and notice; dates without a boundary prove that no
+notice or extra gap remains.
 
 The spacing rule covers padding and margins in style factories, branches and class aliases. The
 CSS guard scans declarations and `@apply` utilities in every source stylesheet without a

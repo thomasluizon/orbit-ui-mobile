@@ -62,7 +62,7 @@ describe('Hoje group spacing', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   it.each([320, 412, 600, 840, 1024, 1352].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
-    (['en', 'pt-BR'] as const).flatMap((locale) => (width === 320 ? [1, 2] : [1]).map((textScale) => ({ width, mode, locale, textScale }))),
+    (['en', 'pt-BR'] as const).flatMap((locale) => ([320, 412, 840, 1352].includes(width) ? [1, 2] : [1]).map((textScale) => ({ width, mode, locale, textScale }))),
   )))('separates Hoje groups at $width in $mode and $locale with $textScale text scale', async ({ width, mode, locale, textScale }) => {
     const messages = locale === 'en' ? en : ptBr
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
@@ -154,11 +154,31 @@ describe('Hoje group spacing', () => {
       }
       state.date = '2026-09-03'
       await load()
+      expect(await page.locator('[data-capacity-notice]').count()).toBe(0)
       expect(await page.evaluate(() => {
-        const notice = document.querySelector('[data-today-date-row]')!.parentElement!.lastElementChild!
+        const date = document.querySelector('[data-today-date-row]')!
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!
-        return list.getBoundingClientRect().top - notice.getBoundingClientRect().bottom
+        return list.getBoundingClientRect().top - date.getBoundingClientRect().bottom
       })).toBeCloseTo(24, 1)
+      state.surface = 'list'
+      for (const { date, message } of [
+        { date: '2026-08-28', message: messages.habits.todayBoundary.lastLoggable },
+        { date: '2026-08-27', message: messages.habits.todayBoundary.readOnly },
+        { date: '2026-09-05', message: messages.habits.todayBoundary.future },
+      ]) {
+        state.date = date
+        await load()
+        const notice = page.locator('[data-capacity-notice]')
+        expect(await notice.count()).toBe(1)
+        expect(await notice.textContent()).toBe(message)
+        const spacing = await page.evaluate(() => {
+          const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
+          const notice = document.querySelector('[data-capacity-notice]')!.getBoundingClientRect()
+          const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
+          return { dateToNotice: notice.top - date.bottom, noticeToList: list.top - notice.bottom }
+        })
+        expect(spacing).toEqual({ dateToNotice: 24, noticeToList: 24 })
+      }
       state.profileReady = false
       await load()
       expect(await page.getByRole('status').evaluate((element) => {

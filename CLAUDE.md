@@ -62,7 +62,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
-| `design/padding-surfaces.md` | Shared padding roles, destination and Progresso detail owners, the proactive line text-scale adapter, the fixed daily-summary section gap, overlay owners, drawn compact-record variants, platform mirrors and geometry evidence. |
+| `design/padding-surfaces.md` | Shared padding roles, destination and Progresso detail owners, the proactive line text-scale adapter, the fixed daily-summary and date-boundary gaps, overlay owners, drawn compact-record variants, platform mirrors and geometry evidence. |
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
