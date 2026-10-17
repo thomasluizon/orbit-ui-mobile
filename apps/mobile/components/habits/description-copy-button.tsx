@@ -49,6 +49,6 @@ export function DescriptionCopyButton({ description }: Readonly<{ description: s
 
 const styles = StyleSheet.create({
   copyRow: { minWidth: 0, alignItems: 'flex-end', gap: 8 },
-  copyButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  copyButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   feedback: { maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
 })
