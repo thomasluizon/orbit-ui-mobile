@@ -48,7 +48,7 @@ flag deletion belongs to code retirement, not an invented MCP action.
 | Plain | A code path within one build | Both platforms call `useFlag('key')`, which reads the account's API-resolved flag. |
 | Version | A complete build | `redesign` selects the legacy or redesign build; the selected build determines the API version it sends. |
 
-A plain flag does not require a second deployment or an API version. Keep the same key
+A plain flag uses one build and does not select an API version. Keep the same key
 and behavior on web and Android. The shared resolution logic and thin platform hooks must
 agree. Unknown keys and cold starts resolve off. Refreshes occur at launch, after sign-in,
 and on web focus or Android foreground. Last good values belong to one account; sign-out
