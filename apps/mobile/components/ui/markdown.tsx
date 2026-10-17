@@ -10,6 +10,7 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { getMarkdownImageLabel } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
+import { BlockCopyControl } from './block-copy-control'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -18,6 +19,7 @@ type MarkdownTone = "default" | "muted" | "thread"
 interface MarkdownProps {
   children: string
   tone?: MarkdownTone
+  copyableBlocks?: boolean
 }
 
 interface ProseColors {
@@ -51,6 +53,13 @@ function styleTextDescendants(children: ReactNode, style: TextStyle, preserved?:
 
 function StrongText({ children, style }: Readonly<{ children: ReactNode; style?: TextStyle }>) {
   return <Text selectable style={style}>{children}</Text>
+}
+
+function retainContainerIdentity(container: ReactNode, children: ReactNode[]): ReactNode {
+  const firstChild = children.find(isValidElement)
+  return isValidElement(container) && firstChild
+    ? cloneElement(container, { key: firstChild.key })
+    : container
 }
 
 function ProseLink({ children, href, styles, colors }: Readonly<{
@@ -93,8 +102,15 @@ class ImageLabelTokenizer extends MarkedTokenizer {
 }
 
 class SafeLinkRenderer extends Renderer implements RendererInterface {
-  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
+  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle, private readonly copyableBlocks = false) {
     super()
+  }
+
+  override code(text: string, language?: string, containerStyle?: ViewStyle, textStyle?: TextStyle): ReactNode {
+    const code = super.code(text, language, containerStyle, textStyle)
+    return this.copyableBlocks
+      ? <View key={this.getKey()} style={{ minWidth: 0, gap: 8 }}><BlockCopyControl key={text} text={text} />{code}</View>
+      : code
   }
 
   override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
@@ -102,7 +118,8 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 
   override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
-    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+    const quote = super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+    return retainContainerIdentity(quote, children)
   }
 
   override strong(children: string | ReactNode[], styles?: TextStyle): ReactNode {
@@ -125,7 +142,11 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
       }
     }
     flush()
-    return super.listItem(blocks, styles)
+    return retainContainerIdentity(super.listItem(blocks, styles), children)
+  }
+
+  override list(ordered: boolean, children: ReactNode[], listStyle?: ViewStyle, textStyle?: TextStyle, startIndex?: number): ReactNode {
+    return retainContainerIdentity(super.list(ordered, children, listStyle, textStyle, startIndex), children)
   }
 
   override link(
@@ -219,7 +240,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
  * react-native-marked (same `marked` engine as web for parsing parity), themes it with the
  * current theme tokens, and never opens unsafe link schemes.
  */
-export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>) {
+export function Markdown({ children, tone = "default", copyableBlocks = false }: Readonly<MarkdownProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -230,23 +251,22 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createMarkedStyles(tokens, colors, tone),
     [tokens, colors, tone],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
+  const prose = useMemo(() => ({
+    value: children,
+    renderer: new SafeLinkRenderer(colors, styles.text, copyableBlocks),
+  }), [children, colors, styles.text, copyableBlocks])
   const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
+  const theme = useMemo(() => ({
+    colors: { text: colors.body, link: colors.link, code: colors.body, border: tokens.hairline },
+  }), [colors.body, colors.link, tokens.hairline])
 
   return (
     <RNMarkdown
-      value={children}
+      value={prose.value}
       styles={styles}
-      renderer={renderer}
+      renderer={prose.renderer}
       tokenizer={tokenizer}
-      theme={{
-        colors: {
-          text: colors.body,
-          link: colors.link,
-          code: colors.body,
-          border: tokens.hairline,
-        },
-      }}
+      theme={theme}
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,

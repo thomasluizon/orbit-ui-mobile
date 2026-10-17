@@ -62,8 +62,8 @@ describe('Hoje group spacing', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   it.each([320, 412, 600, 840, 1024, 1352].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
-    (['en', 'pt-BR'] as const).map((locale) => ({ width, mode, locale })),
-  )))('separates Hoje groups at $width in $mode and $locale', async ({ width, mode, locale }) => {
+    (['en', 'pt-BR'] as const).flatMap((locale) => (width === 320 ? [1, 2] : [1]).map((textScale) => ({ width, mode, locale, textScale }))),
+  )))('separates Hoje groups at $width in $mode and $locale with $textScale text scale', async ({ width, mode, locale, textScale }) => {
     const messages = locale === 'en' ? en : ptBr
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
@@ -76,8 +76,16 @@ describe('Hoje group spacing', () => {
       const { container, unmount } = render(markup())
       const html = container.innerHTML
       unmount()
-      await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${html}`)
-      await page.evaluate(async (mode) => { document.documentElement.className = mode; await document.fonts.ready }, mode)
+      await page.setContent(`<!doctype html><style>${stylesheet}:root{${variables}}</style>${html}`)
+      await page.evaluate(async ({ mode, textScale }) => {
+        document.documentElement.className = mode
+        document.documentElement.style.fontSize = `${16 * textScale}px`
+        const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')
+        if (sentence) sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * textScale}px`
+        await document.fonts.ready
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        await Promise.all(document.getAnimations().map((animation) => animation.finished))
+      }, { mode, textScale })
     }
     try {
       state.profileReady = true
@@ -93,7 +101,7 @@ describe('Hoje group spacing', () => {
         return { lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
       })
-      expect.soft(spacing.lineToDate).toBeCloseTo(24, 1)
+      expect.soft(spacing.lineToDate).toBeCloseTo(24 * textScale, 1)
       expect(spacing.dateToList).toBeCloseTo(24, 1)
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
       state.lineVisible = false

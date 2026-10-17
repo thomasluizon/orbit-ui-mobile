@@ -79,7 +79,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   return <div>
     <ShellHeader><TodayHeaderActions {...props} /></ShellHeader>
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="today-proactive-date-group flex min-w-0 flex-col">
       {props.beforeDate}
       <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-4 py-1">
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>

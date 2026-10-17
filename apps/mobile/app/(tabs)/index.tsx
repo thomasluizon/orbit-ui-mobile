@@ -1,6 +1,6 @@
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet, View, useWindowDimensions, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
@@ -68,6 +68,7 @@ export default function TodayScreen() {
 }
 
 function TodayScreenContent() {
+  const { fontScale } = useWindowDimensions()
   const { t } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -208,7 +209,7 @@ function TodayScreenContent() {
   )
 
   const listHeader = (
-    <View testID="today-section-header" style={styles.header}>
+    <View testID="today-section-header" style={[styles.header, { gap: PADDING.sectionGap * fontScale }]}>
       {todayFocused ? (
         <TodayAstra
           today={date.today}

@@ -2,12 +2,13 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createRef } from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -16,11 +17,12 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { ShellHeaderHostContext } from '@/components/shell/shell-header'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   create: { mutateAsync: vi.fn().mockResolvedValue({ id: 'goal-created' }), isPending: false },
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), replace: vi.fn() },
   retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
@@ -175,6 +177,9 @@ vi.mock('@/hooks/use-is-desktop', () => ({
   useIsWideDesktop: () => false, useIsDesktop: () => mocks.isDesktop }))
 
 import ProgressPage from '@/app/(app)/progress/page'
+import StreakPage from '@/app/(app)/progress/streak/page'
+import GoalsPage from '@/app/(app)/progress/goals/page'
+import AchievementsPage from '@/app/(app)/progress/achievements/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
@@ -213,7 +218,7 @@ describe('ProgressContent', () => {
   function renderPortugueseGoals() {
     mocks.usePortugueseCatalog = true
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Ler doze livros' })]
-    render(<ProgressContent />)
+    render(<GoalsPage />)
     return getGoalCard('Ler doze livros')
   }
 
@@ -248,7 +253,7 @@ describe('ProgressContent', () => {
     const first = createMockGoal({ id: 'first', title: 'Ler doze livros', position: 0 })
     const second = createMockGoal({ id: 'second', title: 'Caminhar', position: 1 })
     mocks.goals.data.allGoals = [first, second]
-    const { rerender } = render(<ProgressContent />)
+    const { rerender } = render(<GoalsPage />)
     const card = getGoalCard(first.title)
     vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
     vi.spyOn(getGoalCard(second.title), 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
@@ -260,7 +265,7 @@ describe('ProgressContent', () => {
     const previous = language === 'pt-BR' ? `${first.title} movido sobre ${second.title}.` : `${first.title} moved over ${second.title}.`
     await waitFor(() => expect(live).toHaveTextContent(previous))
     mocks.goals.data = { allGoals: [first, second] }
-    rerender(<ProgressContent />)
+    rerender(<GoalsPage />)
     fireEvent.mouseMove(document, { clientX: 6, clientY: 0 })
     await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} voltou para a posição inicial.` : `${first.title} is back in its starting position.`))
     expect(live).not.toHaveTextContent(previous)
@@ -282,27 +287,45 @@ describe('ProgressContent', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([412, 840, 1352])('measures the padding contract on Progresso at %ipx', async (width) => {
+  it.each([412, 840, 1352])('measures the padding contract across Progresso routes at %ipx', async (width) => {
     mocks.goals.data.allGoals = [createMockGoal()]
-    const { container } = render(<ProgressContent />)
+    mocks.gamification.profile.achievements = [createMockAchievement({ id: 'first_orbit' })]
     const page = await browser.newPage({ viewport: { width, height: 2400 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const section = page.getByRole('region', { name: 'progressScreen.sections.achievements' })
-      const measured = await section.evaluate((element) => {
-        const children = Array.from(element.children).filter((child) => child.getBoundingClientRect().height > 0)
-        const heading = children[0]!.getBoundingClientRect()
-        const content = children[1]!.getBoundingClientRect()
-        const column = element.parentElement!
-        const bounds = column.getBoundingClientRect()
-        const sectionBounds = element.getBoundingClientRect()
-        const previous = element.previousElementSibling!.getBoundingClientRect()
-        return { gutter: sectionBounds.left - bounds.left, titleGap: content.top - heading.bottom,
-          sectionGap: sectionBounds.top - previous.bottom }
-      })
-      expect(measured).toEqual({ gutter: 16, titleGap: 12, sectionGap: 32 })
-      const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
-      expect(await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingLeft))).toBe(16)
+      for (const destination of ['overview', 'streak', 'goals', 'achievements'] as const) {
+        const { container, unmount } = render(<ProgressContent screen={destination} />)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const column = page.locator(`[data-progress-screen="${destination}"]`).last()
+        const measured = await column.evaluate((element) => {
+          const body = element.lastElementChild!
+          const bounds = element.getBoundingClientRect()
+          const section = body.querySelector('section')!
+          return { gutter: section.getBoundingClientRect().left - bounds.left,
+            sectionGap: Number.parseFloat(getComputedStyle(body).rowGap) }
+        })
+        expect(measured, destination).toEqual({ gutter: 16, sectionGap: 32 })
+        if (destination === 'overview') {
+          const window = page.getByRole('region', { name: 'progressScreen.sections.window' })
+          expect(await window.evaluate((element) => {
+            const children = Array.from(element.children).filter((child) => child.getBoundingClientRect().height > 1)
+            return { titleGap: children[1]!.getBoundingClientRect().top - children[0]!.getBoundingClientRect().bottom,
+              sectionGap: element.nextElementSibling!.getBoundingClientRect().top - element.getBoundingClientRect().bottom }
+          })).toEqual({ titleGap: 12, sectionGap: 32 })
+        } else if (destination === 'goals') {
+          const card = page.getByRole('button', { name: /Read 12 Books/ }).first()
+          expect(await card.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return { inline: Number.parseFloat(style.paddingLeft), block: Number.parseFloat(style.paddingTop) }
+          })).toEqual({ inline: 16, block: 16 })
+        } else if (destination === 'achievements') {
+          const achievements = page.getByRole('region', { name: 'progressScreen.sections.achievements' })
+          expect(await achievements.evaluate((element) => ({
+            gap: Number.parseFloat(getComputedStyle(element).rowGap),
+            sectionGap: element.getBoundingClientRect().top - element.previousElementSibling!.getBoundingClientRect().bottom,
+          }))).toEqual({ gap: 16, sectionGap: 32 })
+        }
+        unmount()
+      }
     } finally { await page.close() }
   })
 
@@ -312,7 +335,7 @@ describe('ProgressContent', () => {
       for (const [catalog, expected] of [[en, 'Longest streak'], [ptBR, 'Maior sequência']] as const) {
         mocks.useEnglishCatalog = catalog === en
         mocks.usePortugueseCatalog = catalog === ptBR
-        const { container, unmount } = render(<ProgressContent />)
+        const { container, unmount } = render(<StreakPage />)
         const page = await browser.newPage({ viewport: { width, height: 1600 } })
         try {
           const streak = screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
@@ -374,7 +397,7 @@ describe('ProgressContent', () => {
       mocks.usePortugueseCatalog = catalog === ptBR
       const titles = ['Ler os livros que escolhi para aprender uma nova habilidade', 'AprenderUmaNovaHabilidade'.repeat(5)]
       mocks.goals.data.allGoals = titles.map((title, index) => createMockGoal({ id: `long-${index}`, title, position: index }))
-      const { container, unmount } = render(<ProgressContent />)
+      const { container, unmount } = render(<GoalsPage />)
       const page = await browser.newPage({ viewport: { width, height: 1600 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -441,7 +464,7 @@ describe('ProgressContent', () => {
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
         expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
-          topInset: width < 1024 ? 96 : 16, headerHeight: width < 1024 ? 48 : 0,
+          topInset: width < 1024 ? 64 : 16, headerHeight: width < 1024 ? 48 : 0,
           trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
@@ -451,7 +474,7 @@ describe('ProgressContent', () => {
   )
 
   it('uses the display family for the streak and every freeze bank numeral', async () => {
-    const { container } = render(<ProgressPage />)
+    const { container } = render(<StreakPage />)
     await act(async () => {})
     const page = await browser.newPage()
     try {
@@ -478,7 +501,7 @@ describe('ProgressContent', () => {
     mocks.usePortugueseCatalog = true
     mocks.freeze.streakInfo.currentStreak = count
     try {
-      render(<ProgressPage />)
+      render(<StreakPage />)
       const streak = screen.getByRole('region', { name: ptBR.progressScreen.sections.streak })
       expect(within(streak).getByText(label).previousElementSibling).toHaveTextContent(String(count))
       expect(within(streak).queryByText(count === 1 ? 'dias seguidos' : 'dia seguido')).not.toBeInTheDocument()
@@ -491,7 +514,7 @@ describe('ProgressContent', () => {
     render(<ProgressPage />)
     expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
     expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 2 })[0]).toHaveTextContent('progressScreen.sections.streak')
+    expect(screen.getAllByRole('heading', { level: 2 })[0]).toHaveTextContent('progressScreen.sections.window')
   })
 
   beforeAll(async () => {
@@ -509,7 +532,7 @@ describe('ProgressContent', () => {
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]
-    render(<ProgressContent />)
+    render(<GoalsPage />)
     const stylesheet = document.createElement('style')
     stylesheet.textContent = textStyles
     document.head.append(stylesheet)
@@ -536,7 +559,7 @@ describe('ProgressContent', () => {
 
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s and no extra status or deadline', (trackingStatus) => {
     mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const card = getGoalCard('Read 12 Books')
     expect(within(card).queryByText('goals.status.active')).not.toBeInTheDocument()
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
@@ -551,7 +574,7 @@ describe('ProgressContent', () => {
       createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
       createMockGoal({ id: 'reached', title: 'Reached goal', currentValue: 10, targetValue: 10, progressPercentage: 100, position: 3 }),
     ]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
 
     expect(screen.getByRole('button', { name: /Active goal.*goals\.metrics\.onTrack.*current.*3.*position.*1.*total.*4/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Completed goal.*goals\.status\.completed.*current.*8.*position.*2.*total.*4/ })).toBeInTheDocument()
@@ -562,13 +585,13 @@ describe('ProgressContent', () => {
   it('retargets an already-mounted goal card ring when progress changes', async () => {
     const goal = createMockGoal({ progressPercentage: 25 })
     mocks.goals.data.allGoals = [goal]
-    const { rerender } = render(<ProgressPage />)
+    const { rerender } = render(<GoalsPage />)
     const ring = within(getGoalCard(goal.title)).getByRole('progressbar')
     const sweep = ring.querySelector('circle:last-child')
     await waitFor(() => expect(sweep).toHaveClass('transition-[stroke-dashoffset]'))
 
     mocks.goals.data.allGoals = [{ ...goal, currentValue: 6, progressPercentage: 50 }]
-    rerender(<ProgressPage />)
+    rerender(<GoalsPage />)
 
     const updatedRing = within(getGoalCard(goal.title)).getByRole('progressbar')
     expect(updatedRing).toBe(ring)
@@ -583,7 +606,7 @@ describe('ProgressContent', () => {
       createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
       createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
     ]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
 
     expect(getGoalCards()).toHaveLength(3)
     for (const [view, visible] of [
@@ -602,10 +625,10 @@ describe('ProgressContent', () => {
   it('ignores goal colour, icon and emoji adornments from an oversized response', () => {
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal]
-    const { rerender } = render(<ProgressPage />)
+    const { rerender } = render(<GoalsPage />)
     const unadorned = captureGoalCardRendering(getGoalCard(goal.title))
     mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
-    rerender(<ProgressPage />)
+    rerender(<GoalsPage />)
     const oversized = captureGoalCardRendering(getGoalCard(goal.title))
 
     expect.soft(oversized.structure).toBe(unadorned.structure)
@@ -614,7 +637,7 @@ describe('ProgressContent', () => {
 
   it('keeps reached targets active with a done disc and opens detail from the whole card', () => {
     mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const card = getGoalCard('Read 12 Books')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(card.querySelector('[data-status="done"]')).toBeInTheDocument()
@@ -627,7 +650,7 @@ describe('ProgressContent', () => {
 
   it('shows an abandoned outline badge without progress and clears a distinct empty filter', async () => {
     mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const card = getGoalCard('Read 12 Books')
     expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
@@ -642,7 +665,7 @@ describe('ProgressContent', () => {
   it.each(['mouse', 'touch'])('activates %s dragging after the threshold and writes only on release', async (pointerType) => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const card = getGoalCard('Read 12 Books')
     const second = getGoalCard('Second')
     vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
@@ -677,7 +700,7 @@ describe('ProgressContent', () => {
   it('cancels touch drift, Escape and filtered reorders', async () => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const card = getGoalCard('Read 12 Books')
     fireEvent.touchStart(card, { touches: [{ clientX: 0, clientY: 0 }] })
     fireEvent.touchMove(card, { touches: [{ clientX: 6, clientY: 0 }] })
@@ -704,7 +727,7 @@ describe('ProgressContent', () => {
   it('announces keyboard moves, boundaries and preserves errors and filtered state', async () => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Goal one' }), createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const statuses = screen.getAllByTestId('goal-reorder-status')
     const firstGoal = screen.getByRole('button', { name: /Goal one/ })
     const secondGoal = screen.getByRole('button', { name: /Goal two/ })
@@ -743,7 +766,7 @@ describe('ProgressContent', () => {
 
   it('replays the same boundary without timing between actions', () => {
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Goal one' }), createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     const statuses = screen.getAllByTestId('goal-reorder-status')
     const firstGoal = screen.getByRole('button', { name: /Goal one/ })
 
@@ -813,100 +836,47 @@ describe('ProgressContent', () => {
     mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined }]
   })
 
-  it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
-    mocks[query].isLoading = true
-    const { container } = render(<ProgressPage />)
-    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+  it.each(['goals', 'streak', 'achievements'] as const)('loads and retries only the owning %s detail', (destination) => {
+    const query = destination === 'goals' ? mocks.goals : mocks.gamification
+    query.isLoading = true
+    const view = render(<ProgressContent screen={destination} />)
     expect(screen.getByRole('progressbar', { name: 'progressScreen.loading' })).toHaveAttribute('aria-busy', 'true')
-    expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
-      'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
-    ])
-    expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
-    for (const width of [320, 412, 840]) {
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
-      try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        const spacing = await page.locator('[data-variant="stat-tile"]').first().evaluate((tile) => {
-          const style = getComputedStyle(tile.parentElement!)
-          return { row: style.rowGap, column: style.columnGap }
-        })
-        expect(spacing).toEqual({ row: '16px', column: '16px' })
-      } finally {
-        await page.close()
-      }
-    }
-  })
-
-  it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', (state) => {
-    mocks.account.isLoading = state === 'loading'
-    mocks.account.isError = state === 'error'
-    if (state === 'empty') {
-      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    }
-    render(<ProgressPage />)
-    expect(screen.getAllByRole('heading', { name: 'progressScreen.title', level: 1 })).toHaveLength(1)
-  })
-
-  it.each(['account', 'goals', 'gamification'] as const)('retries a global %s error with one action', (query) => {
-    mocks[query].isError = true
-    const { rerender } = render(<ProgressPage />)
+    expect(screen.getByRole('heading', { level: 1, name: `progressScreen.sections.${destination}` })).toBeInTheDocument()
+    query.isLoading = false
+    query.isError = true
+    view.rerender(<ProgressContent screen={destination} />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(within(screen.getByRole('alert')).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
-    for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
-    mocks[query].isError = false
-    rerender(<ProgressPage />)
+    expect(query.refetch).toHaveBeenCalledTimes(1)
+    if (destination === 'goals') expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+    else expect(mocks.goals.refetch).not.toHaveBeenCalled()
+    query.isError = false
+    view.rerender(<ProgressContent screen={destination} />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
   })
 
-  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global retry for desktop=%s as a %s button', (isDesktop, variant) => {
-    mocks.isDesktop = isDesktop
-    mocks.account.isError = true
-    render(<ProgressPage />)
-
-    const retry = screen.getByRole('button', { name: 'progressScreen.retry' })
-    expect(retry).toHaveAttribute('data-variant', variant)
+  it.each(['goals', 'streak', 'achievements'] as const)('keeps a visible back control on %s', (destination) => {
+    mocks.router = { ...mocks.router, replace: vi.fn() }
+    render(<ProgressContent screen={destination} />)
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.back' }))
+    expect(mocks.router.replace).toHaveBeenCalledWith('/progress')
   })
 
-  it('shows a retryable error even while another resource is loading', () => {
-    mocks.account.isError = true
-    mocks.goals.isLoading = true
-    render(<ProgressPage />)
-    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-  })
-
-  it('leaves retry when gamification access is revoked after an error', () => {
-    mocks.gamification.isError = true
-    const { rerender } = render(<ProgressPage />)
-    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-
-    mocks.account.profile.canViewGamification = false
-    mocks.account.profile.hasProAccess = false
-    rerender(<ProgressPage />)
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
-  })
-
-  it('retries gamification when the account capability hint is false', () => {
-    mocks.account.profile.canViewGamification = false
+  it('keeps unrelated detail failures off the overview', () => {
     mocks.goals.isError = true
+    mocks.gamification.isError = true
+    mocks.account.isError = true
     render(<ProgressPage />)
-    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
-    expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.gamification.refetch).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('75%')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'progressScreen.sections.streak' })).toHaveAttribute('href', '/progress/streak')
   })
 
   it.each([false, true])('renders one orbital empty invitation for Pro access %s', (hasProAccess) => {
     mocks.account.profile.hasProAccess = hasProAccess
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    const { container } = render(<ProgressPage />)
+    const { container } = render(<GoalsPage />)
     expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
@@ -921,21 +891,21 @@ describe('ProgressContent', () => {
     mocks.isDesktop = isDesktop
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    render(<ProgressPage />)
+    render(<GoalsPage />)
 
     expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', variant)
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
-    render(<ProgressContent />)
+    render(<GoalsPage />)
 
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
     expect(action).toHaveAttribute('data-variant', 'primary')
-    const section = screen.getByRole('region', { name: 'progressScreen.sections.goals' })
-    expect(section.querySelector('[data-empty-state-mark]')).toBeNull()
-    expect(screen.getByText('progressScreen.goals.empty').parentElement).toHaveAttribute('data-goals-empty')
+    const section = screen.getByRole('heading', { name: 'progressScreen.sections.goals' }).closest<HTMLElement>('[data-progress-screen]')!
+    expect(section.querySelector('[data-empty-state-mark]')).not.toBeNull()
+    expect(section).toHaveTextContent('progressScreen.goals.empty')
     expect(action.closest('[data-empty-state-action]')).not.toBeNull()
-    expect(action.style.minHeight).toBe('48px')
+    expect(action).toHaveAttribute('data-size', 'sm')
     expect(within(section).queryByRole('link')).not.toBeInTheDocument()
     fireEvent.click(action)
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
@@ -944,7 +914,7 @@ describe('ProgressContent', () => {
 
   it('keeps an unsent Astra draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
-    const { rerender } = render(<ProgressContent />)
+    const { rerender } = render(<GoalsPage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.createAction' }))
     expect(useChatStore.getState().draft).toBe('Unsent note')
@@ -952,7 +922,7 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
-    rerender(<ProgressContent />)
+    rerender(<GoalsPage />)
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
@@ -966,7 +936,7 @@ describe('ProgressContent', () => {
       mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
       return { id: 'goal-created' }
     })
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     if (entry === 'populated') await selectGoalFilter('completed')
     fireEvent.click(screen.getByRole('button', { name: entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction' }))
     fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Walk 100 km' } })
@@ -982,7 +952,7 @@ describe('ProgressContent', () => {
   it.each([412, 1352])('keeps goal action pills at one 48px height at %ipx', async (width) => {
     mocks.isDesktop = width >= 1024
     mocks.goals.data.allGoals = [createMockGoal()]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     await act(async () => {})
     const filter = screen.getByRole('button', { name: /^progressScreen.goals.filter:/ })
     const create = screen.getByRole('button', { name: 'goals.create' })
@@ -999,7 +969,7 @@ describe('ProgressContent', () => {
 
   it('keeps the Metas filter when goal creation is cancelled', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     await selectGoalFilter('completed')
     fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
@@ -1007,39 +977,23 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('button', { name: 'progressScreen.goals.filter: progressScreen.goals.completed' })).toBeInTheDocument()
   })
 
-  it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {
-    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    if (record === 'goal') mocks.goals.data.allGoals = [createMockGoal()]
-    if (record === 'longestStreak') mocks.account.profile.longestStreak = 9
-    if (record === 'xp') mocks.account.profile.totalXp = 150
-    if (record === 'achievement') mocks.gamification.profile.achievementsEarned = 1
-    render(<ProgressPage />)
-    if (record === 'goal') expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
-    else expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+  it.each(['streak', 'achievements'] as const)('keeps %s records reachable after a streak reset', (destination) => {
+    Object.assign(mocks.account.profile, { currentStreak: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0 })
+    render(<ProgressContent screen={destination} />)
+    expect(screen.getByRole('heading', { level: 1, name: `progressScreen.sections.${destination}` })).toBeInTheDocument()
+    if (destination === 'streak') expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+    else expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
   })
 
-  it('renders the four regions in order, each named once by its heading', () => {
+  it('names the overview region once and retains its three figures', () => {
     render(<ProgressContent />)
-
     const headings = screen.getAllByRole('heading', { level: 2 })
-    expect(headings.map((heading) => heading.textContent)).toEqual([
-      'progressScreen.sections.streak',
-      'progressScreen.sections.goals',
-      'progressScreen.sections.window',
-      'progressScreen.sections.achievements',
-    ])
-    expect(headings[3]!.className).toBe(headings[1]!.className)
-    expect(headings[3]!.className).toBe(headings[2]!.className)
+    expect(headings.map((heading) => heading.textContent)).toEqual(['progressScreen.sections.window'])
     const regions = screen.getAllByRole('region')
-    expect(regions).toHaveLength(headings.length)
-    for (const [index, region] of regions.entries()) {
-      const heading = headings[index]!
-      expect(heading.id).not.toBe('')
-      expect(region).toHaveAttribute('aria-labelledby', heading.id)
-      expect(region).not.toHaveAttribute('aria-label')
-    }
+    expect(regions).toHaveLength(1)
+    expect(regions[0]).toHaveAttribute('aria-labelledby', headings[0]!.id)
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
     const figures = Array.from(windowSection.querySelectorAll('[data-state]')).map((figure) => figure.textContent)
     expect(figures).toEqual([
@@ -1094,7 +1048,7 @@ describe('ProgressContent', () => {
         expect(habit.interactive).toBe(!!habitId)
         expect(habit.href).toBe(habitId ? `/habits/${habitId}` : null)
         expect(habit.labelLines).toBe(1)
-        expect(geometry).toHaveLength(10)
+        expect(geometry).toHaveLength(6)
         for (const figure of geometry) { expect(figure.lines, figure.text!).toBe(1); expect(figure.inside, figure.text!).toBe(true) }
       } finally { await page.close(); unmount(); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
       }
@@ -1130,7 +1084,7 @@ describe('ProgressContent', () => {
   })
 
   it('discloses the streak legend and keeps the top habit outside the figures', async () => {
-    render(<ProgressContent />)
+    const view = render(<ProgressContent />)
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
     expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
     expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
@@ -1138,6 +1092,7 @@ describe('ProgressContent', () => {
     expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
     expect(habit).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
+    view.rerender(<StreakPage />)
     const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
     expect(entry).toHaveAttribute('data-variant', 'ghost')
     expect(entry).toHaveAttribute('data-size', 'sm')
@@ -1150,45 +1105,26 @@ describe('ProgressContent', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(entry).toHaveFocus()
-    expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
+    expect(screen.queryByTestId('progress-top-habit')).not.toBeInTheDocument()
   })
 
-  it('renders pay-gate refusals as the three locked sections', async () => {
-    mocks.account.profile.hasProAccess = false
-    Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
+  it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', async (destination) => {
     mocks.gamification.isError = true
-    mocks.gamification.error = {
-      status: 403,
-      data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
-    }
+    mocks.gamification.error = { status: 403, data: { error: 'Pro feature', errorCode: 'PAY_GATE' } }
     mocks.retrospective.isError = true
     mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
-    const { container } = render(<ProgressContent />)
-
-    expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
-    expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
-    expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
-    expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.streak.bankFull:{"count":3}')).not.toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.streak.gapTitle')).not.toBeInTheDocument()
-    const route = screen.getAllByRole('link', { name: 'progressScreen.window.lockedAction' })
-    expect(route).toHaveLength(1)
-    expect(route[0]).toHaveAttribute('href', '/upgrade')
-    expect(route[0]).toHaveAttribute('data-variant', 'ghost')
-    expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(3)
-    for (const card of screen.getAllByTestId('progress-locked-card')) {
-      expect(card).toHaveClass('shadow-[inset_0_0_0_1px_var(--hairline-ghost)]')
-      expect(within(card).getAllByRole('link')).toHaveLength(1)
-    }
+    const { container } = render(<ProgressContent screen={destination} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(1)
+    const card = screen.getByTestId('progress-locked-card')
+    expect(within(card).getAllByRole('link')).toHaveLength(1)
+    expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade')
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      expect(await page.getByTestId('progress-locked-card').evaluateAll((cards) =>
-        cards.map((card) => Number.parseFloat(getComputedStyle(card).paddingLeft)),
-      )).toEqual([16, 16, 16])
+      expect(await page.getByTestId('progress-locked-card').evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).paddingLeft),
+      )).toBe(16)
     } finally { await page.close() }
   })
 
@@ -1203,14 +1139,13 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
+    expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
     expect(screen.queryByText('75%')).not.toBeInTheDocument()
-    expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
+    expect(mocks.gamificationEnabled).not.toHaveBeenCalled()
   })
 
   it('renders a server-authorized window for a free account', () => {
@@ -1272,14 +1207,14 @@ describe('ProgressContent', () => {
       },
     ]
 
-    render(<ProgressContent />)
+    render(<AchievementsPage />)
 
     const xpSummary = screen.getByTestId('progress-xp-summary')
-    const achievementsHeading = screen.getByRole('heading', { name: 'progressScreen.sections.achievements' })
+    const achievementsHeading = screen.getAllByRole('heading', { level: 2 })[0]!
     expect(xpSummary.compareDocumentPosition(achievementsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     expect(within(xpSummary).getAllByRole('progressbar')).toHaveLength(1)
     expect(screen.queryByText(/^progressScreen\.achievements\.next(?::|$)/)).not.toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
       'gamification.categories.GettingStarted',
       'gamification.categories.Consistency',
     ])
@@ -1316,7 +1251,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 1
     mocks.freeze.streakInfo.longestStreak = 4
     mocks.freeze.streakInfo.lastActiveDate = '2026-09-10'
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByText('progressScreen.streak.gapUnavailable')).toBeInTheDocument()
     expect(screen.queryByText(/^progressScreen\.streak\.repairAction/)).not.toBeInTheDocument()
@@ -1331,7 +1266,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     const action = screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')
     expect(action).toHaveAttribute('data-variant', 'secondary')
@@ -1343,23 +1278,23 @@ describe('ProgressContent', () => {
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
   })
 
-  it('keeps the goal action as the only filled action when streak repair is available', () => {
+  it('keeps goal creation off the streak detail', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
-    expect(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')).toHaveAttribute('data-variant', 'secondary')
+    expect(screen.queryByRole('button', { name: 'progressScreen.goals.createAction' })).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')).toHaveAttribute('data-variant', 'primary')
   })
 
   it('closes the goal detail when another account replaces the tab', async () => {
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     mocks.goals.data.allGoals = [createMockGoal({})]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     fireEvent.click(getGoalCard('Read 12 Books'))
     expect(screen.getByLabelText('goal-detail')).toHaveTextContent('goal-1')
 
@@ -1378,7 +1313,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
     fireEvent.click(
       screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')),
     )
@@ -1399,7 +1334,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
 
-    render(<ProgressPage />)
+    render(<StreakPage />)
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
   })
@@ -1408,7 +1343,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
     Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
-    const view = render(<ProgressPage />)
+    const view = render(<StreakPage />)
     expect(screen.getByText(personalText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
 
     mocks.freeze.streakInfo.currentStreak = 0
@@ -1422,12 +1357,12 @@ describe('ProgressContent', () => {
         isRepairAvailable: false,
       })
     })
-    view.rerender(<ProgressPage />)
+    view.rerender(<StreakPage />)
     fireEvent.click(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')))
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
 
-    view.rerender(<ProgressPage />)
+    view.rerender(<StreakPage />)
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/progressScreen\.streak\.automaticCovered/)).not.toBeInTheDocument()
   })
@@ -1438,7 +1373,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = false
     Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'manual' })
 
-    render(<ProgressPage />)
+    render(<StreakPage />)
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
@@ -1451,7 +1386,7 @@ describe('ProgressContent', () => {
       lastFreezeCoveredOrigin: origin,
     })
 
-    render(<ProgressPage />)
+    render(<StreakPage />)
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
@@ -1489,7 +1424,7 @@ describe('ProgressContent', () => {
     mocks.freeze.freezesAvailable = 0
     mocks.freeze.streakFreezesAccumulated = 0
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":1}')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.repairEmpty')).toBeInTheDocument()
@@ -1507,7 +1442,7 @@ describe('ProgressContent', () => {
     mocks.freeze.freezesAvailable = 2
     mocks.freeze.streakFreezesAccumulated = 2
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":3}')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')).toBeInTheDocument()
@@ -1531,7 +1466,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakFreezesAccumulated = 3
     mocks.freeze.maxStreakFreezesAccumulated = 3
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByText('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')).not.toBeInTheDocument()
@@ -1542,7 +1477,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.streakFreezesAccumulated = 3
     mocks.freeze.streakFreezesAccumulated = 3
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByText('progressScreen.streak.bankFull:{"count":3}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.next')).not.toBeInTheDocument()
@@ -1560,7 +1495,7 @@ describe('ProgressContent', () => {
     mocks.repair.isError = true
     mocks.repair.error = { status }
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
   })
@@ -1573,7 +1508,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
     mocks.repair.isError = true
     mocks.repair.error = { status: 500 }
-    render(<ProgressContent />)
+    render(<StreakPage />)
     const stylesheet = document.createElement('style')
     stylesheet.textContent = textStyles
     document.head.append(stylesheet)
@@ -1595,27 +1530,18 @@ describe('ProgressContent', () => {
     mocks.repair.isError = true
     mocks.repair.error = { status: 409 }
 
-    render(<ProgressContent />)
+    render(<StreakPage />)
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('shows the page invitation without requesting a window for a new account', () => {
-    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0, achievementsEarned: 0 })
+  it('keeps detail entries beside the no-habits invitation', () => {
     mocks.retrospective.isError = true
     mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
-
     render(<ProgressContent />)
-
-    expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
-    expect(screen.queryByText('progressScreen.window.empty')).not.toBeInTheDocument()
+    expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
+    expect(screen.getByRole('link', { name: 'progressScreen.sections.goals' })).toHaveAttribute('href', '/progress/goals')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(mocks.retrospectiveHook).not.toHaveBeenCalled()
-    expect(mocks.retrospective.refetch).not.toHaveBeenCalled()
-    expect(ptBR.progressScreen.goals.createAction).toBe('Criar meta')
-    expect(en.progressScreen.goals.createAction).toBe('Create goal')
   })
 
   it('shows the window empty state when an account with progress has no habits in the period', () => {
@@ -1627,10 +1553,10 @@ describe('ProgressContent', () => {
     try {
       render(<ProgressContent />)
 
-      expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
       expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
-      expect(screen.getByRole('link', { name: 'progressScreen.window.emptyAction' })).toHaveAttribute('data-variant', 'secondary')
+      expect(screen.getByRole('link', { name: 'progressScreen.window.emptyAction' })).toHaveAttribute('data-variant', 'primary')
       expect(screen.queryByText('0%')).not.toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
@@ -1643,7 +1569,7 @@ describe('ProgressContent', () => {
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     const streakInfo = { ...mocks.freeze.streakInfo, lastActiveDate: '2026-09-08', recentFreezeDates: ['2026-09-07'] }
     mocks.freeze.streakInfo = null as unknown as typeof streakInfo
-    const { rerender } = render(<ProgressPage />)
+    const { rerender } = render(<StreakPage />)
     const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
     const strip = section.querySelector<HTMLElement>('[data-scope="account"]')!
     const mask = strip.parentElement!
@@ -1664,7 +1590,7 @@ describe('ProgressContent', () => {
     expect.soft(wrapper.querySelector('[data-variant="fill"]')).toHaveAttribute('aria-hidden', 'true')
     expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
     mocks.freeze.streakInfo = streakInfo
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
     expect(wrapper).toHaveAttribute('aria-busy', 'false')
     expect(wrapper).not.toHaveAttribute('aria-label')
     expect(mask).not.toHaveAttribute('inert')
@@ -1683,7 +1609,7 @@ describe('ProgressContent', () => {
     const streakInfo = mocks.freeze.streakInfo
     mocks.freeze.streakInfo = null as unknown as typeof mocks.freeze.streakInfo
 
-    const { rerender } = render(<ProgressContent />)
+    const { rerender } = render(<StreakPage />)
     expect(screen.getAllByLabelText('progressScreen.loading').length).toBeGreaterThan(0)
     const section = screen.getByRole('region', { name: 'progressScreen.sections.streak' })
     expect(section.querySelector('[data-scope="account"]')?.querySelectorAll('[data-state]')).toHaveLength(14)
@@ -1692,14 +1618,14 @@ describe('ProgressContent', () => {
     expect(bank).toHaveAttribute('aria-busy', 'true')
     const blockCount = section.children.length
     mocks.freeze.streakInfo = streakInfo
-    rerender(<ProgressContent />)
+    rerender(<StreakPage />)
     expect(section.children).toHaveLength(blockCount)
     expect(bank).toHaveAttribute('aria-busy', 'false')
     mocks.freeze.streakInfo = null as unknown as typeof streakInfo
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
 
     mocks.freeze.streakQuery.isError = true
-    rerender(<ProgressContent />)
+    rerender(<StreakPage />)
     expect(screen.getByText('progressScreen.error')).toBeInTheDocument()
     fireEvent.click(screen.getByText('progressScreen.retry'))
     expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
@@ -1708,7 +1634,7 @@ describe('ProgressContent', () => {
   })
 
   it('renders fourteen account days and exposes the bank on the owning page', () => {
-    const { container } = render(<ProgressPage />)
+    const { container } = render(<StreakPage />)
     const strip = container.querySelector('[data-scope="account"]')!
     expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
     expect(strip.querySelector('[data-state="today"]')).toBeInTheDocument()
@@ -1717,7 +1643,7 @@ describe('ProgressContent', () => {
   })
 
   it('lets all fourteen account days share the visible row', () => {
-    const { container } = render(<ProgressPage />)
+    const { container } = render(<StreakPage />)
     const strip = container.querySelector('[data-scope="account"]')!
     const cells = strip.querySelectorAll('[data-state]')
     expect(cells).toHaveLength(14)
@@ -1729,17 +1655,17 @@ describe('ProgressContent', () => {
   it.each([false, true])('stages a stable frozen status region when initially frozen is %s', async (initiallyFrozen) => {
     mocks.freeze.isFrozenToday = initiallyFrozen
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
-    const { rerender } = render(<ProgressPage />)
+    const { rerender } = render(<StreakPage />)
     const region = getStreakStatus()
     expect(region).toBeEmptyDOMElement()
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     mocks.freeze.isFrozenToday = true
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
     await act(async () => { await Promise.resolve() })
     expect(getStreakStatus()).toBe(region)
     expect(region).toHaveTextContent('progressScreen.streak.frozenToday')
     mocks.freeze.isFrozenToday = false
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
     expect(getStreakStatus()).toBe(region)
     expect(region).toBeEmptyDOMElement()
   })
@@ -1751,11 +1677,11 @@ describe('ProgressContent', () => {
     vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = dates
-    const { rerender } = render(<ProgressPage />)
+    const { rerender } = render(<StreakPage />)
     await act(async () => { await Promise.resolve() })
     expect.soft(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
     mocks.account.profile.timeZone = 'Pacific/Kiritimati'
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
     if (dates.includes('2026-09-09')) {
       expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 9')
     } else {
@@ -1768,7 +1694,7 @@ describe('ProgressContent', () => {
     vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
-    const { container, rerender } = render(<ProgressPage />)
+    const { container, rerender } = render(<StreakPage />)
     await act(async () => { await Promise.resolve() })
     const banner = getStreakStatus()
     expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
@@ -1777,14 +1703,14 @@ describe('ProgressContent', () => {
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'frozen')
     expect(screen.getByText('progressScreen.streak.protectedToday')).toBeInTheDocument()
     mocks.freeze.isFrozenToday = false
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
   })
 
   it('stage 5 opens inline detail and restores the filtered list on back', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
-    render(<ProgressPage />)
+    render(<GoalsPage />)
     await selectGoalFilter('active')
     fireEvent.click(getGoalCard('Read 12 Books'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -1800,7 +1726,7 @@ describe('ProgressContent', () => {
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-08']
     mocks.streakSnapshotZones = new Set(['America/Sao_Paulo'])
-    const { container, rerender } = render(<ProgressPage />)
+    const { container, rerender } = render(<StreakPage />)
     await act(async () => { await Promise.resolve() })
 
     expect(getStreakStatus()).toHaveTextContent('progressScreen.streak.frozenToday')
@@ -1808,7 +1734,7 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
 
     mocks.account.profile.timeZone = 'Pacific/Kiritimati'
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
 
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'today')
@@ -1817,12 +1743,91 @@ describe('ProgressContent', () => {
     mocks.freeze.isFrozenToday = false
     mocks.freeze.streakInfo.recentFreezeDates = []
     mocks.streakSnapshotZones.add('Pacific/Kiritimati')
-    rerender(<ProgressPage />)
+    rerender(<StreakPage />)
 
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'today')
     expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
   })
+
+  it.each(['goals', 'achievements'] as const)('names the loaded %s detail only once', (destination) => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<ProgressContent screen={destination} />)
+    expect(screen.getAllByRole('heading', { name: `progressScreen.sections.${destination}` })).toHaveLength(1)
+  })
+
+  it('gives the achievements empty state a next action', () => {
+    render(<AchievementsPage />)
+    expect(screen.getByRole('link', { name: 'progressScreen.achievements.emptyAction' })).toHaveAttribute('href', '/')
+  })
+
+  it('returns keyboard focus to the goal card when its detail closes', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<GoalsPage />)
+    const card = getGoalCard('Read 12 Books')
+    card.focus()
+    fireEvent.click(card)
+    const back = screen.getByRole('button', { name: 'Back to goals' })
+    back.focus()
+    fireEvent.click(back)
+    await waitFor(() => expect(card).toHaveFocus())
+  })
+
+  it('removes the hosted goals header while goal detail owns navigation', () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const host = createRef<HTMLDivElement>()
+    render(<ShellHeaderHostContext.Provider value={host}><div ref={host} /><GoalsPage /></ShellHeaderHostContext.Provider>)
+    expect(within(host.current!).getByRole('button', { name: 'progressScreen.back' })).toBeVisible()
+    fireEvent.click(getGoalCard('Read 12 Books'))
+    expect(screen.queryByRole('button', { name: 'progressScreen.back' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to goals' }))
+    expect(within(host.current!).getByRole('button', { name: 'progressScreen.back' })).toBeVisible()
+  })
+
+describe('Progress overview hermetic geometry', () => {
+  it.each([412, 840, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+    'keeps the chart, figures and navigation inside the centred column at $width in $locale', async ({ width, locale }) => {
+      mocks.usePortugueseCatalog = locale === 'pt-BR'
+      mocks.useEnglishCatalog = locale === 'en'
+      const catalog = locale === 'pt-BR' ? ptBR : en
+      Object.assign(mocks.retrospective.data.metrics, {
+        completionSeries: { granularity: 'day', points: [
+          { startDate: '2026-09-01', endDate: '2026-09-01', scheduled: 4, completed: 3, completionRate: 75 },
+          { startDate: '2026-09-02', endDate: '2026-09-02', scheduled: 4, completed: 2, completionRate: 50 },
+        ] },
+      })
+      const { container } = render(<ProgressPage />)
+      expect(screen.getAllByTestId('bar-chart')).toHaveLength(1)
+      const page = await browser.newPage({ viewport: { width, height: 1200 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.locator('[data-progress-screen="overview"]').evaluate((root) => {
+          const column = root.getBoundingClientRect()
+          return { left: column.left, right: column.right, width: column.width, overflow: document.documentElement.scrollWidth > window.innerWidth,
+            figures: root.querySelectorAll('section [data-state="default"]').length,
+            statRows: [...root.querySelectorAll('section [data-state="default"]')].map((tile) => tile.getBoundingClientRect().top),
+            labels: [...root.querySelectorAll('[data-slot="list-row-title"], [data-slot="list-row-description"]')].map((label) => {
+              const range = document.createRange(); range.selectNodeContents(label)
+              const text = range.getBoundingClientRect(); const box = label.getBoundingClientRect()
+              return { lines: range.getClientRects().length, inside: text.left >= box.left - 1 && text.right <= box.right + 1 }
+            }),
+            links: [...root.querySelectorAll('a[href^="/progress/"]')].map((entry) => { const box = entry.getBoundingClientRect(); return { left: box.left, right: box.right, height: box.height } }),
+          }
+        })
+        expect(geometry.width).toBe(Math.min(width, 740))
+        expect(geometry.left).toBe((width - geometry.width) / 2)
+        expect(geometry.overflow).toBe(false)
+        expect(geometry.figures).toBe(3)
+        expect(new Set(geometry.statRows).size).toBeLessThan(3)
+        expect(geometry.links).toHaveLength(3)
+        for (const link of geometry.links) { expect(link.left).toBeGreaterThanOrEqual(geometry.left); expect(link.right).toBeLessThanOrEqual(geometry.right); expect(link.height).toBeGreaterThanOrEqual(48) }
+        for (const label of geometry.labels) { expect(label.lines).toBe(1); expect(label.inside).toBe(true) }
+        expect(await page.getByRole('link', { name: new RegExp(catalog.progressScreen.sections.achievements) }).count()).toBe(1)
+      } finally { await page.close(); Object.assign(mocks.retrospective.data.metrics, { completionSeries: undefined }); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
+    },
+  )
+})
 
 })
 
@@ -1833,4 +1838,18 @@ it('places the Progresso bell in scrolling root content and opens Avisos', () =>
   expect(row.parentElement).not.toHaveClass('sticky', 'fixed')
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
   expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
+})
+
+
+describe('Progress overview navigation', () => {
+  it('keeps the overview to its window and one-tap detail entries', () => {
+    render(<ProgressPage />)
+    for (const screenId of ['streak', 'goals', 'achievements']) {
+      expect(screen.getByRole('link', { name: new RegExp(`^progressScreen.sections.${screenId}`) })).toHaveAttribute('href', `/progress/${screenId}`)
+      expect(screen.getByRole('link', { name: new RegExp(`^progressScreen.sections.${screenId}`) }).querySelector('[data-icon] svg')).not.toBeNull()
+    }
+    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
+    expect(document.querySelector('[data-goal-id]')).toBeNull()
+    expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
+  })
 })

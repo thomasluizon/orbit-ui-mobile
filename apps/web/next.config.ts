@@ -8,7 +8,9 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
 export function getLegacyRedirects() {
   return [
-    { source: '/streak', destination: '/progress', permanent: true },
+    { source: '/streak', destination: '/progress/streak', permanent: true },
+    { source: '/achievements', destination: '/progress/achievements', permanent: true },
+    { source: '/goals', destination: '/progress/goals', permanent: true },
     ...LEGACY_PROFILE_ROUTES.map(({ source, destination }) => ({ source, destination, permanent: true })),
   ]
 }

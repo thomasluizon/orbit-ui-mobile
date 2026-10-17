@@ -25,11 +25,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
     test.use({ appLocale: locale, subscriptionState: 'stripe', layoutProfile: { canViewGamification: true }, colorScheme: 'dark' })
     const words = locale === 'pt-BR' ? ptBR : en
 
-    for (const width of [840, 1100, 1352]) {
-      test(`aligns two columns and the last tile at ${width}px`, async ({ page, context }) => {
+    for (const width of [412, 600, 840, 1100, 1352]) {
+      test(`aligns responsive columns and the last tile at ${width}px`, async ({ page, context }) => {
         await page.setViewportSize({ width, height: 915 })
         await context.route(`${LAYOUT_ORIGIN}${API.gamification.profile}`, (route) => route.fulfill({ json: gamification }))
-        await page.goto('/progress')
+        await page.goto('/progress/achievements')
         const section = page.getByRole('region', { name: words.progressScreen.sections.achievements })
         const tiles = section.locator('[data-achievement-id]')
         await expect(tiles).toHaveCount(3)
@@ -50,6 +50,16 @@ for (const locale of ['en', 'pt-BR'] as const) {
           })
           const [first, second, third] = geometry.tiles
           expect(Math.abs(first!.left - geometry.left)).toBeLessThanOrEqual(0.5)
+          const columns = width === 412 ? 1 : 2
+          expect(new Set(geometry.tiles.map((tile) => tile.left)).size).toBe(columns)
+          expect(Math.abs(geometry.tiles[columns - 1]!.right - geometry.right)).toBeLessThanOrEqual(0.5)
+          if (columns === 1) {
+            for (const tile of geometry.tiles) expect(Math.abs(tile.width - geometry.right + geometry.left)).toBeLessThanOrEqual(0.5)
+            expect(second!.top - first!.bottom).toBe(expectedGap)
+            expect(third!.top - second!.bottom).toBe(expectedGap)
+            return
+          }
+          expect(Math.abs(first!.bottom - second!.bottom)).toBeLessThanOrEqual(0.5)
           expect(Math.abs(second!.right - geometry.right)).toBeLessThanOrEqual(0.5)
           expect(Math.abs(second!.top - first!.top)).toBeLessThanOrEqual(0.5)
           for (const tile of geometry.tiles) expect(Math.abs(tile.width - first!.width)).toBeLessThanOrEqual(0.5)

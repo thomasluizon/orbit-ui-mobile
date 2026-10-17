@@ -241,14 +241,14 @@ function flattenText(node: unknown): string {
 }
 
 describe('Hoje date boundaries', () => {
-  it.each([412, 840, 1352])('keeps the Android Hoje section gaps at %ipx', async (width) => {
+  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('keeps the Android Hoje section gaps at $width with $fontScale text scale', async ({ width, fontScale }) => {
     const native = await import('react-native')
-    const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => { tree = TestRenderer.create(<TodayScreen />); await Promise.resolve() })
     try {
       const header = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-section-header')[0]!
-      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24, paddingBottom: 24 })
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ gap: 24 * fontScale, paddingBottom: 24 })
     } finally { await TestRenderer.act(() => tree.update(<></>)); dimensions.mockRestore() }
   })
   beforeEach(() => {

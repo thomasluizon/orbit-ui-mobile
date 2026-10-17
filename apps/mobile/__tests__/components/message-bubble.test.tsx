@@ -523,7 +523,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
     await TestRenderer.act(() => {
       links[0]?.props.onPress?.()
     })
-    expect(push).toHaveBeenCalledWith('/progress')
+    expect(push).toHaveBeenCalledWith('/progress/achievements')
   })
 
   it('does not render the footer for user messages', async () => {

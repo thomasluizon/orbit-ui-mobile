@@ -126,6 +126,7 @@ export function MessageBubble({
             />
           )}
           <Markdown
+            copyableBlocks={!isUser}
             className="thread-prose"
             content={isUser ? message.content : sourceText}
           />

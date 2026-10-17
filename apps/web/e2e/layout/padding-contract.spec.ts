@@ -67,12 +67,27 @@ for (const width of [412, 840, 1352]) {
       expect(await padding(daySlot)).toEqual({ inline: 16, block: 24 })
 
       await page.goto('/progress')
+      const window = page.getByRole('region', { name: words.progressScreen.sections.window })
+      await expect(window).toBeVisible()
+      expect(await gutter(window)).toBeCloseTo(16, 1)
+      await expect(window).toHaveCSS('row-gap', '12px')
+      await expect(window.locator('..')).toHaveCSS('row-gap', '32px')
+
+      await page.goto('/progress/streak')
+      const streak = page.getByRole('region', { name: words.progressScreen.sections.streak })
+      await expect(streak).toBeVisible()
+      expect(await gutter(streak)).toBeCloseTo(16, 1)
+      await expect(streak.locator('..')).toHaveCSS('row-gap', '32px')
+
+      await page.goto('/progress/goals')
       const goalCard = page.getByRole('button', { name: new RegExp(goal.title) }).first()
       await expect(goalCard).toBeVisible()
       expect(await gutter(goalCard)).toBeCloseTo(16, 1)
       expect(await padding(goalCard)).toEqual({ inline: 16, block: 16 })
+      await page.goto('/progress/achievements')
       const achievements = page.getByRole('region', { name: words.progressScreen.sections.achievements })
-      await expect(achievements).toHaveCSS('row-gap', '12px')
+      expect(await gutter(achievements)).toBeCloseTo(16, 1)
+      await expect(achievements).toHaveCSS('row-gap', '16px')
       await expect(achievements.locator('..')).toHaveCSS('row-gap', '32px')
 
       await page.goto('/profile')
