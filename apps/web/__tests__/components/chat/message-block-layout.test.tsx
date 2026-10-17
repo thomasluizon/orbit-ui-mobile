@@ -10,7 +10,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
-import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
+import { chatBlockLayoutCases, makeChatBlockLayoutMessage, chatPartsLayoutCases, makeChatPartsLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { AstraConversation } from '@/components/chat/conversation'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
@@ -42,6 +42,48 @@ describe('Astra block layout in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352])('keeps the first text and scroll offset when streaming becomes ordered parts at %s', async width => {
+    const message = makeChatPartsLayoutMessage()
+    const surface = (streaming: boolean) => <NextIntlClientProvider locale="en" messages={en}>
+      <div data-thread style={{ height: 400, overflowY: 'auto', padding: 16 }}>
+        <div style={{ height: 800 }} />
+        <div data-turn><MessageBubble message={message} isStreaming={streaming} /></div>
+        <div style={{ height: 800 }} />
+      </div>
+    </NextIntlClientProvider>
+    const { container, rerender } = render(surface(true))
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(0)
+    const firstText = container.querySelector('[data-bubble-role]')
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await page.locator('[data-thread]').evaluate(element => { element.scrollTop = 780 })
+      const before = await page.locator('[data-thread]').evaluate(element => ({
+        scroll: element.scrollTop, top: element.querySelector('[data-bubble-role]')!.getBoundingClientRect().top,
+      }))
+      rerender(surface(false))
+      expect(container.querySelector('[data-bubble-role]')).toBe(firstText)
+      const finalMarkup = container.querySelector('[data-turn]')!.innerHTML
+      await page.locator('[data-turn]').evaluate((element, markup) => { element.innerHTML = markup }, finalMarkup)
+      const after = await page.locator('[data-thread]').evaluate(element => ({
+        scroll: element.scrollTop, top: element.querySelector('[data-bubble-role]')!.getBoundingClientRect().top,
+        parts: [...element.querySelectorAll('[data-bubble-role], section[data-state]')].map(part => {
+          const rect = part.getBoundingClientRect()
+          return { top: rect.top, bottom: rect.bottom }
+        }),
+        animations: element.getAnimations({ subtree: true }).length,
+      }))
+      expect(after.scroll).toBe(before.scroll)
+      expect(after.top).toBeCloseTo(before.top, 1)
+      expect(after.parts).toHaveLength(4)
+      expect(after.animations).toBe(0)
+      for (let index = 1; index < after.parts.length; index++) {
+        expect(after.parts[index]!.top - after.parts[index - 1]!.bottom).toBeCloseTo(16, 1)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 1352])('keeps three replies and a sent message natively selectable at %s', async width => {
     const contents = ['First reply.', 'Second **reply** with a [link](https://example.com).', 'Third reply with `code`.', 'My sent message.']
@@ -173,4 +215,18 @@ describe('Astra block layout in Chromium', () => {
       if (prose && width === 1352) expect(geometry.prose[0]!.width).toBeLessThan(geometry.blocks[0]!.width)
     } finally { await page.close() }
   })
+})
+
+
+it.each(chatPartsLayoutCases)('renders $kind parts in server order on web', scenario => {
+  const message = makeChatPartsLayoutMessage(scenario)
+  const { container } = render(<NextIntlClientProvider locale="en" messages={en}><MessageBubble message={message} /></NextIntlClientProvider>)
+  const parts = [...container.querySelectorAll('[data-bubble-role], section[data-state]')]
+  expect(parts.map(part => part.hasAttribute('data-bubble-role') ? 'text'
+    : part.textContent.includes(en.chat.habitList.title) ? 'habitList' : 'metrics')).toEqual(scenario.order)
+  const prose = parts.filter(part => part.hasAttribute('data-bubble-role')).map(part => part.textContent.replace(/\s+/g, ' ').trim())
+  expect(prose).toEqual(scenario.kind === 'all skipped'
+    ? ['Here is what is left today. And your week so far:']
+    : ['Here is what is left today.', 'And your week so far:'])
+  cleanup()
 })

@@ -31,8 +31,7 @@ describe('ordered chat parts', () => {
   })
 
   it.each(['futureKind', ...CHAT_BLOCK_KINDS])('skips an unsupported or malformed %s block without losing the final event', kind => {
-    const parts = [...partsFixture.response.parts]
-    parts[1] = { ...parts[1]!, type: 'block', kind, block: {} }
+    const parts = partsFixture.response.parts.map((part, index) => index === 1 ? { type: 'block', kind, block: {} } : part)
     const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { ...partsFixture.response, parts } })}\n\n`)
     expect(event?.type).toBe('final')
     if (event?.type !== 'final') throw new Error('Expected a final event')

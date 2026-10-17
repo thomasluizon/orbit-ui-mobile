@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including ordered Astra reply parts, the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -282,6 +282,8 @@ The first block set, in build order: the **preview** block for anything Astra is
 tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
 frequency control.
 
+A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
+
 Six rules govern all of them:
 
 1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning
@@ -293,7 +295,7 @@ Six rules govern all of them:
    are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
    reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
    per row.
-4. **Text streams, the block arrives whole.** Never animate a block's own reveal, and never gate the
+4. **Text streams, the block arrives whole.** Text above a block keeps its position when the final parts replace streamed text, and the scroll position stays put. Never animate a block's own reveal, and never gate the
    screen-reader announcement on a visual typing effect.
 5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
    block states it and offers a refresh.
