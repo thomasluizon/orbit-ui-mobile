@@ -1,0 +1,4116 @@
+{
+  "mappings": {
+    "mobile:control:advancedSettings.title": {
+      "targets": [
+        "mobile:control:profile.apiKeys.open"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:aiDisclosure.isAiLabel": {
+      "targets": [
+        "mobile:content:aiDisclosure.isAiLabel"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:aiSettings.title": {
+      "targets": [
+        "mobile:control:profile.groups.astra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:auth.backToLogin": {
+      "targets": [
+        "mobile:control:auth.changeEmail"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:auth.privacy": {
+      "targets": [
+        "mobile:content:about.privacy"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:auth.terms": {
+      "targets": [
+        "mobile:content:about.terms"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.autoSync.reconnectCta": {
+      "targets": [
+        "mobile:control:calendar.calendars.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.autoSync.reviewModeTitle": {
+      "targets": [
+        "mobile:control:calendar.importButton"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.autoSync.syncNowRunning": {
+      "targets": [
+        "mobile:control:calendar.autoSync.syncNow"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.autoSync.title": {
+      "targets": [
+        "mobile:control:calendar.autoSync.automaticImport"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.calendars.toggleLabel": {
+      "targets": [
+        "mobile:content:calendar.calendars.readFrom"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.goToCurrentMonth": {
+      "targets": [
+        "mobile:control:calendar.period.goToCurrent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.goToCurrentWeek": {
+      "targets": [
+        "mobile:control:calendar.period.goToCurrent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.timeGrid.moreLabel": {
+      "targets": [
+        "mobile:control:calendar.timeGrid.moreCountLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.timeGrid.pickRangeHint": {
+      "targets": [
+        "mobile:control:calendar.range.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.timeGrid.rangeMaxDays": {
+      "targets": [
+        "mobile:control:calendar.range.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:calendar.title": {
+      "targets": [
+        "mobile:control:nav.calendar"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.action.openEntity": {
+      "targets": [
+        "mobile:control:chat.action.open"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.attachFile": {
+      "targets": [
+        "mobile:content:shell.composer.attach.file"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.attachImage": {
+      "targets": [
+        "mobile:content:shell.composer.attach.image"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.limitReachedError": {
+      "targets": [
+        "mobile:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.placeholder": {
+      "targets": [
+        "mobile:content:shell.composer.inputLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.related.surface.aiSettings": {
+      "targets": [
+        "mobile:control:profile.groups.astra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.removeFile": {
+      "targets": [
+        "mobile:content:shell.composer.attach.remove"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.removeImage": {
+      "targets": [
+        "mobile:content:shell.composer.attach.remove"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.send": {
+      "targets": [
+        "mobile:content:shell.composer.send"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.stopRecording": {
+      "targets": [
+        "mobile:content:shell.composer.voice.stop"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:chat.toggleMic": {
+      "targets": [
+        "mobile:content:shell.composer.voice.start"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.codePlaceholder": {
+      "targets": [
+        "mobile:control:stepUp.codeLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.collapse": {
+      "targets": [
+        "mobile:content:common.collapse"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:common.confirm": {
+      "targets": [
+        "mobile:control:common.delete"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.continue": {
+      "targets": [
+        "mobile:control:profile.freshStart.reviewDeletion"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.discard": {
+      "targets": [
+        "mobile:control:common.discardChangesAction"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.dismiss": {
+      "targets": [
+        "mobile:control:common.close"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.expand": {
+      "targets": [
+        "mobile:content:common.expand"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:common.goHome": {
+      "targets": [
+        "mobile:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.locked": {
+      "targets": [
+        "mobile:control:common.proBadge"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:common.selectedTime": {
+      "targets": [
+        "mobile:control:common.selectTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:dataExport.button": {
+      "targets": [
+        "mobile:control:profile.settingsRows.export"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:dates.daysShort.friday": {
+      "targets": [
+        "mobile:content:dates.daysShort.friday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.monday": {
+      "targets": [
+        "mobile:content:dates.daysShort.monday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.saturday": {
+      "targets": [
+        "mobile:content:dates.daysShort.saturday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.sunday": {
+      "targets": [
+        "mobile:content:dates.daysShort.sunday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.thursday": {
+      "targets": [
+        "mobile:content:dates.daysShort.thursday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.tuesday": {
+      "targets": [
+        "mobile:content:dates.daysShort.tuesday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:dates.daysShort.wednesday": {
+      "targets": [
+        "mobile:content:dates.daysShort.wednesday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:errors.loadProfile": {
+      "targets": [
+        "mobile:content:profile.loading"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:explore.sections.integrations": {
+      "targets": [
+        "mobile:control:profile.groups.more"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:explore.sections.more": {
+      "targets": [
+        "mobile:control:profile.groups.more"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:explore.sections.progress": {
+      "targets": [
+        "mobile:control:nav.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:gamification.levelUp.steadyHand": {
+      "targets": [
+        "mobile:content:celebration.level.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:gamification.levelUp.title": {
+      "targets": [
+        "mobile:content:celebration.level.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:gamification.page.upgradeButton": {
+      "targets": [
+        "mobile:control:common.upgrade"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:gamification.title": {
+      "targets": [
+        "mobile:control:progressScreen.sections.achievements"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.completedCelebrationFiled": {
+      "targets": [
+        "mobile:content:celebration.goal.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.completedCelebrationLabel": {
+      "targets": [
+        "mobile:content:celebration.goal.eyebrow"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.completedCelebrationTitle": {
+      "targets": [
+        "mobile:content:celebration.goal.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.detail.deleteConfirm": {
+      "targets": [
+        "mobile:control:goals.detail.deleteNamed"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.abandoned": {
+      "targets": [
+        "mobile:control:progressScreen.goals.abandoned"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.active": {
+      "targets": [
+        "mobile:control:progressScreen.goals.active"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.all": {
+      "targets": [
+        "mobile:control:progressScreen.goals.all"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.clearFilter": {
+      "targets": [
+        "mobile:control:progressScreen.goals.clearFilter"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.completed": {
+      "targets": [
+        "mobile:control:progressScreen.goals.completed"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.filters.statusFilter": {
+      "targets": [
+        "mobile:control:progressScreen.goals.filter"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.reorderHint": {
+      "targets": [
+        "mobile:content:progressScreen.goals.position"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:goals.tab": {
+      "targets": [
+        "mobile:control:progressScreen.sections.goals"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.actions.unlog": {
+      "targets": [
+        "mobile:content:habits.actions.unlog"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.allDoneCelebrationSubtitle": {
+      "targets": [
+        "mobile:content:celebration.day.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.allDoneCelebrationTitle": {
+      "targets": [
+        "mobile:content:celebration.day.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.allDoneHint": {
+      "targets": [
+        "mobile:content:habits.allDoneHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.allDoneToday": {
+      "targets": [
+        "mobile:content:habits.allDoneToday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.breakdown.createCount": {
+      "targets": [
+        "mobile:control:chat.preview.approve"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.breakdown.frequencyQuantityLabel": {
+      "targets": [
+        "mobile:control:chat.breakdown.frequency"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.breakdown.habitNamePlaceholder": {
+      "targets": [
+        "mobile:control:chat.preview.editName"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.closeSearch": {
+      "targets": [
+        "mobile:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.createSubHabit": {
+      "targets": [
+        "mobile:control:habits.form.addSubHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.detail.askAstraEyebrow": {
+      "targets": [
+        "mobile:control:habits.detail.askAstra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.addEndDate": {
+      "targets": [
+        "mobile:control:habits.form.endDate"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.aiSuggest": {
+      "targets": [
+        "mobile:content:habits.form.askAstra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.descriptionPlaceholder": {
+      "targets": [
+        "mobile:control:habits.form.description"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.dueTime": {
+      "targets": [
+        "mobile:control:habits.form.exactTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.habitTypeBuild": {
+      "targets": [
+        "mobile:control:habits.form.habitTypeAvoid"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.moreOptions": {
+      "targets": [
+        "mobile:control:habits.form.moreDetails"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.moreOptionsCount": {
+      "targets": [
+        "mobile:control:habits.form.moreDetails"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.reminderCustomPlaceholder": {
+      "targets": [
+        "mobile:control:habits.form.reminderCustom"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.templates": {
+      "targets": [
+        "mobile:content:habits.form.templates"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.form.title": {
+      "targets": [
+        "mobile:content:habits.form.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.form.titlePlaceholder": {
+      "targets": [
+        "mobile:content:habits.form.describe"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.titleRequired": {
+      "targets": [
+        "mobile:content:habits.form.describe"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.logHabit": {
+      "targets": [
+        "mobile:content:habits.logHabit"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.moveParent.button": {
+      "targets": [
+        "mobile:control:habits.actions.moveUnder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.moveParent.moving": {
+      "targets": [
+        "mobile:control:habits.moveParent.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.overdue": {
+      "targets": [
+        "mobile:content:habits.overdue"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.reschedule.title": {
+      "targets": [
+        "mobile:content:habits.reschedule.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:habits.searchPlaceholder": {
+      "targets": [
+        "mobile:control:habits.moveParent.searchPlaceholder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.viewToday": {
+      "targets": [
+        "mobile:control:nav.today"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:nav.astra": {
+      "targets": [
+        "mobile:control:chat.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:nav.create": {
+      "targets": [
+        "mobile:control:nav.createHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:nav.home": {
+      "targets": [
+        "mobile:control:nav.today"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:nav.you": {
+      "targets": [
+        "mobile:control:nav.profile"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:notifications.deleteAllConfirmTitle": {
+      "targets": [
+        "mobile:control:notifications.deleteAllAction"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:notifications.markAllRead": {
+      "targets": [
+        "mobile:control:notifications.markAllReadMenu"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.begin": {
+      "targets": [
+        "mobile:control:onboarding.flow.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.complete.start": {
+      "targets": [
+        "mobile:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.createHabit.create": {
+      "targets": [
+        "mobile:control:onboarding.flow.remind.continue"
+      ],
+      "reason": "The unified onboarding creates the habit when the reminder step finishes."
+    },
+    "mobile:control:onboarding.flow.createHabit.creating": {
+      "targets": [
+        "mobile:control:onboarding.flow.remind.continue"
+      ],
+      "reason": "The unified onboarding creates the habit when the reminder step finishes."
+    },
+    "mobile:control:onboarding.flow.createHabit.frequency.daily": {
+      "targets": [
+        "mobile:control:onboarding.flow.when.units.day"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.createHabit.frequency.oneTime": {
+      "targets": [
+        "mobile:control:onboarding.flow.when.oneTimeMode"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.createHabit.frequency.weekly": {
+      "targets": [
+        "mobile:control:onboarding.flow.when.units.week"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.createHabit.placeholder": {
+      "targets": [
+        "mobile:control:onboarding.flow.what.placeholder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.createHabit.useForm": {
+      "targets": [
+        "mobile:content:onboarding.flow.when.correctSchedule"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.meetAstra.import": {
+      "targets": [
+        "mobile:control:onboarding.wizard.importButton"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.next": {
+      "targets": [
+        "mobile:control:onboarding.flow.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.saveYourPlan.cta": {
+      "targets": [
+        "mobile:content:auth.onboarding.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.flow.saveYourPlan.haveAccount": {
+      "targets": [
+        "mobile:control:onboarding.flow.what.haveAccount"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:onboarding.wizard.calendarDescription": {
+      "targets": [
+        "mobile:content:onboarding.wizard.calendarDescription"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:onboarding.wizard.calendarTitle": {
+      "targets": [
+        "mobile:content:onboarding.wizard.calendarTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:onboarding.wizard.importDescription": {
+      "targets": [
+        "mobile:content:onboarding.wizard.importDescription"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:onboarding.wizard.importTitle": {
+      "targets": [
+        "mobile:content:onboarding.wizard.importTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:orbitMcp.confirm": {
+      "targets": [
+        "mobile:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:orbitMcp.createKey": {
+      "targets": [
+        "mobile:control:profile.apiKeys.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:orbitMcp.createKeyShort": {
+      "targets": [
+        "mobile:control:profile.apiKeys.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:orbitMcp.revokeConfirm": {
+      "targets": [
+        "mobile:control:profile.apiKeys.revokeNamedQuestion"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:preferences.themeMode": {
+      "targets": [
+        "mobile:display:profile.settingsRows.theme"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:preferences.title": {
+      "targets": [
+        "mobile:control:profile.submenus.preferences"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.aiSummary.description": {
+      "targets": [
+        "mobile:control:profile.aiSummary.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.deleteAccount.button": {
+      "targets": [
+        "mobile:control:profile.settingsRows.deleteAccount"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.deleteAccount.confirmDelete": {
+      "targets": [
+        "mobile:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.deleteAccount.deleting": {
+      "targets": [
+        "mobile:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.deleteAccount.sending": {
+      "targets": [
+        "mobile:control:profile.deleteAccount.sendCode"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.deleteAccount.title": {
+      "targets": [
+        "mobile:control:profile.settingsRows.deleteAccount"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.editName.placeholder": {
+      "targets": [
+        "mobile:control:profile.editName.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.freshStart.button": {
+      "targets": [
+        "mobile:control:profile.settingsRows.startOver"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.freshStart.confirmButton": {
+      "targets": [
+        "mobile:content:profile.freshStart.deleteData"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.freshStart.processing": {
+      "targets": [
+        "mobile:content:profile.freshStart.deleteData"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.logout": {
+      "targets": [
+        "mobile:control:profile.settingsRows.signOut"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.proactiveAstra.description": {
+      "targets": [
+        "mobile:control:profile.proactiveAstra.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.subscription.manage": {
+      "targets": [
+        "mobile:control:upgrade.pitchTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.subscription.plan": {
+      "targets": [
+        "mobile:control:upgrade.pitchTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.support.subjectPlaceholder": {
+      "targets": [
+        "mobile:control:profile.support.subject"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.widgetHint": {
+      "targets": [
+        "mobile:content:profile.widgetTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:profile.widgetTitle": {
+      "targets": [
+        "mobile:content:profile.widgetTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:pushPrompt.enable": {
+      "targets": [
+        "mobile:control:profile.settingsRows.alertsOnThisDevice"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:pushPrompt.later": {
+      "targets": [
+        "mobile:control:onboarding.flow.remind.deny"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:referral.card.title": {
+      "targets": [
+        "mobile:control:referral.prompt.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:settings.notifications.title": {
+      "targets": [
+        "mobile:control:profile.groups.notifications"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:settings.theme.switchToDark": {
+      "targets": [
+        "mobile:control:preferences.themeModeDark"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:settings.theme.switchToLight": {
+      "targets": [
+        "mobile:control:preferences.themeModeLight"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:settings.weekStartDay.title": {
+      "targets": [
+        "mobile:control:profile.settingsRows.weekStart"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:streakDisplay.badge.tooltip": {
+      "targets": [
+        "mobile:content:progressScreen.sections.streak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:streakDisplay.celebration.eyebrow": {
+      "targets": [
+        "mobile:content:celebration.streak.eyebrow"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:streakDisplay.title": {
+      "targets": [
+        "mobile:content:progressScreen.sections.streak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:trial.banner.upgrade": {
+      "targets": [
+        "mobile:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.billing.actions.manage": {
+      "targets": [
+        "mobile:content:upgrade.billing.actions.manage"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.billing.actions.managePlay": {
+      "targets": [
+        "mobile:content:upgrade.billing.actions.managePlay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.billing.invoices.download": {
+      "targets": [
+        "mobile:control:upgrade.billing.invoices.downloadDated"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.plans.equivalent": {
+      "targets": [
+        "mobile:content:upgrade.plans.yearly.equivalent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.plans.monthly.name": {
+      "targets": [
+        "mobile:content:upgrade.plans.monthly.name"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:upgrade.plans.monthly.note": {
+      "targets": [
+        "mobile:content:upgrade.plans.monthly.period"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.plans.monthly.period": {
+      "targets": [
+        "mobile:content:upgrade.plans.monthly.period"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:upgrade.plans.savePercent": {
+      "targets": [
+        "mobile:content:upgrade.plans.yearly.equivalent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.plans.yearly.name": {
+      "targets": [
+        "mobile:content:upgrade.plans.yearly.name"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:upgrade.plans.yearly.period": {
+      "targets": [
+        "mobile:content:upgrade.plans.yearly.period"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:control:upgrade.subscribe": {
+      "targets": [
+        "mobile:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:upgrade.title": {
+      "targets": [
+        "mobile:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:versionUpdate.restartCta": {
+      "targets": [
+        "mobile:content:versionUpdate.restartCta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:wrapped.back": {
+      "targets": [
+        "mobile:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:wrapped.entry": {
+      "targets": [
+        "mobile:content:profile.settingsRows.wrapped"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:about.version": {
+      "targets": [
+        "mobile:display:about.versionLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:calendar.calendars.primaryLabel": {
+      "targets": [
+        "mobile:control:calendar.calendars.primaryLabel"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:calendar.dayDetail.completionSummary": {
+      "targets": [
+        "mobile:content:calendar.dayDetail.completionSummary"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:chat.goalList.deadline": {
+      "targets": [
+        "mobile:content:chat.goalList.deadline"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:chat.goalList.percentage": {
+      "targets": [
+        "mobile:content:chat.goalList.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:chat.goalList.progress": {
+      "targets": [
+        "mobile:content:chat.goalList.progress"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:chat.listening": {
+      "targets": [
+        "mobile:content:shell.composer.voice.recording"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:chat.messagesUsed": {
+      "targets": [
+        "mobile:display:profile.allowance.usage"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:chat.proGate.body": {
+      "targets": [
+        "mobile:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:chat.proGate.title": {
+      "targets": [
+        "mobile:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:common.no": {
+      "targets": [
+        "mobile:content:common.no"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:common.yes": {
+      "targets": [
+        "mobile:content:common.yes"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:gamification.carrot.toNextLevel": {
+      "targets": [
+        "mobile:display:progressScreen.achievements.xp"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:gamification.profileCard.earned": {
+      "targets": [
+        "mobile:display:progressScreen.achievements.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:gamification.profileCard.level": {
+      "targets": [
+        "mobile:control:progressScreen.achievements.level"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:gamification.profileCard.totalXp": {
+      "targets": [
+        "mobile:display:progressScreen.achievements.xp"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:gamification.tile.earned": {
+      "targets": [
+        "mobile:content:progressScreen.achievements.earnedState"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:goals.detail.statusLabel": {
+      "targets": [
+        "mobile:control:progressScreen.goals.active"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:goals.form.type": {
+      "targets": [
+        "mobile:control:goals.form.type"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.breakdown.breakInto": {
+      "targets": [
+        "mobile:control:chat.breakdown.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.breakdown.createAsParentSuccess": {
+      "targets": [
+        "mobile:content:blockFrame.status.done"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.breakdown.createdSuccess": {
+      "targets": [
+        "mobile:content:blockFrame.status.done"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.completed": {
+      "targets": [
+        "mobile:content:habits.rowProgress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.detail.currentStreak": {
+      "targets": [
+        "mobile:content:habits.detail.currentStreak"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.detail.day": {
+      "targets": [
+        "mobile:content:habits.detail.currentStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.detail.days": {
+      "targets": [
+        "mobile:content:habits.detail.currentStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.detail.daysFree": {
+      "targets": [
+        "mobile:content:habits.detail.daysFree"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.detail.endsOn": {
+      "targets": [
+        "mobile:control:habits.form.endDate"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.detail.loggedAt": {
+      "targets": [
+        "mobile:content:habits.detail.loggedAt"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.detail.longestStreak": {
+      "targets": [
+        "mobile:control:habits.detail.longestStreak"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.detail.monthlyRate": {
+      "targets": [
+        "mobile:control:habits.detail.monthlyRate"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.dueTime": {
+      "targets": [
+        "mobile:control:habits.form.exactTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.form.emojiPickerTitle": {
+      "targets": [
+        "mobile:content:habits.form.emojiPickerTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.habitTypeAvoidHint": {
+      "targets": [
+        "mobile:control:habits.form.habitTypeAvoidHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.habitTypeBuildHint": {
+      "targets": [
+        "mobile:control:habits.form.habitTypeAvoidHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:habits.form.scheduledReminderDayBefore": {
+      "targets": [
+        "mobile:control:habits.form.scheduledReminderDayBefore"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:habits.form.scheduledReminderSameDay": {
+      "targets": [
+        "mobile:control:habits.form.scheduledReminderSameDay"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:onboarding.flow.complete.subtitle": {
+      "targets": [
+        "mobile:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.complete.title": {
+      "targets": [
+        "mobile:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.complete.trialDesc": {
+      "targets": [
+        "mobile:content:upgrade.convert.proAllowance"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.saveYourPlan.habitSummary": {
+      "targets": [
+        "mobile:display:auth.onboarding.habits"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.saveYourPlan.habitSummaryOne": {
+      "targets": [
+        "mobile:display:auth.onboarding.habitOne"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.saveYourPlan.subtitle": {
+      "targets": [
+        "mobile:content:auth.onboarding.subtitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:onboarding.flow.saveYourPlan.title": {
+      "targets": [
+        "mobile:content:auth.onboarding.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:orbitMcp.createHeading": {
+      "targets": [
+        "mobile:control:profile.apiKeys.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:orbitMcp.revealHeading": {
+      "targets": [
+        "mobile:content:orbitMcp.revealHeading"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:profile.deleteAccount.deactivated": {
+      "targets": [
+        "mobile:content:stepUp.successBody"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:profile.deleteAccount.warningFree": {
+      "targets": [
+        "mobile:content:profile.deleteAccount.warningFree"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:profile.deleteAccount.warningPro": {
+      "targets": [
+        "mobile:content:profile.deleteAccount.warningPro"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:referral.prompt.body": {
+      "targets": [
+        "mobile:content:referral.prompt.body"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:reviewMoment.levelTitle": {
+      "targets": [
+        "mobile:content:reviewMoment.levelTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:reviewMoment.streakTitle": {
+      "targets": [
+        "mobile:content:reviewMoment.streakTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:shareCard.streak": {
+      "targets": [
+        "mobile:control:shareCard.stats.bestStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:streakDisplay.detail.currentStreak": {
+      "targets": [
+        "mobile:display:progressScreen.streak.currentLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:streakDisplay.detail.longestStreak": {
+      "targets": [
+        "mobile:display:progressScreen.streak.longest"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:streakDisplay.freeze.nextFreeze.full": {
+      "targets": [
+        "mobile:display:progressScreen.streak.bankFull"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:streakDisplay.freeze.nextFreeze.inDays": {
+      "targets": [
+        "mobile:display:progressScreen.streak.nextOf"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:streakDisplay.freeze.protected.todayValue": {
+      "targets": [
+        "mobile:content:progressScreen.streak.protectedToday"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:trial.banner.daysLeft": {
+      "targets": [
+        "mobile:display:upgrade.billing.plan.trialHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:trial.banner.trialEyebrow": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.trialBadge"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:upgrade.alreadyPro": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.lifetimeBadge"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:upgrade.billing.plan.canceledHint": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.canceledHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.billing.plan.lifetime": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.lifetime"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.billing.plan.lifetimeHint": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.lifetimeHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.billing.plan.monthly": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.monthly"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.billing.plan.renewsOn": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.renewsOn"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.billing.plan.yearly": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.yearly"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:upgrade.manageHint": {
+      "targets": [
+        "mobile:content:upgrade.billing.plan.lifetimeHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:versionUpdate.readyTitle": {
+      "targets": [
+        "mobile:content:versionUpdate.readyTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:versionUpdate.title": {
+      "targets": [
+        "mobile:control:versionUpdate.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:wrapped.progressLabel": {
+      "targets": [
+        "mobile:control:wrapped.progressLabel"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:wrapped.slides.activeDays.eyebrow": {
+      "targets": [
+        "mobile:display:wrapped.slides.activeDays.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:wrapped.slides.completions.eyebrow": {
+      "targets": [
+        "mobile:display:wrapped.slides.completions.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:display:wrapped.slides.streak.eyebrow": {
+      "targets": [
+        "mobile:display:wrapped.slides.streak.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:native-display:widget.item_progress_badge": {
+      "targets": [
+        "mobile:native-display:widget.item_children_badge"
+      ],
+      "reason": "The sub-habit completion fraction moved from the status badge to the children badge."
+    },
+    "mobile:route:/achievements": {
+      "targets": [
+        "mobile:route:/progress"
+      ],
+      "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "mobile:route:/calendar-sync": {
+      "targets": [
+        "mobile:content:profile.calendarSync.title"
+      ],
+      "reason": "The Calendários sheet replaces the standalone route."
+    },
+    "mobile:route:/streak": {
+      "targets": [
+        "mobile:route:/progress"
+      ],
+      "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "web:control:advancedSettings.title": {
+      "targets": [
+        "web:control:profile.apiKeys.open"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:aiSettings.title": {
+      "targets": [
+        "web:control:profile.groups.astra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:astraRail.close": {
+      "targets": [
+        "web:control:common.close"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:astraRail.open": {
+      "targets": [
+        "web:control:chat.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:astraRail.title": {
+      "targets": [
+        "web:control:chat.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:auth.codeSent": {
+      "targets": [
+        "web:content:auth.codeSent"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:auth.privacy": {
+      "targets": [
+        "web:content:about.privacy"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:auth.terms": {
+      "targets": [
+        "web:content:about.terms"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.agenda.empty": {
+      "targets": [
+        "web:content:calendar.agenda.empty"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:calendar.agenda.nextDay": {
+      "targets": [
+        "web:control:common.nextWeek"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.agenda.previousDay": {
+      "targets": [
+        "web:control:common.previousWeek"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.agenda.today": {
+      "targets": [
+        "web:control:calendar.period.goToCurrent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.autoSync.reconnectCta": {
+      "targets": [
+        "web:control:calendar.calendars.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.autoSync.reviewModeTitle": {
+      "targets": [
+        "web:control:calendar.importButton"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.autoSync.syncNowRunning": {
+      "targets": [
+        "web:control:calendar.autoSync.syncNow"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.autoSync.toggleLabel": {
+      "targets": [
+        "web:control:calendar.autoSync.automaticImport"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.calendars.toggleLabel": {
+      "targets": [
+        "web:content:calendar.calendars.readFrom"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.goToCurrentMonth": {
+      "targets": [
+        "web:control:calendar.period.goToCurrent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.goToCurrentWeek": {
+      "targets": [
+        "web:control:calendar.period.goToCurrent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.recurring": {
+      "targets": [
+        "web:content:calendar.recurring"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:calendar.timeGrid.moreLabel": {
+      "targets": [
+        "web:control:calendar.timeGrid.moreCountLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.timeGrid.pickEndHint": {
+      "targets": [
+        "web:control:calendar.range.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.timeGrid.pickRangeHint": {
+      "targets": [
+        "web:control:calendar.range.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.timeGrid.rangeMaxDays": {
+      "targets": [
+        "web:control:calendar.range.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.title": {
+      "targets": [
+        "web:control:nav.calendar"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:calendar.viewAgenda": {
+      "targets": [
+        "web:control:calendar.view.agenda"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.action.openEntity": {
+      "targets": [
+        "web:control:chat.action.open"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.attachFile": {
+      "targets": [
+        "web:content:shell.composer.attach.file"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.attachImage": {
+      "targets": [
+        "web:content:shell.composer.attach.image"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.limitReachedError": {
+      "targets": [
+        "web:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.placeholder": {
+      "targets": [
+        "web:content:shell.composer.inputLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.related.surface.aiSettings": {
+      "targets": [
+        "web:control:profile.groups.astra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.removeFile": {
+      "targets": [
+        "web:content:shell.composer.attach.remove"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.removeImage": {
+      "targets": [
+        "web:content:shell.composer.attach.remove"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.send": {
+      "targets": [
+        "web:content:shell.composer.send"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.stopRecording": {
+      "targets": [
+        "web:content:shell.composer.voice.stop"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:chat.toggleMic": {
+      "targets": [
+        "web:content:shell.composer.voice.start"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:command.createGoal": {
+      "targets": [
+        "web:control:progressScreen.goals.createAction"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.codePlaceholder": {
+      "targets": [
+        "web:control:stepUp.codeLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.confirm": {
+      "targets": [
+        "web:control:common.delete"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.continue": {
+      "targets": [
+        "web:control:profile.freshStart.reviewDeletion"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.create": {
+      "targets": [
+        "web:control:habits.createHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.discard": {
+      "targets": [
+        "web:control:common.discardChangesAction"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.dismiss": {
+      "targets": [
+        "web:control:common.close"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.expandDescription": {
+      "targets": [
+        "web:control:common.showFullText"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.goHome": {
+      "targets": [
+        "web:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.selectedDate": {
+      "targets": [
+        "web:content:common.selectedDate"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:common.selectedTime": {
+      "targets": [
+        "web:control:common.selectTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.addSubHabit": {
+      "targets": [
+        "web:control:habits.actions.addSubHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.complete": {
+      "targets": [
+        "web:control:goals.detail.markCompleted"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.delete": {
+      "targets": [
+        "web:control:habits.actions.delete"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.duplicate": {
+      "targets": [
+        "web:control:habits.actions.duplicate"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.edit": {
+      "targets": [
+        "web:control:common.edit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.log": {
+      "targets": [
+        "web:content:habits.logHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:contextMenu.skip": {
+      "targets": [
+        "web:control:habits.actions.skip"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:dataExport.button": {
+      "targets": [
+        "web:control:profile.settingsRows.export"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:explore.sections.integrations": {
+      "targets": [
+        "web:control:profile.groups.more"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:explore.sections.more": {
+      "targets": [
+        "web:control:profile.groups.more"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:explore.sections.progress": {
+      "targets": [
+        "web:control:nav.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:gamification.levelUp.title": {
+      "targets": [
+        "web:content:celebration.level.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:gamification.page.upgradeButton": {
+      "targets": [
+        "web:control:common.upgrade"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:gamification.title": {
+      "targets": [
+        "web:display:progressScreen.sections.achievements"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.completedCelebrationTitle": {
+      "targets": [
+        "web:content:celebration.goal.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.detail.deleteConfirm": {
+      "targets": [
+        "web:control:goals.detail.deleteNamed"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.dragItem": {
+      "targets": [
+        "web:content:progressScreen.goals.position"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.filters.abandoned": {
+      "targets": [
+        "web:control:progressScreen.goals.abandoned"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.filters.active": {
+      "targets": [
+        "web:control:progressScreen.goals.active"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.filters.all": {
+      "targets": [
+        "web:control:progressScreen.goals.all"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.filters.clearFilter": {
+      "targets": [
+        "web:control:progressScreen.goals.clearFilter"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.filters.completed": {
+      "targets": [
+        "web:control:progressScreen.goals.completed"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.progressOf": {
+      "targets": [
+        "web:control:progressScreen.goals.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:goals.streak.ofTarget": {
+      "targets": [
+        "web:control:progressScreen.goals.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.actions.unlog": {
+      "targets": [
+        "web:content:habits.actions.unlog"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:habits.allDoneCelebrationTitle": {
+      "targets": [
+        "web:content:celebration.day.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.allDoneHint": {
+      "targets": [
+        "web:content:habits.allDoneHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:habits.allDoneToday": {
+      "targets": [
+        "web:content:habits.allDoneToday"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:habits.breakdown.createCount": {
+      "targets": [
+        "web:control:chat.preview.approve"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.breakdown.frequencyQuantityLabel": {
+      "targets": [
+        "web:control:chat.breakdown.frequency"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.breakdown.habitNamePlaceholder": {
+      "targets": [
+        "web:control:chat.preview.editName"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.closeSearch": {
+      "targets": [
+        "web:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.detail.activity": {
+      "targets": [
+        "web:content:habits.detail.lastThirtyDays"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.detail.askAstraEyebrow": {
+      "targets": [
+        "web:control:habits.detail.askAstra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.detail.endsOn": {
+      "targets": [
+        "web:control:habits.form.endDate"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.detail.linkedGoal": {
+      "targets": [
+        "web:control:habits.detail.linkedGoals"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.addEndDate": {
+      "targets": [
+        "web:control:habits.form.endDate"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.aiSuggest": {
+      "targets": [
+        "web:content:habits.form.askAstra"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.aiSuggesting": {
+      "targets": [
+        "web:content:habits.form.astraReading"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.createDescription": {
+      "targets": [
+        "web:control:habits.form.newHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.createSubHabitDescription": {
+      "targets": [
+        "web:content:habits.form.subHabits"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.dueTime": {
+      "targets": [
+        "web:control:habits.form.exactTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.editDescription": {
+      "targets": [
+        "web:control:habits.detail.screenTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.habitTypeBuild": {
+      "targets": [
+        "web:control:habits.form.habitTypeAvoid"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.moreOptions": {
+      "targets": [
+        "web:control:habits.form.moreDetails"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.moreOptionsCount": {
+      "targets": [
+        "web:control:habits.form.moreDetails"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.reminderCustomPlaceholder": {
+      "targets": [
+        "web:control:habits.form.reminderCustom"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.templates": {
+      "targets": [
+        "web:content:habits.form.templates"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:habits.form.titleRequired": {
+      "targets": [
+        "web:content:habits.form.describe"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.logHabit": {
+      "targets": [
+        "web:content:habits.logHabit"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:habits.moveParent.button": {
+      "targets": [
+        "web:control:habits.actions.moveUnder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.moveParent.moving": {
+      "targets": [
+        "web:control:habits.moveParent.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.searchPlaceholder": {
+      "targets": [
+        "web:control:habits.moveParent.searchPlaceholder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.viewToday": {
+      "targets": [
+        "web:control:nav.today"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.astra": {
+      "targets": [
+        "web:control:chat.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.create": {
+      "targets": [
+        "web:control:nav.createHabit"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.explore": {
+      "targets": [
+        "web:control:nav.profile"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.goals": {
+      "targets": [
+        "web:control:progressScreen.sections.goals"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.habits": {
+      "targets": [
+        "web:control:nav.today"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:nav.insights": {
+      "targets": [
+        "web:control:nav.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:notifications.deleteAllConfirmTitle": {
+      "targets": [
+        "web:control:notifications.deleteAllAction"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:notifications.markAllRead": {
+      "targets": [
+        "web:control:notifications.markAllReadMenu"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.begin": {
+      "targets": [
+        "web:control:onboarding.flow.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.complete.start": {
+      "targets": [
+        "web:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.create": {
+      "targets": [
+        "web:control:onboarding.flow.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.creating": {
+      "targets": [
+        "web:control:onboarding.flow.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.frequency.daily": {
+      "targets": [
+        "web:control:onboarding.flow.when.units.day"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.frequency.oneTime": {
+      "targets": [
+        "web:control:onboarding.flow.when.oneTimeMode"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.frequency.weekly": {
+      "targets": [
+        "web:control:onboarding.flow.when.units.week"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.placeholder": {
+      "targets": [
+        "web:control:onboarding.flow.what.placeholder"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.createHabit.useForm": {
+      "targets": [
+        "web:content:onboarding.flow.when.correctSchedule"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.meetAstra.import": {
+      "targets": [
+        "web:control:onboarding.wizard.importButton"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.next": {
+      "targets": [
+        "web:control:onboarding.flow.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.saveYourPlan.cta": {
+      "targets": [
+        "web:control:auth.onboarding.continue"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:onboarding.flow.saveYourPlan.haveAccount": {
+      "targets": [
+        "web:control:onboarding.flow.what.haveAccount"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.confirm": {
+      "targets": [
+        "web:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.createKey": {
+      "targets": [
+        "web:control:profile.apiKeys.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.createKeyShort": {
+      "targets": [
+        "web:control:profile.apiKeys.create"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.revokeConfirm": {
+      "targets": [
+        "web:control:profile.apiKeys.revokeNamedQuestion"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.scopesLabel": {
+      "targets": [
+        "web:control:profile.apiKeys.scopeLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:preferences.themeMode": {
+      "targets": [
+        "web:display:profile.settingsRows.theme"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:preferences.title": {
+      "targets": [
+        "web:control:profile.submenus.preferences"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.aiSummary.description": {
+      "targets": [
+        "web:control:profile.aiSummary.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.deleteAccount.button": {
+      "targets": [
+        "web:control:profile.settingsRows.deleteAccount"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.deleteAccount.confirmDelete": {
+      "targets": [
+        "web:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.deleteAccount.deleting": {
+      "targets": [
+        "web:control:stepUp.confirm"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.deleteAccount.sending": {
+      "targets": [
+        "web:control:profile.deleteAccount.sendCode"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.editName.placeholder": {
+      "targets": [
+        "web:control:profile.editName.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.freshStart.button": {
+      "targets": [
+        "web:control:profile.settingsRows.startOver"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.freshStart.confirmButton": {
+      "targets": [
+        "web:control:profile.freshStart.deleteData"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.freshStart.confirmInstruction": {
+      "targets": [
+        "web:content:profile.freshStart.confirmInstruction"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:profile.freshStart.processing": {
+      "targets": [
+        "web:control:profile.freshStart.deleteData"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.logout": {
+      "targets": [
+        "web:control:profile.settingsRows.signOut"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.proactiveAstra.description": {
+      "targets": [
+        "web:control:profile.proactiveAstra.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.subscription.manage": {
+      "targets": [
+        "web:control:upgrade.pitchTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.subscription.plan": {
+      "targets": [
+        "web:control:upgrade.pitchTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.support.subjectPlaceholder": {
+      "targets": [
+        "web:control:profile.support.subject"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.widgetHint": {
+      "targets": [
+        "web:content:profile.widgetTitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:profile.widgetTitle": {
+      "targets": [
+        "web:content:profile.widgetTitle"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:pushPrompt.enable": {
+      "targets": [
+        "web:control:profile.settingsRows.alertsOnThisDevice"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:pushPrompt.later": {
+      "targets": [
+        "web:control:onboarding.flow.remind.deny"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:referral.card.title": {
+      "targets": [
+        "web:control:referral.prompt.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:settings.notifications.title": {
+      "targets": [
+        "web:control:profile.groups.notifications"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:settings.theme.switchToDark": {
+      "targets": [
+        "web:control:preferences.themeModeDark"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:settings.theme.switchToLight": {
+      "targets": [
+        "web:control:preferences.themeModeLight"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:settings.weekStartDay.title": {
+      "targets": [
+        "web:control:profile.settingsRows.weekStart"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:shell.openPalette": {
+      "targets": [
+        "web:control:nav.search"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:streakDisplay.badge.tooltip": {
+      "targets": [
+        "web:content:progressScreen.sections.streak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:streakDisplay.celebration.subtitle": {
+      "targets": [
+        "web:content:celebration.streak.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:streakDisplay.title": {
+      "targets": [
+        "web:content:progressScreen.sections.streak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:trial.banner.upgrade": {
+      "targets": [
+        "web:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.billing.actions.manage": {
+      "targets": [
+        "web:content:upgrade.billing.actions.manage"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.billing.actions.managePlay": {
+      "targets": [
+        "web:content:upgrade.billing.actions.managePlay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.billing.invoices.download": {
+      "targets": [
+        "web:control:upgrade.billing.invoices.downloadDated"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.free": {
+      "targets": [
+        "web:content:upgrade.free"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:upgrade.plans.free.note": {
+      "targets": [
+        "web:content:upgrade.free"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.plans.monthly.cta": {
+      "targets": [
+        "web:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.plans.monthly.name": {
+      "targets": [
+        "web:content:upgrade.plans.monthly.name"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:upgrade.plans.monthly.note": {
+      "targets": [
+        "web:content:upgrade.plans.monthly.period"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.plans.savePercent": {
+      "targets": [
+        "web:content:upgrade.plans.yearly.equivalent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.plans.yearly.billedSave": {
+      "targets": [
+        "web:content:upgrade.plans.yearly.equivalent"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.plans.yearly.heroLine": {
+      "targets": [
+        "web:content:upgrade.plans.yearly.heroLine"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:upgrade.plans.yearly.name": {
+      "targets": [
+        "web:content:upgrade.plans.yearly.name"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:control:upgrade.subscribe": {
+      "targets": [
+        "web:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:upgrade.title": {
+      "targets": [
+        "web:control:upgrade.plans.cta"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:wrapped.back": {
+      "targets": [
+        "web:control:common.back"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:wrapped.entry": {
+      "targets": [
+        "web:content:profile.settingsRows.wrapped"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:about.version": {
+      "targets": [
+        "web:display:about.versionLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:astraRail.title": {
+      "targets": [
+        "web:control:chat.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:auth.genericError": {
+      "targets": [
+        "web:content:auth.genericError"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:calendar.calendars.primaryLabel": {
+      "targets": [
+        "web:control:calendar.calendars.primaryLabel"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:calendar.dayDetail.completionSummary": {
+      "targets": [
+        "web:content:calendar.dayDetail.completionSummary"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:chat.goalList.deadline": {
+      "targets": [
+        "web:content:chat.goalList.deadline"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:chat.goalList.percentage": {
+      "targets": [
+        "web:content:chat.goalList.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.goalList.progress": {
+      "targets": [
+        "web:content:chat.goalList.progress"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:chat.listening": {
+      "targets": [
+        "web:content:shell.composer.voice.recording"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.messagesUsed": {
+      "targets": [
+        "web:display:profile.allowance.usage"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.proGate.body": {
+      "targets": [
+        "web:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.proGate.title": {
+      "targets": [
+        "web:content:shell.composer.limit.reason"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:chat.title": {
+      "targets": [
+        "web:control:chat.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:chat.transcribing": {
+      "targets": [
+        "web:content:shell.composer.voice.transcribing"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:command.groups.navigate": {
+      "targets": [
+        "web:control:nav.mainNavigation"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:command.title": {
+      "targets": [
+        "web:control:command.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:common.no": {
+      "targets": [
+        "web:content:common.no"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:common.yes": {
+      "targets": [
+        "web:content:common.yes"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:errors.api.accountChanged": {
+      "targets": [
+        "web:content:errors.api.accountChanged"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:errors.api.appUpdated": {
+      "targets": [
+        "web:content:errors.api.appUpdated"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:forceUpdate.banner": {
+      "targets": [
+        "web:content:forceUpdate.banner"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:gamification.carrot.toNextLevel": {
+      "targets": [
+        "web:display:progressScreen.achievements.xp"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.profileCard.earned": {
+      "targets": [
+        "web:display:progressScreen.achievements.progress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.profileCard.level": {
+      "targets": [
+        "web:control:progressScreen.achievements.level"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.profileCard.tileLabel": {
+      "targets": [
+        "web:display:progressScreen.sections.achievements"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.profileCard.totalXp": {
+      "targets": [
+        "web:display:progressScreen.achievements.xp"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.profileCard.xp": {
+      "targets": [
+        "web:display:progressScreen.achievements.xp"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:gamification.tile.earned": {
+      "targets": [
+        "web:content:progressScreen.achievements.earnedState"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:goals.completedCelebrationLabel": {
+      "targets": [
+        "web:content:celebration.goal.eyebrow"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:goals.detail.statusLabel": {
+      "targets": [
+        "web:control:progressScreen.goals.active"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:goals.form.type": {
+      "targets": [
+        "web:control:goals.form.type"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:goals.progressPercentage": {
+      "targets": [
+        "web:control:goals.progressPercentage"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.breakdown.createAsParentSuccess": {
+      "targets": [
+        "web:content:blockFrame.status.done"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.breakdown.createdSuccess": {
+      "targets": [
+        "web:content:blockFrame.status.done"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.completed": {
+      "targets": [
+        "web:content:habits.rowProgress"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.detail.currentStreak": {
+      "targets": [
+        "web:content:habits.detail.currentStreak"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.detail.day": {
+      "targets": [
+        "web:content:habits.detail.currentStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.detail.days": {
+      "targets": [
+        "web:content:habits.detail.currentStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.detail.daysFree": {
+      "targets": [
+        "web:content:habits.detail.daysFree"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.detail.loggedAt": {
+      "targets": [
+        "web:control:habits.detail.loggedAt"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.detail.longestStreak": {
+      "targets": [
+        "web:control:habits.detail.longestStreak"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.detail.monthlyRate": {
+      "targets": [
+        "web:control:habits.detail.monthlyRate"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.dueTime": {
+      "targets": [
+        "web:control:habits.form.exactTime"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.form.emojiCategories": {
+      "targets": [
+        "web:control:habits.form.emojiCategories"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.habitTypeAvoidHint": {
+      "targets": [
+        "web:control:habits.form.habitTypeAvoidHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.habitTypeBuildHint": {
+      "targets": [
+        "web:control:habits.form.habitTypeAvoidHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:habits.form.scheduledReminderDayBefore": {
+      "targets": [
+        "web:control:habits.form.scheduledReminderDayBefore"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:habits.form.scheduledReminderSameDay": {
+      "targets": [
+        "web:control:habits.form.scheduledReminderSameDay"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:onboarding.flow.complete.subtitle": {
+      "targets": [
+        "web:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.complete.title": {
+      "targets": [
+        "web:control:onboarding.flow.done.seeDay"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.complete.trialDesc": {
+      "targets": [
+        "web:content:upgrade.convert.proAllowance"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.saveYourPlan.habitSummary": {
+      "targets": [
+        "web:display:auth.onboarding.habits"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.saveYourPlan.habitSummaryOne": {
+      "targets": [
+        "web:display:auth.onboarding.habitOne"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.saveYourPlan.subtitle": {
+      "targets": [
+        "web:content:auth.onboarding.subtitle"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:onboarding.flow.saveYourPlan.title": {
+      "targets": [
+        "web:content:auth.onboarding.title"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:profile.deleteAccount.deactivated": {
+      "targets": [
+        "web:content:stepUp.successBody"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:referral.prompt.body": {
+      "targets": [
+        "web:content:referral.prompt.body"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:shareCard.streak": {
+      "targets": [
+        "web:control:shareCard.stats.bestStreak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.celebration.subtitle": {
+      "targets": [
+        "web:content:celebration.streak.line"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.daysSuffix": {
+      "targets": [
+        "web:display:progressScreen.streak.currentLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.detail.currentStreak": {
+      "targets": [
+        "web:display:progressScreen.streak.currentLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.detail.daysUnit": {
+      "targets": [
+        "web:display:progressScreen.streak.currentLabel"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.detail.longestStreak": {
+      "targets": [
+        "web:display:progressScreen.streak.longest"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.freeze.activeToday": {
+      "targets": [
+        "web:content:progressScreen.streak.frozenToday"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.freeze.nextFreeze.full": {
+      "targets": [
+        "web:display:progressScreen.streak.bankFull"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.freeze.nextFreeze.inDays": {
+      "targets": [
+        "web:display:progressScreen.streak.nextOf"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.freeze.protected.today": {
+      "targets": [
+        "web:content:progressScreen.streak.protectedToday"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.freeze.protected.todayValue": {
+      "targets": [
+        "web:content:progressScreen.streak.protectedToday"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:streakDisplay.title": {
+      "targets": [
+        "web:content:progressScreen.sections.streak"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:trial.banner.daysLeft": {
+      "targets": [
+        "web:display:upgrade.billing.plan.trialHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:trial.banner.trialEyebrow": {
+      "targets": [
+        "web:content:upgrade.billing.plan.trialBadge"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:upgrade.alreadyPro": {
+      "targets": [
+        "web:content:upgrade.billing.plan.lifetimeBadge"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:upgrade.billing.plan.canceledHint": {
+      "targets": [
+        "web:content:upgrade.billing.plan.canceledHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.billing.plan.lifetime": {
+      "targets": [
+        "web:content:upgrade.billing.plan.lifetime"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.billing.plan.lifetimeHint": {
+      "targets": [
+        "web:content:upgrade.billing.plan.lifetimeHint"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.billing.plan.monthly": {
+      "targets": [
+        "web:content:upgrade.billing.plan.monthly"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.billing.plan.renewsOn": {
+      "targets": [
+        "web:content:upgrade.billing.plan.renewsOn"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.billing.plan.yearly": {
+      "targets": [
+        "web:content:upgrade.billing.plan.yearly"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.manageHint": {
+      "targets": [
+        "web:content:upgrade.billing.plan.lifetimeHint"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:upgrade.plans.monthly.period": {
+      "targets": [
+        "web:content:upgrade.plans.monthly.period"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:upgrade.plans.yearly.period": {
+      "targets": [
+        "web:content:upgrade.plans.yearly.period"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:wrapped.progressLabel": {
+      "targets": [
+        "web:control:wrapped.progressLabel"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:wrapped.slides.activeDays.eyebrow": {
+      "targets": [
+        "web:display:wrapped.slides.activeDays.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:wrapped.slides.completions.eyebrow": {
+      "targets": [
+        "web:display:wrapped.slides.completions.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:wrapped.slides.streak.eyebrow": {
+      "targets": [
+        "web:display:wrapped.slides.streak.label"
+      ],
+      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:wrapped.title": {
+      "targets": [
+        "web:content:wrapped.title"
+      ],
+      "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:route:/achievements": {
+      "targets": [
+        "web:route:/progress"
+      ],
+      "reason": "Progresso owns achievements, streaks and goals."
+    },
+    "web:route:/calendar-sync": {
+      "targets": [
+        "web:content:profile.calendarSync.title"
+      ],
+      "reason": "The Calendários sheet replaces the standalone route."
+    },
+    "web:route:/explore": {
+      "targets": [
+        "web:route:/profile"
+      ],
+      "reason": "Perfil owns the former Explore entries; each action is audited independently."
+    },
+    "web:route:/streak": {
+      "targets": [
+        "web:route:/progress"
+      ],
+      "reason": "Progresso owns achievements, streaks and goals."
+    }
+  },
+  "removals": {
+    "mobile:control:dates.goToToday": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "Remove the Hoje jump pill; the centred date label returns to today across the app",
+      "reason": "The separate Hoje jump pill is removed by #1422; the centred date remains the return action."
+    },
+    "mobile:control:explore.tourHint": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkLogConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkLogMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkLogTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkSkipConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkSkipMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.bulkSkipTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.forceLogConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.forceLogMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:habits.forceLogTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.astra": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.calendar": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.connect": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.goals": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.habits": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.notifications": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.openButton": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.rewards": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.featureGuide.settings": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.complete.recap.astra": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.complete.recap.goal": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.complete.recap.habit": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.complete.recap.theme": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.completeHabit.tapHint": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.create": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.creating": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.descriptionPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.skipStep": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.targetPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.createGoal.unitPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.templatePacks.createCta": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.templatePacks.createCtaOne": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.templatePacks.createOwn": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:onboarding.flow.templatePacks.skip": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:persistentReminder.label": {
+      "citation": "DESIGN.md",
+      "rule": "**The persistent reminder.** Perfil has no switch for an ongoing Android notification with the",
+      "reason": "The ongoing Android reminder notification is removed."
+    },
+    "mobile:control:profile.colorScheme.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.",
+      "reason": "The colour-scheme picker is removed; light and dark theme selection stays."
+    },
+    "mobile:control:retrospective.changePlan": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:retrospective.generate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:retrospective.regenerate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:retrospective.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:streakDisplay.freeze.celebrationSubtitle": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The old automatic-freeze celebration is absent from the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:streakDisplay.freeze.celebrationTitle": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The old automatic-freeze celebration is absent from the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:streakDisplay.freeze.eyebrow": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The old automatic-freeze celebration is absent from the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.replay.replayAll": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.replay.steps": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.replay.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.ui.back": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.ui.finish": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.ui.next": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:tour.ui.skip": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:control:upgrade.matrix.title": {
+      "citation": "DESIGN.md",
+      "rule": "not a feature matrix",
+      "reason": "The Pro comparison matrix is replaced by Astra allowance and outcomes.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Pro is Astra without the daily ceiling, and goals leave the paywall.md"
+    },
+    "mobile:display:gamification.toast.achievementEyebrow": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The separate achievement toast is outside the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:retrospective.metrics.completionRate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:retrospective.metrics.currentStreak": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:retrospective.metrics.logs": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:retrospective.weeklyBarLabel": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:display:tour.ui.stepOf": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "mobile:route:/advanced": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "mobile:route:/ai-settings": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "mobile:route:/preferences": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "mobile:route:/retrospective": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:astraRail.maximize": {
+      "citation": "DESIGN.md",
+      "rule": "**The narrow conversation beside a destination.** Astra replaces the content column on wide web.",
+      "reason": "The full conversation replaces the narrow panel and its size controls."
+    },
+    "web:control:astraRail.minimize": {
+      "citation": "DESIGN.md",
+      "rule": "**The narrow conversation beside a destination.** Astra replaces the content column on wide web.",
+      "reason": "The full conversation replaces the narrow panel and its size controls."
+    },
+    "web:control:dates.goToToday": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "Remove the Hoje jump pill; the centred date label returns to today across the app",
+      "reason": "The separate Hoje jump pill is removed by #1422; the centred date remains the return action."
+    },
+    "web:control:explore.tourHint": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkLogConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkLogMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkLogTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkSkipConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkSkipMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.bulkSkipTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.forceLogConfirm": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.forceLogMessage": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:habits.forceLogTitle": {
+      "citation": "DESIGN.md",
+      "rule": "reversible and therefore carry no confirmation.",
+      "reason": "The reversible bulk log and bulk skip confirmations are removed; both commands remain.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.empty": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.achievementsOf": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.achievementsTimelineDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.averageCaption": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.completionTrendsDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.goalProgressDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.goalProgressEmpty": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.heatmapLess": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.heatmapMore": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.monthlyHeatmapDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.multiHabitComparisonDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.noGoals": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.selectGoal": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.streakHistoryDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:insights.sections.xpOverTimeDesc": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.astra": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.calendar": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.connect": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.goals": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.habits": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.notifications": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.openButton": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.rewards": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.featureGuide.settings": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.complete.recap.astra": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.complete.recap.goal": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.complete.recap.habit": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.complete.recap.theme": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.completeHabit.tapHint": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.create": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.creating": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.descriptionPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.skipStep": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.targetPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.createGoal.unitPlaceholder": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.templatePacks.createCta": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.templatePacks.createCtaOne": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.templatePacks.createOwn": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:onboarding.flow.templatePacks.skip": {
+      "citation": "DESIGN.md",
+      "rule": "produce one real habit the person typed.",
+      "reason": "The unified onboarding asks for a real habit, scheduling and reminders, without the old survey or rehearsal.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:profile.colorScheme.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.",
+      "reason": "The colour-scheme picker is removed; light and dark theme selection stays."
+    },
+    "web:control:retrospective.changePlan": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.completed": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.generate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.notCompleted": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.regenerate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:retrospective.weeklyBarLabel": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:shell.closeRail": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail and its open and close controls are deleted.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:shell.openRail": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail and its open and close controls are deleted.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:streakDisplay.freeze.celebrationTitle": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The old automatic-freeze celebration is absent from the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.replay.replayAll": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.replay.steps": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.replay.title": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.ui.back": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.ui.finish": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.ui.next": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:tour.ui.skip": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:gamification.toast.achievementEyebrow": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The separate achievement toast is outside the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:rail.progressLabel": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail is removed; Progresso owns the retained figures.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:rail.remaining": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail is removed; Progresso owns the retained figures.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:rail.todayProgress": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail is removed; Progresso owns the retained figures.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:retrospective.lockedYearly": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:retrospective.lockedYearlyHint": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:retrospective.metrics.completionRate": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:retrospective.metrics.currentStreak": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:retrospective.metrics.logs": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:streakDisplay.freeze.eyebrow": {
+      "citation": "DESIGN.md",
+      "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
+      "reason": "The old automatic-freeze celebration is absent from the four approved celebration triggers.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:display:tour.ui.stepOf": {
+      "citation": "DESIGN.md",
+      "rule": "**The separate onboarding, tour, feature guide and push prompt.** One system.",
+      "reason": "The separate tour and guide are replaced by the unified onboarding system.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:route:/advanced": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "web:route:/ai-settings": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "web:route:/insights": {
+      "citation": "DESIGN.md",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:route:/preferences": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Only the duplicate destination is removed. Its settings are audited individually."
+    },
+    "web:route:/retrospective": {
+      "citation": "DESIGN.md",
+      "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
+      "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
+      "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    }
+  },
+  "tickets": {
+    "mobile:display:common.no": "#1449",
+    "mobile:display:common.yes": "#1449",
+    "web:display:common.no": "#1449",
+    "web:display:common.yes": "#1449",
+    "mobile:control:common.all": "#1426",
+    "mobile:control:common.never": "#1437",
+    "mobile:control:common.seeLess": "#1443",
+    "mobile:control:common.seeMore": "#1443",
+    "mobile:control:goals.detail.askAstraDefault": "#1427",
+    "mobile:control:goals.detail.askAstraEyebrow": "#1427",
+    "mobile:control:goals.metrics.daysToDeadline": "#1429",
+    "mobile:control:goals.metrics.velocity": "#1429",
+    "mobile:control:goals.progressNote": "#1428",
+    "mobile:control:goals.updateProgress": "#1428",
+    "mobile:control:habits.breakdown.addHabit": "#1430",
+    "mobile:control:habits.breakdown.createAsParent": "#1432",
+    "mobile:control:habits.breakdown.removeHabit": "#1431",
+    "mobile:control:habits.detail.copyDescription": "#1433",
+    "mobile:control:habits.filter.daily": "#1426",
+    "mobile:control:habits.filter.monthly": "#1426",
+    "mobile:control:habits.filter.oneTime": "#1426",
+    "mobile:control:habits.filter.weekly": "#1426",
+    "mobile:control:habits.filter.yearly": "#1426",
+    "mobile:control:habits.form.dueEndTime": "#1434",
+    "mobile:control:habits.form.suggestTags": "#1436",
+    "mobile:control:habits.form.suggestingTags": "#1436",
+    "mobile:control:habits.form.unit": "#1450",
+    "mobile:control:habits.frequencyFilter": "#1426",
+    "mobile:control:habits.viewAll": "#1423",
+    "mobile:control:habits.viewGeneral": "#1423",
+    "mobile:control:habits.viewsLabel": "#1423",
+    "mobile:control:orbitMcp.claudeCode": "#1448",
+    "mobile:control:orbitMcp.claudeWeb": "#1447",
+    "mobile:control:orbitMcp.connectionInstructions": "#1447",
+    "mobile:control:orbitMcp.expiresAtLabel": "#1437",
+    "mobile:control:orbitMcp.keyName": "#1438",
+    "mobile:control:orbitMcp.keyNamePlaceholder": "#1438",
+    "mobile:control:orbitMcp.readOnlyKeyLabel": "#1439",
+    "mobile:control:shareCard.entry": "#1441",
+    "mobile:control:shareCard.stats.activeDays": "#1441",
+    "mobile:control:shareCard.stats.completionRate": "#1441",
+    "mobile:control:summary.askAstra": "#1443",
+    "mobile:control:summary.loading": "#1443",
+    "mobile:control:summary.retry": "#1443",
+    "mobile:control:summary.upgrade": "#1443",
+    "mobile:control:today.setupChecklist.dismiss": "#1444",
+    "mobile:display:common.never": "#1437",
+    "mobile:display:goals.metrics.projectedCompletion": "#1429",
+    "mobile:display:habits.form.every": "#1450",
+    "mobile:display:habits.form.flexibleDescription": "#1450",
+    "mobile:display:habits.form.timesPerUnit": "#1450",
+    "mobile:display:orbitMcp.noScopes": "#1449",
+    "mobile:display:orbitMcp.replaceKey": "#1448",
+    "mobile:display:orbitMcp.webNoApiKey": "#1447",
+    "mobile:display:today.setupChecklist.complete": "#1444",
+    "mobile:display:today.setupChecklist.progress": "#1444",
+    "mobile:display:today.setupChecklist.subtitle": "#1444",
+    "web:control:common.all": "#1426",
+    "web:control:common.seeLess": "#1443",
+    "web:control:common.seeMore": "#1443",
+    "web:control:goals.detail.askAstraEyebrow": "#1427",
+    "web:control:goals.form.progressExceedsTarget": "#1428",
+    "web:control:goals.metrics.daysToDeadline": "#1429",
+    "web:control:goals.metrics.velocity": "#1429",
+    "web:control:goals.progressNote": "#1428",
+    "web:control:goals.updateProgress": "#1428",
+    "web:control:habits.breakdown.addHabit": "#1430",
+    "web:control:habits.breakdown.removeHabit": "#1431",
+    "web:control:habits.detail.copyDescription": "#1433",
+    "web:control:habits.filter.daily": "#1426",
+    "web:control:habits.filter.monthly": "#1426",
+    "web:control:habits.filter.oneTime": "#1426",
+    "web:control:habits.filter.weekly": "#1426",
+    "web:control:habits.filter.yearly": "#1426",
+    "web:control:habits.form.dueEndTime": "#1434",
+    "web:control:habits.form.emojiSuggest": "#1435",
+    "web:control:habits.form.emojiSuggesting": "#1435",
+    "web:control:habits.form.frequency": "#1450",
+    "web:control:habits.form.suggestTags": "#1436",
+    "web:control:habits.form.suggestingTags": "#1436",
+    "web:control:habits.form.unit": "#1450",
+    "web:control:habits.frequencyFilter": "#1426",
+    "web:control:habits.viewAll": "#1423",
+    "web:control:habits.viewGeneral": "#1423",
+    "web:control:orbitMcp.claudeCode": "#1448",
+    "web:control:orbitMcp.claudeWeb": "#1447",
+    "web:control:orbitMcp.configInstructions": "#1448",
+    "web:control:orbitMcp.connectionInstructions": "#1447",
+    "web:control:orbitMcp.expiresAtLabel": "#1437",
+    "web:control:orbitMcp.keyName": "#1438",
+    "web:control:orbitMcp.keyNamePlaceholder": "#1438",
+    "web:control:orbitMcp.readOnlyKeyLabel": "#1439",
+    "web:control:orbitMcp.replaceKey": "#1448",
+    "web:control:orbitMcp.webInstructions": "#1447",
+    "web:control:orbitMcp.webNoApiKey": "#1447",
+    "web:control:orbitMcp.webStep1": "#1447",
+    "web:control:orbitMcp.webStep2": "#1447",
+    "web:control:orbitMcp.webStep3": "#1447",
+    "web:control:orbitMcp.webStep4": "#1447",
+    "web:control:shareCard.entry": "#1441",
+    "web:control:shareCard.stats.activeDays": "#1441",
+    "web:control:shareCard.stats.completionRate": "#1441",
+    "web:control:shell.collapseSidebar": "#1442",
+    "web:control:shell.expandSidebar": "#1442",
+    "web:control:summary.askAstra": "#1443",
+    "web:control:summary.loading": "#1443",
+    "web:control:summary.retry": "#1443",
+    "web:control:summary.upgrade": "#1443",
+    "web:control:today.setupChecklist.dismiss": "#1444",
+    "web:display:goals.metrics.projectedCompletion": "#1429",
+    "web:display:habits.form.every": "#1450",
+    "web:display:habits.form.flexibleDescription": "#1450",
+    "web:display:habits.form.timesPerUnit": "#1450",
+    "web:display:orbitMcp.created": "#1449",
+    "web:display:orbitMcp.expiresOn": "#1449",
+    "web:display:orbitMcp.lastUsed": "#1449",
+    "web:display:orbitMcp.never": "#1449",
+    "web:display:orbitMcp.noScopes": "#1449",
+    "web:display:orbitMcp.permReadOnly": "#1449",
+    "web:display:orbitMcp.permReadWrite": "#1449",
+    "web:display:today.setupChecklist.complete": "#1444",
+    "web:display:today.setupChecklist.progress": "#1444",
+    "web:display:today.setupChecklist.subtitle": "#1444",
+    "web:shortcut:g a": "#1445",
+    "web:shortcut:g i": "#1446"
+  },
+  "policies": {
+    "advertising": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "Orbit has no ads; Orbit Pro is the only monetization.",
+      "reason": "Advertising is removed."
+    },
+    "desktop-stats-rail": {
+      "citation": "DESIGN.md",
+      "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
+      "reason": "The desktop stats rail is removed by D69."
+    },
+    "social-layer": {
+      "citation": "DESIGN.md",
+      "rule": "**The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.",
+      "reason": "The social layer, colour-scheme picker and AI memory are removed."
+    },
+    "duplicate-settings-pages": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
+      "reason": "Perfil sub-menus replace duplicate pages; their individual settings remain in the audit."
+    },
+    "old-floating-back-to-top": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "the web back-to-top button) is deleted, not restyled.",
+      "reason": "The old floating control is removed. The current Hoje return control is inventoried separately."
+    },
+    "hoje-jump-pill": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "Remove the Hoje jump pill; the centred date label returns to today across the app",
+      "reason": "The separate jump pill is removed by #1422; the centred date retains the return action."
+    }
+  },
+  "staticHeadingLabels": {
+    "apps/web/app/(public)/privacy/page.tsx": {
+      "namespace": "privacy",
+      "reason": "Production origin/main:apps/web/app/(public)/privacy/page.tsx:86-108 renders sections.label as SectionLabel with always-visible bodies and no action binding. Only the label-property heuristic for section title keys is suppressed; direct press, link and input bindings remain capabilities."
+    },
+    "apps/web/app/(public)/terms/page.tsx": {
+      "namespace": "terms",
+      "reason": "Production origin/main:apps/web/app/(public)/terms/page.tsx:44-66 renders sections.label as SectionLabel with always-visible bodies and no action binding. Only the label-property heuristic for section title keys is suppressed; direct press, link and input bindings remain capabilities."
+    }
+  }
+}

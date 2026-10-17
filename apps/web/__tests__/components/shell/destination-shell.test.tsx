@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
+  togglePalette: vi.fn(),
+  setActiveView: vi.fn(),
   profileName: '',
   profileLoaded: true,
   lastDestination: 'hoje',
@@ -60,21 +62,27 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => () => mocks.push('/profile') }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide, useIsDesktop: () => mocks.wide }))
-vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
-  useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
-}))
+vi.mock('@/hooks/use-keyboard-shortcuts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-keyboard-shortcuts')>()
+  return {
+    useKeyboardShortcuts: (enabled: boolean) => {
+      mocks.keyboardEnabled(enabled)
+      original.useKeyboardShortcuts(enabled)
+    },
+  }
+})
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profileLoaded ? { name: mocks.profileName, email: 'person@example.com' } : undefined }),
 }))
 vi.mock('@/stores/shell-store', () => ({
-  useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen; lastDestination: string; setLastDestination: typeof mocks.setLastDestination }) => unknown) =>
-    selector({ setPaletteOpen: mocks.setPaletteOpen, lastDestination: mocks.lastDestination, setLastDestination: mocks.setLastDestination }),
+  useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen; lastDestination: string; setLastDestination: typeof mocks.setLastDestination; togglePalette: typeof mocks.togglePalette; paletteOpen: boolean }) => unknown) =>
+    selector({ setPaletteOpen: mocks.setPaletteOpen, lastDestination: mocks.lastDestination, setLastDestination: mocks.setLastDestination, togglePalette: mocks.togglePalette, paletteOpen: false }),
 }))
 vi.mock('@/stores/ui-store', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/stores/ui-store')>()
   return {
     ...original,
-    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal }), { getState: original.useUIStore.getState }),
+    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal; setActiveView: typeof mocks.setActiveView }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal, setActiveView: mocks.setActiveView }), { getState: original.useUIStore.getState }),
   }
 })
 vi.mock('@/components/command/command-palette', () => ({
@@ -180,6 +188,23 @@ describe('DestinationShell', () => {
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  it.each([false, true])('opens Progress with g then i in the app shell at wide=%s', (wide) => {
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+  })
+
+  it.each(['/upgrade', '/wrapped'])('keeps g then i disabled on %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Flow</h1></DestinationShell>)
+    fireEvent.keyDown(document, { key: 'g' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it.each(['/', '/calendar', '/progress', '/profile'])('uses filled active icons and the dashboard destination on %s', (pathname) => {

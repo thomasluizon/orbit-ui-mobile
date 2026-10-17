@@ -138,10 +138,19 @@ function isInstructionOrFormatExample(value: string): boolean {
 
 describe('bad-habit logging instructions', () => {
   it.each([
-    { locale: 'en', messages: en, hint: 'Log it when you do it, not when you resist.' },
-    { locale: 'pt-BR', messages: ptBR, hint: 'Registre quando fizer, não quando resistir.' },
+    { locale: 'en', messages: en, hint: 'A habit you want to avoid. Log each slip.' },
+    { locale: 'pt-BR', messages: ptBR, hint: 'Um hábito que você quer evitar. Registre cada deslize.' },
   ])('says a bad habit is logged when it happens in $locale', ({ messages, hint }) => {
     expect(messages.habits.form.habitTypeAvoidHint).toBe(hint)
+  })
+
+  it.each([
+    { locale: 'en', messages: en, instruction: 'Log each slip.', cleanDays: 'each day without slips', occurrence: 'Log a slip' },
+    { locale: 'pt-BR', messages: ptBR, instruction: 'Registre cada deslize.', cleanDays: 'cada dia sem deslizes', occurrence: 'Se registrar um deslize' },
+  ])('uses the same slip vocabulary in help and streak goals in $locale', ({ messages, instruction, cleanDays, occurrence }) => {
+    expect(messages.onboarding.featureGuide.habitsSection.badHabitsDesc).toContain(instruction)
+    expect(messages.goals.form.typeStreakHintBad).toContain(cleanDays)
+    expect(messages.goals.form.typeStreakHintBad).toContain(occurrence)
   })
 })
 

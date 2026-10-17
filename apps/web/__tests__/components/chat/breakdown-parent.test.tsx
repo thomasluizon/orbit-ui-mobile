@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError } from '@orbit/shared/utils'
@@ -5,10 +7,12 @@ import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/
 import { breakdownSubHabits, makeBulkCreateResponse } from '@orbit/shared/test-support/chat-fixtures'
 import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'habits.breakdown.groupingDenied' ? recoveryMessages[recoveryLocale.current].habits.breakdown.groupingDenied : key }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm, onCancel }: { open: boolean; onConfirm: () => void; onCancel: () => void }) => open ? <div><button onClick={onConfirm}>Confirm breakdown</button><button onClick={onCancel}>Cancel confirmation</button></div> : null,
 }))
+const recoveryLocale = vi.hoisted((): { current: 'en' | 'pt-BR' } => ({ current: 'en' }))
+const recoveryMessages = { en, 'pt-BR': ptBR }
 const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
 const onConfirmed = vi.fn()
@@ -45,7 +49,11 @@ describe('breakdown parent choice', () => {
     ])
   })
 
-  it('recovers from a persistent grouping denial without losing edited drafts', async () => {
+  it.each([
+    ['en', 'Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.'],
+    ['pt-BR', 'Não foi possível agrupar os hábitos. Nada foi salvo. Desmarque a opção de agrupar para criar os hábitos separados.'],
+  ] as const)('recovers from a persistent grouping denial without losing edited drafts in %s', async (locale, message) => {
+    recoveryLocale.current = locale
     bulkCreate.mockImplementation(request => {
       if (request.habits.some(habit => habit.subHabits?.length)) return Promise.reject(createApiClientError(403, { error: 'Sub-habits require Pro', errorCode: 'PAY_GATE' }, 'Forbidden'))
       return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
@@ -59,7 +67,7 @@ describe('breakdown parent choice', () => {
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(grouping()).not.toBeDisabled())
     expect(onConfirmed).not.toHaveBeenCalled()
-    expect(screen.getByText('errors.api.payGate')).toBeInTheDocument()
+    expect(screen.getByText(message)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm breakdown' }))
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(2))
@@ -107,6 +115,19 @@ describe('breakdown parent choice', () => {
     expect(onConfirmed).not.toHaveBeenCalled()
   })
 
+  it.each([false, true])('keeps grouping locked after an ambiguous write and an all-failed retry: %s', async (grouped) => {
+    bulkCreate.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValueOnce(makeBulkCreateResponse(['Failed', 'Failed']))
+    render(<BreakdownSuggestion {...props} />)
+    if (grouped) fireEvent.click(grouping())
+    approve()
+    fireEvent.click(await screen.findByRole('button', { name: 'chat.batch.retry' }))
+    await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'chat.batch.retry' })).not.toBeDisabled())
+    expect(grouping()).toBeDisabled()
+    expect(onConfirmed).not.toHaveBeenCalled()
+    expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])
+  })
+
   it('keeps grouping locked if a denial follows an ambiguous write', async () => {
     bulkCreate.mockRejectedValueOnce(new Error('Connection lost'))
       .mockRejectedValueOnce(createApiClientError(403, { error: 'Sub-habits require Pro', errorCode: 'PAY_GATE' }, 'Forbidden'))
@@ -148,13 +169,15 @@ describe('breakdown parent choice', () => {
   })
 
   it.each([false, true])('keeps omitted blanks locked through failure and retry with grouping %s', async (createAsParent) => {
-    bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Failed'])).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+    bulkCreate.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
     render(<BreakdownSuggestion {...props} subHabits={[{ title: ' ' }, { title: 'Dishes', frequencyUnit: 'Day' }]} />)
     if (createAsParent) fireEvent.click(grouping())
     approve()
     const retry = await screen.findByRole('button', { name: 'chat.batch.retry' })
     expect(screen.queryByRole('button', { name: 'chat.preview.editItem' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'chat.breakdown.frequency' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'chat.breakdown.frequency' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(grouping()).toBeDisabled()
     fireEvent.click(retry)
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
     expect(bulkCreate.mock.calls[1]![0]).toEqual(bulkCreate.mock.calls[0]![0])

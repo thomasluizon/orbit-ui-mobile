@@ -589,6 +589,7 @@ export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
   getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
   nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
@@ -720,7 +721,6 @@ export {
   achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
-  deriveProgressViewState,
   filterProgressGoals,
   formatStreakDate,
   formatStreakRepairDates,
@@ -731,7 +731,6 @@ export {
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
-  isProgressEmpty,
 } from './progress'
 export type {
   AchievementGlyphKey,

@@ -1,14 +1,23 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import { createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, getFailedBreakdownIds, selectBreakdownHabits, failBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
+import { createBreakdownDraft, createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, getFailedBreakdownIds, selectBreakdownHabits, failBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import {
   buildBreakdownCreateRequest,
+  createClientId,
   filterValidBreakdownHabits,
   isPayGateError,
+  isBreakdownNoWriteRejection,
 } from '@orbit/shared/utils'
 
 interface BreakdownSuggestionState {
+  capacityDenied: boolean
+  addHabit: () => void
+  atCapacity: boolean
+  createError: boolean
+  removeHabit: (id: string) => void
+  hasSubmitted: boolean
   createAsParent: boolean
   completed: boolean
   groupingDenied: boolean
@@ -44,6 +53,8 @@ export function useBreakdownSuggestionState({
   const [habits, setHabits] = useState<BreakdownDraftHabit[]>(() =>
     createBreakdownDrafts(subHabits),
   )
+  const [capacityDenied, setCapacityDenied] = useState(false)
+  const [createError, setCreateError] = useState(false)
   const [createAsParent, setCreateAsParent] = useState(false)
   const [groupingDenied, setGroupingDenied] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -55,6 +66,21 @@ export function useBreakdownSuggestionState({
   const groupingLocked = isSubmitting || Object.keys(results).length > 0
   const validHabits = filterValidBreakdownHabits(habits)
   const completed = validHabits.length > 0 && validHabits.every((habit) => results[habit.id] === 'done')
+
+  const hasSubmitted = Object.keys(results).length > 0
+
+  const addHabit = () => {
+    if (habits.length >= MAX_BULK_OPERATION_SIZE || groupingLocked) return
+    const habit = createBreakdownDraft(createClientId('breakdown'))
+    setHabits((current) => current.length >= MAX_BULK_OPERATION_SIZE ? current : [...current, habit])
+    setEditingId(habit.id)
+  }
+
+  const removeHabit = (id: string) => {
+    if (groupingLocked) return
+    setHabits((current) => current.filter((habit) => habit.id !== id))
+    setEditingId(habits.find((habit) => habit.id !== id)?.id ?? null)
+  }
 
   const editTitle = useCallback((id: string, title: string) => {
     setHabits((current) => editBreakdownTitle(current, id, title))
@@ -68,27 +94,47 @@ export function useBreakdownSuggestionState({
     if (isSubmitting || rejected) return
     const selected = selectBreakdownHabits(habits, onlyIds)
     const valid = filterValidBreakdownHabits(selected)
-    if (valid.length === 0 || valid.every((habit) => results[habit.id] === 'done')) return
+    if (valid.length === 0 || valid.length > MAX_BULK_OPERATION_SIZE || valid.every((habit) => results[habit.id] === 'done')) return
+    setCreateError(false)
+    setCapacityDenied(false)
+    setEditingId(null)
+    setHabits((current) => filterValidBreakdownHabits(current))
 
     setGroupingDenied(false)
     setIsSubmitting(true)
     try {
       const response = await onBulkCreate(buildBreakdownCreateRequest(valid, parentName, createAsParent))
       const nextResults = mergeBreakdownResults(results, valid, response, createAsParent)
+      if (!createAsParent && !hasSubmitted && !Object.values(nextResults).includes('done')) {
+        setResults({})
+        setCreateError(true)
+        return
+      }
       setResults(nextResults)
       if (valid.every((habit) => nextResults[habit.id] === 'done')) onConfirmed()
     } catch (error) {
-      if (createAsParent && isPayGateError(error) && Object.keys(results).length === 0) {
-        setGroupingDenied(true)
+      setCreateError(true)
+      if (isBreakdownNoWriteRejection(error) && Object.keys(results).length === 0) {
+        const groupingRejection = createAsParent && isPayGateError(error)
+        const capacityRejection = !isPayGateError(error)
+        setGroupingDenied(groupingRejection)
+        setCapacityDenied(capacityRejection)
+        setCreateError(!groupingRejection && !capacityRejection)
       } else {
         setResults((current) => failBreakdownResults(current, valid))
       }
     } finally {
       setIsSubmitting(false)
     }
-  }, [createAsParent, habits, isSubmitting, onBulkCreate, onConfirmed, parentName, rejected, results])
+  }, [createAsParent, habits, hasSubmitted, isSubmitting, onBulkCreate, onConfirmed, parentName, rejected, results])
 
   return {
+    capacityDenied,
+    addHabit,
+    atCapacity: habits.length >= MAX_BULK_OPERATION_SIZE,
+    createError,
+    removeHabit,
+    hasSubmitted,
     createAsParent,
     completed,
     groupingDenied,

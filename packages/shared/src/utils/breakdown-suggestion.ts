@@ -1,3 +1,4 @@
+import { extractBackendErrorCode, extractBackendStatus, isPayGateError } from './error-utils'
 import type {
   BulkCreateRequest,
   BulkHabitItem,
@@ -106,4 +107,8 @@ export function buildBreakdownCreateRequest(
       },
     ],
   }
+}
+
+export function isBreakdownNoWriteRejection(error: unknown): boolean {
+  return isPayGateError(error) || (extractBackendStatus(error) === 400 && extractBackendErrorCode(error) === 'HABIT_LIMIT_REACHED')
 }
