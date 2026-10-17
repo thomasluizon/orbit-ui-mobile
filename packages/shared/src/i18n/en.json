@@ -771,6 +771,7 @@
       "dueDate": "Start On",
       "dueTime": "Due Time",
       "dueEndTime": "End Time",
+      "endTimeRequiresStart": "Set a start time to add an end time.",
       "reminder": "Remind me",
       "reminderAtTime": "At the due time",
       "reminder5minAfter": "5 min after",

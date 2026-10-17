@@ -368,6 +368,7 @@ export {
   formatTimeFieldInput,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  reconcileTimeFieldInput,
   parseTypedTimeFieldValue,
   selectTimeFieldHour,
   selectTimeFieldMinute,
