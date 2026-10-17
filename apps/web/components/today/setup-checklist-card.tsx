@@ -1,19 +1,13 @@
 'use client'
 
-import { useId, useSyncExternalStore } from 'react'
+import { useId } from 'react'
 import { useTranslations } from 'next-intl'
 import { getSetupChecklist } from '@orbit/shared/utils'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProfile } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
+import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
 import { PillButton } from '@/components/ui/pill-button'
 import { Check, Circle, X } from '@/components/ui/icons'
-
-const subscribeHydration = (onChange: () => void) => {
-  const unsubscribeStart = useUIStore.persist.onHydrate(onChange)
-  const unsubscribeFinish = useUIStore.persist.onFinishHydration(onChange)
-  return () => { unsubscribeStart(); unsubscribeFinish() }
-}
 
 export function SetupChecklistCard() {
   const t = useTranslations()
@@ -22,7 +16,7 @@ export function SetupChecklistCard() {
   const { profile } = useProfile()
   const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
-  const hydrated = useSyncExternalStore(subscribeHydration, useUIStore.persist.hasHydrated, () => false)
+  const preferencesReady = useUIPreferencesReadiness((state) => state.ready)
   const [pending, setPending] = useAccountScopedState(false)
   const [failed, setFailed] = useAccountScopedState(false)
   const checklist = getSetupChecklist(profile)
@@ -40,7 +34,7 @@ export function SetupChecklistCard() {
     }
   }
 
-  if (!hydrated || !checklist || (dismissed && !pending)) return null
+  if (!preferencesReady || !checklist || (dismissed && !pending)) return null
 
   return (
     <div className="px-4">

@@ -653,6 +653,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "default",
@@ -668,6 +669,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "default",
@@ -683,6 +685,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "default",
@@ -698,6 +701,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "default",
@@ -713,6 +717,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "empty",
@@ -728,6 +733,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "empty",
@@ -743,6 +749,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "empty",
@@ -758,6 +765,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "empty",
@@ -7333,6 +7341,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7361,6 +7370,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7389,6 +7399,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7417,6 +7428,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7445,6 +7457,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7473,6 +7486,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7501,6 +7515,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
@@ -7529,6 +7544,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",

@@ -1,20 +1,13 @@
-import { useSyncExternalStore } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { getSetupChecklist } from '@orbit/shared/utils'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProfile } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
+import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
 import { Check, Circle, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const subscribeHydration = (onChange: () => void) => {
-  const unsubscribeStart = useUIStore.persist.onHydrate(onChange)
-  const unsubscribeFinish = useUIStore.persist.onFinishHydration(onChange)
-  return () => { unsubscribeStart(); unsubscribeFinish() }
-}
 
 export function SetupChecklistCard() {
   const { t } = useTranslation()
@@ -23,7 +16,7 @@ export function SetupChecklistCard() {
   const { profile } = useProfile()
   const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
-  const hydrated = useSyncExternalStore(subscribeHydration, useUIStore.persist.hasHydrated, () => false)
+  const preferencesReady = useUIPreferencesReadiness((state) => state.ready)
   const [pending, setPending] = useAccountScopedState(false)
   const [failed, setFailed] = useAccountScopedState(false)
   const checklist = getSetupChecklist(profile)
@@ -41,7 +34,7 @@ export function SetupChecklistCard() {
     }
   }
 
-  if (!hydrated || !checklist || (dismissed && !pending)) return null
+  if (!preferencesReady || !checklist || (dismissed && !pending)) return null
 
   return (
     <View style={[styles.card, { backgroundColor: tokens.bgCard }]}>

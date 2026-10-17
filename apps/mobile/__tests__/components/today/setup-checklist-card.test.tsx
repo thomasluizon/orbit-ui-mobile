@@ -7,7 +7,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
-import { useUIStore } from '@/stores/ui-store'
+import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 
 const storedValues = vi.hoisted(() => new Map<string, string>())
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
@@ -68,6 +68,43 @@ describe('setup checklist', () => {
     if (state === 'dismissed') await useUIStore.getState().setSetupChecklistDismissed(true)
     await act(() => { page = TestRenderer.create(<SetupChecklistCard />) as MountedCard })
     expect(page.toJSON()).toBeNull()
+  })
+
+  it.each([false, true])('recovers readable account preferences after migration writeback fails with dismissed=%s', async (dismissed) => {
+    await AsyncStorage.setItem('orbit-ui-store:migration-account', JSON.stringify({ state: { setupChecklistDismissed: dismissed }, version: 6 }))
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('Storage is full'))
+    await setUIAccountScope('migration-account')
+    await act(() => { page = TestRenderer.create(<SetupChecklistCard />) as MountedCard })
+    expect(useUIStore.persist.hasHydrated()).toBe(false)
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(dismissed)
+    if (dismissed) {
+      expect(page.toJSON()).toBeNull()
+      return
+    }
+    expect(renderedText()).toContain(en.today.setupChecklist.title)
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('Storage is still full'))
+    await act(async () => { (dismissButtons()[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(renderedText()).toContain(en.today.setupChecklist.dismissError)
+    await act(async () => { (dismissButtons()[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(page.toJSON()).toBeNull()
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
+  })
+
+  it.each([false, true])('withholds the previous account preference until a replacement migration fails with dismissed=%s', async (dismissed) => {
+    await act(() => { page = TestRenderer.create(<SetupChecklistCard />) as MountedCard })
+    await AsyncStorage.setItem('orbit-ui-store:pending-replacement-account', JSON.stringify({ state: { setupChecklistDismissed: dismissed }, version: 6 }))
+    const read = AsyncStorage.getItem.bind(AsyncStorage)
+    let finish!: () => void
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementationOnce((key) => new Promise<void>((resolve) => { finish = resolve }).then(() => read(key)))
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('Storage is full'))
+    let replacement!: Promise<void>
+    await act(() => { replacement = setUIAccountScope('pending-replacement-account') })
+    expect(page.toJSON()).toBeNull()
+    await act(async () => { finish(); await replacement })
+    expect(useUIStore.persist.hasHydrated()).toBe(false)
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(dismissed)
+    expect(page.toJSON() === null).toBe(dismissed)
   })
 
   it('shows a persistence error and allows retry after a failed dismissal', async () => {
