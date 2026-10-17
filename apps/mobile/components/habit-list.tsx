@@ -75,7 +75,7 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import { HabitListAllDone, HabitListEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
+import { HabitListAllDone, HabitListEmptyState, HabitListFrequencyEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
@@ -399,7 +399,9 @@ function renderDayListEmptyState(
   showAllDone: boolean,
   renderFirstRun: () => ReactElement,
   sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+  frequencyUnit: HabitsFilter['frequencyUnit'],
 ): ReactElement | null {
+  if (frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={frequencyUnit} />
   if (showAllDone) return null
   if (isCountLoaded && accountCount === 0) return renderFirstRun()
   return <View style={sectionInsetStyle}><HabitListNothingOpen /></View>
@@ -1761,7 +1763,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    const showAllDone = view === 'today' && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+    const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
       selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     const activeListHeader = renderAllDoneListHeader(
@@ -1772,8 +1774,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     function renderCurrentViewEmptyState() {
-      if (view === 'general' || searchQuery?.trim()) return renderEmptyState()
-      return renderDayListEmptyState(accountHabitCount.isLoaded, accountHabitCount.count, showAllDone, renderEmptyState, styles.sectionInset)
+      if (searchQuery?.trim()) return renderEmptyState()
+      if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
+      if (view !== 'today') return renderEmptyState()
+      return renderDayListEmptyState(accountHabitCount.isLoaded, accountHabitCount.count, showAllDone, renderEmptyState, styles.sectionInset, filters.frequencyUnit)
     }
 
     if (view === 'all') return <>
@@ -1791,7 +1795,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         contentContainerStyle={[styles.listContent, bulkBarStyle]}
         refreshControl={refreshControl}
         ListHeaderComponent={listHeaderComponent}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={renderCurrentViewEmptyState()}
         onScroll={handleListScroll}
         scrollEventThrottle={16}
         onScrollBeginDrag={onScrollBeginDrag}

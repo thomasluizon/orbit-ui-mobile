@@ -1,4 +1,8 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { HABIT_FREQUENCY_FILTER_OPTIONS, toggleHabitFrequencyFilter } from '@orbit/shared/utils/habit-frequency-filter'
+import { useUIStore } from '@/stores/ui-store'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
@@ -44,6 +48,10 @@ interface TodayDateControlProps {
 }
 
 function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
+  const { t } = useTranslation()
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
+  const setFilters = useUIStore((state) => state.setFilters)
+  const [frequencyMenu, setFrequencyMenu] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
@@ -58,22 +66,29 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       </Pressable>
       <MenuAnchorHost anchorRef={menu.anchorRef}>
         <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
-          accessibilityState={{ expanded: menu.visible }} onPress={menu.toggle}
+          accessibilityState={{ expanded: menu.visible }} onPress={() => { setFrequencyMenu(false); menu.toggle() }}
           style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       </MenuAnchorHost>
       <NotificationBell />
     </View>
-    <Menu open={menu.visible} anchorRef={menu.anchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
-      items={[
+    <Menu key={frequencyMenu ? 'frequency' : 'options'} open={menu.visible} anchorRef={menu.anchorRef}
+      title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
+      shortTitle={frequencyMenu ? t('common.options') : props.menuHeading}
+      items={frequencyMenu ? HABIT_FREQUENCY_FILTER_OPTIONS.map((option) => ({
+        id: option.id, label: t(option.labelKey), checked: frequencyUnit === option.value,
+      })) : [
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
         { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },
         { id: 'refresh', label: props.refreshLabel, icon: 'refresh', disabled: props.isFetching },
         { id: 'completed', label: props.completedLabel, icon: props.showCompleted ? 'eye-off' : 'eye' },
+        { id: 'frequency', label: t('habits.frequencyFilter'), icon: 'adjustments-horizontal' },
       ]}
       onClose={menu.close} onSelect={(id) => {
-        if (id === 'select') props.onToggleSelect()
+        if (frequencyMenu) setFilters({ frequencyUnit: toggleHabitFrequencyFilter(frequencyUnit, id) })
+        else if (id === 'frequency') { setFrequencyMenu(true); menu.open() }
+        else if (id === 'select') props.onToggleSelect()
         else if (id === 'collapse') props.onToggleCollapse()
         else if (id === 'refresh') props.onRefresh()
         else if (id === 'completed') props.onToggleCompleted()

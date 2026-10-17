@@ -28,6 +28,7 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
+import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -61,6 +62,22 @@ function TodaySearchInput({ search }: Readonly<{ search: ReturnType<typeof useHa
   const { t } = useTranslation()
   if (!search.open) return null
   return <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} focusRequest={1} />
+}
+
+function TodayViewHeader({ search, activeView, onChangeView, today, focused, isTodaySelected, suppressed }: Readonly<{
+  search: ReturnType<typeof useHabitViewSearch>
+  activeView: ActiveView
+  onChangeView: (view: ActiveView) => void
+  today: string
+  focused: boolean
+  isTodaySelected: boolean
+  suppressed: boolean
+}>) {
+  return <View style={styles.viewHeader}>
+    <TodaySearchInput search={search} />
+    <HabitViewSwitch value={activeView} onChange={onChangeView} />
+    {focused && activeView === 'today' ? <TodayAstra today={today} isTodaySelected={isTodaySelected} suppressed={suppressed} /> : null}
+  </View>
 }
 
 export default function TodayScreen() {
@@ -143,6 +160,7 @@ function TodayScreenContent() {
   useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit ?? null)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
@@ -153,10 +171,10 @@ function TodayScreenContent() {
     dateStr: date.dateStr,
     isTodayDate: date.dateStr === date.today,
     searchQuery: search.query,
-    selectedFrequency: null,
+    selectedFrequency: frequencyUnit,
     selectedTagIds: [],
     showGeneralOnToday,
-  }), [activeView, date.dateStr, date.today, showGeneralOnToday, search.query])
+  }), [activeView, date.dateStr, date.today, frequencyUnit, showGeneralOnToday, search.query])
   const habitsQuery = useHabits(filters, habitViewQueryOptions(activeView, date.today))
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
@@ -249,15 +267,9 @@ function TodayScreenContent() {
     <View style={styles.header}>
       <TodayDateControl
         showDate={activeView === 'today'}
-        beforeDate={<View style={styles.viewHeader}>
-          <TodaySearchInput search={search} />
-          <HabitViewSwitch value={activeView} onChange={changeView} />
-          {todayFocused && activeView === 'today' ? <TodayAstra
-            today={date.today}
-            isTodaySelected={date.dateStr === date.today}
-            suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data}
-          /> : null}
-        </View>}
+        beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
+          today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
         headerActive={todayFocused}
         shortDayName={date.shortDayName}
         searchLabel={t(getSearchLabelKey(search.open))}
@@ -291,6 +303,8 @@ function TodayScreenContent() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
+      {todayFocused && activeView === 'today' && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
+        ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

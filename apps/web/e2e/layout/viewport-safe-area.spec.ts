@@ -184,9 +184,21 @@ for (const inset of [0, 44]) {
       await expect(sheet).toBeVisible()
       const items = sheet.getByRole('menuitem')
       expect(await items.count()).toBeGreaterThan(0)
-      for (const item of await items.all()) await expectSafeBounds(item)
+      for (const item of await items.all()) {
+        await item.scrollIntoViewIfNeeded()
+        await expectSafeBounds(item)
+      }
+      await sheet.getByRole('menuitem', { name: messages.habits.frequencyFilter }).click()
+      const frequencies = page.getByRole('dialog', { name: messages.habits.frequencyFilter })
+      await expect(frequencies).toBeVisible()
+      const choices = frequencies.getByRole('menuitemcheckbox')
+      await expect(choices).toHaveCount(6)
+      for (const choice of await choices.all()) {
+        await choice.scrollIntoViewIfNeeded()
+        await expectSafeBounds(choice)
+      }
       await page.keyboard.press('Escape')
-      await expect(sheet).toHaveCount(0)
+      await expect(frequencies).toHaveCount(0)
       await page.keyboard.press('Control+k')
       const palette = page.getByRole('dialog', { name: messages.command.title })
       await expectSafeBounds(palette)

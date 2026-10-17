@@ -34,6 +34,7 @@ export function useTodaySelection({
   closeControlsMenu,
 }: TodaySelectionInput) {
   const { profile } = useProfile();
+  const frequencyUnit = useUIStore((s) => s.activeFilters.frequencyUnit);
   const activeView = useUIStore((s) => s.activeView);
   const isSelectMode = useUIStore((s) => s.isSelectMode);
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
@@ -41,9 +42,8 @@ export function useTodaySelection({
   const selectAllHabits = useUIStore((s) => s.selectAllHabits);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
-  const previousActiveViewRef = useRef(activeView);
   const completionReadOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
-  const previousSelectedDateRef = useRef(selectedDateStr);
+  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit, activeView });
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
@@ -67,33 +67,22 @@ export function useTodaySelection({
   const selectedCount = selectedHabitIds.size;
 
   useEffect(() => {
-    const dateChanged = previousSelectedDateRef.current !== selectedDateStr;
-    previousSelectedDateRef.current = selectedDateStr;
-    if (!dateChanged) return;
+    const scopeChanged = previousScopeRef.current.selectedDateStr !== selectedDateStr ||
+      previousScopeRef.current.frequencyUnit !== frequencyUnit ||
+      shouldResetSelectionForViewChange(previousScopeRef.current.activeView, activeView);
+    previousScopeRef.current = { selectedDateStr, frequencyUnit, activeView };
+    if (!scopeChanged) return;
     closeControlsMenu();
     setShowBulkDeleteConfirm(false);
     clearSelection();
   }, [
+    activeView,
     clearSelection,
     closeControlsMenu,
+    frequencyUnit,
     selectedDateStr,
     setShowBulkDeleteConfirm,
   ]);
-
-  useEffect(() => {
-    if (
-      !shouldResetSelectionForViewChange(
-        previousActiveViewRef.current,
-        activeView,
-      )
-    ) {
-      return;
-    }
-
-    previousActiveViewRef.current = activeView;
-    closeControlsMenu();
-    if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
 
   useEffect(() => {
     if (!isSelectMode) return;

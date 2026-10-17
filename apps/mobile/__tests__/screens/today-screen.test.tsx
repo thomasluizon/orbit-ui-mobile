@@ -10,7 +10,9 @@ import {
   formatAPIDate,
   getTodayBoundary,
 } from '@orbit/shared/utils'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { Menu } from '@/components/ui/menu'
+import type { MenuProps } from '@orbit/shared/contracts/overlay'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
 import { setAccountId } from '@/lib/account-scope'
@@ -52,8 +54,10 @@ const mocks = vi.hoisted(() => ({
   focusCallbacks: [] as (() => void | (() => void))[],
   onboardingComplete: true,
   profileReady: true,
+  habitsFailed: false,
+  habitsFetching: false,
   plan: 'trial',
-  habitFilters: [] as { includeGeneral?: boolean }[],
+  habitFilters: [] as HabitsFilter[],
   date: {
     pinnedDateStr: null as string | null,
     today: '2026-04-08',
@@ -69,6 +73,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: mocks.firstUsePermission }) }))
+
+vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profileReady ? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
@@ -132,10 +138,12 @@ vi.mock('react-i18next', async () => {
 
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-  useHabits: (filters: { includeGeneral?: boolean }) => {
+  useHabits: (filters: HabitsFilter) => {
     mocks.habitFilters.push(filters)
     return {
-      data: { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      isFetching: mocks.habitsFetching,
+      isError: mocks.habitsFailed,
     }
   },
 }))
@@ -260,6 +268,10 @@ function flattenText(node: unknown): string {
   return ''
 }
 
+function todayMenu(tree: import('react-test-renderer').ReactTestRenderer): MenuProps {
+  return tree.root.findAll((node) => node.type === Menu)[0]!.props
+}
+
 describe('Hoje date boundaries', () => {
   it.each(['all', 'general'] as const)('removes the stale date when choosing %s', async (activeView) => {
     mocks.date.pinnedDateStr = '2026-04-01'
@@ -295,6 +307,8 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.habitsFailed = false
+    mocks.habitsFetching = false
     mocks.onboardingComplete = true
     mocks.focusCallbacks.length = 0
     mocks.plan = 'trial'
@@ -303,6 +317,7 @@ describe('Hoje date boundaries', () => {
     asyncStorageState.values.clear()
     useUIStore.setState({
       activeView: 'today',
+      activeFilters: {},
       isSelectMode: false,
       selectedHabitIds: new Set<string>(),
       showCreateModal: false,
@@ -311,6 +326,46 @@ describe('Hoje date boundaries', () => {
     mocks.date.pinnedDateStr = null
     mocks.date.dateStr = '2026-04-08'
     mocks.date.nextDisabled = false
+  })
+
+  it('applies frequency choices to the day query and retains them across date and screen changes', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    for (const unit of ['Day', 'Week', 'Month', 'Year', 'none'] as const) {
+      await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+      const frequencies = todayMenu(tree)
+      expect(frequencies.title).toBe(en.habits.frequencyFilter)
+      expect(frequencies.items).toHaveLength(6)
+      await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.(unit) })
+      expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe(unit)
+    }
+    mocks.date.dateStr = '2026-04-07'
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+    expect(mocks.habitFilters.at(-1)).toMatchObject({ dateFrom: '2026-04-07', frequencyUnit: 'none', includeOverdue: false })
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBe('none')
+    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    const frequencies = todayMenu(tree)
+    expect(frequencies.items?.find((item) => item.id === 'none')?.checked).toBe(true)
+    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
+    await TestRenderer.act(() => { tree.update(<></>) })
+  })
+
+  it.each([false, true])('allows clearing the filter after a query error with fetching=%s', async (isFetching) => {
+    mocks.habitsFailed = true
+    mocks.habitsFetching = isFetching
+    useUIStore.getState().setFilters({ frequencyUnit: 'Week' })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(todayMenu(tree).items?.find((item) => item.id === 'refresh')?.disabled).toBe(isFetching)
+    await TestRenderer.act(() => { todayMenu(tree).onSelect?.('frequency') })
+    const frequencies = todayMenu(tree)
+    expect(frequencies.items?.every((item) => !item.disabled)).toBe(true)
+    await TestRenderer.act(() => { frequencies.onClose?.(); frequencies.onSelect?.('all') })
+    expect(mocks.habitFilters.at(-1)?.frequencyUnit).toBeUndefined()
+    await TestRenderer.act(() => { tree.update(<></>) })
   })
 
   it.each(['loading', 'onboarding', 'today'])('starts first-use permission only on loaded Today: %s', async (state) => {

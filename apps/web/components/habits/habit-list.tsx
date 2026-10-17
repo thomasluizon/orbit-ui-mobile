@@ -33,6 +33,7 @@ import {
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
 import {
   HabitListEmptyState,
+  HabitListFrequencyEmptyState,
   HabitListAllDone,
   HabitListNothingOpen,
   HabitListSkeleton,
@@ -1362,7 +1363,7 @@ export function HabitList({
     )
   }
 
-  const showAllDone = view === 'today' && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+  const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
@@ -1405,6 +1406,7 @@ export function HabitList({
 
   function renderEmptyList(): React.ReactNode {
     if (searchQuery.trim()) return <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreate} />
+    if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
     if (view !== 'today') return <HabitListEmptyState title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')} description="" askAstraLabel={t('habits.askAstra')} onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)} actionLabel={t('habits.createManually')} onAction={onCreate} createRefusal={createRefusal} />
     if (showAllDone) return null
     return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (

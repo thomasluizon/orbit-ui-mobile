@@ -34,13 +34,13 @@ export function useTodaySelection({
 }: TodaySelectionParams) {
   const { profile } = useProfile()
   const activeView = useUIStore((s) => s.activeView)
-  const previousActiveViewRef = useRef(activeView)
+  const frequencyUnit = useUIStore((s) => s.activeFilters.frequencyUnit)
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
   const clearSelection = useUIStore((s) => s.clearSelection)
   const completionReadOnly = getTodayBoundary(selectedDateStr, today) === 'read-only'
-  const previousSelectedDateRef = useRef(selectedDateStr)
+  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit, activeView })
 
   const getDescendantIds = useCallback(
     (parentId: string): string[] =>
@@ -84,14 +84,14 @@ export function useTodaySelection({
   const { setShowBulkDeleteConfirm } = bulkActions
 
   useEffect(() => {
-    const dateChanged = previousSelectedDateRef.current !== selectedDateStr
-    const viewChanged = previousActiveViewRef.current !== activeView
-    previousActiveViewRef.current = activeView
-    previousSelectedDateRef.current = selectedDateStr
-    if (!dateChanged && !viewChanged) return
+    const scopeChanged = previousScopeRef.current.selectedDateStr !== selectedDateStr ||
+      previousScopeRef.current.frequencyUnit !== frequencyUnit ||
+      previousScopeRef.current.activeView !== activeView
+    previousScopeRef.current = { selectedDateStr, frequencyUnit, activeView }
+    if (!scopeChanged) return
     setShowBulkDeleteConfirm(false)
     clearSelection()
-  }, [activeView, clearSelection, selectedDateStr, setShowBulkDeleteConfirm])
+  }, [activeView, clearSelection, frequencyUnit, selectedDateStr, setShowBulkDeleteConfirm])
 
   return {
     handleToggleSelection,
