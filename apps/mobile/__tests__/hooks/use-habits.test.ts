@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 import { API } from '@orbit/shared/api'
-import { QueryClient } from '@tanstack/query-core'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -3319,4 +3319,48 @@ describe('bulk streak and all-done ordering regressions', () => {
       vi.useRealTimers()
     }
   })
+})
+
+
+describe('bulk no-op streak eligibility', () => {
+  it.each([5, 7].flatMap((streak) => [false, true].map((created) => ({ streak, created }))))(
+    'keeps streak $streak feedback and its receipt tied to a created log: $created',
+    async ({ streak, created }) => {
+      const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+      mocks.useRealUIStore = true
+      store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+      const today = formatAPIDate(new Date())
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+      const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+      client.setQueryData(todayKey, [makeHabit({ dueDate: today, scheduledDates: [today] })])
+      client.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+      const observer = new QueryObserver(client, {
+        queryKey: profileKeys.detail(), staleTime: Infinity,
+        queryFn: () => Promise.resolve({ currentStreak: streak }),
+      })
+      const unsubscribe = observer.subscribe(() => {})
+      mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+      mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{
+        index: 0, status: 'Success', habitId: 'habit-1', logId: created ? 'confirmed-log' : null,
+        error: null,
+      }] })
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<BulkLogOutcome, { habitId: string }[], unknown>
+      const variables = [{ habitId: 'habit-1' }]
+      try {
+        const context = await mutation.onMutate?.(variables)
+        const response = await mutation.mutationFn(variables)
+        await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+        expect(client.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+        expect(client.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+        expect(store.getState().allDoneCelebratedDate).toBe(today)
+      } finally {
+        unsubscribe()
+        client.clear()
+        mocks.useRealUIStore = false
+      }
+    },
+  )
 })

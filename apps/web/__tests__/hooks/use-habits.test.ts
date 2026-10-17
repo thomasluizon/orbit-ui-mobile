@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act, render } from '@testing-library/react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
@@ -2677,4 +2677,44 @@ describe('bulk streak and all-done ordering regressions', () => {
       vi.useRealTimers()
     }
   })
+})
+
+
+describe('bulk no-op streak eligibility', () => {
+  it.each([5, 7].flatMap((streak) => [false, true].map((created) => ({ streak, created }))))(
+    'keeps streak $streak feedback and its receipt tied to a created log: $created',
+    async ({ streak, created }) => {
+      const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+      store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+      const today = formatAPIDate(new Date())
+      const { bulkLogHabits } = await import('@/lib/actions/habits')
+      vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{
+        index: 0, status: 'Success', habitId: 'h-1', logId: created ? 'confirmed-log' : null,
+        error: null,
+      }] })
+      const queryClient = createQueryClient()
+      const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+      queryClient.setQueryData(todayKey, [makeScheduleItem({ dueDate: today, scheduledDates: [today] })])
+      queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+      const observer = new QueryObserver(queryClient, {
+        queryKey: profileKeys.detail(), staleTime: Infinity,
+        queryFn: () => Promise.resolve({ currentStreak: streak }),
+      })
+      const unsubscribe = observer.subscribe(() => {})
+      const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+      try {
+        await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+        expect(queryClient.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+        expect(queryClient.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+        expect(store.getState().allDoneCelebratedDate).toBe(today)
+      } finally {
+        unmount()
+        unsubscribe()
+        queryClient.clear()
+      }
+    },
+  )
 })

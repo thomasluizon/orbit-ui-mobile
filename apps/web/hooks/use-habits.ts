@@ -873,19 +873,21 @@ export function useBulkLogHabits() {
       const profileRefresh = result.results.some((item) => item.status === 'Success')
         ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
       const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
-      const successfulIds = result.results.flatMap((entry) => {
+      const successfulEntries = result.results.filter((entry) => {
         const item = items[entry.index]
         return entry.status === 'Success' && item?.habitId === entry.habitId &&
-          (item.date ?? context.occurrenceDate) === today ? [item.habitId] : []
+          (item.date ?? context.occurrenceDate) === today
       })
+      const successfulIds = successfulEntries.map((entry) => entry.habitId)
       if (successfulIds.length === 0) return
       updateHabitListsForDate(queryClient, today, (habits) =>
         successfulIds.reduce((current, id) => {
           const habit = findHabitInList(current, id)
           return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
         }, habits))
-      const countsTowardStreak = successfulIds.some((id) => {
-        const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), id)
+      const countsTowardStreak = successfulEntries.some((entry) => {
+        if (entry.logId === null) return false
+        const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
         return habit !== null && !habit.isBadHabit
       })
       return profileRefresh?.then(() => {

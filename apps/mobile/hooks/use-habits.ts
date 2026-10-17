@@ -1482,15 +1482,16 @@ export function useBulkLogHabits() {
           .trackCompletion(item.date ?? context.occurrenceDate)
       }
       const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
-      const successfulIds = data.results.flatMap((entry) => {
+      const successfulEntries = data.results.filter((entry) => {
         const item = variables[entry.index]
         return entry.status === 'Success' && !data.queuedIds.includes(entry.habitId) &&
           item?.habitId === entry.habitId && (item.date ?? context.occurrenceDate) === today
-          ? [item.habitId] : []
       })
+      const successfulIds = successfulEntries.map((entry) => entry.habitId)
       if (successfulIds.length === 0) return
-      const countsTowardStreak = successfulIds.some((id) => {
-        const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), id)
+      const countsTowardStreak = successfulEntries.some((entry) => {
+        if (entry.logId === null) return false
+        const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
         return habit !== null && !habit.isBadHabit
       })
       return profileRefresh?.then(() => {
