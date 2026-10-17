@@ -12,6 +12,7 @@ import {
   useHabits,
 } from '@/hooks/use-habits'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useUIStore } from '@/stores/ui-store'
 import { buildTodayFilters } from './today-model'
 import type { TodayInitialHabits } from './today-initial-data'
 
@@ -55,6 +56,7 @@ export function useTodayHabitsData({
   isTodayDate,
   initialHabits,
 }: TodayHabitsDataParams): TodayHabitsData {
+  const selectedFrequency = useUIStore((state) => state.activeFilters.frequencyUnit ?? null)
   const showGeneralOnToday = useSyncExternalStore(
     subscribeToShowGeneral,
     getShowGeneralClientSnapshot,
@@ -67,11 +69,11 @@ export function useTodayHabitsData({
         dateStr,
         isTodayDate,
         searchQuery: '',
-        selectedFrequency: null,
+        selectedFrequency,
         selectedTagIds: [],
         showGeneralOnToday,
       }),
-    [dateStr, isTodayDate, showGeneralOnToday],
+    [dateStr, isTodayDate, selectedFrequency, showGeneralOnToday],
   )
 
   const queryKey = habitKeys.list(habitListQueryFilters(filters, true))
