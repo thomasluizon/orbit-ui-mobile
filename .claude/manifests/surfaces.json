@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 220,
-  "cellCount": 1020,
+  "surfaceCount": 226,
+  "cellCount": 1068,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -653,7 +653,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -668,7 +670,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -683,7 +687,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -698,7 +704,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -713,7 +721,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "light",
@@ -728,7 +738,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "light",
@@ -743,7 +755,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "dark",
@@ -758,7 +772,9 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
-        "apps/web/components/today/today-astra.tsx"
+        "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
       "theme": "dark",
@@ -1037,6 +1053,214 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/achievements/page.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/achievements/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-goals",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/goals/page.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/goals/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-progress",
       "platform": "web",
       "kind": "route",
@@ -1135,6 +1359,110 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-progress-streak",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/progress/streak/page.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/streak/page.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -7333,11 +7661,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7361,11 +7691,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7389,11 +7721,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7417,11 +7751,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "default",
@@ -7445,11 +7781,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7473,11 +7811,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7501,11 +7841,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -7529,11 +7871,13 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
       "state": "empty",
@@ -8449,6 +8793,318 @@
         "apps/mobile/app/profile/preferences.tsx"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/achievements.tsx",
+      "href": "/progress/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/progress/achievements.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-goals",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/goals.tsx",
+      "href": "/progress/goals",
+      "ownedFiles": [
+        "apps/mobile/app/progress/goals.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-progress-streak",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/progress/streak.tsx",
+      "href": "/progress/streak",
+      "ownedFiles": [
+        "apps/mobile/app/progress/streak.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },

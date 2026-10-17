@@ -117,7 +117,7 @@ describe('Astra list cards on mobile', () => {
 
     const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
     TestRenderer.act(() => progress.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/progress')
+    expect(mocks.push).toHaveBeenCalledWith('/progress/goals')
   })
 
   it('shows API goal tracking and projection', () => {

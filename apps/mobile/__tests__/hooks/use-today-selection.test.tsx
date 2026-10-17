@@ -8,6 +8,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   store: {
+    activeFilters: {},
     activeView: 'today',
     isSelectMode: false,
     selectedHabitIds: new Set<string>(),
