@@ -31,7 +31,7 @@ export function metricsFigureLabelKey(id: string, labelKey: string): string {
 }
 
 export function liveMetricsCard(snapshot: MetricsCard, habit: import('../types/habit').HabitMetrics | undefined, retrospective: import('../utils/retrospective').RetrospectiveResponse | undefined): MetricsCard {
-  if (snapshot.habitId) return habit ? { ...snapshot, ...habit, bestStreak: habit.longestStreak } : snapshot
+  if (snapshot.habitId) return habit ? { ...snapshot, ...habit, hasData: habit.totalCompletions > 0, bestStreak: habit.longestStreak } : snapshot
   if (!retrospective) return snapshot
   const metrics = retrospective.metrics
   return { ...snapshot, ...metrics, hasData: metrics.totalScheduled > 0, series: metrics.completionSeries, topHabitName: metrics.topHabits[0]?.name }

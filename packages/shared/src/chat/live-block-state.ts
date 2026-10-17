@@ -18,3 +18,10 @@ export function liveBlockState(query: ReadQueryState, options: Readonly<{
   if (query.isError || options.failed) return { state: 'partiallyFailed' }
   return { state: query.isPending ? 'loading' : 'resting' }
 }
+
+export function calendarBlockErrorKey(queryFailed: boolean, disconnected: boolean, sync: import('../types/chat').CalendarCard['sync']): string | null {
+  if (disconnected) return 'chat.calendarCard.syncState.ReconnectRequired'
+  if (queryFailed) return 'chat.liveBlock.error'
+  if (sync?.enabled && sync.status !== 'Idle') return `chat.calendarCard.syncState.${sync.status}`
+  return null
+}

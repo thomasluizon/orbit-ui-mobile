@@ -3,7 +3,7 @@
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -20,7 +20,7 @@ function percentage(item: Pick<GoalListCardItem, 'current' | 'target'>): number 
 export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const goals = useGoals()
   const missing = goals.data != null && goalList.items.some((item) => !goals.data.goalsById.has(item.id))
   const frameState = liveBlockState(goals, { stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void goals.refetch() } })
@@ -48,7 +48,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
         <>
           {goals.isError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <Button variant="ghost" size="sm" onClick={() => router.push('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
         </>
       )} />
     </div>

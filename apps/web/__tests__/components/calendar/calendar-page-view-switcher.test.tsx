@@ -199,7 +199,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
-  CalendarImportContent: ({ reviewMode, onActionStateChange }: { reviewMode: boolean; onActionStateChange: (state: CalendarImportActionState) => void }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)}><button type="button" onClick={() => onActionStateChange({ count: 1, disabled: false })}>select-event</button></div>,
+  CalendarImportContent: ({ reviewMode, initialEventId, onActionStateChange }: { reviewMode: boolean; initialEventId: string | null; onActionStateChange: (state: CalendarImportActionState) => void }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)} data-initial-event={initialEventId}><button type="button" onClick={() => onActionStateChange({ count: 1, disabled: false })}>select-event</button></div>,
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -702,6 +702,18 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeChecked()
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
     expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+  })
+
+  it('passes the route event to the existing calendar import sheet on its first render', () => {
+    holdAccount('user-1')
+    profileQueryState.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true }
+    calendarRouteSearch = 'import=1&event=event%20%2Fone'
+    render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-initial-event', 'event /one')
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+    const closedSearch = new URL(routerReplace.mock.lastCall![0], 'https://example.test').searchParams
+    expect(closedSearch.has('event')).toBe(false)
+    expect(closedSearch.has('import')).toBe(false)
   })
 
   it('keeps selection when closing a review route and clears both account-bound requests together', () => {

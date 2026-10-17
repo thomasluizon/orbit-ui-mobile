@@ -1301,6 +1301,16 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
+  it('passes the route event to the existing calendar import sheet on its first render', () => {
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true };
+    state.routeParams = { import: '1', event: 'event /one' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const content = tree.root.findAll((node) => node.type === 'CalendarImportContentMock')[0]!;
+    expect(content.props.initialEventId).toBe('event /one');
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it('opens the Calendars sheet for a free account route without navigating to upgrade', () => {
     state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false };
     state.routeParams = { import: '1' };

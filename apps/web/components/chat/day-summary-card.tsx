@@ -10,12 +10,12 @@ import { StatusRing } from '@/components/ui/status-ring'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Button } from '@/components/ui/pill-button'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 
 export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummaryCardData }>) {
   const t = useTranslations()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const occurrences = useHabits({ dateFrom: daySummary.date, dateTo: daySummary.date, includeGeneral: true, includeOverdue: true }, undefined, { completeDay: true })
   const logHabit = useLogHabit()
   const pending = useRef(false)
@@ -25,7 +25,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const visibleRows = payloadRows.slice(0, 20)
   const totalRows = daySummary.totalRows ?? payloadRows.length
   const missing = occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
-  const unavailable = occurrences.isError || missing
+  const unavailable = missing
   const frameState = liveBlockState(occurrences, { acting: pendingId !== null, failed: failedId !== null, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void occurrences.refetch() } })
   const toggle = (habitId: string, logged: boolean) => {
     if (pending.current || unavailable) return
@@ -46,7 +46,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const title = occurrence?.title ?? item.title
     const logged = occurrence ? isHabitDoneForRange(occurrence) : false
-    return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => router.push(`/habits/${item.id}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{occurrence?.emoji ?? item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
+    return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => navigate(`/habits/${item.id}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{occurrence?.emoji ?? item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
       meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
       control: occurrence ? <button type="button" disabled={pendingId !== null || unavailable} aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: title })} onClick={() => toggle(item.id, logged)} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} /></button> : undefined,
@@ -55,10 +55,10 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   return <div className="w-full">
     <BlockFrame {...frameState} title={t('chat.daySummary.title')} count={null} items={[
       ...rows,
-      { id: 'overdue', label: t('chat.daySummary.overdue'), control: <span className="tabular-nums">{daySummary.overdueCount}</span> },
-      { id: 'streak', label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> },
+      { id: 'overdue', wrapLabel: true, label: t('chat.daySummary.overdue'), control: <span className="tabular-nums">{daySummary.overdueCount}</span> },
+      { id: 'streak', wrapLabel: true, label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> },
     ]}
       body={<>{daySummary.due > 0 && daySummary.completionRate != null ? <ProgressRing value={completionRate} label={t('chat.daySummary.ring', { done, due: daySummary.due })} /> : null}<p className="text-sm text-[var(--fg-3)]">{daySummary.due === 0 ? t('chat.daySummary.nothingDue') : t('chat.daySummary.doneOfDue', { done, due: daySummary.due })}</p>{totalRows > 20 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.daySummary.rowCount', { shown: visibleRows.length, total: totalRows })}</p> : null}</>}
-      actions={<>{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => router.push('/')}>{t('chat.daySummary.open')}</Button></>} />
+      actions={<>{occurrences.isError || failedId !== null ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}<Button variant="ghost" size="sm" onClick={() => navigate('/')}>{t('chat.daySummary.open')}</Button></>} />
   </div>
 }

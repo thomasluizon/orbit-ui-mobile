@@ -4,7 +4,7 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useState } from 'react'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View } from 'react-native'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
@@ -37,7 +37,7 @@ function GoalName({ name, onOpen }: Readonly<{ name: string; onOpen: () => void 
 
 export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
   const { t, i18n } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const goals = useGoals()
@@ -67,7 +67,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
         <>
           {goals.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <Button variant="ghost" size="sm" onClick={() => router.push('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/progress/goals')}>{t('chat.goalList.progressLink')}</Button>
         </>
       )} />
     </View>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import type { StreakCard as StreakCardData } from '@orbit/shared/types/chat'
 import { buildStreakWeekDays, getGamificationLevelTitleKey, xpRequiredForLevel, buildProtectedDayLabels, getStreakTierLabelKey } from '@orbit/shared/utils'
 import { DayStrip } from '@/components/dates/day-strip'
@@ -17,7 +17,7 @@ import { ProgressBar } from '@/components/ui/progress-bar'
 export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const { profile } = useProfile()
   const freeze = useStreakFreeze(null, profile?.timeZone ?? null)
   const liveStreak = freeze.streakInfo ?? streakCard
@@ -48,7 +48,7 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
         <>
         {freeze.streakQuery.isError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('chat.liveBlock.error')}</p> : null}
         {/* eslint-disable-next-line local/max-button-words -- #681 uses the approved Progress destination chip. */}
-        <Button variant="ghost" size="sm" onClick={() => router.push('/progress/streak')}>{t('chat.streakCard.open')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/progress/streak')}>{t('chat.streakCard.open')}</Button>
         </>
       )} />
   </div>

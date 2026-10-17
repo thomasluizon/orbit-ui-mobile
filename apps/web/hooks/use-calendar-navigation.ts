@@ -60,6 +60,7 @@ function calendarImportReturnHref(search: string): string {
   const params = new URLSearchParams(search)
   params.delete('mode')
   params.delete('import')
+  params.delete('event')
   return params.size ? `/calendar?${params}` : '/calendar'
 }
 

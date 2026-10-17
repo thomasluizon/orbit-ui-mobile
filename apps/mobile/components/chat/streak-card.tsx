@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { Text, View } from 'react-native'
 import type { StreakCard as StreakCardData } from '@orbit/shared/types/chat'
 import { buildStreakWeekDays, getGamificationLevelTitleKey, xpRequiredForLevel, buildProtectedDayLabels, getStreakTierLabelKey } from '@orbit/shared/utils'
@@ -17,7 +17,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData }>) {
   const { t, i18n } = useTranslation()
-  const router = useRouter()
+  const navigate = useChatNavigation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { profile } = useProfile()
@@ -51,7 +51,7 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
         <>
         {freeze.streakQuery.isError ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('chat.liveBlock.error')}</Text> : null}
         {/* eslint-disable-next-line local/max-button-words -- #681 uses the approved Progress destination chip. */}
-        <Button variant="ghost" size="sm" onClick={() => router.push('/progress/streak')}>{t('chat.streakCard.open')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/progress/streak')}>{t('chat.streakCard.open')}</Button>
         </>
       )} />
   </View>
