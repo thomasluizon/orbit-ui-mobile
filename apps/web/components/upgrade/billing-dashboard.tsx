@@ -1,7 +1,7 @@
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
-import { subscriptionSummary } from '@orbit/shared/utils'
+import { formatLocaleDate, subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type {
@@ -114,17 +114,19 @@ function InvoiceRow({ invoice, locale, state, t }: Readonly<{
   t: UpgradeTranslations
 }>) {
   const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
-  const title = formatPrice(invoice.amountPaid, invoice.currency)
-  const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)} · ${invoiceStatus(invoice.status, t)}`
+  const title = invoiceReason(invoice.billingReason, t)
+  const description = invoiceStatus(invoice.status, t)
+  const date = formatLocaleDate(invoice.date, locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const value = `${date} · ${formatPrice(invoice.amountPaid, invoice.currency)}`
   return (
     <div>
       {url && state !== 'offline' ? (
-        <ListRow title={title} description={description} chevron={false} action={{
+        <ListRow textMode="label" title={title} description={description} value={value} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.downloadDated', { date: formatBillingDate(invoice.date, locale) }),
           onPress: () => globalThis.open(url, '_blank', 'noopener,noreferrer'),
         }} />
-      ) : <ListRow title={title} description={description} readOnly />}
+      ) : <ListRow textMode="label" title={title} description={description} value={value} readOnly />}
     </div>
   )
 }

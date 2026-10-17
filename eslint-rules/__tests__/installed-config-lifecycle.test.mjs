@@ -28,7 +28,7 @@ async function collectIntegration() {
     ...await vi.importActual('vitest'),
     beforeAll: (hook) => { setup.push(hook) },
     afterAll: (hook) => { teardown.push(hook) },
-    describe: () => undefined,
+    describe: (_name, collect) => { collect() },
     it: (name, run) => { cases.push({ name, run }) },
   }))
   const registrations = { describe: RuleTester.describe, it: RuleTester.it }

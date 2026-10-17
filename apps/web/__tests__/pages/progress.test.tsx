@@ -422,7 +422,7 @@ describe('ProgressContent', () => {
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
         expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
-          topInset: width < 1024 ? 64 : 16, headerHeight: width < 1024 ? 48 : 0,
+          topInset: width < 1024 ? 88 : 16, headerHeight: width < 1024 ? 72 : 0,
           trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
@@ -1736,19 +1736,22 @@ describe('ProgressContent', () => {
   })
 
 describe('Progress overview hermetic geometry', () => {
-  it.each([412, 840, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+  it.each([320, 412, 840, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
     'keeps the chart, figures and navigation inside the centred column at $width in $locale', async ({ width, locale }) => {
       mocks.usePortugueseCatalog = locale === 'pt-BR'
       mocks.useEnglishCatalog = locale === 'en'
       const catalog = locale === 'pt-BR' ? ptBR : en
       Object.assign(mocks.retrospective.data.metrics, {
-        completionSeries: { granularity: 'day', points: [
-          { startDate: '2026-09-01', endDate: '2026-09-01', scheduled: 4, completed: 3, completionRate: 75 },
-          { startDate: '2026-09-02', endDate: '2026-09-02', scheduled: 4, completed: 2, completionRate: 50 },
-        ] },
+        completionSeries: { granularity: 'day', points: Array.from({ length: 30 }, (_, index) => ({
+          startDate: `2026-09-${String(index + 1).padStart(2, '0')}`,
+          endDate: `2026-09-${String(index + 1).padStart(2, '0')}`,
+          scheduled: index === 0 ? 0 : 4, completed: index < 2 ? 0 : 2,
+          completionRate: index === 0 ? null : index === 1 ? 0 : 50,
+        })) },
       })
       const { container } = render(<ProgressPage />)
       expect(screen.getAllByTestId('bar-chart')).toHaveLength(1)
+      expect(screen.getAllByRole('radio')).toHaveLength(30)
       const page = await browser.newPage({ viewport: { width, height: 1200 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -1766,6 +1769,19 @@ describe('Progress overview hermetic geometry', () => {
             links: [...root.querySelectorAll('a[href^="/progress/"]')].map((entry) => { const box = entry.getBoundingClientRect(); return { left: box.left, right: box.right, height: box.height } }),
           }
         })
+        const columns = await page.getByRole('radio').evaluateAll((radios) => radios.map((radio) => {
+          const box = radio.getBoundingClientRect()
+          const plot = radio.parentElement!.getBoundingClientRect()
+          return { left: box.left - plot.left, right: box.right - plot.left, height: box.height, plotWidth: plot.width }
+        }))
+        for (const [index, column] of columns.entries()) {
+          expect(column.height).toBeGreaterThanOrEqual(48)
+          expect(column.left).toBeGreaterThanOrEqual(0)
+          expect(column.right).toBeLessThanOrEqual(column.plotWidth + 0.1)
+          if (index > 0) expect(column.left).toBeCloseTo(columns[index - 1]!.right, 1)
+        }
+        expect(columns[0]!.left).toBe(0)
+        expect(columns.at(-1)!.right).toBeCloseTo(columns[0]!.plotWidth, 1)
         expect(geometry.width).toBe(Math.min(width, 740))
         expect(geometry.left).toBe((width - geometry.width) / 2)
         expect(geometry.overflow).toBe(false)
