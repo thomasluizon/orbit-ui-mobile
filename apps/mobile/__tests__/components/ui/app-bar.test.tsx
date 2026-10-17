@@ -1,6 +1,7 @@
 import { createRef } from 'react'
 import { Pressable, Text } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { AppBar } from '@/components/ui/app-bar'
 import { press, renderNavigation } from './navigation-render'
 
@@ -28,6 +29,13 @@ describe('AppBar', () => {
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Share')).toBe(true)
     tree.update(<AppBar title="Habit" action={action} />)
     expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'button')).toHaveLength(1)
+    tree.unmount()
+  })
+  it('names a visual title when the caller does not use a heading', () => {
+    const tree = renderNavigation(<AppBar title="Astra" titleVisual={<AstraGlyph size={16} />} titleIsHeading={false} />)
+    const image = tree.hosts().find((node) => node.props.accessibilityRole === 'image')
+    expect(image?.props.accessibilityLabel).toBe('Astra')
+    expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
     tree.unmount()
   })
   it('keeps an object view title visible without a header role', () => {

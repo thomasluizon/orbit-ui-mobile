@@ -11,4 +11,4 @@ export function RootNotificationHeader() {
   return <DestinationHeaderRow testID="root-notification-header"><NotificationBell /></DestinationHeaderRow>
 }
 
-const styles = StyleSheet.create({ row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48, paddingHorizontal: SPACING.s16 } })
+const styles = StyleSheet.create({ row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 48, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s24 } })
