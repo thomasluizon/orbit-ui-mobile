@@ -2964,6 +2964,7 @@
       "historyDate": "Data: {date}",
       "historyDelta": "Mudança: {delta} {unit}",
       "historyProgress": "Progresso: {current} de {target} {unit}",
+      "askAstraEyebrow": "Pergunte à Astra",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status"
