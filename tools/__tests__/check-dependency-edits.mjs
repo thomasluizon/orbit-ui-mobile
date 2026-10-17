@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join, sep } from "node:path"
 
-import { check, root, T } from "./_harness.mjs"
+import { check, root, stage, T } from "./_harness.mjs"
 
 const TOOL = "check-dependency-edits.mjs"
 /** One extraction time for the whole staged tree, exactly as npm writes one. */
@@ -62,12 +62,18 @@ const stageLockedPackage = (label) => {
 
 export const cases = () => {
   const slow = stageLockedPackage("locked-slow")
+  const snapshot = () => ["package.json", "index.js", "README.md"].map((name) => {
+    const path = join(slow.packageDirectory, name)
+    return [name, readFileSync(path).toString("base64"), statSync(path).mtimeMs]
+  })
+  const before = snapshot()
   check(
     TOOL,
     "locked archive contents pass when clean extraction exceeds the default tolerance",
     ["--root", slow.repository],
     { status: 0, stdout: /No dependency was edited in place/ },
   )
+  T("archive verification leaves installed contents and mtimes untouched", JSON.stringify(snapshot()) === JSON.stringify(before))
   for (const mutation of ["modified", "missing", "extra"]) {
     const changed = stageLockedPackage(`locked-${mutation}`)
     if (mutation === "modified") writeAt(join(changed.packageDirectory, "index.js"), "edited bytes\n", at(338))
@@ -79,6 +85,61 @@ export const cases = () => {
       ["--root", changed.repository],
       { status: 1, stderr: new RegExp(`${mutation}.*${mutation === "extra" ? "extra.js" : "index.js"}`) },
     )
+  }
+
+  const archivePath = join(slow.repository, slow.archiveName)
+  const archiveBytes = readFileSync(archivePath)
+  writeFileSync(archivePath, Buffer.concat([archiveBytes, Buffer.from("corruption")]))
+  check(TOOL, "a corrupt archive cannot clear a timestamp finding", ["--root", slow.repository], {
+    status: 1, stderr: /could not verify locked archive: locked archive integrity mismatch/,
+  })
+  rmSync(archivePath)
+  check(TOOL, "an unavailable archive cannot clear a timestamp finding", ["--root", slow.repository], {
+    status: 1, stderr: /could not verify locked archive/,
+  })
+  writeFileSync(archivePath, archiveBytes)
+
+  const locked = slow.lock.packages["node_modules/slow-extraction"]
+  const lockPath = join(slow.repository, "package-lock.json")
+  const rewriteLock = () => writeFileSync(lockPath, JSON.stringify(slow.lock))
+  const integrity = locked.integrity
+  delete locked.integrity
+  rewriteLock()
+  check(TOOL, "an archive without locked integrity retains timestamp failures", ["--root", slow.repository], {
+    status: 1, stderr: /index\.js {2}\(\+338s/,
+  })
+  locked.integrity = integrity
+  rewriteLock()
+
+  for (const packagePath of ["apps/mobile/node_modules/@scope/slow-extraction", "node_modules/host/node_modules/slow-extraction"]) {
+    const relocated = stageTree(`locked-${packagePath.replaceAll("/", "-")}`)
+    if (packagePath.startsWith("node_modules/host/")) stagePackage(relocated.nodeModules, "host", { "index.js": 0 })
+    cpSync(slow.packageDirectory, join(relocated.repository, ...packagePath.split("/")), { recursive: true, preserveTimestamps: true })
+    cpSync(archivePath, join(relocated.repository, slow.archiveName))
+    writeFileSync(join(relocated.repository, "package-lock.json"), JSON.stringify({ ...slow.lock, packages: { [packagePath]: locked } }))
+    check(TOOL, `the owning lock resolves ${packagePath}`, ["--root", relocated.repository], { status: 0 })
+    check(TOOL, `a scan inside ${packagePath} still resolves the ancestor lock`, ["--root", join(relocated.repository, packagePath.split("node_modules/")[0])], { status: 0 })
+  }
+
+  locked.resolved = "https://registry.example/slow-extraction.tgz"
+  rewriteLock()
+  const fetchShim = stage("dependency-fetch.cjs", `
+const { readFileSync } = require("node:fs")
+globalThis.fetch = async (url, options) => {
+  if (url !== "https://registry.example/slow-extraction.tgz" || !(options.signal instanceof AbortSignal)) {
+    throw new Error("unexpected archive request")
+  }
+  return new Response(readFileSync(process.env.ARCHIVE_FIXTURE), { status: Number(process.env.ARCHIVE_STATUS) })
+}
+`)
+  for (const status of [200, 503]) {
+    check(TOOL, `HTTPS archive response ${status} is handled`, ["--root", slow.repository], {
+      status: status === 200 ? 0 : 1,
+      ...(status === 503 ? { stderr: /locked archive request failed \(503\)/ } : {}),
+    }, { env: {
+      NODE_OPTIONS: `--require "${fetchShim.split(sep).join("/")}"`,
+      ARCHIVE_FIXTURE: archivePath, ARCHIVE_STATUS: String(status),
+    } })
   }
 
   const clean = stageTree("clean")
