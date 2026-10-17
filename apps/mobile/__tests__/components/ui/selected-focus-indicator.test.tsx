@@ -28,6 +28,8 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24Ho
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: 'en', currentTheme: 'dark', currentScheme: 'orange', activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
 
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+
 const TestRenderer = require('react-test-renderer')
 const tokens = createTokensV2('orange', 'dark')
 
@@ -82,11 +84,13 @@ function verify(element: React.ReactNode, selected: boolean) {
   TestRenderer.act(() => tree!.unmount())
 }
 
-function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
-  const choices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
+function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, { stableChoices = false } = {}) {
+  const findChoices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
     const state = node.props.accessibilityState
     return state?.selected !== undefined || state?.checked !== undefined
   })
+  const initialChoices = findChoices()
+  const choices = stableChoices ? () => initialChoices : findChoices
   expect(choices().length).toBeGreaterThan(1)
   for (let index = 0; index < choices().length; index += 1) {
     let choice = choices()[index]
@@ -108,7 +112,7 @@ it('TimeField options use one indicator with and without selection', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" onChange={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
-  verifyAllChoices(tree)
+  verifyAllChoices(tree, { stableChoices: true })
   TestRenderer.act(() => tree!.unmount())
 })
 
@@ -120,7 +124,7 @@ it.each([false, true])('emoji options and category chips share the focus rule, c
     const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
     TestRenderer.act(() => category.props.onPress())
   }
-  verifyAllChoices(tree)
+  verifyAllChoices(tree, { stableChoices: true })
   TestRenderer.act(() => tree!.unmount())
 })
 

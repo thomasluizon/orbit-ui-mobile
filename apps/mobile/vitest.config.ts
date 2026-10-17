@@ -1,5 +1,7 @@
-import { defineConfig } from 'vitest/config'
+import { defaultExclude, defineConfig } from 'vitest/config'
 import path from 'path'
+
+const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
 
 export default defineConfig({
   test: {
@@ -11,12 +13,29 @@ export default defineConfig({
         inline: ['@tabler/icons-react-native'],
       },
     },
-    include: ['__tests__/**/*.test.{ts,tsx}'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'mobile',
+          include: ['__tests__/**/*.test.{ts,tsx}'],
+          exclude: [...defaultExclude, focusIndicatorTest],
+          sequence: { groupOrder: 0 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'mobile-focus',
+          include: [focusIndicatorTest],
+          maxWorkers: 1,
+          sequence: { groupOrder: 1 },
+        },
+      },
+    ],
     /**
-     * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
-     * the whole machine, so together they oversubscribe the CPU and time out module-graph
-     * imports. The cap keeps the aggregate near one machine's worth. The cap alone still went
-     * red in 1 of 3 runs, so the margin over the 5s default covers the residual import cost.
+     * Workspace suites share the host. Bound the general pool and run the native focus
+     * traversal after it drains so repeated render updates do not compete with that pool.
      */
     maxWorkers: '25%',
     testTimeout: 15000,
