@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const graphicSites = [
@@ -39,15 +39,26 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/web/components/ui/list-row.tsx': 'Chevron',
 }
 
-const result = spawnSync(process.execPath, ['tools/check-surface-scope.mjs'], {
-  cwd: repositoryRoot,
-  encoding: 'utf8',
-})
-const findings = result.stderr.split('\n')
+function scanSources() {
+  return spawnSync(process.execPath, ['tools/check-surface-scope.mjs'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    timeout: 30_000,
+    killSignal: 'SIGKILL',
+  })
+}
+
+let result: ReturnType<typeof scanSources>
+let findings: string[]
 
 describe('raised-surface graphic contrast', () => {
+  beforeAll(() => {
+    result = scanSources()
+    findings = result.stderr.split('\n')
+  }, 35_000)
+
   it('checks the full source tree without a scanner error', () => {
-    expect(result.error).toBeUndefined()
+    expect(result.error, 'Surface contrast scanner must finish within 30000ms').toBeUndefined()
     expect(result.status, result.stderr).toBe(0)
     expect(findings.filter((line) => line.includes('GRAPHIC floor 3.00'))).toEqual([])
   })
