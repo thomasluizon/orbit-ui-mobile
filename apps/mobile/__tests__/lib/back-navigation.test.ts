@@ -83,4 +83,14 @@ describe('mobile back navigation helpers', () => {
     expect(getAndroidBackFallbackRoute(path)).toBe('/profile')
   })
 
+  it.each(['/progress/streak', '/progress/goals', '/progress/achievements'])('returns a directly linked %s to Progresso without stack history', (path) => {
+    const router = createRouterMock()
+    const fallback = getAndroidBackFallbackRoute(path)
+    expect(fallback).toBe('/progress')
+    if (fallback) dismissOrFallback(router, fallback)
+    expect(router.dismissTo).toHaveBeenCalledWith('/progress')
+    expect(router.dismiss).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
 })
