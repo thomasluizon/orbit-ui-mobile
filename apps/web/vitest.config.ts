@@ -1,13 +1,26 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
+
+function findChromiumTests(directory: string): string[] {
+  return readdirSync(directory).flatMap((name) => {
+    const filename = path.join(directory, name)
+    if (statSync(filename).isDirectory()) return findChromiumTests(filename)
+    if (!/\.test\.tsx?$/.test(name)) return []
+    const source = readFileSync(filename, 'utf8')
+    if (!/from\s+['"][^'"]*\/chromium['"]/.test(source)) return []
+    return [path.relative(__dirname, filename).split(path.sep).join('/')]
+  })
+}
+
+const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
 
 export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
     setupFiles: ['./__tests__/setup.ts'],
-    include: ['__tests__/**/*.test.{ts,tsx}'],
     globals: true,
     /**
      * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
@@ -18,6 +31,27 @@ export default defineConfig({
     maxWorkers: '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          include: ['__tests__/**/*.test.{ts,tsx}'],
+          exclude: chromiumTests,
+          sequence: { groupOrder: 0 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium',
+          include: chromiumTests,
+          maxWorkers: 1,
+          fileParallelism: false,
+          sequence: { groupOrder: 1 },
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
