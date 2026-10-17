@@ -827,7 +827,7 @@
       "habitTypeBuild": "Construir",
       "habitTypeAvoid": "Evitar este hábito",
       "habitTypeBuildHint": "Uma rotina que você quer fortalecer.",
-      "habitTypeAvoidHint": "Registre quando fizer, não quando resistir.",
+      "habitTypeAvoidHint": "Um hábito que você quer evitar. Registre cada deslize.",
       "generalBadHabit": "Hábitos sem dia certo não podem ser marcados como maus hábitos.",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",
@@ -2535,7 +2535,7 @@
         "loggingTitle": "Registrar hábitos",
         "loggingDesc": "Toque no círculo ao lado de qualquer hábito para marcá-lo como feito. Toque de novo para desfazer. Você também pode registrar hábitos pelo chat da IA, dizendo coisas como 'corri hoje'.",
         "badHabitsTitle": "Acompanhamento de maus hábitos",
-        "badHabitsDesc": "Acompanhe hábitos que você quer largar (fumar, roer unhas etc.). Registre cada deslize para entender quando ele acontece. Sua sequência conta os dias sem o mau hábito.",
+        "badHabitsDesc": "Um hábito que você quer evitar, como fumar ou roer unhas. Registre cada deslize. Sua sequência conta os dias sem deslizes.",
         "slipAlertsTitle": "Alertas de deslize",
         "slipAlertsDesc": "Ative os alertas de deslize nos maus hábitos para receber mensagens de incentivo da IA antes dos seus horários mais arriscados. O sistema percebe padrões de dia e horário nos seus registros e manda lembretes personalizados para te ajudar a se manter firme.",
         "metricsTitle": "Métricas e sequências",
@@ -2920,7 +2920,7 @@
       "typeStandardDescription": "Acompanhe uma meta mensurável passo a passo. Atualize o progresso na mão ou vincule hábitos que contam para ela.",
       "typeStreak": "Sequência",
       "typeStreakHintGood": "Vincule um hábito: a sequência cresce a cada dia que você concluir. Se perder um dia, ela volta a zero.",
-      "typeStreakHintBad": "Vincule um mau hábito: a sequência cresce a cada dia que você resistir. Se registrar uma recaída, ela volta a zero.",
+      "typeStreakHintBad": "Vincule um hábito que você quer evitar. A sequência cresce a cada dia sem deslizes. Se registrar um deslize, ela volta a zero.",
       "streakTarget": "Meta de dias",
       "streakTargetPlaceholder": "ex: 30, 60, 90",
       "habitsError": "Não foi possível carregar os hábitos. Tente de novo.",
@@ -2965,6 +2965,7 @@
       "historyDate": "Data: {date}",
       "historyDelta": "Mudança: {delta} {unit}",
       "historyProgress": "Progresso: {current} de {target} {unit}",
+      "askAstraEyebrow": "Pergunte à Astra",
       "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status"
@@ -2990,6 +2991,7 @@
     }
   },
   "progressScreen": {
+    "back": "Voltar ao Progresso",
     "title": "Progresso",
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
@@ -3082,6 +3084,8 @@
       "lockedAction": "Ver o Orbit Pro"
     },
     "achievements": {
+      "emptyAction": "Ver hábitos",
+      "destination": "Nível e XP",
       "empty": "Registre para conquistar",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progresso até o próximo nível",

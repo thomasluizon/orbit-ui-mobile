@@ -3,7 +3,8 @@ import { goalKeys } from '@orbit/shared/query'
 import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Animated, BackHandler, StyleSheet } from 'react-native'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import React from 'react'
@@ -125,11 +126,6 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
       : null,
 }))
 
-vi.mock('@/components/goals/goal-detail-drawer/goal-ask-astra-button', () => ({
-  GoalAskAstraButton: ({ onPress }: any) =>
-    React.createElement('Pressable', { accessibilityLabel: 'ask-astra', onPress }),
-}))
-
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
@@ -196,7 +192,7 @@ describe('GoalDetailDrawer', () => {
     translation.language = 'en-US'
     updateProgressMutateAsync.mockReset()
     nativeMocks.sendAccessibilityEvent.mockReset()
-    useChatStore.setState({ draft: '', draftHydrated: true })
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     useUIStore.setState({ astraConversationOpen: false })
   })
 
@@ -254,6 +250,7 @@ describe('GoalDetailDrawer', () => {
     await TestRenderer.act(async () => { press(tree, 'common.save'); await Promise.resolve() })
     expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 6, note: 'Inline note' } }))
     expect(onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => { tree.unmount() })
   })
 
   it('labels unlinked streak entry as current progress', () => {
@@ -308,6 +305,7 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
     TestRenderer.act(() => { tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
     expect(collectText(tree.toJSON())).toContain('Saved note')
+    TestRenderer.act(() => { tree.unmount() })
   })
 
   it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
@@ -399,6 +397,111 @@ describe('GoalDetailDrawer', () => {
       goalName: listGoal.title, goalCount: 12, goalUnit: 'books',
     })
     expect(refetchDetail).toHaveBeenCalled()
+  })
+
+  const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
+
+  it('opens Astra after sheet dismissal with the selected synced goal', () => {
+    detailGoal = { ...detailGoal, title: 'Synced goal' }
+    const onClose = vi.fn()
+    sheetTestControls.defer(true)
+    const tree = renderDrawer(onClose)
+    press(tree, astraLabel)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    expect(onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('retains inline goal detail and the existing draft when Astra opens', () => {
+    useChatStore.setState({ draft: 'My unfinished message' })
+    const onClose = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    press(tree, astraLabel)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().draft).toBe('My unfinished message')
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'goal-detail:1', label: 'nav.astra',
+      prompt: 'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
+    })
+    const chips = buildComposerChips({
+      surface: 'progress', status: 'success', habits: [], totalHabitCount: 0,
+      profile: createMockProfile(), contextualSuggestion: useChatStore.getState().contextualSuggestion,
+    })
+    expect(chips[0]?.id).toBe('goal-detail:1')
+    expect(chips[0]?.prompt).toBe('goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}')
+    TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    expect(collectText(tree.toJSON())).toContain('Read 12 books')
+    TestRenderer.act(() => { tree.unmount() })
+  })
+
+  it('yields Android back to the conversation and restores detail back on return', () => {
+    const listeners = new Set<Parameters<typeof BackHandler.addEventListener>[1]>()
+    const subscription = vi.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, listener) => {
+      listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    const onClose = vi.fn()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
+    try {
+      expect(listeners.size).toBe(1)
+      press(tree, astraLabel)
+      expect(listeners.size).toBe(0)
+      expect(onClose).not.toHaveBeenCalled()
+      TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+      expect(listeners.size).toBe(1)
+      TestRenderer.act(() => { expect([...listeners][0]?.({ type: 'hardwareBackPress', timeStamp: 0 })).toBe(true) })
+      expect(onClose).toHaveBeenCalledOnce()
+    } finally {
+      TestRenderer.act(() => { tree.unmount() })
+      subscription.mockRestore()
+    }
+  })
+
+  it('disables the goal request until the saved draft is hydrated', () => {
+    useChatStore.setState({ draftHydrated: false })
+    const tree = renderDrawer()
+    const action = tree.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === astraLabel && node.props.accessibilityRole === 'button')[0]
+    expect(action.props.disabled).toBe(true)
+    expect(action.props.accessibilityState.disabled).toBe(true)
+    TestRenderer.act(() => { action.props.onPress() })
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    TestRenderer.act(() => { useChatStore.setState({ draftHydrated: true }) })
+    expect(action.props.disabled).toBe(false)
+  })
+
+  it('keeps the sheet and chat unchanged if native dismissal rejects', () => {
+    sheetTestControls.defer(true)
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+    press(tree, astraLabel)
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().draft).toBe('')
+    press(tree, astraLabel)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('offers the cached goal on detail error and no request for an unavailable goal', () => {
+    detailLoadError = true
+    detailAvailable = false
+    const tree = renderDrawer()
+    press(tree, astraLabel)
+    expect(useChatStore.getState().draft).toContain('Read 12 books')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.loadError')
+    TestRenderer.act(() => tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />))
+    expect(countRenderedActions(tree.toJSON(), astraLabel)).toBe(0)
   })
 
   it('prefers synced detail data over the stale list cache', () => {
