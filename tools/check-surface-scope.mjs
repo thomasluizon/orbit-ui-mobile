@@ -505,7 +505,19 @@ function reachableInState(node, state) {
   return !state || branchAssignments(node, state).length > 0
 }
 
+const expressionSurfaceCache = new WeakMap()
+
 function expressionSurfaces(expression, sourceFile, state) {
+  const key = surfaceStateKey(state, sourceFile)
+  const cached = expressionSurfaceCache.get(expression) ?? new Map()
+  if (cached.has(key)) return cached.get(key)
+  const surfaces = measureExpressionSurfaces(expression, sourceFile, state)
+  cached.set(key, surfaces)
+  expressionSurfaceCache.set(expression, cached)
+  return surfaces
+}
+
+function measureExpressionSurfaces(expression, sourceFile, state) {
   const text = expression.getText(sourceFile)
   const surfaces = new Set()
   for (const match of tokenMatches(text)) {
@@ -624,18 +636,38 @@ function enclosingFunction(node) {
   return ancestor(node, (current) => ts.isFunctionDeclaration(current) || ts.isFunctionExpression(current) || ts.isArrowFunction(current))
 }
 
+const localDeclarationCache = new WeakMap()
+
 function localDeclaration(scope, name, before) {
-  let result
-  const visit = (node) => {
-    if (node.pos >= before) return
-    if (ts.isVariableDeclaration(node) && propertyName(node.name) === name && node.initializer) result = node
-    ts.forEachChild(node, visit)
+  if (!localDeclarationCache.has(scope)) {
+    const declarations = new Map()
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node) && node.initializer) {
+        const name = propertyName(node.name)
+        const bindings = declarations.get(name) ?? []
+        bindings.push(node)
+        declarations.set(name, bindings)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(scope)
+    localDeclarationCache.set(scope, declarations)
   }
-  visit(scope)
-  return result
+  return localDeclarationCache.get(scope).get(name)?.findLast((node) => node.pos < before)
 }
 
+const visibleDeclarationCache = new WeakMap()
+
 function visibleDeclaration(node, sourceFile, name) {
+  const cached = visibleDeclarationCache.get(node) ?? new Map()
+  if (cached.has(name)) return cached.get(name)
+  const declaration = findVisibleDeclaration(node, sourceFile, name)
+  cached.set(name, declaration)
+  visibleDeclarationCache.set(node, cached)
+  return declaration
+}
+
+function findVisibleDeclaration(node, sourceFile, name) {
   for (let scope = node; scope; scope = scope.parent) {
     if (!ts.isFunctionDeclaration(scope) && !ts.isFunctionExpression(scope) && !ts.isArrowFunction(scope)) continue
     const declaration = localDeclaration(scope, name, node.pos)
@@ -686,7 +718,16 @@ function selectedObjectAlias(reference) {
   return propertyName(declaration.name)
 }
 
+const selectedMemberCache = new WeakMap()
+
 function selectedObjectMemberReferences(node, sourceFile) {
+  if (selectedMemberCache.has(node)) return selectedMemberCache.get(node)
+  const selected = findSelectedObjectMemberReferences(node, sourceFile)
+  selectedMemberCache.set(node, selected)
+  return selected
+}
+
+function findSelectedObjectMemberReferences(node, sourceFile) {
   const path = localObjectMemberPath(node, sourceFile)
   if (!path) return undefined
   const bindings = [path.binding]
@@ -734,7 +775,19 @@ function localMemberValues(expression, sourceFile, seen = new Set()) {
   return []
 }
 
+const localSurfaceCache = new WeakMap()
+
 function localExpressionSurfaces(node, sourceFile, state) {
+  const key = surfaceStateKey(state, sourceFile)
+  const cached = localSurfaceCache.get(node) ?? new Map()
+  if (cached.has(key)) return cached.get(key)
+  const surfaces = measureLocalExpressionSurfaces(node, sourceFile, state)
+  cached.set(key, surfaces)
+  localSurfaceCache.set(node, cached)
+  return surfaces
+}
+
+function measureLocalExpressionSurfaces(node, sourceFile, state) {
   const surfaces = new Set()
   const seen = new Set()
   const inspect = (expression) => {
@@ -1110,7 +1163,23 @@ function hasClassInState(expression, name, state, seen = new Set()) {
   return false
 }
 
+const compoundMatchCache = new WeakMap()
+
 function matchesCompound(selector, opening, syntax, state) {
+  const className = opening.attributes.properties.find((property) => ts.isJsxAttribute(property) && propertyName(property.name) === "className")
+  const conditionalClass = /\.[\w-]/.test(selector) && className?.initializer && !ts.isStringLiteralLike(className.initializer)
+  const conditionalEnabled = /:not\(:disabled\)|:enabled/.test(selector)
+  const stateKey = conditionalClass || conditionalEnabled ? surfaceStateKey(state, syntax) : state.interaction
+  const key = `${stateKey}:${selector}`
+  const cached = compoundMatchCache.get(opening) ?? new Map()
+  if (cached.has(key)) return cached.get(key)
+  const matched = evaluateCompound(selector, opening, syntax, state)
+  cached.set(key, matched)
+  compoundMatchCache.set(opening, cached)
+  return matched
+}
+
+function evaluateCompound(selector, opening, syntax, state) {
   if (/::|:root|:has\(/.test(selector)) return false
   if (selector.includes(":hover") && state.interaction !== "hover") return false
   if (selector.includes(":active") && state.interaction !== "pressed") return false
@@ -1147,8 +1216,11 @@ function selectorMatches(selector, opening, syntax, state) {
   return matched
 }
 
+const selectorCompounds = new Map()
+
 function matchesSelectorAncestry(selector, opening, syntax, state, openings = paintOpenings(opening)) {
-  const compounds = selector.split(/\s+(?![^[]*\])/)
+  if (!selectorCompounds.has(selector)) selectorCompounds.set(selector, selector.split(/\s+(?![^[]*\])/))
+  const compounds = [...selectorCompounds.get(selector)]
   if (!matchesCompound(compounds.pop(), opening, syntax, state)) return false
   let index = openings.length - 2
   while (compounds.length > 0) {
@@ -1295,9 +1367,12 @@ function componentIdentity(syntax, name) {
 const calledComponentCache = new WeakMap()
 
 function calledComponent(opening, syntax, syntaxes) {
-  if (calledComponentCache.has(opening)) return calledComponentCache.get(opening)
+  const tag = jsxTag(opening)
+  const cached = calledComponentCache.get(syntax) ?? new Map()
+  if (cached.has(tag)) return cached.get(tag)
   const identity = resolveCalledComponent(opening, syntax, syntaxes)
-  calledComponentCache.set(opening, identity)
+  cached.set(tag, identity)
+  calledComponentCache.set(syntax, cached)
   return identity
 }
 
@@ -1314,7 +1389,8 @@ function resolveCalledComponent(opening, syntax, syntaxes) {
     const path = specifier.startsWith("@/") ? resolve(appRoot, specifier.slice(2))
       : specifier.startsWith(".") ? resolve(dirname(syntax.fileName), specifier) : undefined
     if (!path) return undefined
-    const target = syntaxes.find((candidate) => [path + ".tsx", path + ".ts", resolve(path, "index.tsx"), resolve(path, "index.ts")].includes(candidate.fileName))
+    const candidates = [path + ".tsx", path + ".ts", resolve(path, "index.tsx"), resolve(path, "index.ts")]
+    const target = syntaxes.find((candidate) => candidates.includes(candidate.fileName))
     if (target) {
       const name = named ? propertyName(named.propertyName ?? named.name) : exportedFunctions(target)[0]
       return componentIdentity(target, name)
