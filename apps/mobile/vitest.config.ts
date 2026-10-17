@@ -20,7 +20,7 @@ export default defineConfig({
           name: 'mobile',
           include: ['__tests__/**/*.test.{ts,tsx}'],
           exclude: [...defaultExclude, focusIndicatorTest],
-          sequence: { groupOrder: 0 },
+          sequence: { groupOrder: 1 },
         },
       },
       {
@@ -29,7 +29,7 @@ export default defineConfig({
           name: 'mobile-focus',
           include: [focusIndicatorTest],
           maxWorkers: 1,
-          sequence: { groupOrder: 1 },
+          sequence: { groupOrder: 2 },
         },
       },
     ],
