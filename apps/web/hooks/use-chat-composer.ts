@@ -49,6 +49,7 @@ import {
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
+import type { ChatStoreState } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetail, useHabits } from '@/hooks/use-habit-queries'
@@ -71,6 +72,7 @@ interface AttemptedSend {
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
   messageOrigin?: 'followUp'
+  contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>
 }
 
 interface StreamSendFailure {
@@ -567,13 +569,18 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       setIsTyping(true)
       scrollToBottom()
 
-      return runStreamingSend(attempted)
+      const startingAccountGeneration = getAccountGeneration()
+      const succeeded = await runStreamingSend(attempted)
+      if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
+        useChatStore.getState().setContextualSuggestion(null)
+      }
+      return succeeded
     }),
     [addMessage, runStreamingSend, scrollToBottom, setIsTyping, threadScroll],
   )
 
   const sendMessage = useCallback(
-    async (content?: string, messageOrigin?: 'followUp') => {
+    async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
       const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp'
       const typedContent = content?.trim() ?? input.trim()
       const messageContent = selectedTextFile && sendsComposerDraft
@@ -615,6 +622,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
+        contextualRequest,
       }
 
       if (sendsComposerDraft) {
@@ -685,7 +693,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       const label = providedLabel ?? t(key)
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label)
       return { id, label, onSelect: () => {
-        void sendMessage(prompt)
+        void sendMessage(prompt, undefined, contextualSuggestion?.id === id ? contextualSuggestion : undefined)
       } }
     }))
   }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, options.totalHabitCount, profile, selectedDate, today, sendMessage, t])

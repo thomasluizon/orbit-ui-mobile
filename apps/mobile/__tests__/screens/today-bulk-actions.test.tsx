@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
   settleBulkHabitResolutions: vi.fn(),
   showToast: vi.fn(),
   store: {
+    activeFilters: {},
     activeView: 'today',
     showCompleted: false,
     isSelectMode: true,

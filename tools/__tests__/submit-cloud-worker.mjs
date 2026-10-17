@@ -79,12 +79,35 @@ const spawnTool = (entry, args, env) => {
   child.stdout.on("data", (chunk) => { stdout += chunk.toString() })
   child.stderr.on("data", (chunk) => { stderr += chunk.toString() })
   const result = new Promise((resolveResult) => {
-    child.once("close", (status) => resolveResult({ status, stdout, stderr }))
+    child.once("close", (status, signal) => resolveResult({ status, signal, stdout, stderr }))
   })
   return { child, result }
 }
 
 const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
+
+const waitForAcceptance = async (submission, acceptedPath, timeoutMs = 15000) => {
+  let completed
+  submission.result.then((result) => { completed = result })
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    if (completed) return { stage: "exited before acceptance", ...completed }
+    const acceptance = readFileSync(acceptedPath, "utf8")
+    if (acceptance !== "") return { stage: "accepted", acceptance }
+    if (Date.now() >= deadline) return { stage: "acceptance timed out", timeoutMs }
+    await wait(10)
+  }
+}
+
+const stopSubmission = async (submission, signal) => {
+  submission.child.kill(signal)
+  const deadline = setTimeout(() => submission.child.kill("SIGKILL"), 5000)
+  try {
+    return await submission.result
+  } finally {
+    clearTimeout(deadline)
+  }
+}
 
 const cloudAdmissionAfterHold = (entry, now = Date.now() + RELEASE_HOLD_MS + 1000) => checkAdmission({
   config: { ...entry.config, repos: { ui: entry.repo.path }, caps: { maxOpenPullRequests: 0, maxQueuedRuns: 0 } },
@@ -598,24 +621,63 @@ export const cases = async () => {
   )
   const interruptedCloud = fixture("interrupted-admission")
   const acceptedPath = stage("submit-cloud/interrupted-admission-accepted.txt", "")
-  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), {
+  const startupDelay = stage("submit-cloud/startup-delay.cjs", `
+if (process.argv[1] === ${JSON.stringify(interruptedCloud.path)}) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5500)
+}
+`)
+  const delayedEnvironment = {
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS} --require "${startupDelay.replaceAll("\\", "/")}"`,
     ORBIT_FAKE_CODEX_LOG: interruptedCloud.log,
     ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
     ORBIT_FAKE_ACCEPTANCE_LOG: acceptedPath,
     ORBIT_FAKE_EXEC_DELAY_MS: "1500",
-  })
-  const acceptedDeadline = Date.now() + 5000
-  while (readFileSync(acceptedPath, "utf8") === "" && Date.now() < acceptedDeadline) await wait(10)
-  interruptedSubmission.child.kill("SIGTERM")
-  const interruptedResult = await interruptedSubmission.result
-  const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+  }
+  const beforeAcceptance = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const missedAcceptance = await waitForAcceptance(beforeAcceptance, acceptedPath, 100)
+  const beforeAcceptanceResult = await stopSubmission(beforeAcceptance, "SIGTERM")
+  const beforeAcceptanceAdmission = await cloudAdmissionAfterHold(interruptedCloud)
   T(
-    `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
-    interruptedResult.status === 143 && !interruptedAdmission.admitted &&
-      interruptedAdmission.counts.reservations?.pullRequests === 1 &&
-      interruptedAdmission.counts.reservations?.queuedRuns === 1,
-    `exit ${interruptedResult.status}: ${JSON.stringify(interruptedAdmission)}`,
+    `${TOOL}: interruption before acceptance reports startup timeout rather than lost reservations`,
+    missedAcceptance.stage === "acceptance timed out" && missedAcceptance.timeoutMs === 100 &&
+      readFileSync(acceptedPath, "utf8") === "" && beforeAcceptanceResult.status === null &&
+      beforeAcceptanceResult.signal === "SIGTERM" && beforeAcceptanceAdmission.admitted &&
+      beforeAcceptanceAdmission.counts.reservations.pullRequests === 0 &&
+      beforeAcceptanceAdmission.counts.reservations.queuedRuns === 0,
+    JSON.stringify({ ...missedAcceptance, ...beforeAcceptanceResult, admission: beforeAcceptanceAdmission }),
   )
+  releaseAdmission(beforeAcceptanceAdmission.reservationId, interruptedCloud.base, Date.now() - RELEASE_HOLD_MS - 1000)
+
+  const startupFailure = stage("submit-cloud/startup-failure.mjs", 'process.stderr.write("submission startup failed\\n"); process.exit(23)\n')
+  const failedStartup = spawnTool({ ...interruptedCloud, path: startupFailure }, [], {})
+  const failedAcceptance = await waitForAcceptance(failedStartup, acceptedPath)
+  T(
+    `${TOOL}: terminal startup failure reports exit status and stderr without waiting for acceptance`,
+    failedAcceptance.stage === "exited before acceptance" && failedAcceptance.status === 23 &&
+      failedAcceptance.signal === null && failedAcceptance.stderr === "submission startup failed\n",
+    JSON.stringify(failedAcceptance),
+  )
+  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), delayedEnvironment)
+  const acceptance = await waitForAcceptance(interruptedSubmission, acceptedPath)
+  const interruptedResult = await stopSubmission(interruptedSubmission, acceptance.stage === "accepted" ? "SIGTERM" : "SIGKILL")
+  T(
+    `${TOOL}: observes Cloud acceptance after delayed startup before sending SIGTERM`,
+    acceptance.stage === "accepted" && acceptance.acceptance === delayedEnvironment.ORBIT_FAKE_EXEC_URL,
+    JSON.stringify({
+      ...acceptance, ...interruptedResult,
+      stdout: interruptedResult.stdout.slice(-2000), stderr: interruptedResult.stderr.slice(-2000),
+    }),
+  )
+  if (acceptance.stage === "accepted") {
+    const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+    T(
+      `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
+      interruptedResult.status === 143 && interruptedResult.signal === null && !interruptedAdmission.admitted &&
+        interruptedAdmission.counts.reservations?.pullRequests === 1 &&
+        interruptedAdmission.counts.reservations?.queuedRuns === 1,
+      JSON.stringify({ ...interruptedResult, admission: interruptedAdmission }),
+    )
+  }
 
   const abandonedWatcher = fixture("abandoned-watcher")
   const abandonedSubmission = run(TOOL, argvOf(abandonedWatcher), {
