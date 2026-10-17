@@ -59,6 +59,15 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('reaches and copies the producti
   fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.copyConfig }))
   expect(await screen.findByText(messages.orbitMcp.copied)).toBeInTheDocument()
   expect(writeText).toHaveBeenCalledExactlyOnceWith(configuration)
+  expect(JSON.parse(writeText.mock.calls[0]![0])).toEqual({
+    mcpServers: {
+      orbit: {
+        type: 'http',
+        url: 'https://api-staging.useorbit.org/mcp',
+        headers: { Authorization: 'Bearer YOUR_API_KEY' },
+      },
+    },
+  })
   fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.claudeWeb }))
   expect(screen.getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
   expect(screen.queryByText(messages.orbitMcp.replaceKey)).not.toBeInTheDocument()
@@ -88,11 +97,11 @@ it('shows a recoverable clipboard failure and lets the copy be retried', async (
   renderKeys()
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.claudeCode }))
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.copyConfig }))
-  expect(await screen.findByText(en.orbitMcp.copyError)).toBeInTheDocument()
+  expect(await screen.findByText(en.orbitMcp.configCopyError)).toBeInTheDocument()
   expect(screen.queryByText(en.orbitMcp.copied)).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.copyConfig }))
   expect(await screen.findByText(en.orbitMcp.copied)).toBeInTheDocument()
-  expect(screen.queryByText(en.orbitMcp.copyError)).not.toBeInTheDocument()
+  expect(screen.queryByText(en.orbitMcp.configCopyError)).not.toBeInTheDocument()
 })
 
 it.each([[false, false], [true, false]])('keeps configuration behind the existing access gate (%s, %s)', (hasProAccess, unlocked) => {
@@ -106,6 +115,6 @@ it('keeps the JSON available when clipboard access is unavailable', async () => 
   renderKeys()
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.claudeCode }))
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.copyConfig }))
-  expect(await screen.findByText(en.orbitMcp.copyError)).toBeInTheDocument()
+  expect(await screen.findByText(en.orbitMcp.configCopyError)).toBeInTheDocument()
   expect(screen.getByText(/"mcpServers"/).textContent).toBe(buildMcpConfigJson('https://api-staging.useorbit.org/mcp'))
 })

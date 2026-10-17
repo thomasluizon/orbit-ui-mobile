@@ -34,7 +34,7 @@ function McpCodeConfig({ endpoint }: Readonly<{ endpoint: string }>) {
         <PillButton size="sm" variant="ghost" iconOnly label={t('orbitMcp.copyConfig')} minimumHeight={TOUCH_TARGET_MIN} loading={copyStatus === 'copying'} onClick={() => void copyConfiguration()}><Copy size={24} strokeWidth={1.5} aria-hidden="true" /></PillButton>
       </ActionRow>
       <p role="status" className={`text-sm leading-[1.5] ${copyStatus === 'error' ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>
-        {copyStatus === 'error' ? t('orbitMcp.copyError') : copyStatus === 'copied' ? t('orbitMcp.copied') : ''}
+        {copyStatus === 'error' ? t('orbitMcp.configCopyError') : copyStatus === 'copied' ? t('orbitMcp.copied') : ''}
       </p>
     </div>
   )

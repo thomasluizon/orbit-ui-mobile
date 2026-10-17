@@ -3369,7 +3369,7 @@
     "replaceKey": "Troque YOUR_API_KEY pela chave que você criou acima",
     "maxKeysReached": "Você chegou ao máximo de 5 chaves de API",
     "copyConfig": "Copiar configuração",
-    "copyError": "Não consegui copiar. Tente de novo.",
+    "configCopyError": "Não consegui copiar. Tente de novo.",
     "apiKeysError": "Não foi possível carregar as chaves de API",
     "createKeyError": "Não foi possível criar a chave de API",
     "scopesLabel": "Escopos:",

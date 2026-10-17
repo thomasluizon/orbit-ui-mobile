@@ -44,7 +44,7 @@ function McpCodeConfig({ endpoint }: Readonly<{ endpoint: string }>) {
         <PillButton size="sm" variant="ghost" iconOnly label={t('orbitMcp.copyConfig')} minimumHeight={TOUCH_TARGET_MIN} loading={copyStatus === 'copying'} onClick={() => void copyConfiguration()}><Copy size={24} strokeWidth={1.5} color={tokens.fg1} /></PillButton>
       </ActionRow>
       <Text accessibilityLiveRegion="polite" style={[styles.message, { color: copyStatus === 'error' ? tokens.statusBadText : tokens.fg2 }]}>
-        {copyStatus === 'error' ? t('orbitMcp.copyError') : copyStatus === 'copied' ? t('orbitMcp.copied') : ''}
+        {copyStatus === 'error' ? t('orbitMcp.configCopyError') : copyStatus === 'copied' ? t('orbitMcp.copied') : ''}
       </Text>
     </View>
   )

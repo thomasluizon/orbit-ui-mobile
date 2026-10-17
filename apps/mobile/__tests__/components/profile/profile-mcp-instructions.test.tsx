@@ -61,6 +61,15 @@ it('reaches the production code-client configuration and copies its JSON', async
   expect(textValues()).toContain(configuration)
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
   expect(Clipboard.setString).toHaveBeenCalledExactlyOnceWith(configuration)
+  expect(JSON.parse(mocks.clipboard)).toEqual({
+    mcpServers: {
+      orbit: {
+        type: 'http',
+        url: getMcpEndpointUrl(API_BASE),
+        headers: { Authorization: 'Bearer YOUR_API_KEY' },
+      },
+    },
+  })
   expect(textValues()).toContain('orbitMcp.copied')
   TestRenderer.act(() => button('orbitMcp.claudeWeb').props.onPress())
   expect(textValues()).toContain(getMcpEndpointUrl(API_BASE))
@@ -75,11 +84,11 @@ it('shows a recoverable clipboard failure and permits a retry', async () => {
   renderKeys()
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
-  expect(textValues()).toContain('orbitMcp.copyError')
+  expect(textValues()).toContain('orbitMcp.configCopyError')
   expect(textValues()).not.toContain('orbitMcp.copied')
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
   expect(textValues()).toContain('orbitMcp.copied')
-  expect(textValues()).not.toContain('orbitMcp.copyError')
+  expect(textValues()).not.toContain('orbitMcp.configCopyError')
 })
 
 it.each([[false, false], [true, false]])('keeps configuration behind the existing access gate (%s, %s)', (hasProAccess, unlocked) => {
@@ -105,6 +114,6 @@ it('reports an unsuccessful native write instead of showing a false confirmation
   renderKeys()
   TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
   await TestRenderer.act(async () => { await button('orbitMcp.copyConfig').props.onPress() })
-  expect(textValues()).toContain('orbitMcp.copyError')
+  expect(textValues()).toContain('orbitMcp.configCopyError')
   expect(textValues()).not.toContain('orbitMcp.copied')
 })
