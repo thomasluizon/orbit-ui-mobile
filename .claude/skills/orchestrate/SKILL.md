@@ -159,7 +159,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -758,7 +758,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--allow-subagents] [--relaunch-reason <text>]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
@@ -782,11 +782,15 @@ killing the whole process tree on either. Pass `--hard-ceiling-minutes` at launc
 plan already shows outrunning the fleet-wide ceiling: a large migration, a subsystem ticket, or one
 whose test matrix is the work.
 
-Every local order names its tier. Use `--tier default` for an original implementation. Use
+Every local order names its tier. Use `--tier default` for a normal order and `--tier deep`
+for a large ticket. Use `--tier max` for a review round after one failed round. Use
 `--tier mechanical` only for a merge-forward whose conflicts are already known, or for
 reviewer-directed test strengthening whose order names the exact experiment. A review fix that
-still needs product, design, architecture, security or ambiguous judgement stays `--tier default`.
+still needs product, design, architecture, security or ambiguous judgement uses the ticket's
+`default` or `deep` tier until a failed round requires `max`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
+The failed-round escalation takes precedence over the other tier choices. Never use `ultra`:
+it delegates to its own agents, and worker orders forbid sub-agents outside the explicit UI sweep.
 
 Pass `--allow-subagents` exactly when `compose-prompt.mjs` included the exact `## UI review sweep`
 heading in the finishing contract. Ticket text never selects this flag, the same rule as
@@ -1356,10 +1360,14 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Role | Model |
 |---|---|
 | Orchestrator | Opus 5.5 @ high, or Sol 6.1 @ high |
-| Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default` or `mechanical` tier |
+| Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
 
-The shipped worker is `codex`: both tiers use `gpt-6.1-sol`, with `high` reasoning effort on
-`default` and `medium` on `mechanical`. Both `claude` fallback tiers use `claude-opus-5-5`.
+The shipped worker is `codex`: all four tiers use `gpt-6.1-sol`, with `high` reasoning effort on
+`default`, `medium` on `mechanical`, `xhigh` on `deep` and `max` on `max`. Use `default` for normal
+orders, `mechanical` for fully specified mechanical work, `deep` for a large ticket and `max` for
+a review round after one failed round. Never use `ultra`, which delegates to its own agents;
+worker orders forbid sub-agents outside the explicit UI sweep. All four `claude` fallback tiers
+use `claude-opus-5-5`.
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
@@ -1378,6 +1386,8 @@ the same order file, the same worktree, the same timeouts and the same wake sour
 node -e "const f='.claude/orchestrator.json',c=require('./'+f);c.worker='claude';require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier mechanical --dry-run
+node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier deep --dry-run
+node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --tier max --dry-run
 git checkout -- .claude/orchestrator.json
 ```
 
@@ -1420,8 +1430,8 @@ executable on PATH before the `if (dryRun)` block at `:266`, and `:268` exits be
 resolve, the model id the launcher selected, the exact argv the child would receive, and that the
 command is on PATH in a shape Node can spawn without a shell. It proves nothing about the
 credentials, nothing about whether the model id is accepted, and nothing about the run. Read the
-`args` array back for both tiers: `launch-worker.mjs:74` defaults `--tier` to `default`, so the
-second dry run above is the only one that shows `mechanical`.
+`args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
+explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
 
 **Calibration goes stale for the duration of the switch. That is expected, and nobody reseeds to
 clear it.** `tools/__tests__/check-calibration.mjs:200-202` asserts that switching the engine without
@@ -1431,26 +1441,30 @@ a fresh stamp exits 1, so `node tools/check-calibration.mjs` reports the engine 
 per-entry age backstop `check-calibration.mjs:336-349` exists to hold. Say the gate is red for this
 reason, and let the revert clear it.
 
-**`node tools/test-tools.mjs` goes red for the same duration, and those FOUR FAILs are the only ones
+**`node tools/test-tools.mjs` goes red for the same duration, and those eight failures are the only ones
 the switch explains.** `tools/__tests__/_harness.mjs:127` reads the live config at test time, so with
-`worker` set to `claude` the engine under test is the claude block and exactly four assertions fail,
-two in each of two files:
+`worker` set to `claude` the engine under test is the claude block and exactly eight assertions fail,
+four in each of two files:
 
 - `tools/__tests__/orchestrator-config.mjs`, the shipped-default pin, which asserts
   `gpt-6.1-sol` at high reasoning effort.
 - `tools/__tests__/orchestrator-config.mjs`, which asserts the mechanical tier keeps the
-  default tier's `gpt-6.1-sol` model at medium reasoning effort, false because both Claude tiers
+  default tier's `gpt-6.1-sol` model at medium reasoning effort, false because all Claude tiers
   use `claude-opus-5-5`.
 - `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
   `model_reasoning_effort="high"` through `--dry-run` against the real config.
 - `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
   `model_reasoning_effort="medium"` on the mechanical tier the same way.
+- `tools/__tests__/orchestrator-config.mjs`, two assertions pinning the `deep` and `max` tiers
+  to `gpt-6.1-sol` at `xhigh` and `max` reasoning effort.
+- `tools/__tests__/launch-worker.mjs`, two assertions pinning the `deep` and `max` tiers
+  to `gpt-6.1-sol` at `xhigh` and `max` reasoning effort through `--dry-run`.
 
-Expect all four, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (4)`.
-`--only orchestrator-config` cannot see the launch-worker pair; run both, or run the whole gate.
-**None of the four is a licence to edit a test.** Hard prohibitions forbids editing a gate to change
-what this run is judged by, a FIFTH unexplained FAIL is a real defect rather than the switch, and the
-revert clears all four.
+Expect all eight, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (8)`.
+`--only orchestrator-config` cannot see the launch-worker assertions; run both, or run the whole gate.
+**None of the eight is a licence to edit a test.** Hard prohibitions forbids editing a gate to change
+what this run is judged by, an additional unexplained failure is a real defect rather than the switch,
+and the revert clears all eight.
 
 **One further FAIL is load-sensitive, and it is not the switch.** `tools/__tests__/launch-worker.mjs`
 runs `a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real
