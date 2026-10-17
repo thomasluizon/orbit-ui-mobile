@@ -166,7 +166,7 @@ function HabitDescription({ description }: Readonly<{ description: string }>) {
         aria-expanded={descriptionOpen}
         aria-controls="habit-description"
         onClick={() => setDescriptionOpen((open) => !open)}
-        className="touch-target flex w-full min-w-0 touch-manipulation items-center gap-2 rounded-[8px] border-0 bg-transparent px-2 py-1 text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-2)] active:bg-[var(--bg-hover)] active:text-[var(--fg-2)] focus-visible:outline focus-visible:outline-2"
+        className="orbit-hover-text touch-target flex w-full min-w-0 touch-manipulation items-center gap-2 rounded-[8px] border-0 bg-transparent px-2 py-1 text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-2)] active:bg-[var(--bg-hover)] active:text-[var(--fg-2)] focus-visible:outline focus-visible:outline-2"
       >
         <span className={`min-w-0 flex-1 ${descriptionOpen ? '' : 'truncate'}`}>{descriptionOpen ? common('collapse') : description}</span>
         <ChevronDown aria-hidden="true" focusable="false" size={20} strokeWidth={1.5} className={`shrink-0 text-[var(--fg-2)] ${descriptionOpen ? 'rotate-180' : ''}`} />
