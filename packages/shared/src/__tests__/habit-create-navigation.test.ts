@@ -1,3 +1,4 @@
+import { cpuUsage } from 'node:process'
 import { describe, expect, it } from 'vitest'
 import { buildHabitCreateHref, resolveHabitCreateReturnPath } from '../utils/habit-create-navigation'
 
@@ -39,11 +40,11 @@ describe('habit creation navigation', () => {
     ['internal slashes', `/calendar/${'/'.repeat(50_000)}day`, true],
     ['trailing slashes on a recursive origin', `/habits/new${'/'.repeat(100_000)}`, false],
     ['protocol-relative slashes', '/'.repeat(100_000), false],
-  ] as const)('resolves %s within the navigation budget', (_description, from, accepted) => {
-    const started = performance.now()
+  ] as const)('resolves %s within the navigation CPU budget', (_description, from, accepted) => {
+    const started = cpuUsage()
     const result = resolveHabitCreateReturnPath(from)
-    const elapsed = performance.now() - started
+    const elapsed = cpuUsage(started)
     expect(result).toBe(accepted ? from : '/')
-    expect(elapsed).toBeLessThan(100)
+    expect((elapsed.user + elapsed.system) / 1000).toBeLessThan(100)
   })
 })
