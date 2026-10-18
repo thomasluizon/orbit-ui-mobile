@@ -4,8 +4,11 @@ import { FlatList, View, type FlatListProps } from 'react-native'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
-import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
+import { chatBlockLayoutCases, makeChatBlockLayoutMessage, chatPartsLayoutCases, makeChatPartsLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
+import { MessageBubble } from '@/components/message-bubble'
 import { AstraConversation } from '@/components/chat/conversation'
+import { BlockFrame } from '@/components/ui/block-frame'
+import { Markdown } from '@/components/ui/markdown'
 import { i18n } from '@/lib/i18n'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
@@ -74,4 +77,20 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
   } finally {
     await renderer.act(() => { feed.unmount(); conversation.unmount() })
   }
+})
+
+
+it.each(chatPartsLayoutCases)('renders $kind parts in server order on Android', async scenario => {
+  const message = makeChatPartsLayoutMessage(scenario)
+  let tree!: GeometryTree
+  await renderer.act(() => { tree = renderer.create(<MessageBubble message={message} isStreaming />) as GeometryTree })
+  try {
+    expect(tree.root.findAll(node => node.type === BlockFrame)).toHaveLength(0)
+    await renderer.act(() => { tree.update(<MessageBubble message={message} />) })
+    const parts = tree.root.findAll(node => node.type === BlockFrame || (node.type === View && node.props.testID === 'message-prose'))
+    expect(parts.map(part => part.type === BlockFrame ? part.props.title === i18n.t('chat.habitList.title') ? 'habitList' : 'metrics' : 'text')).toEqual(scenario.order)
+    const prose = parts.filter(part => part.type !== BlockFrame).map(part => part.findAll(node => node.type === Markdown)[0]!.props.children)
+    expect(prose).toEqual(scenario.kind === 'all skipped'
+      ? [message.content] : ['Here is what is left today.', 'And your week so far:'])
+  } finally { await renderer.act(() => { tree.unmount() }) }
 })

@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager, selectable BarChart columns and Perfil sub-menu amendments. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager, selectable BarChart columns, ordered Astra reply parts and Perfil sub-menu amendments. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
 
 ## The authority
@@ -17,6 +17,7 @@ that disagrees with production is a trap rather than an authority.
 | amendment | what changed | why |
 |---|---|---|
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
+| #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
@@ -57,6 +58,22 @@ that disagrees with production is a trap rather than an authority.
 Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
 mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
 TalkBack and real Android text rendering remain device-verification boundaries.
+
+### Ordered Astra reply surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Streaming reply | One selectable text part, with blocks withheld until final delivery. |
+| Ordered final reply | Text, habit list, text and metrics retain server order with a 16 gap; all nine existing block kinds use the platform registry. |
+| Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
+| Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
+| Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
+
+Chromium unit geometry covers the first text offset and scroll position during final replacement.
+Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
+the reading position until the next send or a deliberate return to the bottom.
+Native component tests cover ordering and the existing spacing cases. Whole-page layout remains
+owned by the layout workflow, and native text geometry remains a device-verification boundary.
 
 ### Hoje date pager amendment surface inventory
 

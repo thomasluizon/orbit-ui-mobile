@@ -277,9 +277,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   }, [recordingDuration]);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((afterScroll?: () => void) => {
     setTimeout(() => {
       if (threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotionRef.current });
+      afterScroll?.();
     }, 100);
   }, [threadScroll]);
 
@@ -452,7 +453,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const applyFinalResponse = useCallback(
-    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
+    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>) => {
+      if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
+        const accountGeneration = getAccountGeneration();
+        await firstReveal;
+        if (getAccountGeneration() !== accountGeneration) return;
+        threadScroll.holdPosition();
+      }
       setIsTyping(false);
       activeStepsRef.current = [];
       setActiveSteps([]);
@@ -509,6 +516,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
+      threadScroll,
       updateMessage,
     ],
   );
@@ -553,6 +561,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       };
 
       let draftMessageId: string | null = null;
+      const firstReveal = { completion: Promise.resolve() };
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
         draftMessageId = createChatMessageId();
@@ -564,7 +573,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
           content: "",
           timestamp: new Date(),
         });
-        scrollToBottom();
+        firstReveal.completion = new Promise<void>((resolve) => scrollToBottom(resolve));
         return draftMessageId;
       };
 
@@ -615,7 +624,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         if (!ownsAccount()) return false;
 
         if (outcome.kind === "final") {
-          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current);
+          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion);
           return true;
         }
         if (outcome.kind === "error") {

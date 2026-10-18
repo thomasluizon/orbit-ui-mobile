@@ -12,6 +12,7 @@ describe('chat final message fields', () => {
     })
     expect(buildChatFinalMessageFields(response, [{ domain: 'habits', access: 'read' }])).toEqual({
       content: 'Done',
+      parts: [{ type: 'text', text: 'Done' }],
       actions: [],
       followUps: ['Next'],
       correlationId: 'request',

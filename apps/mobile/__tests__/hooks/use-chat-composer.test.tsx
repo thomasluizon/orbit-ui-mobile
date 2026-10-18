@@ -4,7 +4,8 @@ import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
-import type { ChatMessage, ChatResponse } from '@orbit/shared/types/chat'
+import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
+import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -732,6 +733,78 @@ describe('mobile useChatComposer', () => {
       await send
       await vi.advanceTimersByTimeAsync(100)
     })
+  })
+
+  it('reveals streaming text before coalesced final blocks can move the reply below the viewport', async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    const revealedMessages: ChatMessage[] = []
+    const scrollToEnd = vi.fn(() => {
+      const message = useChatStore.getState().messages.at(-1)
+      if (message) revealedMessages.push(message)
+    })
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    composer.current.threadScroll.recordScroll(900, 900)
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    scrollToEnd.mockClear()
+    revealedMessages.length = 0
+    await TestRenderer.act(async () => {
+      stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage })) + finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await vi.advanceTimersByTimeAsync(100)
+      await send
+    })
+    expect(scrollToEnd).toHaveBeenCalled()
+    expect(revealedMessages.every(message => message.content === partsFixture.response.aiMessage && !message.parts?.some(part => part?.type === 'block'))).toBe(true)
+    expect(composer.current.messages.at(-1)?.parts?.filter(part => part?.type === 'block')).toHaveLength(2)
+    expect(composer.current.threadScroll.isFollowing()).toBe(false)
+    scrollToEnd.mockClear()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).not.toHaveBeenCalled()
+  })
+
+  it('holds the reading position when ordered final parts replace streaming text', async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    let conversation!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { conversation = TestRenderer.create(<Conversation chat={composer.current} />); mountedTrees.push(conversation) })
+    const scrollToEnd = vi.fn()
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    composer.current.threadScroll.recordScroll(900, 900)
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => stream.enqueue(frame(JSON.stringify({ type: 'delta', text: partsFixture.response.aiMessage }))))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).toHaveBeenCalled()
+    scrollToEnd.mockClear()
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(chatResponseSchema.parse(partsFixture.response)))
+      stream.close()
+      await send
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    await TestRenderer.act(() => {
+      conversation.update(<Conversation chat={composer.current} />)
+    })
+    const list = conversation.root.findAll((node: { props: { onContentSizeChange?: () => void } }) => typeof node.props.onContentSizeChange === 'function')[0]!
+    await TestRenderer.act(async () => { list.props.onContentSizeChange(); await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).not.toHaveBeenCalled()
+    expect(composer.current.threadScroll.isFollowing()).toBe(false)
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('another question')
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(scrollToEnd).toHaveBeenCalled()
   })
 
   it('preserves earlier reading through queued send and stream scrolls until the next send', async () => {

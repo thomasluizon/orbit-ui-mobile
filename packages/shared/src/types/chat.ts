@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ChatBlockKind } from '../chat/block-kinds'
 import { frequencyUnitSchema } from './habit'
 import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
 import {
@@ -25,6 +26,8 @@ export const chatClientContextSchema = z.object({
   supportsPendingOperationChanges: z.boolean().optional(),
   supportsToolSteps: z.boolean().optional(),
   supportsFollowUps: z.boolean().optional(),
+  supportsParts: z.boolean().optional(),
+  partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
 })
@@ -319,10 +322,60 @@ export const accountRowsCardSchema = z.object({
 
 export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
+const chatBlockSchemas = {
+  habitList: habitListCardSchema,
+  goalList: goalListCardSchema,
+  metrics: metricsCardSchema,
+  periodInsight: periodInsightCardSchema,
+  daySummary: daySummaryCardSchema,
+  streak: streakCardSchema,
+  calendar: calendarCardSchema,
+  recordList: recordListCardSchema,
+  accountRows: accountRowsCardSchema,
+} satisfies Record<ChatBlockKind, z.ZodType>
+
+function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
+  return z.object({ type: z.literal('block'), kind: z.literal(kind), block: chatBlockSchemas[kind] })
+}
+
+export const chatPartSchema = z.union([
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.discriminatedUnion('kind', [
+    blockPartSchema('habitList'),
+    blockPartSchema('goalList'),
+    blockPartSchema('metrics'),
+    blockPartSchema('periodInsight'),
+    blockPartSchema('daySummary'),
+    blockPartSchema('streak'),
+    blockPartSchema('calendar'),
+    blockPartSchema('recordList'),
+    blockPartSchema('accountRows'),
+  ]),
+]).nullable().catch(null)
+
+export type ChatPart = z.infer<typeof chatPartSchema>
+export type ChatBlockPart = Extract<ChatPart, { type: 'block' }>
+
+const replyCardFieldsShape = {
+  correlationId: z.string().nullable().optional(),
+  relatedSurfaces: z.array(z.string()).nullable().optional(),
+  habitList: habitListCardSchema.nullable().optional(),
+  goalList: goalListCardSchema.nullable().optional(),
+  metricsCard: metricsCardSchema.nullable().optional(),
+  periodInsight: periodInsightCardSchema.nullable().optional(),
+  daySummary: daySummaryCardSchema.nullable().optional(),
+  streak: streakCardSchema.nullable().optional(),
+  calendar: calendarCardSchema.nullable().optional(),
+  recordLists: z.array(recordListCardSchema).nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
+  followUps: z.array(z.string()).nullable().optional(),
+}
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
   content: z.string(),
+  parts: z.array(chatPartSchema).nullable().optional(),
   actions: z.array(actionResultSchema).optional(),
   operations: z.array(agentOperationResultSchema).nullable().optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
@@ -340,18 +393,7 @@ export const chatMessageSchema = z.object({
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
-  correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).nullable().optional(),
-  habitList: habitListCardSchema.nullable().optional(),
-  goalList: goalListCardSchema.nullable().optional(),
-  metricsCard: metricsCardSchema.nullable().optional(),
-  periodInsight: periodInsightCardSchema.nullable().optional(),
-  daySummary: daySummaryCardSchema.nullable().optional(),
-  streakCard: streakCardSchema.nullable().optional(),
-  calendarCard: calendarCardSchema.nullable().optional(),
-  recordList: recordListCardSchema.nullable().optional(),
-  accountRows: accountRowsCardSchema.nullable().optional(),
-  followUps: z.array(z.string()).nullable().optional(),
+  ...replyCardFieldsShape,
   toolSteps: z.array(z.object({ domain: z.string(), access: z.string() })).optional(),
   timestamp: z.date(),
 })
@@ -360,22 +402,12 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>
 
 export const chatResponseSchema = z.object({
   aiMessage: z.string().nullable().optional(),
+  parts: z.array(chatPartSchema).nullable().optional(),
   actions: z.array(actionResultSchema),
   operations: z.array(agentOperationResultSchema).nullable().optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
-  correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).nullable().optional(),
-  habitList: habitListCardSchema.nullable().optional(),
-  goalList: goalListCardSchema.nullable().optional(),
-  metricsCard: metricsCardSchema.nullable().optional(),
-  periodInsight: periodInsightCardSchema.nullable().optional(),
-  daySummary: daySummaryCardSchema.nullable().optional(),
-  streakCard: streakCardSchema.nullable().optional(),
-  calendarCard: calendarCardSchema.nullable().optional(),
-  recordList: recordListCardSchema.nullable().optional(),
-  accountRows: accountRowsCardSchema.nullable().optional(),
-  followUps: z.array(z.string()).nullable().optional(),
+  ...replyCardFieldsShape,
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

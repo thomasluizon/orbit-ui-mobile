@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
 
 describe('chat thread scroll', () => {
+  it('holds the reading position through content growth and resumes at the bottom or on a new send', () => {
+    const scroll = createChatThreadScroll()
+    scroll.recordScroll(900, 900)
+    scroll.holdPosition()
+    scroll.recordScroll(900, 1400)
+    expect(scroll.isFollowing()).toBe(false)
+    scroll.recordScroll(1400, 1400)
+    expect(scroll.isFollowing()).toBe(true)
+    scroll.holdPosition()
+    scroll.followLatest()
+    expect(scroll.isFollowing()).toBe(true)
+  })
+
   it('starts a new baseline when following resumes at a live offset', () => {
     const scroll = createChatThreadScroll()
     scroll.recordScroll(627, 627)

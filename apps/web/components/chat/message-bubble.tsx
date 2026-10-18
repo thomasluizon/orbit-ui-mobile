@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import {
   getRelatedSurfaces,
+  getChatMessageParts,
   hasChatProse,
   partitionMessageActions,
   selectMessageOperationBlocks,
@@ -20,32 +21,9 @@ import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
-import { GoalListCard } from './goal-list-card'
-import { HabitListCard } from './habit-list-card'
-import { MetricsCard } from './metrics-card'
-import { PeriodInsightCard } from './period-insight-card'
-import { DaySummaryCard } from './day-summary-card'
-import { StreakCard } from './streak-card'
-import { CalendarCard } from './calendar-card'
-import { RecordListCard } from './record-list-card'
-import { AccountRowsCard } from './account-rows-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
-
-function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBubbleProps, 'message'> & { isStreaming: boolean }>) {
-  if (isStreaming || message.role === 'user') return null
-  return (
-    <>
-      {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
-      {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
-      {message.daySummary ? <DaySummaryCard daySummary={message.daySummary} /> : null}
-      {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
-      {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
-      {message.recordList ? <RecordListCard recordList={message.recordList} /> : null}
-      {message.accountRows ? <AccountRowsCard accountRows={message.accountRows} /> : null}
-    </>
-  )
-}
+import { ChatBlock } from './block-registry'
 
 export function MessageBubble({
   message,
@@ -83,7 +61,7 @@ export function MessageBubble({
   }
 
   const isUser = message.role === 'user'
-  const sourceText = stripChatDirectives(message.content, isStreaming)
+  const parts = isUser ? [{ type: 'text' as const, text: message.content }] : getChatMessageParts(message, isStreaming)
 
   return (
     <div
@@ -101,43 +79,29 @@ export function MessageBubble({
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
-        {(isUser || hasChatProse(sourceText) || message.imageUrl) && <div
-          data-bubble-role={isUser ? 'user' : 'ai'}
-          className={
-            isUser
+        {parts.map((part, index) => {
+          if (!part) return null
+          if (part.type === 'block') return <ChatBlock key={index} part={part} onActionChipClick={onActionChipClick} />
+          const sourceText = stripChatDirectives(part.text, isStreaming)
+          if (!isUser && !hasChatProse(sourceText) && !(index === 0 && message.imageUrl)) return null
+          return <div
+            key={index}
+            data-bubble-role={isUser ? 'user' : 'ai'}
+            className={isUser
               ? 'select-text inline-block max-w-full bg-[var(--bg-well)] text-[var(--fg-1)]'
-              : 'select-text inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'
-          }
-          style={{
-            padding: isUser ? '12px 16px' : 0,
-            borderRadius: isUser ? 16 : 0,
-          }}
-        >
-          {message.imageUrl && (
-            <LocalImage
+              : 'select-text inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'}
+            style={{ padding: isUser ? '12px 16px' : 0, borderRadius: isUser ? 16 : 0 }}
+          >
+            {index === 0 && message.imageUrl && <LocalImage
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
               loading="lazy"
               className="rounded-[12px] w-[200px] max-w-full h-48 object-cover mb-2"
               style={{ border: '1px solid var(--hairline)' }}
-            />
-          )}
-          <Markdown
-            copyableBlocks={!isUser}
-            className="thread-prose"
-            content={isUser ? message.content : sourceText}
-          />
-        </div>}
-
-        {!isUser && message.habitList && (
-          <HabitListCard habitList={message.habitList} />
-        )}
-
-        {!isUser && message.goalList && (
-          <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, 'CreateGoal')} />
-        )}
-
-        <MessageMetricsBlocks message={message} isStreaming={isStreaming} />
+            />}
+            <Markdown copyableBlocks={!isUser} className="thread-prose" content={isUser ? part.text : sourceText} />
+          </div>
+        })}
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="w-full">
