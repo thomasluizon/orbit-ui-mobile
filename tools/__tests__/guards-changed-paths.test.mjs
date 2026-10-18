@@ -6,17 +6,15 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { guardGroups } from "./_guard-groups.mjs"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"))
 const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/test.yml"), "utf8"))
 const cases = [
   ["root-allowlist", "Workspace packages declare no ignored overrides", "package.json"],
-  ["root-allowlist", "The brand lockup's viewBox is exactly its ink", "design/brand/orbit-lockup.svg"],
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
-  ["lint-severity", "Changed lint inputs keep local rules blocking", "eslint.config.mjs"],
-  ["performance-workflow", "Changed performance machinery matches its generated workflow", "tools/generate-performance-workflow.mjs"],
   ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
 ]
 
@@ -52,7 +50,7 @@ function runCase(jobId, stepName, changedPath, mode, options = {}) {
     if (mode === "owned" || mode === "unowned") git(directory, "update-ref", "refs/remotes/origin/base", base)
     if (mode === "unfetched") git(directory, "update-ref", "refs/heads/base", base)
     const baseRef = mode === "missing" ? "missing" : "base"
-    const job = (options.workflow ?? workflow).jobs[jobId]
+    const job = guardGroups(options.workflow ?? workflow)[jobId]
     const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
     assert.ok(prepare?.run, `${jobId} must prepare changed paths in its own step`)
     const gate = job.steps.find((step) => step.name === stepName)
@@ -100,21 +98,69 @@ for (const [jobId, stepName, path, options] of [
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
-      runCase(jobId, stepName, path, mode, { workflow: testWorkflow, ...options })
+      runCase(jobId, stepName, path, mode, { workflow: jobId === "lint" ? testWorkflow : workflow, ...options })
     }
   })
 }
 
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "lint-severity", "parity", "expo-pin", "review-harness", "performance-workflow", "surface-manifest", "gate-charter"]
+    "parity", "expo-pin", "review-harness", "surface-manifest", "gate-charter"]
   for (const jobId of readers) {
-    const steps = workflow.jobs[jobId].steps
+    const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
     assert.ok(preparation > 0, `${jobId} must prepare paths after checkout`)
-    assert.equal(steps[preparation].if, "github.event_name == 'pull_request'")
+    assert.equal(steps[preparation].if, "${{ !cancelled() && (github.event_name == 'pull_request') }}")
     assert.ok(steps.slice(preparation + 1).some((step) => step.run?.includes("$RUNNER_TEMP/changed-paths")),
       `${jobId} must read the prepared list`)
   }
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
+})
+
+test("script guards share one checkout and install, and run after another guard fails", () => {
+  assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
+  const steps = workflow.jobs.guards.steps
+  assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
+  assert.equal(steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
+    assert.ok(step.name, `${step.id} must name the guard`)
+    assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
+    assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
+  }
+})
+
+test("calibration stays advisory and React Doctor retains its time limit", () => {
+  assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
+  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+})
+
+test("pull requests run each source check through one owner", () => {
+  assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
+  for (const id of ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"]) {
+    const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === id)
+    assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  }
+  assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
+  assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test -- --coverage"))
+})
+
+test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
+  const job = testWorkflow.jobs["tool-hook-tests"]
+  const step = job.steps.find((candidate) => candidate.run?.includes("node tools/check-surface-scope.mjs"))
+  assert.ok(step, "Tool and Hook Tests must execute the full-tree surface scope scan")
+  assert.equal(step.if, "${{ !cancelled() }}")
+  assert.doesNotMatch(step.run, /changed-paths/, "a mobile-only change must still run the full-tree scan")
+  assert.equal(job.needs, undefined)
+  assert.equal(testWorkflow.on.pull_request.paths, undefined)
+  const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
+  try {
+    mkdirSync(join(directory, "tools"))
+    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 0], [2, 2]]) {
+      writeFileSync(join(directory, "tools/check-surface-scope.mjs"), `process.exit(${checkerStatus})\n`)
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", step.run], { cwd: directory, encoding: "utf8" })
+      assert.equal(result.status, stepStatus, `checker exit ${checkerStatus} must end the step with ${stepStatus}`)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })

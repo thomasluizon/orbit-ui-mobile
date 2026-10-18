@@ -4,12 +4,13 @@ import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
   canNavigateToNextDay,
   formatAPIDate,
   getTodayBoundary,
 } from '@orbit/shared/utils'
+import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { Menu } from '@/components/ui/menu'
 import type { MenuProps } from '@orbit/shared/contracts/overlay'
@@ -32,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   focusCallbacks: [] as (() => void | (() => void))[],
   onboardingComplete: true,
   profileReady: true,
+  checklistProfile: null as Profile | null,
   habitsFailed: false,
   habitsFetching: false,
   plan: 'trial',
@@ -54,7 +56,7 @@ vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => (
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? mocks.checklistProfile ?? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
 
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
@@ -255,6 +257,7 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.checklistProfile = null
     mocks.habitsFailed = false
     mocks.habitsFetching = false
     mocks.onboardingComplete = true
@@ -272,6 +275,23 @@ describe('Hoje date boundaries', () => {
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'
     mocks.date.nextDisabled = false
+  })
+
+  it('dismisses the setup checklist from Today and keeps it dismissed after rehydration', async () => {
+    mocks.checklistProfile = createMockProfile({ isTrialActive: false, hasCreatedFirstHabit: true })
+    asyncStorageState.values.set('orbit-ui-store', JSON.stringify({ state: { setupChecklistDismissed: false }, version: 6 }))
+    await useUIStore.persist.rehydrate()
+    let page!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { page = TestRenderer.create(<TodayScreen />) })
+    const dismiss = page.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.today.setupChecklist.dismiss)
+    expect(dismiss).toHaveLength(1)
+    await TestRenderer.act(async () => { (dismiss[0]!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(page.root.findAll((node) => node.props.accessibilityLabel === en.today.setupChecklist.dismiss)).toHaveLength(0)
+    await TestRenderer.act(() => page.update(<></>))
+    await useUIStore.persist.rehydrate()
+    await TestRenderer.act(() => { page.update(<TodayScreen />) })
+    expect(page.root.findAll((node) => node.props.accessibilityLabel === en.today.setupChecklist.dismiss)).toHaveLength(0)
+    await TestRenderer.act(() => page.update(<></>))
   })
 
   it('applies frequency choices to the day query and retains them across date and screen changes', async () => {

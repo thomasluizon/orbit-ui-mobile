@@ -13,8 +13,6 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 228,
-  "cellCount": 1076,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -653,6 +651,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -670,6 +669,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -687,6 +687,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -704,6 +705,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -721,6 +723,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -738,6 +741,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -755,6 +759,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -772,6 +777,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -7713,6 +7719,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7743,6 +7750,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7773,6 +7781,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7803,6 +7812,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7833,6 +7843,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7863,6 +7874,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7893,6 +7905,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7923,6 +7936,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
