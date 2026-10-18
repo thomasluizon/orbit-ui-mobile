@@ -76,6 +76,7 @@ function MenuSheet({
   shortTitle,
   titleMode,
   finalFocus,
+  onSelectStart,
 }: Readonly<{
   id?: string
   items: readonly MenuItem[]
@@ -85,6 +86,7 @@ function MenuSheet({
   shortTitle?: string
   titleMode?: MenuProps['titleMode']
   finalFocus: () => boolean | HTMLElement
+  onSelectStart: () => void
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
@@ -93,12 +95,13 @@ function MenuSheet({
       <div id={id} role="menu" aria-label={title} onKeyDown={moveMenuFocus}>
         <MenuItems
           items={items}
-          onActivate={(id) =>
+          onActivate={(id) => {
+            onSelectStart()
             closeSheet(() => {
               onClose?.()
               onSelect?.(id)
             })
-          }
+          }}
         />
       </div>
     </Sheet>
@@ -219,7 +222,8 @@ export function Menu({
   align = 'end',
   wideFrom = DEFAULT_WIDE_FROM,
   returnFocus,
-}: Readonly<MenuProps & { returnFocus?: () => HTMLElement | null }>) {
+  restoreFocusOnSelect = true,
+}: Readonly<MenuProps & { returnFocus?: () => HTMLElement | null; restoreFocusOnSelect?: boolean }>) {
   const wide = useWidePresentation(wideFrom)
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
@@ -270,6 +274,10 @@ export function Menu({
     }
   }, [anchorRef, dismissed, open, resolvedPresentation])
 
+  function handleSelectStart() {
+    if (!restoreFocusOnSelect) restoreFocusOnCleanupRef.current = false
+  }
+
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
       event.preventDefault()
@@ -287,7 +295,7 @@ export function Menu({
   if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} titleMode={titleMode} finalFocus={restoreSheetFocus} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} titleMode={titleMode} finalFocus={restoreSheetFocus} onSelectStart={handleSelectStart} />
   }
 
   if (!portalTarget) return null
@@ -304,6 +312,7 @@ export function Menu({
       <MenuItems
         items={items}
         onActivate={(id) => {
+          handleSelectStart()
           onClose?.()
           onSelect?.(id)
         }}

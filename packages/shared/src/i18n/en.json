@@ -1661,6 +1661,10 @@
       "rejected": "{name} was rejected. Nothing was saved."
     },
     "breakdown": {
+      "unnamedHabit": "Untitled habit",
+      "removeTitle": "Remove habit?",
+      "removeBody": "Remove “{name}” from this proposal? It will not be created when you approve.",
+      "empty": "No proposed habits remain.",
       "title": "Split {name}",
       "frequency": "Change the frequency of {name}",
       "conflict": "A habit called {name} already exists.",
@@ -3477,7 +3481,8 @@
       },
       "progress": "{done} of {total} done",
       "complete": "You're all set.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "dismissError": "Could not dismiss the checklist. Try again."
     }
   },
   "terms": {
