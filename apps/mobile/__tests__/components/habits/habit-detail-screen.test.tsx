@@ -37,6 +37,9 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
+const clipboard = vi.hoisted(() => ({ setString: vi.fn(), getString: vi.fn() }))
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+
 const TestRenderer = require('react-test-renderer')
 
 interface TestNode {
@@ -1745,13 +1748,52 @@ describe('HabitDetailScreen', () => {
     expect(StyleSheet.flatten(body.props.contentContainerStyle)).toMatchObject({ gap: 24 })
   })
 
+  it('keeps manual description selection outside the disclosure press target after copy fails', async () => {
+    const description = 'A note worth selecting\nWith the complete second line'
+    mocks.detail = { ...makeDetail(), description }
+    clipboard.getString.mockRejectedValue(new Error('denied'))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const toggle = () => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === description || node.props.accessibilityLabel === 'common.collapse')!
+    TestRenderer.act(() => toggle().props.onPress())
+    const copy = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.copyDescription')!
+    await TestRenderer.act(async () => { copy.props.onPress(); await Promise.resolve() })
+    expect(textsOf(tree.root)).toContain('habits.detail.copyFailed')
+    const selectedText = tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === description && node.props.selectable)!
+    expect(selectedText).toBeDefined()
+    for (let ancestor = selectedText.parent; ancestor; ancestor = ancestor.parent) {
+      expect(ancestor.type, 'Selection release must not activate a disclosure ancestor').not.toBe('Pressable')
+    }
+    expect(toggle().props.accessibilityState.expanded).toBe(true)
+    TestRenderer.act(() => toggle().props.onPress())
+    expect(toggle().props.accessibilityState.expanded).toBe(false)
+    TestRenderer.act(() => toggle().props.onPress())
+    expect(toggle().props.accessibilityState.expanded).toBe(true)
+    expect(tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === description && node.props.selectable)).toBeDefined()
+  })
+
+  it('copies the full description from habit details', async () => {
+    const description = '**A full note**\n\n' + 'Long description. '.repeat(100)
+    mocks.detail = { ...makeDetail(), description }
+    clipboard.getString.mockResolvedValue(description)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: description }).props.onPress())
+    const copy = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.copyDescription')
+    expect(copy).toBeDefined()
+    await TestRenderer.act(async () => { await copy!.props.onPress() })
+    expect(clipboard.setString).toHaveBeenCalledWith(description)
+    expect(clipboard.getString).toHaveBeenCalled()
+    expect(tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === description && node.props.selectable)).toBeDefined()
+  })
+
   it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
     mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
     mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const tags = tree.root.findAllByType('View').filter((node: TestNode) => node.props.testID === 'habit-detail-tags')
-    const description = tree.root.findAllByType('Pressable').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
+    const description = tree.root.findAllByType('View').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
     expect(tags).toHaveLength(hasTags ? 1 : 0)
     expect(description).toHaveLength(hasDescription ? 1 : 0)
     const header = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-header-row')!
@@ -1781,13 +1823,13 @@ describe('HabitDetailScreen', () => {
     if (hasDescription) {
       const target = tree.root.findByProps({ accessibilityLabel: 'A note about this routine' })
       expect(target.props.accessibilityHint).toBe('habits.detail.viewDescription')
-      expect(StyleSheet.flatten(target.props.style).minHeight).toBe(48)
+      expect(StyleSheet.flatten(typeof target.props.style === 'function' ? target.props.style({ pressed: false }) : target.props.style).minHeight).toBe(48)
       expect(target.props.hitSlop).toBeUndefined()
       expect(target.props.accessibilityState.expanded).toBe(false)
       expect(target.findByType('Text').props.numberOfLines).toBe(1)
       TestRenderer.act(() => target.props.onPress())
       expect(target.props.accessibilityState.expanded).toBe(true)
-      expect(target.findByType('Text').props.numberOfLines).toBeUndefined()
+      expect(tree.root.findAllByType('Text').find((node: TestNode) => node.props.children === 'A note about this routine' && node.props.selectable)).toBeDefined()
       TestRenderer.act(() => target.props.onPress())
       expect(target.props.accessibilityState.expanded).toBe(false)
     }
