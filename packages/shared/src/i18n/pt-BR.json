@@ -1213,6 +1213,172 @@
     }
   },
   "chat": {
+    "templates": {
+      "title": "Ideias",
+      "browse": "Ver ideias",
+      "back": "Voltar à conversa",
+      "search": "Buscar ideias",
+      "forYou": "Para você agora",
+      "noMatches": "Nenhuma ideia para “{query}”.",
+      "clearSearch": "Limpar busca",
+      "more": "Mais ideias",
+      "previous": "Ideias anteriores",
+      "draftKept": "Seu rascunho está guardado. Apague o texto para editar esta ideia.",
+      "categories": {
+        "start": "Começar",
+        "remember": "Lembrar",
+        "many": "Vários de uma vez",
+        "restart": "Recomeçar",
+        "understand": "Entender",
+        "calendar": "Calendário"
+      },
+      "items": {
+        "morning": {
+          "label": "Montar minha manhã",
+          "prompt": "Me ajude a montar uma rotina simples de manhã."
+        },
+        "evening": {
+          "label": "Montar minha noite",
+          "prompt": "Me ajude a montar uma rotina simples à noite."
+        },
+        "oneHabit": {
+          "label": "Começar um hábito",
+          "prompt": "Me ajude a começar um hábito pequeno."
+        },
+        "goalHabits": {
+          "label": "Hábitos para uma meta",
+          "prompt": "Transforme minha meta de '{'meta'}' em hábitos pequenos."
+        },
+        "habitReminder": {
+          "label": "Hábito com lembrete",
+          "prompt": "Crie um hábito de '{'hábito'}' com lembrete às '{'hora'}'."
+        },
+        "smallSteps": {
+          "label": "Dividir em passos",
+          "prompt": "Divida meu hábito de '{'hábito'}' em passos pequenos."
+        },
+        "setReminder": {
+          "label": "Criar um lembrete",
+          "prompt": "Me lembre de '{'hábito'}' às '{'hora'}'."
+        },
+        "changeReminder": {
+          "label": "Mudar um lembrete",
+          "prompt": "Mude o lembrete de '{'hábito'}' para '{'hora'}'."
+        },
+        "dueToday": {
+          "label": "O que falta hoje?",
+          "prompt": "Quais hábitos ainda faltam hoje?"
+        },
+        "tonight": {
+          "label": "Planejar esta noite",
+          "prompt": "Me ajude a planejar esta noite com os hábitos que faltam."
+        },
+        "reviewReminders": {
+          "label": "Rever meus lembretes",
+          "prompt": "Me mostre os lembretes dos meus hábitos."
+        },
+        "busyReminders": {
+          "label": "Lembrar em dias cheios",
+          "prompt": "Me ajude a escolher lembretes para meus dias cheios."
+        },
+        "moveToday": {
+          "label": "Mudar os hábitos de hoje",
+          "prompt": "Passe os hábitos que faltam hoje para amanhã."
+        },
+        "changeTimes": {
+          "label": "Mudar vários horários",
+          "prompt": "Me ajude a mudar os horários de vários hábitos de uma vez."
+        },
+        "skipToday": {
+          "label": "Pular o que falta hoje",
+          "prompt": "Pule os hábitos que faltam hoje."
+        },
+        "logMany": {
+          "label": "Registrar vários hábitos",
+          "prompt": "Registre '{'hábitos'}' como feitos hoje."
+        },
+        "tagGroup": {
+          "label": "Agrupar com tag",
+          "prompt": "Adicione a tag '{'tag'}' a '{'hábitos'}'."
+        },
+        "pauseMany": {
+          "label": "Pausar vários hábitos",
+          "prompt": "Me ajude a pausar vários hábitos nesta semana."
+        },
+        "afterDay": {
+          "label": "Voltar após um dia parado",
+          "prompt": "Me ajude a recomeçar depois de um dia sem fazer meus hábitos."
+        },
+        "afterWeek": {
+          "label": "Voltar após uma semana difícil",
+          "prompt": "Me ajude a recomeçar depois de uma semana difícil."
+        },
+        "smallerHabit": {
+          "label": "Diminuir um hábito",
+          "prompt": "Me ajude a diminuir meu hábito de '{'hábito'}'."
+        },
+        "keepOne": {
+          "label": "Ficar com um hábito",
+          "prompt": "Me ajude a escolher um hábito para retomar hoje."
+        },
+        "lighterWeek": {
+          "label": "Aliviar esta semana",
+          "prompt": "Me ajude a deixar a rotina desta semana mais leve."
+        },
+        "easierTime": {
+          "label": "Achar um horário melhor",
+          "prompt": "Me ajude a achar um horário melhor para '{'hábito'}'."
+        },
+        "reviewWeek": {
+          "label": "Rever minha semana",
+          "prompt": "Me ajude a rever como foram meus hábitos nesta semana."
+        },
+        "missedHabit": {
+          "label": "Ver o que fica para trás",
+          "prompt": "Qual hábito tenho deixado de fazer com mais frequência?"
+        },
+        "streak": {
+          "label": "Entender minha sequência",
+          "prompt": "Me explique como funciona minha sequência."
+        },
+        "freezes": {
+          "label": "Entender os congelamentos",
+          "prompt": "Me explique como funcionam os congelamentos da sequência."
+        },
+        "whatWorks": {
+          "label": "Ver o que funciona",
+          "prompt": "Quais hábitos têm sido mais fáceis de manter?"
+        },
+        "reviewGoals": {
+          "label": "Rever minhas metas",
+          "prompt": "Me ajude a rever o andamento das minhas metas."
+        },
+        "aroundEvents": {
+          "label": "Planejar entre eventos",
+          "prompt": "Me ajude a encaixar os hábitos de hoje entre os eventos da agenda."
+        },
+        "importWeek": {
+          "label": "Importar esta semana",
+          "prompt": "Importe os eventos desta semana do Google Agenda."
+        },
+        "todayEvents": {
+          "label": "Ver os eventos de hoje",
+          "prompt": "Me mostre os eventos de hoje da agenda."
+        },
+        "findTime": {
+          "label": "Achar tempo para um hábito",
+          "prompt": "Ache um horário para '{'hábito'}' entre os eventos de hoje."
+        },
+        "tomorrow": {
+          "label": "Planejar amanhã",
+          "prompt": "Me ajude a planejar os hábitos de amanhã entre os eventos da agenda."
+        },
+        "busyDay": {
+          "label": "Aliviar um dia cheio",
+          "prompt": "Me ajude a aliviar os hábitos nos dias com muitos eventos na agenda."
+        }
+      }
+    },
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
     "title": "Astra",
     "offline": {

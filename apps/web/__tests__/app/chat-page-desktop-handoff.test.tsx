@@ -159,7 +159,9 @@ describe('ChatPage', () => {
     render(<ChatPage />)
 
     expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
-    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+    expect(within(screen.getByRole('feed')).getAllByRole('button')).toEqual([
+      within(screen.getByRole('feed')).getByRole('button', { name: 'chat.templates.browse' }),
+    ])
   })
 
   it('sends the selected live suggestion', () => {
@@ -172,7 +174,9 @@ describe('ChatPage', () => {
     })))]
     render(<ChatPage />)
 
-    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+    expect(within(screen.getByRole('feed')).getAllByRole('button')).toEqual([
+      within(screen.getByRole('feed')).getByRole('button', { name: 'chat.templates.browse' }),
+    ])
     fireEvent.click(within(screen.getByRole('group', { name: 'live suggestions' })).getAllByRole('button')[0]!)
 
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith(chips[0]!.prompt ?? chips[0]!.promptKey ?? chips[0]!.key)

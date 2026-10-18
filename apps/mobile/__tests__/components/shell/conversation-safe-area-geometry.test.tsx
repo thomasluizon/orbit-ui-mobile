@@ -49,7 +49,7 @@ it.each([0, 24, 48].flatMap((top) => [true, false].map((safeAreaTop) => ({ top, 
     })
     try {
       const empty = tree.root.findAll((node) => node.type === ChatEmptyState)[0]!.findAll((node: { type: unknown }) => node.type === 'ScrollView')[0]!
-      expect(empty.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+      expect(empty.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
       const geometry = measureSafeArea(tree.toJSON(), (host) => {
         if (host.props.testID === 'shell-conversation') return 'layer'
         if (host.props.testID === 'nav-header-plain') return 'header'

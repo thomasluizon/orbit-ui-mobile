@@ -72,7 +72,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
             expect(await feed.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
           } else {
             await expect(feed.getByText(words.chat.empty.title, { exact: true })).toBeVisible()
-            await expect(feed.getByRole('button')).toHaveCount(0)
+            await expect(feed.getByRole('button', { name: words.chat.templates.browse })).toHaveCount(1)
           }
           const box = (await conversation.boundingBox())!
           for (const edge of ['x', 'width'] as const) expect(Math.abs(box[edge] - column![edge])).toBeLessThanOrEqual(0.5)

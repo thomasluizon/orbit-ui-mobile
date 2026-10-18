@@ -176,6 +176,7 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
 }
 
 type MobileComposerProps = ComposerProps & {
+  inputSelection?: { start: number; end: number }
   autoFocus?: boolean
   onInputFocus?: () => void
   onInputBlur?: () => void
@@ -417,6 +418,11 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const composerRef = useRef<View>(null)
   const focusedTarget = useRef<'container' | 'input' | null>(null)
   const autoFocusApplied = useRef(false)
+  useEffect(() => {
+    if (!props.inputSelection) return
+    focusTarget.current?.focus()
+    focusTarget.current?.setSelection(props.inputSelection.start, props.inputSelection.end)
+  }, [props.inputSelection])
   useEffect(() => {
     if (!props.autoFocus) {
       autoFocusApplied.current = false

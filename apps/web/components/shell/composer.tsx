@@ -23,6 +23,7 @@ import { CompactComposerMenuContext } from './shell-pinned-content'
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
   inputId?: string
+  inputSelection?: { start: number; end: number }
   autoFocus?: boolean
 }
 
@@ -207,6 +208,11 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (!props.inputSelection) return
+    inputRef.current?.focus()
+    inputRef.current?.setSelectionRange(props.inputSelection.start, props.inputSelection.end)
+  }, [props.inputSelection])
   useEffect(() => {
     if (props.state !== 'offline' && props.state !== 'atLimit') return
     const input = inputRef.current
