@@ -119,7 +119,7 @@ export {
   validateApiResponse,
   validateApiRequest,
 } from './error-utils'
-export { isFeatureEnabled } from './config'
+export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
