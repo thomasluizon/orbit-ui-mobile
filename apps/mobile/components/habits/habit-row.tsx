@@ -111,7 +111,6 @@ export interface HabitRowProps {
   childrenTotal?: number
   actions?: HabitRowActions
   style?: StyleProp<ViewStyle>
-  panelStart?: boolean
   panelEnd?: boolean
   hasProAccess?: boolean
 }
@@ -189,10 +188,7 @@ function useBodyPressFeedback(
   const [pressed, setPressed] = useState(false)
   return {
     metaColor: pressed ? tokens.fg2 : tokens.fg3,
-    feedbackStyle:
-      pressed
-        ? { borderColor: tokens.hairlineStrong }
-        : null,
+    outlineColor: pressed ? tokens.hairlineStrong : tokens.hairline,
     onPressIn: () => setPressed(true),
     onPressOut: () => setPressed(false),
   }
@@ -201,30 +197,21 @@ function useBodyPressFeedback(
 function buildRowStyle({
   child,
   selected,
-  panelStart,
-  panelEnd,
   tokens,
 }: Readonly<{
   child: boolean
   selected: boolean
-  panelStart: boolean
-  panelEnd: boolean
   tokens: ReturnType<typeof createTokensV2>
 }>): ViewStyle {
   return {
     minHeight: child ? 52 : 68,
-    marginBottom: panelEnd ? 12 : 0,
     backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
-    borderColor: tokens.hairline,
-    borderTopWidth: panelStart ? StyleSheet.hairlineWidth : 0,
-    borderBottomWidth: panelEnd ? StyleSheet.hairlineWidth : 0,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: panelStart ? 20 : 0,
-    borderTopRightRadius: panelStart ? 20 : 0,
-    borderBottomLeftRadius: panelEnd ? 20 : 0,
-    borderBottomRightRadius: panelEnd ? 20 : 0,
+    borderRadius: 20,
   }
+}
+
+function habitRowSpacing(panelEnd: boolean): ViewStyle {
+  return { paddingBottom: panelEnd ? 12 : 4 }
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -245,7 +232,6 @@ export const HabitRow = memo(function HabitRow({
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
-  panelStart = true,
   panelEnd = true,
   hasProAccess = true,
 }: Readonly<HabitRowProps>) {
@@ -333,8 +319,6 @@ export const HabitRow = memo(function HabitRow({
   const rowStyle = buildRowStyle({
     child: isChild,
     selected: isSelected,
-    panelStart,
-    panelEnd,
     tokens,
   })
 
@@ -432,9 +416,9 @@ export const HabitRow = memo(function HabitRow({
   )
 
   return (
-    <View>
+    <View style={habitRowSpacing(panelEnd)}>
       <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
-        rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
+        rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
@@ -458,11 +442,12 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
   largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   rowStyle: StyleProp<ViewStyle>
+  outlineColor: string
   primaryButton: ReactNode
   primaryContent: ReactNode
   metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
@@ -493,6 +478,8 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryB
           </View>
         </View>
       ) : null}
+      <View testID="habit-row-outline" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1, borderRadius: 20, borderColor: outlineColor }} />
     </View>
   )
 }

@@ -1,6 +1,5 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useEffect, useRef } from 'react'
-import { View } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -10,7 +9,7 @@ import Animated, {
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { createTokensV2 } from '@/lib/theme'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from './habit-check'
 
 interface CheckCircleProps {
   state: HabitStatus
@@ -20,7 +19,6 @@ interface CheckCircleProps {
   accessibilityLabel: string
   accessibilityHint?: string
   tokens: ReturnType<typeof createTokensV2>
-  size?: number
 }
 
 export function CheckCircle({
@@ -31,7 +29,6 @@ export function CheckCircle({
   accessibilityLabel,
   accessibilityHint,
   tokens,
-  size = 30,
 }: Readonly<CheckCircleProps>) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const popScale = useSharedValue(1)
@@ -56,6 +53,7 @@ export function CheckCircle({
       onPress={onToggle}
       disabled={disabled}
       hitSlop={0}
+      focusOffset={-10}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={disabled ? accessibilityHint : undefined}
@@ -64,7 +62,7 @@ export function CheckCircle({
         return {
           width: 48,
           minHeight: 48,
-          borderRadius: 999,
+          borderRadius: 22,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
@@ -75,9 +73,7 @@ export function CheckCircle({
       }}
     >
       <Animated.View style={popStyle} accessible={false}>
-        {unavailable
-          ? <View testID="unavailable-status-dot" style={{ width: size, height: size, borderRadius: 999, backgroundColor: tokens.bgWell }} />
-          : <StatusRing status={state} size={size} label={accessibilityLabel} />}
+        <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel} />
       </Animated.View>
     </Pressable>
   )
