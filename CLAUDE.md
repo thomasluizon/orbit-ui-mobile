@@ -56,7 +56,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI specification, authority order, information architecture and bans; read before frontend work. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
-| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
+| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render releases with redesign Worker route verification. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
