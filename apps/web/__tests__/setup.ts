@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { vi } from 'vitest'
+
+vi.mock('server-only', () => ({}))
 
 Object.defineProperty(globalThis, 'AsyncLocalStorage', {
   value: AsyncLocalStorage,

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { setSessionCookies } from '@/lib/auth-api'
+import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import { buildAuthErrorPayload, buildRequestIdResponseHeaders, ORBIT_REQUEST_ID_HEADER, resolveRequestId, resolveResponseRequestId } from '@/lib/auth-proxy'
 import { googleCodeAuthRequestSchema, googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
@@ -58,7 +59,11 @@ export async function POST(request: NextRequest) {
   try {
     const response = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/google/code`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', [ORBIT_REQUEST_ID_HEADER]: requestId },
+      headers: {
+        ...buildBffForwardingHeaders(request),
+        'Content-Type': 'application/json',
+        [ORBIT_REQUEST_ID_HEADER]: requestId,
+      },
       body: JSON.stringify(body),
     })
     const data: unknown = await response.json().catch(() => null)
