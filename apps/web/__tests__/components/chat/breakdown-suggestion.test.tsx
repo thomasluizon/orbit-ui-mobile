@@ -15,8 +15,8 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button type="button" onClick={onConfirm}>confirm-breakdown</button> : null,
+  ConfirmSheet: ({ open, onConfirm, onCancel, destructive, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; destructive?: boolean; message: string }) =>
+    open ? <div role="dialog" aria-label={message}><button type="button" onClick={onConfirm}>{destructive ? 'confirm-remove' : 'confirm-breakdown'}</button><button type="button" onClick={onCancel}>cancel-confirmation</button></div> : null,
 }))
 
 let isPending = false
@@ -34,12 +34,81 @@ const defaultProps = {
 }
 
 beforeEach(() => {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({ matches: true, media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() }))
   isPending = false
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
 
 afterEach(() => vi.restoreAllMocks())
+
+it('confirms removal of a named proposal and submits only the retained row', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody.*Dishes/)
+  expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'cancel-confirmation' }))
+  expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
+  expect(screen.queryByRole('button', { name: 'Dishes' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'habits.actions.more' })).toHaveFocus()
+  expect(screen.getByRole('button', { name: 'Laundry' })).toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate.mock.calls[0]?.[0]).toEqual({ habits: [expect.objectContaining({ title: 'Laundry', frequencyUnit: 'Week' })] })
+  expect(screen.queryByRole('button', { name: /habits\.breakdown\.removeHabit/ })).not.toBeInTheDocument()
+})
+
+it('disables approval when every proposed row has been removed', async () => {
+  render(<BreakdownSuggestion {...defaultProps} />)
+  for (const name of ['Dishes', 'Laundry']) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`habits\\.breakdown\\.removeHabit.*${name}`) }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
+  }
+  expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'primary')
+  expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toHaveAttribute('data-variant', 'secondary')
+  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  expect(await screen.findByRole('menuitem', { name: 'chat.preview.edit' })).toBeDisabled()
+  expect(screen.getByRole('menuitem', { name: 'chat.preview.reject' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(bulkCreate).not.toHaveBeenCalled()
+})
+
+it('disables proposal removal while creation is pending', () => {
+  isPending = true
+  render(<BreakdownSuggestion {...defaultProps} />)
+  const remove = screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ })
+  expect(remove).toBeDisabled()
+  fireEvent.click(remove)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+it('keeps a removed row out of the error recovery request', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.retryError'))
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: /habits\.breakdown\.removeHabit.*Dishes/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /habits\.breakdown\.removeHabit.*Laundry/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'chat.preview.approve' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /chat\.batch\.retry/ }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate).toHaveBeenCalledTimes(2)
+  for (const [request] of bulkCreate.mock.calls) expect(request).toEqual({ habits: [expect.objectContaining({ title: 'Laundry' })] })
+})
 
 describe('BreakdownSuggestion', () => {
 
@@ -50,7 +119,7 @@ describe('BreakdownSuggestion', () => {
     expect(bulkCreate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
     expect(bulkCreate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
 
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(1))
     expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
@@ -59,7 +128,8 @@ describe('BreakdownSuggestion', () => {
   it('collapses a rejected preview in place', () => {
     render(<BreakdownSuggestion {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.reject' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
     expect(screen.queryByRole('button', { name: 'chat.preview.approve' })).not.toBeInTheDocument()
@@ -120,7 +190,7 @@ describe('BreakdownSuggestion', () => {
     render(<BreakdownSuggestion {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
     const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
     fireEvent.click(retry)
 
@@ -144,7 +214,7 @@ it('keeps complete successful proposal names reachable without editing', async (
   render(<BreakdownSuggestion {...defaultProps} subHabits={[{ title, frequencyUnit: 'Day' }]} />)
   expect(screen.getByRole('button', { name: title })).toHaveStyle({ color: 'var(--fg-3)' })
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(screen.getByRole('button', { name: title }).closest('[data-status]')).toHaveAttribute('data-status', 'done'))
   expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   const disclosure = screen.getByRole('button', { name: title })
@@ -175,7 +245,7 @@ it('adds and focuses an editable one-time row, then approves it in the same batc
   expect(bulkCreate).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
   expect(bulkCreate).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
   expect(bulkCreate).toHaveBeenCalledTimes(1)
   expect(bulkCreate.mock.calls[0]?.[0]).toMatchObject({ habits: [
@@ -200,7 +270,7 @@ it('keeps multiple added drafts distinct and ignores blanks when mapping failure
   fireEvent.change(inputs[1]!, { target: { value: 'Sweep' } })
   fireEvent.blur(inputs[1]!)
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
   expect(screen.getByRole('button', { name: 'Sweep' }).closest('[data-status]')).toHaveAttribute('data-status', 'failed')
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
@@ -221,11 +291,13 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
   fireEvent.blur(screen.getByRole('textbox'))
   for (let attempt = 1; attempt <= 2; attempt++) {
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(attempt))
     await waitFor(() => expect(screen.getByText('habits.breakdown.capacityDenied')).toHaveAttribute('role', 'status'))
     expect(screen.getByRole('alert')).toBeEmptyDOMElement()
-    expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    expect(screen.getByRole('menuitem', { name: 'chat.preview.reject' })).toBeEnabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('button', { name: /chat\.batch\.retry/ })).not.toBeInTheDocument()
     expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   }
@@ -233,9 +305,11 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Kitchen dishes' } })
   fireEvent.blur(screen.getByRole('textbox'))
   fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Sweep/ }))
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   fireEvent.click(screen.getByRole('button', { name: /chat\.breakdown\.frequency.*Kitchen dishes/ }))
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
   expect(bulkCreate.mock.calls[2]?.[0].habits).toMatchObject([
     { title: 'Kitchen dishes', frequencyUnit: 'Week' }, { title: 'Laundry' },
@@ -252,6 +326,8 @@ it('stops adding at 100 rows and allows adding again after removal', () => {
   fireEvent.click(add)
   expect(screen.getAllByRole('textbox')).toHaveLength(1)
   fireEvent.click(screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 0"})'))
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   expect(add).toBeEnabled()
   expect(screen.queryByText(/habits\.breakdown\.limit/)).not.toBeInTheDocument()
 })
@@ -266,13 +342,15 @@ it('never submits an oversized incoming proposal until it is reduced', async () 
   const computedStyle = vi.spyOn(window, 'getComputedStyle')
   const actions = within(screen.getByRole('group', { name: '' }))
   fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByText('confirm-breakdown', { selector: 'button' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   expect(bulkCreate).not.toHaveBeenCalled()
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   fireEvent.click(screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 0"})'))
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
   expect(bulkCreate).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByText('confirm-breakdown', { selector: 'button' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
   expect(bulkCreate).toHaveBeenCalledTimes(1)
   expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
@@ -288,9 +366,10 @@ it('keeps an all-failed response editable and rejectable', async () => {
   bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Failed', 'Failed']))
   render(<BreakdownSuggestion {...defaultProps} />)
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('habits.breakdown.createError'))
-  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.reject' }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'chat.preview.reject' }))
   expect(screen.getByRole('status')).toHaveTextContent('chat.preview.rejected')
 })
 
@@ -300,7 +379,7 @@ it('preserves successful rows when retry requests keep failing', async () => {
     : Promise.reject(new Error('unavailable')))
   render(<BreakdownSuggestion {...defaultProps} />)
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
   for (let attempt = 2; attempt <= 3; attempt++) {
     fireEvent.click(retry)
@@ -328,7 +407,7 @@ it('does not send blank-only drafts and can add to an empty proposal', async () 
   fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
   fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } })
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
-  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(bulkCreate).not.toHaveBeenCalled())
   expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
 })
@@ -342,4 +421,29 @@ it('keeps a blank added row editable when it is focused again', () => {
   fireEvent.focus(input)
   fireEvent.change(input, { target: { value: 'Sweep' } })
   expect(screen.getByRole('textbox')).toHaveValue('Sweep')
+})
+
+it('names and confirms removal of a whitespace-only added draft', () => {
+  render(<BreakdownSuggestion {...defaultProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'habits.breakdown.addHabit' }))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } })
+  fireEvent.blur(screen.getByRole('textbox'))
+  const remove = screen.getAllByRole('button', { name: /habits\.breakdown\.removeHabit/ }).at(-1)!
+  expect(remove).toHaveAccessibleName('habits.breakdown.removeHabit({"name":"chat.breakdown.unnamedHabit"})')
+  fireEvent.click(remove)
+  expect(screen.getByRole('dialog')).toHaveAccessibleName('chat.breakdown.removeBody({"name":"chat.breakdown.unnamedHabit"})')
+  expect(screen.getByRole('textbox')).toHaveValue('   ')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Laundry' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toBeEnabled()
+  expect(bulkCreate).not.toHaveBeenCalled()
+})
+
+it('limits the preview footer to three visible actions', () => {
+  const { container } = render(<BreakdownSuggestion {...defaultProps} />)
+  const footer = container.querySelector('[data-slot="action-row"]')!
+  expect(within(footer as HTMLElement).getAllByRole('button')).toHaveLength(3)
 })
