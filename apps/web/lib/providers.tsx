@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { useShellStore } from '@/stores/shell-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { ServiceWorkerBridge } from '@/components/service-worker-bridge'
+import { DesignCookieSync } from '@/components/design-cookie-sync'
 import { getQueryClient } from './query-client'
 import type { ReactNode } from 'react'
 
@@ -18,6 +19,7 @@ export function Providers({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DesignCookieSync />
       <ServiceWorkerBridge />
       {children}
     </QueryClientProvider>

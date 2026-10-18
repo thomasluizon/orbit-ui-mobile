@@ -268,6 +268,8 @@ describe('auth store', () => {
   it('logs out and calls the BFF logout endpoint', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    expect(document.cookie).toContain('orbit_design=redesign')
     const resetAtSignedOut = vi.fn()
     const unsubscribe = useAuthStore.subscribe((state) => {
       if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
@@ -277,6 +279,7 @@ describe('auth store', () => {
     unsubscribe()
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(document.cookie).not.toContain('orbit_design=')
     expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     expect(resetAtSignedOut).toHaveBeenCalledWith(1)
     expect(useAuthStore.getState()).toMatchObject({
