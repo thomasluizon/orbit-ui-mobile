@@ -96,8 +96,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Test guard workflow behavior
-        run: node --test tools/__tests__/guards-consolidation.test.mjs
+      - name: Test CI workflow behavior
+        run: node --test tools/__tests__/guards-consolidation.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs
       - name: Run tools harness
         if: ${{ !cancelled() }}
         run: node tools/test-tools.mjs
@@ -129,7 +129,7 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
 
       - name: Run tests with coverage thresholds
-        run: npx turbo run test -- --coverage
+        run: npx turbo run test --concurrency=1 -- --coverage
 
       - name: Verify coverage reports
         run: |

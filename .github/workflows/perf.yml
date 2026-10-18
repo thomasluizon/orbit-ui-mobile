@@ -29,7 +29,15 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Cache Next compiler
+        uses: actions/cache@v6
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}-
 
       - name: Build web
         run: npm run build -w @orbit/web

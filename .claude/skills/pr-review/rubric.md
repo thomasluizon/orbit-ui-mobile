@@ -30,7 +30,7 @@ i18n values), `Design Token Guard` (raw `--slate-*`, `transition-all`, `h-screen
 Checks`, `Analyze` (CodeQL), `SonarCloud Code Analysis`, and `React Doctor` own the rest. Three gates are
 partial and the uncovered half is yours: `local/no-decorative-glow` and `local/no-raw-gradient` ship at
 `warn` in `apps/*`, so pre-existing violations are known debt but a **newly introduced** one is a finding;
-`Cross-Platform Parity` and `Contract Drift` are scoped in dimensions 8 and 7.
+`PR Metadata` parity check and `Contract Drift` are scoped in dimensions 8 and 7.
 
 ## Finding template
 
@@ -202,7 +202,7 @@ name belong to dimension 1; do not over-claim completeness here.
 
 ### 8. Cross-platform parity
 
-> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)". **The `Cross-Platform Parity` gate only
+> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)". **The `PR Metadata` parity check only
 > counts changed files per platform**, so it catches a wholly one-sided PR and nothing else. Per-file
 > mirrors and behavioural equivalence are yours.
 
