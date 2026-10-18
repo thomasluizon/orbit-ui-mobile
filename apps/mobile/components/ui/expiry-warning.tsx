@@ -102,7 +102,7 @@ export function ExpiryWarning() {
   const isTerminal = refreshState === 'rejected'
 
   const handleAction = useCallback(async () => {
-    if (!isExpired || isTerminal) {
+    if (isTerminal) {
       await handleLogout()
       return
     }
@@ -138,7 +138,7 @@ export function ExpiryWarning() {
         setRefreshState('rejected')
         await handleLogout()
     }
-  }, [handleLogout, isExpired, isTerminal, refreshState])
+  }, [handleLogout, isTerminal, refreshState])
 
   if (minutesLeft === null && !isExpired && !isTerminal) return null
 

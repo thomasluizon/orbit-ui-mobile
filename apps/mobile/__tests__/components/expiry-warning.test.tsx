@@ -165,6 +165,29 @@ afterEach(async () => {
 })
 
 describe('ExpiryWarning', () => {
+  it('refreshes a valid token inside the warning window without signing out', async () => {
+    mocks.refreshSession.mockImplementation(() => {
+      mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
+      return { status: 'refreshed', token: 'fresh-access-token' }
+    })
+    await renderExpiredWarning()
+    await TestRenderer.act(() => {
+      mocks.setAuthState({ expiresAt: Date.now() + 4 * 60_000 })
+    })
+    const instance = tree!
+
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    await TestRenderer.act(async () => {
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+    })
+
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    expect(mocks.logout).not.toHaveBeenCalled()
+    expect(mocks.authState.isAuthenticated).toBe(true)
+    expect(mocks.currentRoute).toBeNull()
+    expect(hostNodes(instance, 'View')).toHaveLength(0)
+  })
+
   it('recovers an elapsed session without asking for credentials', async () => {
     mocks.refreshSession.mockImplementation(() => {
       mocks.setAuthState({
