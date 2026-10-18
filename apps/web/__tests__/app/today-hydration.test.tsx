@@ -15,7 +15,10 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({ syncThemeFromProfile: vi.fn(), detectAndSaveThemeIfNeeded: vi.fn() }),
 }))
-vi.mock('@/hooks/use-session-reset', () => ({ useAccountGeneration: () => 0 }))
+vi.mock('@/hooks/use-session-reset', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-session-reset')>(),
+  useAccountGeneration: () => 0,
+}))
 vi.mock('@/stores/auth-store', () => ({
   useHeldAccountId: () => 'account-a',
   useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }),

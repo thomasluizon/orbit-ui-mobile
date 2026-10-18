@@ -3460,7 +3460,8 @@
       },
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",
-      "dismiss": "Dispensar"
+      "dismiss": "Dispensar",
+      "dismissError": "Não foi possível dispensar a lista. Tente de novo."
     }
   },
   "terms": {
