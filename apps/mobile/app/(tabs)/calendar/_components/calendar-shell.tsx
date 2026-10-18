@@ -1,4 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
+import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
 import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions, type PressableProps } from 'react-native'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -8,35 +9,16 @@ import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
 import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-interface CalendarHeaderProps {
-  currentMonth: Date
-  todayKey: string
-  previousMonthLabel: string
-  nextMonthLabel: string
-  onPreviousMonth: () => void
-  onNextMonth: () => void
-  onCurrentMonth: () => void
-  onSelectMonth: (month: number, year: number) => void
-  period?: {
-    view: 'week' | 'range' | 'agenda'
-    label: string
-    previousLabel: string
-    nextLabel: string
-    onPrevious: () => void
-    onNext: () => void
-    onCurrent: () => void
-    nextDisabled?: boolean
-  }
+interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
   tokens: Tokens
 }
 
-function CalendarTitleControl({ tokens, ...props }: Readonly<Pick<PressableProps, 'children' | 'accessibilityLabel' | 'accessibilityState' | 'onPress'> & { tokens: Tokens }>) {
+function CalendarTitleControl({ tokens, compact = false, ...props }: Readonly<Pick<PressableProps, 'children' | 'accessibilityLabel' | 'accessibilityState' | 'onPress'> & { tokens: Tokens; compact?: boolean }>) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const styles = createStyles(tokens)
@@ -44,7 +26,7 @@ function CalendarTitleControl({ tokens, ...props }: Readonly<Pick<PressableProps
     onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     onFocus={(event) => { if (event.target === event.currentTarget) setFocused(true) }}
     onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false) }}
-    style={({ pressed }) => [styles.titleButton, (pressed || hovered || focused) && styles.pressed]} />
+    style={({ pressed }) => [styles.titleButton, compact && styles.monthTitleButton, !props.accessibilityState?.disabled && (pressed || hovered || focused) && styles.pressed]} />
 }
 
 function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'tokens' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
@@ -64,7 +46,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -72,22 +54,26 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
   const [pickerOpen, setPickerOpen] = useState(false)
   const [choosingYear, setChoosingYear] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
+  const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
-    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={styles.navigation}>
+    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={[styles.navigation, !period && styles.monthNavigation]}>
       <Pressable accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-      {period ? <CalendarTitleControl tokens={tokens} accessibilityLabel={t('calendar.period.goToCurrent', { period: period.label })} onPress={period.onCurrent}>
-        <Text style={styles.span}>{period.label}</Text>
-      </CalendarTitleControl> : <CalendarTitleControl tokens={tokens} accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
-        <Text style={styles.title}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
-        <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
-      </CalendarTitleControl>}
+      <View style={styles.monthTitleGroup}>
+        <CalendarTitleControl tokens={tokens} compact={!period}
+          accessibilityLabel={period ? t('calendar.period.goToCurrent', { period: period.label }) : `${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('dates.goToToday')}`}
+          accessibilityState={{ disabled: isTodaySelected }} onPress={returnToToday}>
+          {period ? <Text style={styles.span}>{period.label}</Text> : <Text style={styles.title}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>}
+        </CalendarTitleControl>
+        {!period ? <CalendarTitleControl tokens={tokens} accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
+          <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
+        </CalendarTitleControl> : null}
+      </View>
       <Pressable accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed, period?.nextDisabled && { opacity: 0.4 }]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
     </View>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
-      headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}
-      actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
+      headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>
       <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
     </Sheet> : null}
   </View>
@@ -119,10 +105,13 @@ function createStyles(tokens: Tokens) {
     header: { gap: 16, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
     navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' },
+    monthNavigation: { gap: 0 },
+    monthTitleGroup: { maxWidth: '100%', flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
+    monthTitleButton: { flexShrink: 0, paddingHorizontal: SPACING.s8 },
     titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
     title: { flexShrink: 1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, color: tokens.fg1 },
-    span: { fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
+    span: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },

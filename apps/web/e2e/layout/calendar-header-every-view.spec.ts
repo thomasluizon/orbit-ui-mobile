@@ -27,7 +27,7 @@ async function expectNavigationPaint(navigation: Locator, header: Locator) {
     await restPointerOutside(header)
     await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     const paint = await control.evaluate((button) => ({ ring: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))
-    const isChevron = await control.evaluate((button) => !button.textContent.trim())
+    const isChevron = await control.evaluate((button) => !button.textContent.trim() && !button.hasAttribute('aria-haspopup'))
     if (isChevron) {
       expect(paint.ring).toContain('1.5px')
       expect(paint.ring).toContain('inset')

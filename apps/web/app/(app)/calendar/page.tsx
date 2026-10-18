@@ -2,6 +2,7 @@
 
 import { PADDING, } from '@orbit/shared/theme'
 
+import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -58,7 +59,6 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
@@ -108,14 +108,6 @@ function CalendarImportActions({ state, onImport, t }: {
   </PillButton>
 }
 
-function calendarStatState(
-  state: CalendarMonthDisplayState,
-): 'default' | 'loading' | 'empty' {
-  if (state === 'loading') return 'loading'
-  if (state === 'ready') return 'default'
-  return 'empty'
-}
-
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
   emptyText: string
@@ -151,10 +143,6 @@ function CalendarMonthFeedback({
 
 function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
   return <div data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
-}
-
-function calendarDayLoadingLabel(state: CalendarMonthDisplayState, label: string): string | undefined {
-  return state === 'loading' ? label : undefined
 }
 
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
@@ -209,16 +197,7 @@ function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRet
 
 interface CalendarPageContentProps {
   navigation: ReturnType<typeof useCalendarNavigation>
-  profile: Pick<
-    Profile,
-    | 'weekStartDay'
-    | 'timeZone'
-    | 'hasProAccess'
-    | 'hasGoogleConnection'
-    | 'googleCalendarAutoSyncEnabled'
-    | 'googleCalendarAutoSyncStatus'
-    | 'googleCalendarLastSyncedAt'
-  > | undefined
+  profile: CalendarProfile | undefined
   profileError: Error | null
   onRetryProfile: () => void
   currentMonth: Date
@@ -227,21 +206,6 @@ interface CalendarPageContentProps {
   monthQuery: ReturnType<typeof useCalendarData>
   view: CalendarView
   setView: Dispatch<SetStateAction<CalendarView>>
-}
-
-
-function resolveProfileSettings(profile: CalendarPageContentProps['profile']) {
-  return {
-    weekStartsOn: profile?.weekStartDay ?? 1,
-    hasProAccess: profile?.hasProAccess ?? false,
-    timeZone: profile?.timeZone ?? null,
-    autoSyncState: profile ? {
-      enabled: profile.googleCalendarAutoSyncEnabled,
-      status: profile.googleCalendarAutoSyncStatus,
-      lastSyncedAt: profile.googleCalendarLastSyncedAt,
-      hasGoogleConnection: profile.hasGoogleConnection,
-    } : undefined,
-  };
 }
 
 function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode) {
@@ -276,7 +240,7 @@ function CalendarPageContent({
   const locale = useLocale()
   const dateFnsLocale = calendarDateFnsLocale(locale)
   const { displayTime } = useTimeFormat()
-  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveProfileSettings(profile)
+  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveCalendarProfileSettings(profile)
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile?.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
@@ -408,8 +372,6 @@ function CalendarPageContent({
       }
     })
   }, [weekStart, weekEnd, todayKey])
-
-
 
   const displayMonthDayMap = useMemo(
     () => filterRecurringDayMap(dayMap, showRecurring),
@@ -633,6 +595,9 @@ function CalendarPageContent({
     <CalendarHeader
       currentMonth={currentMonth}
       todayKey={todayKey}
+      {...buildCalendarHeaderState({ view, selectedDay, todayKey, weekStart, weekStartsOn, rangeOffset, agendaOffset,
+          weekLabel, rangeLabel, agendaStart, agendaEnd, locale, translate: t,
+          prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset })}
       previousMonthLabel={t('common.previousMonth')}
       nextMonthLabel={t('common.nextMonth')}
       onPreviousMonth={prevMonth}
@@ -640,16 +605,6 @@ function CalendarPageContent({
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
-      period={{ month: undefined, week: {
-          view: 'week' as const, label: weekLabel, previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
-          onPrevious: prevWeek, onNext: nextWeek, onCurrent: goToCurrentWeek,
-        }, range: {
-          view: 'range' as const, label: rangeLabel, previousLabel: t('calendar.range.previous'), nextLabel: t('calendar.range.next'),
-          onPrevious: previousRange, onNext: nextRange, onCurrent: () => setRangeOffset(0), nextDisabled: rangeOffset === 0,
-        }, agenda: {
-          view: 'agenda' as const, label: t('calendar.range.label', formatCalendarSpanEnds(agendaStart, agendaEnd, locale)), previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
-          onPrevious: () => setAgendaOffset((offset) => offset - 1), onNext: () => setAgendaOffset((offset) => offset + 1), onCurrent: () => setAgendaOffset(0),
-        } }[view]}
     />
   )
 
