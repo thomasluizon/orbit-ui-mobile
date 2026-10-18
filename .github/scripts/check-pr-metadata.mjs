@@ -20,7 +20,7 @@ const web = paths.some((path) => /^apps\/web\/(app|components|hooks|stores|lib)\
 const mobile = paths.some((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
 if (labels.includes("parity:exempt")) {
   const section = text.split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].trim()
-  if (!section || !/platform adapter|layout.shell|BFF|SecureStore|StyleSheet|next-intl|i18next|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
+  if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|next-intl|i18next|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
     console.error("::error::parity:exempt requires a line under ## Parity naming the platform adapter or permitted layout-shell divergence.")
     failed = true
   }

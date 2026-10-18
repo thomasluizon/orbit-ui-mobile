@@ -90,8 +90,12 @@ function workflowJobs(repositoryRoot, path) {
 function registeredGuardJobs(repositoryRoot) {
   return Object.fromEntries(GUARD_WORKFLOWS
     .filter((path) => existsSync(resolve(repositoryRoot, path)))
-    .flatMap((path) => Object.entries(workflowJobs(repositoryRoot, path))
-      .map(([id, job]) => [`${path}#${id}`, job])))
+    .flatMap((path) => Object.entries(workflowJobs(repositoryRoot, path)).map(([id, job]) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+        throw new Error(`${path}: job ids must contain only letters, digits, underscores, or hyphens`)
+      }
+      return [`${path}#${id}`, job]
+    })))
 }
 
 function guardJobIds(repositoryRoot) {

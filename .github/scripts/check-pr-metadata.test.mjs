@@ -52,6 +52,7 @@ test("parity checks reject removed exemptions and require a specific justificati
   check("", ["parity:exempt"], web, 1)
   check("## Parity\n\n\n## Test evidence\nplatform adapter", ["parity:exempt"], web, 1)
   check("## Parity\n\nThis is different.", ["parity:exempt"], web, 1)
+  check("## Parity\n\nPlatform adapter.", ["parity:exempt"], web, 1)
   const justified = "## Parity\n\nPlatform adapter: BFF cookie handling.\n\n## Test evidence\nChecked."
   check(justified, ["parity:exempt"], web, 0)
   check(justified, [], web, 1)

@@ -262,7 +262,6 @@ export const cases = () => {
     )
   }
 
-  const guards = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8"))
   for (const workflowFile of ["guards.yml", "dependency-review.yml"]) {
     const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", workflowFile), "utf8"))
     T(`${workflowFile}: superseded runs share a workflow and ref concurrency group`,
