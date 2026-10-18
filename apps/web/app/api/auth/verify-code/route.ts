@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
+import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${apiBase}/api/auth/verify-code`, {
       method: 'POST',
       headers: {
+        ...buildBffForwardingHeaders(request),
         'Content-Type': 'application/json',
         [ORBIT_REQUEST_ID_HEADER]: requestId,
       },

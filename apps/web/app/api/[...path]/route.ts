@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import {
   SESSION_REFRESH_FAILED_VALUE,
   SESSION_REFRESH_HEADER,
@@ -120,6 +121,9 @@ async function proxyRequest(
   }
 
   Object.assign(headers, buildForwardedClientHeaders(request))
+  if (apiPath.toLowerCase().startsWith('auth/')) {
+    Object.assign(headers, buildBffForwardingHeaders(request))
+  }
 
   const hasBody =
     method === 'POST' ||
