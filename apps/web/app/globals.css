@@ -2201,6 +2201,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --primary-soft: var(--primary-text);
 }
 
+.orbit-today-date-return:active:not([aria-disabled="true"]) {
+  --fg-3: var(--fg-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-today-date-return:hover:not([aria-disabled="true"]) {
+    --fg-3: var(--fg-2);
+  }
+}
+
 .light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):active:not(:disabled) {
   --fg-3: var(--fg-2);
 }
