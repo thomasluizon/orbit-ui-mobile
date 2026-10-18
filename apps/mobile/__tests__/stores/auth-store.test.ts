@@ -2079,13 +2079,15 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
-  it('times out a stalled refresh and allows a later retry without signing out', async () => {
+  it('times out a stalled refresh at the transport ceiling and allows a later retry without signing out', async () => {
     vi.useFakeTimers()
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     let rejectRequest!: (reason: Error) => void
+    let requestSignal: AbortSignal | null | undefined
     fetchMock.mockImplementationOnce((_url: string, options: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
         rejectRequest = reject
+        requestSignal = options.signal
         options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
       }),
     )
@@ -2100,12 +2102,24 @@ describe('mobile auth store security paths', () => {
       await expect(attempt).resolves.toEqual({ status: 'network-error' })
       expect(clearAllTokensMock).not.toHaveBeenCalled()
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
-      rejectRequest(new TypeError('Network request failed'))
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(49_999)
+      expect(requestSignal?.aborted ?? false).toBe(false)
+      const joinedAttempt = refreshSession()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(requestSignal?.aborted).toBe(true)
+      await expect(joinedAttempt).resolves.toEqual({ status: 'network-error' })
+      expect(fetchMock).toHaveBeenCalledOnce()
       const token = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 900, 'user-1', 'user@example.com')
       fetchMock.mockResolvedValueOnce(Response.json({ token, refreshToken: 'next-refresh' }))
       await expect(refreshSession()).resolves.toEqual({ status: 'refreshed', token })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(setTokenMock).toHaveBeenCalledWith(token)
+      expect(setRefreshTokenMock).toHaveBeenCalledWith('next-refresh')
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
     } finally {
+      rejectRequest(new TypeError('Network request failed'))
+      await vi.advanceTimersByTimeAsync(0)
       vi.useRealTimers()
     }
   })

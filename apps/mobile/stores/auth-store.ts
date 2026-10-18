@@ -290,11 +290,15 @@ async function rotateSessionToken(
   const currentUser = useAuthStore.getState().user
 
   let data: RefreshResponse
+  const controller = new AbortController()
+  // WHY: https://github.com/thomasluizon/orbit-tickets/issues/1525 accepts a server-committed rotation whose response exceeds the ceiling.
+  const transportTimeout = setTimeout(() => controller.abort(), 60_000)
   try {
     const response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
     })
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     if (!response.ok) {
@@ -304,6 +308,8 @@ async function rotateSessionToken(
   } catch {
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     return { status: 'network-error' }
+  } finally {
+    clearTimeout(transportTimeout)
   }
 
   if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
