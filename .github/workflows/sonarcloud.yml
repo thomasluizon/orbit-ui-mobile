@@ -2,8 +2,8 @@ name: SonarCloud
 
 on:
   # In SonarCloud Project Settings > Branches and Pull Requests, set the long-lived
-  # sonar.branch.longLivedBranches.regex to (main|redesign/main|branch-.*|release-.*) before the first
-  # redesign/main analysis. A short-lived branch cannot be reclassified.
+  # sonar.branch.longLivedBranches.regex to (main|redesign/main|(branch|release)-.*)
+  # before the first redesign/main analysis. A short-lived branch cannot be reclassified.
   schedule:
     - cron: '37 4 * * *'
   workflow_dispatch:
