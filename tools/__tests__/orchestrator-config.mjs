@@ -107,7 +107,7 @@ export const cases = async () => {
     const worker = real.workers[name]
     T(`${NAME}: ${name} declares the verified sub-agent off vector`,
       JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
-    for (const tier of ["default", "mechanical"]) {
+    for (const tier of ["default", "mechanical", "deep", "max"]) {
       const disabled = resolveWorkerInvocation(name, worker, tier)
       const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
       T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
@@ -210,7 +210,18 @@ export const cases = async () => {
   )
 
   const engineFailures = []
+  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
+    const message = thrown(() => {
+      const resolved = resolveWorkerInvocation(engineName, engine, tier)
+      if (resolved.model !== "gpt-6.1-sol" || !resolved.args.includes(`model_reasoning_effort="${effort}"`)) {
+        throw new Error(JSON.stringify(resolved))
+      }
+    })
+    T(`${NAME}: the shipped ${tier} implementer is gpt-6.1-sol at ${effort} reasoning effort`, message === null, message)
+  }
   for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
+    T(`${NAME}: ${declaredName} declares exactly the four worker tiers`,
+      JSON.stringify(Object.keys(declaredEngine.models ?? {}).sort()) === JSON.stringify(["deep", "default", "max", "mechanical"]))
     const tiers = Object.keys(declaredEngine.models ?? {})
     if (tiers.length === 0) {
       engineFailures.push(`${declaredName}: declares no model tiers`)
@@ -258,10 +269,9 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude fallback engine runs claude with opus 5.5 on both tiers`,
+    `${NAME}: the claude fallback engine runs claude with opus 5.5 on all four tiers`,
     fallback.command === "claude" &&
-      fallback.models?.default?.model === "claude-opus-5-5" &&
-      fallback.models?.mechanical?.model === "claude-opus-5-5",
+      ["default", "mechanical", "deep", "max"].every((tier) => fallback.models?.[tier]?.model === "claude-opus-5-5"),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 

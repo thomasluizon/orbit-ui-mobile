@@ -370,6 +370,7 @@ export {
   formatTimeFieldInput,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  reconcileTimeFieldInput,
   parseTypedTimeFieldValue,
   selectTimeFieldHour,
   selectTimeFieldMinute,
@@ -591,6 +592,7 @@ export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
   getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
   nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
@@ -789,3 +791,5 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { getSetupChecklist } from './setup-checklist'
