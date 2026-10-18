@@ -3,7 +3,7 @@ import { API } from '@orbit/shared/api'
 import { habitKeys, connectionKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { NOTION_CALLBACK_PATH, notionAuthorizationSchema, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
+import { NOTION_CALLBACK_PATH, notionConnectionAccess, notionAuthorizationSchema, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
 import { useConfig } from '@/hooks/use-config'
 import { useOffline } from '@/hooks/use-offline'
 import { apiClient } from '@/lib/api-client'
@@ -91,8 +91,7 @@ export function useNotionConnectionController(hasProAccess: boolean) {
   const { config } = useConfig()
   const { isOnline } = useOffline()
   const queryClient = useQueryClient()
-  const visible = config.features.notion_integration?.enabled === true
-  const enabled = visible && hasProAccess
+  const { visible, enabled } = notionConnectionAccess(config.features.notion_integration?.enabled, hasProAccess)
   const connection = useQuery({
     queryKey: connectionKeys.notion(),
     queryFn: fetchNotionConnection,

@@ -22,7 +22,7 @@ interface NotionConnectionRowProps {
 }
 function NotionConnectionRow({ controller, hasProAccess, onOpen, onUpgrade }: Readonly<NotionConnectionRowProps>) {
   const { t } = useTranslation()
-  const value = controller.connection.isLoading ? t('common.loading') : t(notionConnectionLabel(controller.connection.data))
+  const value = t(notionConnectionLabel(controller.connection.data, controller.connection.isLoading))
   return <ListRow textMode="label" compact  title={t('profile.connections.notion')}
         icon={hasProAccess ? <FileText size={24} strokeWidth={1.8} /> : <Lock size={24} strokeWidth={1.8} />}
         value={hasProAccess ? value : undefined} wrapValue

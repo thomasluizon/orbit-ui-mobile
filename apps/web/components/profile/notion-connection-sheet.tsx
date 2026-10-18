@@ -1,5 +1,6 @@
 'use client'
 
+import { notionConnectionSheetState } from '@orbit/shared/types/notion-connection'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useTranslations, useLocale } from 'next-intl'
 import { useNotionConnectionController } from './astra-settings-controller'
@@ -16,16 +17,16 @@ interface NotionConnectionSheetProps {
   onOpenUrl: (url: string) => void
 }
 
-function NotionConnectionDetails({ controller }: Readonly<Pick<NotionConnectionSheetProps, 'controller'>>) {
+function NotionConnectionDetails({ controller, reconnect, hasConnection }: Readonly<
+  Pick<NotionConnectionSheetProps, 'controller'> & Pick<ReturnType<typeof notionConnectionSheetState>, 'reconnect' | 'hasConnection'>
+>) {
   const t = useTranslations()
   const locale = useLocale()
   const { connection } = controller
   const current = connection.data
-  const reconnect = current?.status === 'ReconnectRequired'
-  const hasConnection = current?.connected || reconnect
   return <>{connection.isLoading ? <p className="text-sm text-[var(--fg-2)]" >{t('common.loading')}</p> : hasConnection ? <>
-          {current.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
-          {current.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
+          {current?.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
+          {current?.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
           {reconnect ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.renew')}</p> : null}
         </> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>}</>
 }
@@ -36,14 +37,8 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   const [leaving, setLeaving] = useAccountScopedState(false)
   const [confirming, setConfirming] = useAccountScopedState(false)
   const { connection, authorize, disconnect, isOnline } = controller
-  const current = connection.data
-  const reconnect = current?.status === 'ReconnectRequired'
-  const hasConnection = current?.connected || reconnect
-  const busy = authorize.isPending || disconnect.isPending || leaving
-  const disabled = !isOnline || busy || connection.isLoading || connection.isError
+  const { reconnect, hasConnection, busy, disabled, actionKey, error } = notionConnectionSheetState({ ...controller, leaving, callbackFailed })
   const connect = () => onAuthorize((url) => { setLeaving(true); closeSheet(() => { onClose(); onOpenUrl(url) }) })
-  const actionKey = reconnect ? 'reconnect' : hasConnection ? 'choosePages' : 'connect'
-  const error = [callbackFailed, connection.isError, authorize.isError, disconnect.isError, current?.status === 'TransientError'].some(Boolean)
   const actions = <>
     {hasConnection ? <PillButton variant="ghost" loading={disconnect.isPending} disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
     {connection.isError ? <PillButton disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}>{t('common.retry')}</PillButton>
@@ -52,7 +47,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   return <>
     <Sheet ref={sheetRef} title={t('profile.connections.notion')} titleTranslate="no" onClose={onClose} actions={actions}>
       <div className="flex min-w-0 flex-col" style={{ gap: 16 }}>
-        <NotionConnectionDetails controller={controller} />
+        <NotionConnectionDetails controller={controller} reconnect={reconnect} hasConnection={hasConnection} />
         <p role="status" className="text-sm text-[var(--status-bad-text)]">{error ? t('profile.connections.error') : ''}</p>
         {!isOnline ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.offline')}</p> : null}
       </div>

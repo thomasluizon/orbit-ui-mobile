@@ -5,7 +5,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { habitKeys, connectionKeys } from '@orbit/shared/query'
 import { updateAiSummary, updateProactiveAstra, authorizeNotion, disconnectNotion } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { NOTION_CALLBACK_PATH, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
+import { NOTION_CALLBACK_PATH, notionConnectionAccess, notionConnectionSchema, type NotionConnection } from '@orbit/shared/types/notion-connection'
 import { useConfig } from '@/hooks/use-config'
 import { useOffline } from '@/hooks/use-offline'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
@@ -83,8 +83,7 @@ export function useNotionConnectionController(hasProAccess: boolean) {
   const { config } = useConfig()
   const { isOnline } = useOffline()
   const queryClient = useQueryClient()
-  const visible = config.features.notion_integration?.enabled === true
-  const enabled = visible && hasProAccess
+  const { visible, enabled } = notionConnectionAccess(config.features.notion_integration?.enabled, hasProAccess)
   const connection = useQuery({
     queryKey: connectionKeys.notion(),
     queryFn: fetchNotionConnection,

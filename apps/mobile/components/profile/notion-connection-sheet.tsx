@@ -1,3 +1,4 @@
+import { notionConnectionSheetState } from '@orbit/shared/types/notion-connection'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { Text, View, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -18,17 +19,17 @@ interface NotionConnectionSheetProps {
   onOpenUrl: (url: string) => void
 }
 
-function NotionConnectionDetails({ controller }: Readonly<Pick<NotionConnectionSheetProps, 'controller'>>) {
+function NotionConnectionDetails({ controller, reconnect, hasConnection }: Readonly<
+  Pick<NotionConnectionSheetProps, 'controller'> & Pick<ReturnType<typeof notionConnectionSheetState>, 'reconnect' | 'hasConnection'>
+>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { connection } = controller
   const current = connection.data
-  const reconnect = current?.status === 'ReconnectRequired'
-  const hasConnection = current?.connected || reconnect
   return <>{connection.isLoading ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('common.loading')}</Text> : hasConnection ? <>
-          {current.workspaceName ? <PersonalTextDetails textStyle={styles.workspace}>{current.workspaceName}</PersonalTextDetails> : null}
-          {current.lastPollAtUtc ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</Text> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.awaitingSync')}</Text>}
+          {current?.workspaceName ? <PersonalTextDetails textStyle={styles.workspace}>{current.workspaceName}</PersonalTextDetails> : null}
+          {current?.lastPollAtUtc ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</Text> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.awaitingSync')}</Text>}
           {reconnect ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.renew')}</Text> : null}
         </> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.description')}</Text>}</>
 }
@@ -41,14 +42,8 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   const [leaving, setLeaving] = useAccountScopedState(false)
   const [confirming, setConfirming] = useAccountScopedState(false)
   const { connection, authorize, disconnect, isOnline } = controller
-  const current = connection.data
-  const reconnect = current?.status === 'ReconnectRequired'
-  const hasConnection = current?.connected || reconnect
-  const busy = authorize.isPending || disconnect.isPending || leaving
-  const disabled = !isOnline || busy || connection.isLoading || connection.isError
+  const { reconnect, hasConnection, busy, disabled, actionKey, error } = notionConnectionSheetState({ ...controller, leaving, callbackFailed })
   const connect = () => onAuthorize((url) => { setLeaving(true); closeSheet(() => { onClose(); onOpenUrl(url) }) })
-  const actionKey = reconnect ? 'reconnect' : hasConnection ? 'choosePages' : 'connect'
-  const error = [callbackFailed, connection.isError, authorize.isError, disconnect.isError, current?.status === 'TransientError'].some(Boolean)
   const actions = <>
     {hasConnection ? <PillButton variant="ghost" loading={disconnect.isPending} disabled={!isOnline || busy} onClick={() => setConfirming(true)}>{t('profile.connections.disconnect')}</PillButton> : null}
     {connection.isError ? <PillButton disabled={!isOnline || connection.isFetching} loading={connection.isFetching} onClick={() => void connection.refetch()}>{t('common.retry')}</PillButton>
@@ -57,7 +52,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
   return <>
     <Sheet ref={sheetRef} title={t('profile.connections.notion')}  onClose={onClose} actions={actions}>
       <View style={{ gap: 16 }}>
-        <NotionConnectionDetails controller={controller} />
+        <NotionConnectionDetails controller={controller} reconnect={reconnect} hasConnection={hasConnection} />
         <Text accessibilityLiveRegion="polite" style={[styles.body, { color: tokens.statusBadText }]}>{error ? t('profile.connections.error') : ''}</Text>
         {!isOnline ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.offline')}</Text> : null}
       </View>
