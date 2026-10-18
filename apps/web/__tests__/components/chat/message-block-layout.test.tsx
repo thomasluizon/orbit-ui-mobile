@@ -72,7 +72,7 @@ describe('Astra block layout in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(['finish', 'cancel', 'replace'] as const)('settles a newly completed block-only outcome turn after %s before reading its geometry', async mode => {
+  it('starts a newly completed block-only outcome turn without entrance motion', async () => {
     const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
     const chat = {
       threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages: [],
@@ -89,7 +89,7 @@ describe('Astra block layout in Chromium', () => {
     rerender(surface({ ...chat, messages: [makeChatBlockLayoutMessage(scenario, false)] }))
     const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}\n.animate-msg-in { animation-play-state: paused; }</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const turn = page.getByRole('article')
       const starting = await turn.evaluate(article => {
         const animations = article.getAnimations({ subtree: true })
@@ -97,27 +97,8 @@ describe('Astra block layout in Chromium', () => {
         return { count: animations.length,
           offset: article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top }
       })
-      expect(starting.count).toBe(1)
-      expect(starting.offset).toBeCloseTo(8, 1)
-      await turn.evaluate((article, mode) => {
-        const readAnimations = article.getAnimations.bind(article)
-        const animations = readAnimations({ subtree: true })
-        if (mode === 'finish') {
-          for (const animation of animations) animation.play()
-          return
-        }
-        article.getAnimations = options => {
-          article.getAnimations = readAnimations
-          const running = readAnimations(options)
-          queueMicrotask(() => {
-            for (const animation of animations) animation.cancel()
-            if (mode === 'replace') article.querySelector('section[data-state]')!.animate(
-              [{ transform: 'translateY(8px)' }, { transform: 'translateY(0)' }], { duration: 100, fill: 'forwards' },
-            )
-          })
-          return running
-        }
-      }, mode)
+      expect(starting.count).toBe(0)
+      expect(starting.offset).toBeCloseTo(0, 1)
       await page.evaluate(() => document.fonts.ready)
       await turn.evaluate(settleAnimations)
       expect(await turn.evaluate(article =>
