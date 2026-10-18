@@ -465,6 +465,47 @@ describe('auth-api session helpers', () => {
     expect(first).toEqual(second)
   })
 
+  it('ends stalled refreshes at sixty seconds without clearing cookies and allows a new request', async () => {
+    const tokens = {
+      token: makeJwt(Math.floor(FIXED_NOW / 1000) + 3600),
+      refreshToken: 'refresh-rotated',
+    }
+    mockCookieStore.get.mockImplementation((name: string) =>
+      name === 'refresh_token' ? { value: 'stalled-refresh-token' } : undefined)
+    mockFetch
+      .mockImplementationOnce((_url: string, options: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+        }))
+      .mockResolvedValueOnce(Response.json(tokens))
+    const { refreshSessionTokens, tryRefreshSession } = await import('@/lib/auth-api')
+    vi.useFakeTimers()
+    try {
+      const completed = vi.fn()
+      const first = refreshSessionTokens('stalled-refresh-token').then(completed)
+      const joined = tryRefreshSession()
+      await vi.advanceTimersByTimeAsync(59_999)
+      expect(completed).not.toHaveBeenCalled()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(completed).toHaveBeenCalledWith({ outcome: 'retryable' })
+      await first
+      expect(await joined).toBeNull()
+      expect(mockCookieStore.set).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+
+      expect(await tryRefreshSession()).toBe(tokens.token)
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockCookieStore.set).toHaveBeenCalledWith(
+        'refresh_token', tokens.refreshToken, expect.objectContaining({ maxAge: 60 * 60 * 24 * 365 }),
+      )
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('preserves committed rotations beyond ten seconds and retries with the current cookie', async () => {
     const token = makeJwt(Math.floor(FIXED_NOW / 1000) + 900)
     const storedCookies = new Map([
