@@ -7,11 +7,11 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { i18n } from '@/lib/i18n'
 import { ListRow } from '@/components/ui/list-row'
-import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { Input } from '@/components/ui/input'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
-const mocks = vi.hoisted(() => ({ localize: false, create: vi.fn(), apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ localize: false, create: vi.fn(), error: null as string | null, apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -31,7 +31,7 @@ vi.mock('@/app/advanced-api-keys', () => ({
     apiKeys: mocks.apiKeys,
     canCreateKey: true,
     createGrantAvailable: true,
-    createKeyError: null,
+    createKeyError: mocks.error,
     clearCreateKeyError: vi.fn(),
     revokingKeyId: null,
     setRevokingKeyId: vi.fn(),
@@ -74,7 +74,7 @@ it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', ()
   expectSmallSheetActions(tree.root)
   const createAction = () => tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
   expect(createAction().props.disabled).toBe(true)
-  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('habits:read'))
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((input: { props: { label: string } }) => input.props.label === 'profile.apiKeys.scopeLabel')!.props.onChange('habits:read'))
   expect(createAction().props.disabled).toBe(false)
 })
 
@@ -83,7 +83,10 @@ it('uses a small intrinsic acknowledgement for the revealed key', async () => {
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
   const create = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.create')!
-  await TestRenderer.act(async () => { await create.props.onClick() })
+  TestRenderer.act(() => create.props.onClick())
+  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('Personal key'))
+  const submit = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
+  await TestRenderer.act(async () => { await submit.props.onClick() })
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
   expectSmallSheetActions(tree.root)
 })
@@ -116,7 +119,65 @@ it('keeps key metadata legible on the pressed card surface', () => {
   TestRenderer.act(() => tree.unmount())
 })
 
-beforeEach(() => { mocks.localize = false; mocks.apiKeys = []; mocks.loading = false; mocks.loadError = null; mocks.retry.mockClear() })
+it.each([false, true])('asks for a name before creating a key with scoped=%s', async (scoped) => {
+  mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const button = (label: string) => tree.root.findAllByType(PillButton).find((node: { props: { children: string } }) => node.props.children === label)!
+  TestRenderer.act(() => button(scoped ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick())
+  expect(mocks.create).not.toHaveBeenCalled()
+  const name = () => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'orbitMcp.keyName')!
+  expect(name().props.placeholder).toBe('orbitMcp.keyNamePlaceholder')
+  expect(name().props.required).toBe(true)
+  if (scoped) TestRenderer.act(() => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'profile.apiKeys.scopeLabel')!.props.onChange(' habits:read '))
+  TestRenderer.act(() => name().props.onChange('   '))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(name().props.error).toBe('orbitMcp.keyNameRequired')
+  expect(name().props.focusRequest).toBeGreaterThan(0)
+  expect(mocks.create).not.toHaveBeenCalled()
+  TestRenderer.act(() => name().props.onChange('x'.repeat(51)))
+  await TestRenderer.act(async () => { await name().props.onSubmit() })
+  expect(name().props.error).toBe('orbitMcp.keyNameMaxLength')
+  expect(mocks.create).not.toHaveBeenCalled()
+  TestRenderer.act(() => name().props.onChange(`  ${'x'.repeat(50)}  `))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(mocks.create).toHaveBeenCalledWith({ name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
+  TestRenderer.act(() => tree.unmount())
+})
+
+it('keeps the name after a failed request and disables repeat submissions while pending', async () => {
+  let finish!: () => void
+  mocks.create.mockImplementationOnce(() => new Promise((resolve) => {
+    finish = () => { mocks.error = 'orbitMcp.createKeyError'; resolve(null) }
+  }))
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const button = (label: string) => tree.root.findAllByType(PillButton).find((node: { props: { children: string } }) => node.props.children === label)!
+  const name = () => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'orbitMcp.keyName')!
+  TestRenderer.act(() => button('profile.apiKeys.create').props.onClick())
+  TestRenderer.act(() => name().props.onChange('Home automation'))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(button('profile.apiKeys.scopeAction').props.loading).toBe(true)
+  expect(name().props.disabled).toBe(true)
+  expect(button('common.cancel').props.disabled).toBe(true)
+  await TestRenderer.act(async () => { await name().props.onSubmit() })
+  expect(mocks.create).toHaveBeenCalledTimes(1)
+  await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+  expect(tree.root.findAllByType(Text).some((node: { props: { children: string } }) => node.props.children === 'orbitMcp.createKeyError')).toBe(true)
+  expect(name().props.value).toBe('Home automation')
+  expect(button('profile.apiKeys.scopeAction').props.loading).toBe(false)
+  mocks.error = null
+  TestRenderer.act(() => button('common.cancel').props.onClick())
+  TestRenderer.act(() => button('common.keepEditing').props.onClick())
+  expect(name().props.value).toBe('Home automation')
+  TestRenderer.act(() => button('common.cancel').props.onClick())
+  TestRenderer.act(() => button('common.discardChangesAction').props.onClick())
+  TestRenderer.act(() => button('profile.apiKeys.create').props.onClick())
+  expect(name().props.value).toBe('')
+  TestRenderer.act(() => tree.unmount())
+})
+beforeEach(() => { mocks.error = null; mocks.create.mockReset(); mocks.localize = false; mocks.apiKeys = []; mocks.loading = false; mocks.loadError = null; mocks.retry.mockClear() })
 
 const detailKey: ApiKey = {
   id: 'details-key', name: 'External tool', keyPrefix: 'orb_details', scopes: ['habits:read', 'goals:read'],

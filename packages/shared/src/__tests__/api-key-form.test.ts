@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { parseApiKeyExpiryUtc } from '../validation/api-key-form'
+import { getApiKeyNameError, parseApiKeyExpiryUtc } from '../validation/api-key-form'
+
+describe('getApiKeyNameError', () => {
+  it.each(['', '   ', '\n\t'])('requires a name for %j', (name) => {
+    expect(getApiKeyNameError(name)).toBe('orbitMcp.keyNameRequired')
+  })
+
+  it('validates the trimmed name at the production length boundary', () => {
+    expect(getApiKeyNameError(`  ${'x'.repeat(50)}  `)).toBeNull()
+    expect(getApiKeyNameError('x'.repeat(51))).toBe('orbitMcp.keyNameMaxLength')
+  })
+})
 
 describe('parseApiKeyExpiryUtc', () => {
   it('interprets a minute-precision value as UTC', () => {

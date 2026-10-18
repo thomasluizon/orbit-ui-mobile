@@ -8,11 +8,14 @@ import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
+import { getApiKeyNameError } from '@orbit/shared/validation'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { Input } from '@/components/ui/input'
 import { Key, Lock } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
@@ -110,60 +113,100 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   )
 }
 
-interface ScopeSheetProps {
+interface CreateKeySheetProps {
+  scoped: boolean
   busy: boolean
   error: string | null
   onClose: () => void
   onCreate: (
-    scope: string,
+    request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void>,
   ) => Promise<ApiKeyCreateResponse | null>
   onCreateGrantRequired: () => void
   onCreated: (createdKey: ApiKeyCreateResponse) => void
 }
 
-function ScopeSheet({
+function CreateKeySheet({
+  scoped,
   busy,
   error,
   onClose,
   onCreate,
   onCreateGrantRequired,
   onCreated,
-}: Readonly<ScopeSheetProps>) {
+}: Readonly<CreateKeySheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const [scope, setScope] = useAccountScopedState('')
+  const [name, setName] = useAccountScopedState('')
+  const [nameFocusRequest, setNameFocusRequest] = useAccountScopedState(0)
+  const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
+  const dismissGuard = useDismissGuard({
+    isDirty: name !== '' || scope !== '',
+    onDismiss: () => closeSheet(onClose),
+  })
   async function submit() {
+    if (busy) return
+    if (getApiKeyNameError(name)) {
+      setNameFocusRequest((request) => request + 1)
+      return
+    }
     const trimmedScope = scope.trim()
-    if (!trimmedScope) return
+    if (scoped && !trimmedScope) return
     const result = await onCreate(
-      trimmedScope,
+      { name: name.trim(), ...(scoped ? { scopes: [trimmedScope] } : {}) },
       () => Promise.resolve(closeSheet(onCreateGrantRequired)),
     )
     if (result) closeSheet(() => onCreated(result))
   }
 
   return (
-    <Sheet
-      ref={sheetRef}
-      title={t('profile.apiKeys.scopeTitle')}
-      onClose={onClose}
-      actions={(
-        <ActionRow>
-          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-          <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
-        </ActionRow>
-      )}
-    >
-      <Input
-        label={t('profile.apiKeys.scopeLabel')}
-        value={scope}
-        onChange={setScope}
-        error={error ?? undefined}
-        autoFocus
-        onSubmit={() => void submit()}
+    <>
+      <Sheet
+        ref={sheetRef}
+        title={t(scoped ? 'profile.apiKeys.scopeTitle' : 'profile.apiKeys.create')}
+        onClose={!busy && dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={busy ? undefined : dismissGuard.requestDismiss}
+        actions={(
+          <ActionRow>
+            <PillButton size="sm" variant="ghost" disabled={busy} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
+            <PillButton size="sm" disabled={scoped && !scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
+          </ActionRow>
+        )}
+      >
+        <div className="flex flex-col" style={{ gap: 16 }}>
+          <Input
+            label={t('orbitMcp.keyName')}
+            placeholder={t('orbitMcp.keyNamePlaceholder')}
+            name="api-key-name"
+            autoComplete="off"
+            required
+            value={name}
+            onChange={setName}
+            error={nameError ? t(nameError) : undefined}
+            disabled={busy}
+            autoFocus
+            focusRequest={nameFocusRequest}
+            onSubmit={() => void submit()}
+          />
+          {scoped ? (
+            <Input
+              label={t('profile.apiKeys.scopeLabel')}
+              value={scope}
+              onChange={setScope}
+              disabled={busy}
+              onSubmit={() => void submit()}
+            />
+          ) : null}
+          {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+        </div>
+      </Sheet>
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
       />
-    </Sheet>
+    </>
   )
 }
 
@@ -299,19 +342,15 @@ function ApiKeyAccessContent({
 
 interface ApiKeyCreateControlsProps {
   canCreate: boolean
-  creating: boolean
   onCreate: () => void
   onCreateScoped: () => void
-  scopeOpen: boolean
   stepUpBusy: boolean
 }
 
 function ApiKeyCreateControls({
   canCreate,
-  creating,
   onCreate,
   onCreateScoped,
-  scopeOpen,
   stepUpBusy,
 }: Readonly<ApiKeyCreateControlsProps>) {
   const t = useTranslations()
@@ -327,7 +366,7 @@ function ApiKeyCreateControls({
       <PillButton
         variant="secondary"
         size="sm"
-        loading={creating && !scopeOpen}
+        loading={stepUpBusy}
         onClick={onCreate}
       >
         {t('profile.apiKeys.create')}
@@ -369,10 +408,10 @@ function useApiKeyStepUp() {
   return { busy, error, start, accountReady: accountId !== null }
 }
 
-function openScopeOrStartStepUp(
+function openCreationOrStartStepUp(
   createGrantAvailable: boolean,
   clearCreateKeyError: () => void,
-  openScope: () => void,
+  openCreation: () => void,
   startStepUp: () => Promise<void>,
 ): void {
   clearCreateKeyError()
@@ -380,7 +419,7 @@ function openScopeOrStartStepUp(
     void startStepUp()
     return
   }
-  openScope()
+  openCreation()
 }
 
 export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
@@ -388,7 +427,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = profile?.hasProAccess ?? false
-  const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
+  const [creationMode, setCreationMode] = useAccountScopedState<'simple' | 'scoped' | null>(null)
   const [creating, setCreating] = useAccountScopedState(false)
   const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
   const stepUp = useApiKeyStepUp()
@@ -411,11 +450,6 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     } finally {
       if (getAccountGeneration() === creationAccount) setCreating(false)
     }
-  }
-
-  async function createSimpleKey() {
-    const result = await createKey({ name: t('profile.apiKeys.newKeyName') })
-    if (result) setCreatedKey(result)
   }
 
   const revokingKey = management.apiKeys.find((apiKey) => apiKey.id === management.revokingKeyId)
@@ -457,18 +491,21 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           />
           <ApiKeyCreateControls
             canCreate={management.canCreateKey}
-            creating={creating}
-            onCreate={() => void createSimpleKey()}
-            onCreateScoped={() => openScopeOrStartStepUp(
+            onCreate={() => openCreationOrStartStepUp(
               management.createGrantAvailable,
               management.clearCreateKeyError,
-              () => setScopeOpen(true),
+              () => setCreationMode('simple'),
               stepUp.start,
             )}
-            scopeOpen={scopeOpen}
+            onCreateScoped={() => openCreationOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setCreationMode('scoped'),
+              stepUp.start,
+            )}
             stepUpBusy={stepUp.busy}
           />
-          {management.createKeyError && !scopeOpen ? (
+          {management.createKeyError && !creationMode ? (
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.createKeyError}</p>
           ) : null}
           {management.revokeKeyError ? (
@@ -479,21 +516,19 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         </>
       </ApiKeyAccessContent>
 
-      {scopeOpen ? (
-        <ScopeSheet
+      {creationMode ? (
+        <CreateKeySheet
+          scoped={creationMode === 'scoped'}
           busy={creating}
           error={management.createKeyError}
-          onClose={() => setScopeOpen(false)}
-          onCreate={(scope, onCreateGrantRequired) => createKey(
-            { name: t('profile.apiKeys.newKeyName'), scopes: [scope] },
-            onCreateGrantRequired,
-          )}
+          onClose={() => setCreationMode(null)}
+          onCreate={createKey}
           onCreateGrantRequired={() => {
-            setScopeOpen(false)
+            setCreationMode(null)
             void stepUp.start()
           }}
           onCreated={(result) => {
-            setScopeOpen(false)
+            setCreationMode(null)
             setCreatedKey(result)
           }}
         />

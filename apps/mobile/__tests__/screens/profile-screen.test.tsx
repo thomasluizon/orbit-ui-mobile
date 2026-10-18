@@ -550,6 +550,15 @@ function nodeText(node: unknown): string {
   return (node as { children: unknown[] }).children.map(nodeText).join('')
 }
 
+async function nameAndCreateApiKey(tree: ReturnType<typeof TestRenderer.create>) {
+  TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('Personal key'))
+  await TestRenderer.act(async () => {
+    findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
 function findButtonByText(
   tree: ReturnType<typeof TestRenderer.create>,
   label: string,
@@ -1377,6 +1386,7 @@ describe('ProfileScreen', () => {
     const firstInput = tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' })
     await TestRenderer.act(async () => {
       firstInput.props.onChangeText('stale:scope')
+      tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('First key')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
@@ -1386,12 +1396,14 @@ describe('ProfileScreen', () => {
     })
     expect(nodeText(tree.root)).toContain('orbitMcp.createKeyError')
     TestRenderer.act(() => findButtonByText(tree, 'common.cancel').props.onPress())
+    TestRenderer.act(() => findButtonByText(tree, 'common.discardChangesAction').props.onPress())
 
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
     expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
     expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
     await TestRenderer.act(async () => {
       tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('fresh:scope')
+      tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('Second key')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
@@ -1429,6 +1441,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    await nameAndCreateApiKey(tree)
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
     expect(nodeText(tree.root)).toContain('orbitMcp.copied')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
@@ -1451,6 +1464,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    await nameAndCreateApiKey(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
   })
@@ -1476,6 +1490,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
 
+    await nameAndCreateApiKey(tree)
     expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
     expect(mockCreateGrant.consumed).toBe(true)
     expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')

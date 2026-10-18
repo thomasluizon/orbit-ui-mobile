@@ -44,4 +44,4 @@ export {
 
 export { validateTagForm } from './tag-form'
 
-export { parseApiKeyExpiryUtc } from './api-key-form'
+export { getApiKeyNameError, parseApiKeyExpiryUtc } from './api-key-form'

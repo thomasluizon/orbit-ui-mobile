@@ -16,17 +16,17 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-const localeSettings = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR' }))
-const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
+const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn(), error: null as string | null, locale: 'en' as 'en' | 'pt-BR', apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: management.push }) }))
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
   const messages = (await import('@orbit/shared/i18n/en.json')).default
+  const portugueseMessages = (await import('@orbit/shared/i18n/pt-BR.json')).default
   return {
     ...actual,
-    useLocale: () => localeSettings.locale,
-    useTranslations: () => actual.createTranslator({ locale: localeSettings.locale, messages: localeSettings.locale === 'en' ? messages : ptBR }),
+    useLocale: () => management.locale,
+    useTranslations: () => actual.createTranslator({ locale: management.locale, messages: management.locale === 'en' ? messages : portugueseMessages }),
   }
 })
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -37,7 +37,7 @@ vi.mock('@/hooks/use-api-key-management', () => ({
     apiKeys: management.apiKeys,
     canCreateKey: true,
     createGrantAvailable: true,
-    createKeyError: null,
+    createKeyError: management.error,
     clearCreateKeyError: vi.fn(),
     revokingKeyId: null,
     setRevokingKeyId: vi.fn(),
@@ -95,11 +95,12 @@ beforeEach(async () => {
   await resetAuthStore()
   localStorage.clear()
   vi.mocked(requestApiKeyCreationChallenge).mockReset()
-  localeSettings.locale = 'en'
   management.apiKeys = []
   management.loading = false
   management.loadError = null
   management.handleCreateKey.mockReset()
+  management.error = null
+  management.locale = 'en'
   management.push.mockReset()
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   management.handleCreateKey.mockResolvedValue({ id: 'key-1', name: 'Orbit key', key: ACCOUNT_A_KEY })
@@ -136,6 +137,8 @@ async function revealAccountAKey() {
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
   })
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
   expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
   expectSmallSheetActions()
 }
@@ -185,6 +188,8 @@ it('does not reveal an old key when creation resolves after replacement', async 
     </QueryClientProvider>,
   )
   fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction }))
 
   respondWithAccount('user-2')
   await act(async () => { await useAuthStore.getState().checkSession() })
@@ -268,6 +273,89 @@ it('waits for the first account check before requesting an API key challenge', a
   expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
 })
 
+it.each([false, true])('asks for a name before creating a key with scoped=%s', async (scoped) => {
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: scoped ? en.profile.apiKeys.createScoped : en.profile.apiKeys.create }))
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+  const name = screen.getByRole('textbox', { name: en.orbitMcp.keyName })
+  expect(name).toHaveAttribute('placeholder', en.orbitMcp.keyNamePlaceholder)
+  expect(name).toBeRequired()
+  if (scoped) fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: ' habits:read ' } })
+  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
+  fireEvent.change(name, { target: { value: '   ' } })
+  fireEvent.click(submit)
+  expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameRequired)
+  expect(name).toHaveFocus()
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+  fireEvent.change(name, { target: { value: 'x'.repeat(51) } })
+  fireEvent.keyDown(name, { key: 'Enter' })
+  expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameMaxLength)
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+  fireEvent.change(name, { target: { value: `  ${'x'.repeat(50)}  ` } })
+  await act(async () => { fireEvent.click(submit) })
+  expect(management.handleCreateKey).toHaveBeenCalledWith(
+    { name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}) },
+    expect.any(Function),
+  )
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+})
+
+it('keeps the name after a failed request and disables repeat submissions while pending', async () => {
+  let finish!: () => void
+  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => {
+    finish = () => { management.error = en.orbitMcp.createKeyError; resolve(null) }
+  }))
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  const name = screen.getByRole('textbox', { name: en.orbitMcp.keyName })
+  fireEvent.change(name, { target: { value: 'Home automation' } })
+  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
+  fireEvent.click(submit)
+  expect(submit).toBeDisabled()
+  expect(submit).toHaveAttribute('data-loading')
+  expect(name).toBeDisabled()
+  expect(screen.getByRole('button', { name: en.common.cancel })).toBeDisabled()
+  fireEvent.keyDown(name, { key: 'Enter' })
+  expect(management.handleCreateKey).toHaveBeenCalledTimes(1)
+  await act(async () => finish())
+  expect(screen.getByRole('alert')).toHaveTextContent(en.orbitMcp.createKeyError)
+  expect(name).toHaveValue('Home automation')
+  expect(submit).toBeEnabled()
+  management.error = null
+  await act(async () => { fireEvent.click(submit) })
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+})
+
+it('clears the name when creation is explicitly cancelled', () => {
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Cancelled key' } })
+  fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
+  fireEvent.click(screen.getByRole('button', { name: en.common.keepEditing }))
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('Cancelled key')
+  fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
+  fireEvent.click(screen.getByRole('button', { name: en.common.discardChangesAction }))
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('')
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+})
+
+
+it.each([['en', en], ['pt-BR', ptBR]] as const)('labels the name and required error in %s', (locale, messages) => {
+  management.locale = locale
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.create }))
+  const name = screen.getByRole('textbox', { name: messages.orbitMcp.keyName })
+  expect(name).toHaveAttribute('placeholder', messages.orbitMcp.keyNamePlaceholder)
+  fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction }))
+  expect(name).toHaveAccessibleDescription(messages.orbitMcp.keyNameRequired)
+  expect(management.handleCreateKey).not.toHaveBeenCalled()
+})
+
 const detailKey: ApiKey = {
   id: 'details-key', name: 'External tool', keyPrefix: 'orb_details', scopes: ['habits:read', 'goals:read'],
   isReadOnly: true, createdAtUtc: '2026-01-02T12:00:00Z', lastUsedAtUtc: '2026-02-03T12:00:00Z',
@@ -321,7 +409,7 @@ it('offers retry instead of stale key details when loading fails', () => {
 })
 
 it('localizes key details and dates in Brazilian Portuguese', () => {
-  localeSettings.locale = 'pt-BR'
+  management.locale = 'pt-BR'
   management.apiKeys = [detailKey]
   renderKeyDetails()
   expect(screen.getByText(ptBR.orbitMcp.permReadOnly)).toBeInTheDocument()
