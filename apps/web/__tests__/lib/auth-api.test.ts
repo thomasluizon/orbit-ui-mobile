@@ -519,4 +519,45 @@ describe('auth-api session helpers', () => {
     expect(getAccountIdFromToken('not-a-token')).toBeNull()
     expect(getAccountIdFromToken(`${encodeJwtSegment({ alg: 'HS256' })}.%%%.signature`)).toBeNull()
   })
+  it('preserves committed rotations beyond ten seconds and retries with the current cookie', async () => {
+    const token = makeJwt(Math.floor(FIXED_NOW / 1000) + 900)
+    const storedCookies = new Map([
+      ['auth_token', makeJwt(Math.floor(FIXED_NOW / 1000) - 60)],
+      ['refresh_token', 'old-refresh-token'],
+    ])
+    let serverRefreshToken = 'old-refresh-token'
+    const sentRefreshTokens: string[] = []
+    mockCookieStore.get.mockImplementation((name: string) => ({ value: storedCookies.get(name) }))
+    mockCookieStore.set.mockImplementation((name: string, value: string) => { storedCookies.set(name, value) })
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
+      const { refreshToken } = JSON.parse(options.body as string) as { refreshToken: string }
+      sentRefreshTokens.push(refreshToken)
+      if (refreshToken !== serverRefreshToken) return Promise.resolve(new Response(null, { status: 401 }))
+      serverRefreshToken = `rotation-${sentRefreshTokens.length}`
+      const response = Response.json({ token, refreshToken: serverRefreshToken })
+      if (sentRefreshTokens.length > 1) return Promise.resolve(response)
+      return new Promise<Response>((resolve, reject) => {
+        setTimeout(() => resolve(response), 11_000)
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+    })
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const first = resolveServerSession()
+    await new Promise<void>((resolve) => setTimeout(resolve, 10_100))
+    const joined = resolveServerSession()
+    try {
+      const outcomes = await Promise.all([first, joined])
+      vi.useFakeTimers()
+      await vi.advanceTimersByTimeAsync(30_000)
+      const retry = await resolveServerSession({ forceRefresh: true })
+
+      expect(outcomes.every((outcome) => outcome.refreshed && !outcome.refreshFailed)).toBe(true)
+      expect(retry).toMatchObject({ token, refreshed: true, refreshFailed: false })
+      expect(storedCookies.get('auth_token')).toBe(token)
+      expect(storedCookies.get('refresh_token')).toBe('rotation-2')
+      expect(sentRefreshTokens).toEqual(['old-refresh-token', 'rotation-1'])
+    } finally {
+      vi.useRealTimers()
+    }
+  }, 20_000)
 })

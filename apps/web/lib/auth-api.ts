@@ -200,7 +200,6 @@ export async function refreshSessionTokens(
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept-Language': language ?? await getServerRequestLanguage() },
         body: JSON.stringify({ refreshToken }),
-        signal: AbortSignal.timeout(10000),
       })
 
       if (!response.ok) {
