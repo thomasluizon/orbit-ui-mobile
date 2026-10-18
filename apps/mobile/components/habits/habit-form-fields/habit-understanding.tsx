@@ -18,8 +18,26 @@ type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
   isSuggestionDisabled?: boolean
 }
 
+function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoji'], onEmojiSelect: HabitUnderstandingProps['onEmojiSelect']) {
+  const [emojiProposed, setEmojiProposed] = useState(false)
+  async function suggestEmoji() {
+    const result = await onSuggestEmoji?.()
+    if (result?.setup) setEmojiProposed(true)
+  }
+  function selectEmoji(value: string) {
+    setEmojiProposed(false)
+    onEmojiSelect(value)
+  }
+  return { emojiProposed, selectEmoji, requestEmoji: onSuggestEmoji ? () => { void suggestEmoji() } : undefined }
+}
+
 export function HabitUnderstanding({
   inputRef,
+  onSuggestEmoji,
+  canSuggestEmoji = false,
+  isEmojiSuggesting = false,
+  emojiSuggestionHint,
+  emojiSuggestionError,
   value,
   error,
   emoji,
@@ -48,9 +66,28 @@ export function HabitUnderstanding({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const [focused, setFocused] = useState(false)
+  const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
+
+  const emojiControl = (
+    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
+      <HabitEmojiSelector
+        selectedEmoji={emoji}
+        tokens={tokens}
+        styles={formStyles}
+        wellSize={46}
+        onSelect={selectEmoji}
+        onSuggest={requestEmoji}
+        canSuggest={canSuggestEmoji}
+        isSuggesting={isEmojiSuggesting}
+        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        suggestionHint={emojiSuggestionHint}
+        suggestionError={emojiSuggestionError}
+      />
+    </Proposed>
+  )
 
   return (
     <View style={styles.container}>
@@ -90,17 +127,13 @@ export function HabitUnderstanding({
         ) : null}
       </View>
 
+      {onSuggestEmoji && !showPreview ? emojiControl : null}
+
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <View accessibilityLabel={labels.understood} style={styles.preview}>
             <View style={styles.previewHeader}>
-              <HabitEmojiSelector
-                selectedEmoji={emoji}
-                tokens={tokens}
-                styles={formStyles}
-                wellSize={46}
-                onSelect={onEmojiSelect}
-              />
+              {emojiControl}
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
             <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
@@ -169,7 +202,7 @@ function createStyles(tokens: AppTokens) {
       outlineStyle: 'solid',
       backgroundColor: tokens.bgCard,
     },
-    previewHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+    previewHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     sentence: {
       color: tokens.fg1,

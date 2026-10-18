@@ -40,7 +40,7 @@ async function expectNoPaintedAccent(ring: Locator) {
     element.append(probe)
     const primary = getComputedStyle(probe).color
     probe.remove()
-    return Array.from(element.querySelectorAll('circle')).filter((circle) => {
+    return Array.from(element.querySelectorAll('circle, path')).filter((circle) => {
       const style = getComputedStyle(circle)
       if (style.visibility !== 'visible' || style.stroke === 'none' || Number(style.strokeWidth.replace('px', '')) === 0) return false
       for (let ancestor: Element | null = circle; ancestor; ancestor = ancestor.parentElement) {
@@ -87,9 +87,15 @@ for (const width of [412, 1280]) {
       test('Hoje paints only the parent track at zero of two children done', async ({ page }) => {
         await page.goto('/')
         const parent = page.getByTestId('habit-row').filter({ hasText: 'Rotina' })
-        const ring = parent.locator('[data-habit-row-control="ring"]')
+        const ring = parent.locator('[data-habit-row-control="check"]')
         await expect(ring).toHaveAttribute('aria-label', /0\/2/)
-        await expect(ring.locator('circle')).toHaveCount(2)
+        const check = ring.locator('[data-habit-check]')
+        await expect(check).toHaveCSS('width', '28px')
+        await expect(check).toHaveCSS('height', '28px')
+        await expect(check).toHaveCSS('border-radius', '12px')
+        await expect(check).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+        expect(await check.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('1px inset')
+        await expect(check.locator('path')).toHaveCount(0)
         await expectNoPaintedAccent(ring)
       })
 

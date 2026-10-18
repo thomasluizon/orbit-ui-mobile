@@ -222,6 +222,18 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.nextWeek": {
+      "targets": [
+        "mobile:content:common.nextWeek"
+      ],
+      "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
+    },
+    "mobile:control:common.previousWeek": {
+      "targets": [
+        "mobile:content:common.previousWeek"
+      ],
+      "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
+    },
     "mobile:control:common.selectedTime": {
       "targets": [
         "mobile:control:common.selectTime"
@@ -1131,6 +1143,12 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:goals.metrics.projectedCompletion": {
+      "targets": [
+        "mobile:control:goals.metrics.projectedCompletion"
+      ],
+      "reason": "The projected completion figure is retained in the goal detail forecast's rendered label and value rows."
+    },
     "mobile:display:habits.breakdown.breakInto": {
       "targets": [
         "mobile:control:chat.breakdown.title"
@@ -1553,15 +1571,15 @@
     },
     "web:control:calendar.agenda.nextDay": {
       "targets": [
-        "web:control:common.nextWeek"
+        "web:content:common.nextWeek"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "The retained Agenda pager renders this shared label in the calendar header and moves the displayed Agenda period in the same direction."
     },
     "web:control:calendar.agenda.previousDay": {
       "targets": [
-        "web:control:common.previousWeek"
+        "web:content:common.previousWeek"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "The retained Agenda pager renders this shared label in the calendar header and moves the displayed Agenda period in the same direction."
     },
     "web:control:calendar.agenda.today": {
       "targets": [
@@ -1772,6 +1790,18 @@
         "web:control:common.back"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.nextWeek": {
+      "targets": [
+        "web:content:common.nextWeek"
+      ],
+      "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
+    },
+    "web:control:common.previousWeek": {
+      "targets": [
+        "web:content:common.previousWeek"
+      ],
+      "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
     },
     "web:control:common.selectedDate": {
       "targets": [
@@ -2741,6 +2771,12 @@
         "web:control:goals.form.type"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "web:display:goals.metrics.projectedCompletion": {
+      "targets": [
+        "web:control:goals.metrics.projectedCompletion"
+      ],
+      "reason": "The projected completion figure is retained in the goal detail forecast's rendered label and value rows."
     },
     "web:display:goals.progressPercentage": {
       "targets": [

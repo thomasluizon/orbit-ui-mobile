@@ -1,7 +1,7 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useMemo, type Ref, type CSSProperties } from 'react'
+import { useMemo, useState, type Ref, type CSSProperties } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -14,8 +14,26 @@ type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
   isSuggestionDisabled?: boolean
 }
 
+function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoji'], onEmojiSelect: HabitUnderstandingProps['onEmojiSelect']) {
+  const [emojiProposed, setEmojiProposed] = useState(false)
+  async function suggestEmoji() {
+    const result = await onSuggestEmoji?.()
+    if (result?.setup) setEmojiProposed(true)
+  }
+  function selectEmoji(value: string) {
+    setEmojiProposed(false)
+    onEmojiSelect(value)
+  }
+  return { emojiProposed, selectEmoji, requestEmoji: onSuggestEmoji ? () => { void suggestEmoji() } : undefined }
+}
+
 export function HabitUnderstanding({
   inputRef,
+  onSuggestEmoji,
+  canSuggestEmoji = false,
+  isEmojiSuggesting = false,
+  emojiSuggestionHint,
+  emojiSuggestionError,
   value,
   error,
   emoji,
@@ -36,9 +54,26 @@ export function HabitUnderstanding({
   onQuantityChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
+  const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
+
+  const emojiControl = (
+    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
+      <HabitEmojiSelector
+        selectedEmoji={emoji}
+        wellSize={46}
+        onSelect={selectEmoji}
+        onSuggest={requestEmoji}
+        canSuggest={canSuggestEmoji}
+        isSuggesting={isEmojiSuggesting}
+        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        suggestionHint={emojiSuggestionHint}
+        suggestionError={emojiSuggestionError}
+      />
+    </Proposed>
+  )
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -80,15 +115,13 @@ export function HabitUnderstanding({
         ) : null}
       </div>
 
+      {onSuggestEmoji && !showPreview ? emojiControl : null}
+
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <section aria-label={labels.understood} className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ gap: 16 }}>
-            <div className="flex items-center" style={{ gap: 12 }}>
-              <HabitEmojiSelector
-                selectedEmoji={emoji}
-                wellSize={46}
-                onSelect={onEmojiSelect}
-              />
+            <div className="flex flex-wrap items-center" style={{ gap: 12 }}>
+              {emojiControl}
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
             <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>

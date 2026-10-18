@@ -1827,6 +1827,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-auth-callback",
       "platform": "web",
       "kind": "route",
@@ -3985,6 +4041,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4011,6 +4068,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4037,6 +4095,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4063,6 +4122,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4089,6 +4149,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4115,6 +4176,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4141,6 +4203,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4167,6 +4230,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -5165,6 +5229,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6777,6 +6893,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -8401,6 +8569,58 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12047,6 +12267,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-goals-goal-habits-field",
       "platform": "mobile",
       "kind": "overlay",
@@ -13917,6 +14189,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/advanced-sections.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -15329,10 +15653,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15386,10 +15713,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15443,10 +15773,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15500,10 +15833,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",

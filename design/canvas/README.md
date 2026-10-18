@@ -25,6 +25,7 @@ that disagrees with production is a trap rather than an authority.
 | Progresso overview | The root contains the 30-day chart, completion rate, active days, best weekday and most consistent habit, then Sequência, Metas and Conquistas sub-menu rows. Sequência owns its freezes and protected days. Metas retains every goal action. Conquistas retains the drawn level and XP row before the achievement categories. Each opens its own route with a visible back control | Supersedes the inline detail stack in `Orbit Progresso.dc.html`; the detail drawings remain the reference. Three entries keep level and achievements together. Navigation stays available during loading, empty, locked and error states on both platforms, in a centred column capped at 740px. |
 | Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, date paging at the content edges and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
 | Touch targets | `--touch-min` is 48px on web and 48 logical pixels on Android, from shared `TOUCH_TARGET_MIN`; small pills retain their visible geometry and reserve the expanded hit area; month-grid cells use their full column width and at least 44px | Controls stay usable with distinct, non-overlapping targets at compact widths. |
+| Astra connections | Perfil > Astra owns Conexões with Google Calendar and feature-gated Notion. The Google Calendar row and the retained Sincronizar calendário row both open the Calendários sheet through `/calendar?import=1`. Notion grants read-only access to chosen pages, with connection, reconnect and confirmed disconnect states | Connection management belongs with Astra settings. |
 | Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
@@ -62,7 +63,7 @@ TalkBack and real Android text rendering remain device-verification boundaries.
 | Paired web and Android surface | Contract and evidence |
 |---|---|
 | Hoje selected day | Day title and full month date centred between edge targets; compact 320 and 412 geometry and full date labels in both locales. |
-| Hoje another day and forward boundary | Same geometry with the separate Hoje jump action and an enabled or disabled forward target; existing navigation, accessible names and feedback retained. Native composition tests include the proactive line and populated habit rows. |
+| Hoje another day and forward boundary | Same geometry with the centred date label returning to today and an enabled or disabled forward target. The label is inert on today, retains the 48 touch floor and one focus indicator, and announces the return action away from today. No separate Hoje jump control. Native composition tests include the proactive line and populated habit rows. |
 | Hoje compact and wide drawing | Both pager compositions span their content column with 48px targets and centred labels; this amendment and DESIGN.md record the placement. |
 
 The date pager has no separate loading, empty or error state. Those belong to the surrounding habit
@@ -96,6 +97,19 @@ scroll owners retain their existing behavior.
 The unit geometry fixtures include crowded lanes and long titles. Whole-page layout and real native
 rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
 screen tests verify native scroll ownership without an emulator.
+
+### Return-to-today navigation amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Hoje header and date pager | No header jump pill. The centred date label returns from past and future days, remains inert on today, announces its action in both locales and retains a padded 48 target and one focus indicator. Surrounding loading, empty, error and populated lists share this pager. |
+| Calendário month header | The month label returns to today's selected day, including from another day of the current month. The adjacent chevron retains the month and year picker and wraps below the whole label when large text needs another line. Month controls have no gap so full labels and independent 48px targets fit the narrow column; other views keep their 8px gap. |
+| Calendário week, range and agenda headers | The centred span label returns to the span containing today and remains inert on the current span. Existing paging boundaries and view selection remain intact. |
+| Calendário month and year picker sheet | Month selection and year browsing remain available; the separate current-month shortcut is removed. |
+| Other date controls | Form date pickers and habit history controls have no separate return-to-today action and retain their existing jobs. |
+
+Unit tests cover activation, keyboard behavior on web and native target styles. The layout workflow
+owns full-page web evidence. Android screen geometry remains a native rendering boundary.
 
 ### Any-time label amendment surface inventory
 

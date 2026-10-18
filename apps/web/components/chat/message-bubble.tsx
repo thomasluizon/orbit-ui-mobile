@@ -39,9 +39,9 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
       {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
       {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
       {message.daySummary ? <DaySummaryCard daySummary={message.daySummary} /> : null}
-      {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
-      {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
-      {message.recordList ? <RecordListCard recordList={message.recordList} /> : null}
+      {message.streak ? <StreakCard streakCard={message.streak} /> : null}
+      {message.calendar ? <CalendarCard calendarCard={message.calendar} /> : null}
+      {message.recordLists?.map((recordList, index) => <RecordListCard key={index} recordList={recordList} />)}
       {message.accountRows ? <AccountRowsCard accountRows={message.accountRows} /> : null}
     </>
   )

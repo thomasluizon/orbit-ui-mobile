@@ -172,6 +172,10 @@ for (const width of [412, 1352]) {
 
       test('calendar event rows open preselected imports with small sheet actions and no per-event pill', async ({ page }) => {
         await page.goto('/calendar')
+        const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+        await expect(consent).toBeVisible()
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+        await expect(consent).toHaveCount(0)
         const card = page.locator('section[data-field-surface="card"]').filter({ has: page.getByText(event.title, { exact: true }) })
         await expect(card).toBeVisible()
         await expect(card.locator('.orbit-pill-action')).toHaveCount(0)
@@ -233,6 +237,10 @@ for (const width of [412, 1352]) {
 
       test('delete confirmation keeps a trailing small action pair', async ({ page }) => {
         await page.goto(`/habits/${habitId}`)
+        const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+        await expect(consent).toBeVisible()
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+        await expect(consent).toHaveCount(0)
         await page.getByRole('button', { name: messages.habits.detail.delete, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: messages.habits.deleteConfirmTitle })
         await expect(sheet).toBeVisible()

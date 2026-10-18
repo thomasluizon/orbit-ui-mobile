@@ -30,34 +30,69 @@ class OrbitWidgetService : RemoteViewsService() {
             intent.getFloatExtra(
                 OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
                 OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
-            )
+            ),
+            intent.getFloatExtra(OrbitWidgetProvider.EXTRA_WIDGET_WIDTH_DP, 336f)
         )
     }
 }
 
-internal const val HEADER_HEIGHT_DP = 48f
-internal const val ROW_HEIGHT_DP = 48f
-internal const val REMAINDER_HEIGHT_DP = 48f
+internal data class WidgetSpacing(
+    val insetDp: Float,
+    val headerHeightDp: Float,
+    val rowHeightDp: Float,
+    val rowGapDp: Float,
+    val headerGapDp: Float,
+    val compactHeightDp: Float
+) {
+    companion object {
+        fun read(context: Context, widthDp: Float, heightDp: Float): WidgetSpacing {
+            val resources = context.resources
+            val density = resources.displayMetrics.density
+            fun dp(resource: Int) = resources.getDimension(resource) / density
+            val headerHeight = dp(if (widthDp <= OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP) {
+                R.dimen.widget_header_height_narrow
+            } else R.dimen.widget_touch_target)
+            val minimumWidth = dp(R.dimen.widget_header_min_width)
+            val inset = listOf(
+                R.dimen.widget_inset_card,
+                R.dimen.widget_inset_medium,
+                R.dimen.widget_inset_compact
+            ).map(::dp).first { widthDp >= minimumWidth + 2 * it && heightDp >= headerHeight + 2 * it }
+            return WidgetSpacing(
+                inset, headerHeight, dp(R.dimen.widget_row_height), dp(R.dimen.widget_row_gap),
+                dp(R.dimen.widget_header_list_gap), dp(R.dimen.widget_compact_height)
+            )
+        }
+    }
+}
 
 internal data class WidgetGeometry(
     val visibleRowCount: Int,
     val remainderCount: Int,
     val canStateRemainder: Boolean,
-    val contentHeightDp: Float
+    val contentHeightDp: Float,
+    val cardHeightDp: Float,
+    val compact: Boolean
 )
 
-internal fun calculateWidgetGeometry(heightDp: Float, totalRows: Int): WidgetGeometry {
-    val availableHeightDp = heightDp - HEADER_HEIGHT_DP
-    val fit = maxOf(1, floor(availableHeightDp / ROW_HEIGHT_DP).toInt())
-    val canStateRemainder = totalRows > fit &&
-        fit >= 2 &&
-        availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP
-    val visibleRowCount = if (canStateRemainder) maxOf(1, fit - 1) else minOf(fit, totalRows)
+internal fun calculateWidgetGeometry(
+    heightDp: Float,
+    totalRows: Int,
+    spacing: WidgetSpacing
+): WidgetGeometry {
+    val compact = heightDp <= spacing.compactHeightDp ||
+        heightDp < 2 * spacing.insetDp + spacing.headerHeightDp + spacing.headerGapDp + spacing.rowHeightDp
+    val availableHeightDp = heightDp - 2 * spacing.insetDp - spacing.headerHeightDp - spacing.headerGapDp
+    val stride = spacing.rowHeightDp + spacing.rowGapDp
+    val fit = if (compact) 0 else maxOf(0, floor((availableHeightDp + spacing.rowGapDp) / stride).toInt())
+    val canStateRemainder = totalRows > fit && fit >= 2
+    val visibleRowCount = if (canStateRemainder) fit - 1 else minOf(fit, totalRows)
+    val bodyRows = if (compact) 0 else maxOf(1, visibleRowCount + if (canStateRemainder) 1 else 0)
+    val contentHeight = if (bodyRows == 0) 0f else bodyRows * stride - spacing.rowGapDp
     return WidgetGeometry(
-        visibleRowCount = visibleRowCount,
-        remainderCount = totalRows - visibleRowCount,
-        canStateRemainder = canStateRemainder,
-        contentHeightDp = maxOf(1, visibleRowCount + if (canStateRemainder) 1 else 0) * ROW_HEIGHT_DP
+        visibleRowCount, totalRows - visibleRowCount, canStateRemainder, contentHeight,
+        2 * spacing.insetDp + spacing.headerHeightDp + if (compact) 0f else spacing.headerGapDp + contentHeight,
+        compact
     )
 }
 
@@ -106,7 +141,6 @@ internal enum class WidgetString(val resourceId: Int) {
     ALL_CLEAR(R.string.widget_all_clear),
     NOTHING_SCHEDULED(R.string.widget_nothing_scheduled),
     SIGN_IN(R.string.widget_sign_in),
-    STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
     REFRESHING(R.string.widget_refreshing),
     LOADING(R.string.widget_loading),
@@ -255,7 +289,8 @@ internal fun RemoteViews.setModeAwareBitmap(
 class OrbitWidgetFactory(
     private val context: Context,
     appWidgetId: Int,
-    private val widgetHeightDp: Float
+    private val widgetHeightDp: Float,
+    private val widgetWidthDp: Float
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp)
@@ -265,7 +300,6 @@ class OrbitWidgetFactory(
     private var lang: String = "en"
     private var uses24HourClock: Boolean? = null
     private var colorModes: WidgetColorModes = defaultColorModes()
-    private val gson = Gson()
 
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
@@ -294,6 +328,15 @@ class OrbitWidgetFactory(
             }
             return context.createConfigurationContext(configuration)
                 .getString(string.resourceId, *formatArgs)
+        }
+
+        internal fun streakUnit(context: Context, lang: String, streak: Int): String {
+            val localeTag = if (lang.startsWith("pt", ignoreCase = true)) "pt-BR" else "en"
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(localeTag))
+            }
+            return context.createConfigurationContext(configuration).resources
+                .getQuantityString(R.plurals.widget_streak_unit, streak)
         }
 
         private fun fallbackColors(mode: String): Map<String, String> =
@@ -534,6 +577,7 @@ class OrbitWidgetFactory(
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             prefs.edit()
                 .putString("header_label", headerLabel)
+                .putString("next_habit_title", habits.firstOrNull()?.title)
                 .putInt("row_count", habits.size)
                 .putInt("habit_count", dayState.totalCount)
                 .putInt("completed_count", dayState.completedCount)
@@ -598,7 +642,7 @@ class OrbitWidgetFactory(
     private fun parseWidgetResponse(json: String?): HabitWidgetResponse? {
         if (json.isNullOrBlank()) return null
         return try {
-            gson.fromJson(json, HabitWidgetResponse::class.java)
+            Gson().fromJson(json, HabitWidgetResponse::class.java)
         } catch (e: Exception) {
             Log.w(TAG, "widget parse error: ${e.javaClass.simpleName}: ${e.message}")
             null
@@ -639,7 +683,9 @@ class OrbitWidgetFactory(
         if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
             return@runCatching 0
         }
-        val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
+        val geometry = calculateWidgetGeometry(
+            widgetHeightDp, habits.size, WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
+        )
         geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
     }.getOrDefault(0)
 
@@ -655,7 +701,9 @@ class OrbitWidgetFactory(
         if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
             return RemoteViews(context.packageName, R.layout.widget_item)
         }
-        val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
+        val geometry = calculateWidgetGeometry(
+            widgetHeightDp, habits.size, WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)
+        )
         if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
             return buildRemainderView(geometry.remainderCount)
         }
@@ -695,9 +743,8 @@ class OrbitWidgetFactory(
     }
 
     private fun applyItemBackground(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
-        val density = context.resources.displayMetrics.density
         val width = (context.resources.displayMetrics.widthPixels * 0.9f).toInt()
-        val height = (48 * density).toInt()
+        val height = context.resources.getDimensionPixelSize(R.dimen.widget_row_height)
         val lightBackground = createItemBackground(habit, isChild, colorModes.light, width, height)
         val darkBackground = createItemBackground(habit, isChild, colorModes.dark, width, height)
         views.setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)
@@ -736,11 +783,11 @@ class OrbitWidgetFactory(
     }
 
     private fun applyItemTitle(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
-        if (isChild) {
-            views.setViewPadding(R.id.widget_item_content, dpToPx(32), 0, dpToPx(12), 0)
-        } else {
-            views.setViewPadding(R.id.widget_item_content, dpToPx(12), 0, dpToPx(12), 0)
-        }
+        val resources = context.resources
+        val inline = resources.getDimensionPixelSize(R.dimen.widget_row_inset_inline)
+        val block = resources.getDimensionPixelSize(R.dimen.widget_row_inset_block)
+        val start = if (isChild) resources.getDimensionPixelSize(R.dimen.widget_child_inset) else inline
+        views.setViewPadding(R.id.widget_item_content, start, block, inline, block)
         views.setTextViewText(R.id.item_title, habit.title)
         views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
         if (habit.isCompleted) {
@@ -841,10 +888,6 @@ class OrbitWidgetFactory(
         views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
         views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
         views.setModeAwareColor(R.id.item_time, "setTextColor", colorModes) { it.textMuted }
-    }
-
-    private fun dpToPx(dp: Int): Int {
-        return (dp * context.resources.displayMetrics.density).toInt()
     }
 
     override fun getLoadingView(): RemoteViews? = null

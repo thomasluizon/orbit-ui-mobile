@@ -727,7 +727,7 @@ describe("CalendarScreen views (mobile)", () => {
     try {
       TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
       pressView(tree, 'week');
-      const current = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', go to today'))[0]!;
+      const current = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(en.calendar.period.goToCurrent.replace('{period}', '')))[0]!;
       expect.soft(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-09-28', '2026-10-04']);
       const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextWeek')[0]!;
       TestRenderer.act(() => next.props.onPress());
@@ -786,7 +786,7 @@ describe("CalendarScreen views (mobile)", () => {
     press('common.previousWeek');
     expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
     press('common.previousWeek');
-    const today = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', go to today'))[0];
+    const today = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(en.calendar.period.goToCurrent.replace('{period}', '')))[0];
     expect(today).toBeDefined();
     TestRenderer.act(() => today!.props.onPress());
     expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
@@ -808,7 +808,7 @@ describe("CalendarScreen views (mobile)", () => {
         (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findHeader).find(Boolean);
       const header = [tree.toJSON()].flat().map(findHeader).find(Boolean)!;
       const measured = measureProfileRow(header, 320, scale);
-      const pager = measured.controls.filter((control) => ['common.previousWeek', 'common.nextWeek'].includes(control.accessibilityLabel ?? '') || control.accessibilityLabel?.endsWith(', ir para hoje'));
+      const pager = measured.controls.filter((control) => ['common.previousWeek', 'common.nextWeek'].includes(control.accessibilityLabel ?? '') || control.accessibilityLabel?.endsWith(ptBR.calendar.period.goToCurrent.replace('{period}', '')));
       expect(pager).toHaveLength(3);
       const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
       expect(segments).toHaveLength(4);
@@ -826,7 +826,7 @@ describe("CalendarScreen views (mobile)", () => {
         expect.soft(Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
-      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', ir para hoje'))[0]!;
+      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(ptBR.calendar.period.goToCurrent.replace('{period}', '')))[0]!;
       expect(StyleSheet.flatten(titleControl.props.style({ pressed: true })).borderRadius).toBe(12);
       const initial = pager.find((control) => control.labels.length)!.labels[0];
       for (const label of ['common.nextWeek', 'common.previousWeek']) {
