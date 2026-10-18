@@ -381,7 +381,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 val ringInset = if (syncedOnce && !signedOut) {
                     context.resources.getDimensionPixelSize(R.dimen.widget_header_ring_offset)
                 } else 0
-                views.setViewPadding(R.id.widget_header_left, ringInset, 0, 0, 0)
+                views.setViewPadding(R.id.widget_header, ringInset, 0, 0, 0)
             }
 
             // Apply dynamic text colors

@@ -36,7 +36,7 @@
                 android:layout_width="@dimen/widget_ring_size"
                 android:layout_height="@dimen/widget_ring_size"
                 android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_alignTop="@id/widget_header_left"
                 android:src="@drawable/widget_progress_track"
                 android:importantForAccessibility="no"
                 android:contentDescription="@null"
@@ -55,7 +55,8 @@
                 <TextView
                     android:id="@+id/widget_header"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="@dimen/widget_header_label_height"
+                    android:gravity="center_vertical"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
                     android:maxLines="1"

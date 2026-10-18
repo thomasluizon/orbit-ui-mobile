@@ -231,6 +231,13 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     @Test
+    fun tallWidthsKeepTheCompleteDayCountAndStreak() {
+        for (width in listOf(201f, 202f, 208f, 216f, 224f, 250f)) {
+            assertSpacing(width, 192f, 24f)
+        }
+    }
+
+    @Test
     @SdkSuppress(maxSdkVersion = 30)
     fun legacyTallResizesExposeEveryAllocatedRowIncludingTheRemainder() {
         val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -360,11 +367,22 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         assertTrue(refreshBounds.right <= root.width - insetPx)
                         assertTrue(refreshBounds.bottom <= root.height - insetPx)
                         assertEquals(units[if (streak == 1) 0 else 1], text(R.id.widget_streak_unit))
-                        for (viewId in listOf(R.id.widget_subtitle, R.id.widget_streak)) {
+                        for (viewId in listOf(R.id.widget_subtitle, R.id.widget_streak, R.id.widget_streak_unit)) {
                             val figure = root.findViewById<TextView>(viewId)
+                            if (figure.visibility != View.VISIBLE) continue
                             assertEquals(1, figure.layout.lineCount)
                             assertEquals(0, figure.layout.getEllipsisCount(0))
                             assertTrue(figure.layout.getLineWidth(0) <= figure.width + 1f)
+                        }
+                        if (widthDp > OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP && heightDp > 96f) {
+                            val ring = root.findViewById<View>(R.id.widget_progress_ring)
+                            val ringBounds = Rect(0, 0, ring.width, ring.height)
+                            root.offsetDescendantRectToMyCoords(ring, ringBounds)
+                            val summary = root.findViewById<View>(R.id.widget_subtitle)
+                            val summaryBounds = Rect(0, 0, summary.width, summary.height)
+                            root.offsetDescendantRectToMyCoords(summary, summaryBounds)
+                            assertTrue(ringBounds.bottom <= summaryBounds.top)
+                            assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_streak_unit).visibility)
                         }
                         val dayLabel = root.findViewById<TextView>(R.id.widget_header)
                         assertEquals(0, dayLabel.layout.getEllipsisCount(0))

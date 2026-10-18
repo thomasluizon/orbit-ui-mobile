@@ -1,5 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import { Resvg } from '@resvg/resvg-js'
 import { SaxesParser } from 'saxes'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
@@ -211,6 +213,44 @@ function rootAttributes(relativePath: string) {
 }
 
 describe('Android widget content sizing', () => {
+  it.each(['days', 'dias'])('keeps the tall header summary whole with %s immediately above 200dp', unit => {
+    const views = layoutViews()
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const paddingTarget = kotlinFunctionBody(provider, 'buildWidgetViews')
+      .match(/views.setViewPadding\(R.id.(widget_header\w*), ringInset, 0, 0, 0\)/)?.[1]
+    const dimension = (view: string, attribute: string) => {
+      const value = views.get(view)?.[`android:${attribute}`]
+      if (!value?.endsWith('dp')) throw new Error(`Missing dimension: ${view}.${attribute}`)
+      return Number.parseFloat(value)
+    }
+    const require = createRequire(import.meta.url)
+    const summary = new Resvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="48">' +
+      '<text x="0" y="24" font-family="Roboto" font-size="12">3/7' +
+      '<tspan dx="8" font-size="15" font-weight="500">365</tspan>' +
+      `<tspan dx="4" font-size="12" font-weight="400">${unit}</tspan></text></svg>`,
+      { font: { loadSystemFonts: false, fontFiles: [
+        require.resolve('@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf'),
+        require.resolve('@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf'),
+      ] } },
+    ).innerBBox()
+    expect(summary).toBeDefined()
+    const ringOffset = dimension('widget_progress_ring', 'layout_width')
+      + dimension('widget_header_left', 'layout_marginEnd')
+    for (const width of [201, 202, 208, 216, 224, 250, 336]) {
+      const available = width - 2 * dimension('widget_root', 'padding')
+        - dimension('widget_refresh', 'layout_width')
+        - dimension('widget_header_left', 'layout_marginEnd')
+        - (paddingTarget === 'widget_header_left' ? ringOffset : 0)
+      expect(summary?.width, `${width}x192dp: 3/7 and 365 ${unit}`).toBeLessThanOrEqual(available)
+    }
+    expect(paddingTarget).toBe('widget_header')
+    expect(views.get('widget_progress_ring')?.['android:layout_alignTop']).toBe('@id/widget_header_left')
+    expect(dimension('widget_header', 'layout_height')).toBeGreaterThanOrEqual(
+      dimension('widget_progress_ring', 'layout_height'),
+    )
+  })
+
   it('insets the complete card and separates its header and rows with named resources', () => {
     const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
     expect(layoutViews('layout/widget_layout.xml', false).get('widget_root')?.['android:padding']).toBe('@dimen/widget_inset_card')
