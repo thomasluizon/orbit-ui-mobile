@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '@orbit/shared/chat'
+import { PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '@orbit/shared/chat/prompt-library'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { test } from './upgrade-fixtures'
 

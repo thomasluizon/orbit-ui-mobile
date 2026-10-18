@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useReducedMotion, useIsPresent } from 'motion/react'
-import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES } from '@orbit/shared/chat'
+import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES } from '@orbit/shared/chat/prompt-library'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'

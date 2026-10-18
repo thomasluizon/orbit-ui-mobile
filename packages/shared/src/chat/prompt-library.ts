@@ -1,5 +1,3 @@
-import { prepareChatRequest, type ChatStoreState } from '../stores/chat-store'
-
 export const PROMPT_CATEGORIES = ['start', 'remember', 'many', 'restart', 'understand', 'calendar'] as const
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number]
 export type PromptTemplate = { id: string; category: PromptCategory; labelKey: string; promptKey: string }
@@ -21,14 +19,6 @@ export function reducePromptFilters(state: PromptFilters, action: PromptFilterAc
     case 'query': return { ...state, query: action.query, page: 0 }
     case 'page': return { ...state, page: action.page }
   }
-}
-
-export function promptDisabledReason(state: {
-  isOnline: boolean; atMessageLimit: boolean; aiMessagesLimit: number; isSending: boolean
-}, translate: (key: string, values?: { allowance: number }) => string): string | undefined {
-  if (state.isOnline === false) return translate('shell.composer.offline.reason')
-  if (state.atMessageLimit) return translate('shell.composer.limit.reason', { allowance: state.aiMessagesLimit })
-  return state.isSending ? translate('shell.composer.busy.reason') : undefined
 }
 
 export const PROMPT_TEMPLATES: readonly PromptTemplate[] = [
@@ -74,11 +64,6 @@ export function promptCategories(hasProAccess: boolean, hasGoogleConnection: boo
   return PROMPT_CATEGORIES.filter(category => category !== 'calendar' || (hasProAccess && hasGoogleConnection))
 }
 
-export function findPromptSlot(prompt: string): { start: number; end: number } | null {
-  const slot = /\{[^{}]+\}/u.exec(prompt)
-  return slot ? { start: slot.index, end: slot.index + slot[0].length } : null
-}
-
 export function filterPromptTemplates(options: {
   category: PromptCategory
   query: string
@@ -111,12 +96,4 @@ export function buildPromptPage(options: {
   const currentPage = Math.min(page, lastPage)
   return { categories, activeCategory, matches, lastPage, currentPage,
     visible: matches.slice(currentPage * PROMPT_PAGE_SIZE, (currentPage + 1) * PROMPT_PAGE_SIZE) }
-}
-
-export function preparePromptTemplate(chat: Pick<ChatStoreState, 'draft' | 'setDraft' | 'setContextualSuggestion'>, request: { id: string; label: string; prompt: string }): ReturnType<typeof findPromptSlot> {
-  const slot = findPromptSlot(request.prompt)
-  if (!slot) return null
-  const hasDraft = Boolean(chat.draft)
-  prepareChatRequest(chat, { ...request, id: `prompt-library:${request.id}` })
-  return hasDraft ? null : slot
 }

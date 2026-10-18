@@ -84,7 +84,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 | 14 | Pushed entrance, return and reduced-motion cross-fade | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
 | 15 | Shared catalog, both locales, slot parser and layout coverage | Shared prompt tests, component tests and CI layout case | Shared prompt tests and native component tests |
 
-Owners above are under each app's `components/` directory. Both languages and both appearances use the same owners. The catalog is local and synchronous, so it has no separate loading or fetch-error view; live suggestions can be absent while their existing producer loads or fails.
+Owners above are under each app's `components/` directory. Both languages and both appearances use the same owners. The catalog is local. Web loads the library code and catalog when the view opens, with no visible loading indicator or separate fetch-error view; live suggestions can be absent while their existing producer loads or fails.
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 

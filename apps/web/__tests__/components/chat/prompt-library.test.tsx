@@ -10,7 +10,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AstraConversation } from '@/components/chat/conversation'
-import { PromptLibrary } from '@/components/chat/prompt-library'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -46,12 +45,40 @@ function conversation(send = vi.fn(), state: 'idle' | 'offline' | 'atLimit' = 'i
   return render(<NextIntlClientProvider locale="en" messages={en}><Harness send={send} state={state} /></NextIntlClientProvider>)
 }
 
+it('loads the library on demand, then fills a slot and sends a complete idea', async () => {
+  const send = vi.fn()
+  conversation(send)
+  expect(screen.queryByRole('heading', { name: 'Ideas' })).toBeNull()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(screen.queryByRole('heading', { name: 'Ideas' })).toBeNull()
+  expect(screen.queryByRole('progressbar')).toBeNull()
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  fireEvent.click(screen.getByRole('button', { name: 'Remember' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Set a reminder' }))
+  const input = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
+  expect(input).toHaveValue('Remind me to {habit} at {time}.')
+  await waitFor(() => expect(input).toHaveFocus())
+  expect(input.value.slice(input.selectionStart, input.selectionEnd)).toBe('{habit}')
+  expect(send).not.toHaveBeenCalled()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  fireEvent.click(screen.getByRole('button', { name: 'Restart' }))
+  const library = screen.getByRole('heading', { name: 'Ideas' }).closest('[data-prompt-library]')!
+  fireEvent.click(screen.getByRole('button', { name: 'Return after a hard week' }))
+  expect(send).toHaveBeenCalledExactlyOnceWith('Help me restart after a difficult week.')
+  expect(library).toBeInTheDocument()
+  expect(library).toHaveAttribute('inert')
+  expect(library).toHaveAttribute('aria-hidden', 'true')
+  await waitFor(() => expect(library).not.toBeInTheDocument())
+  expect(input).toHaveValue('Remind me to {habit} at {time}.')
+})
+
 it.each([0, 1])('opens from trigger %s, focuses the heading, and returns on Escape with the draft and trigger focus', async index => {
   useChatStore.getState().setDraft('My unfinished thought')
   conversation()
   const trigger = screen.getAllByRole('button', { name: 'Browse ideas' })[index]!
   fireEvent.click(trigger)
-  expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.change(screen.getByRole('searchbox', { name: 'Search ideas' }), { target: { value: 'week' } })
   fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' })
   await waitFor(() => expect(trigger).toHaveFocus())
@@ -64,6 +91,7 @@ it('returns with a selected editable slot, and sends a slot-free restart exactly
   const send = vi.fn()
   conversation(send)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Remember' }))
   fireEvent.click(screen.getByRole('button', { name: 'Set a reminder' }))
   const input = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
@@ -72,16 +100,18 @@ it('returns with a selected editable slot, and sends a slot-free restart exactly
   expect(input.value.slice(input.selectionStart, input.selectionEnd)).toBe('{habit}')
   expect(send).not.toHaveBeenCalled()
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Restart' }))
   fireEvent.click(screen.getByRole('button', { name: 'Return after a hard week' }))
   expect(send).toHaveBeenCalledExactlyOnceWith('Help me restart after a difficult week.')
   expect(input).toHaveValue('Remind me to {habit} at {time}.')
 })
 
-it('keeps a draft and retains the selected idea until the draft is cleared', () => {
+it('keeps a draft and retains the selected idea until the draft is cleared', async () => {
   useChatStore.getState().setDraft('Keep my words')
   conversation()
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[1]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Remember' }))
   fireEvent.click(screen.getByRole('button', { name: 'Set a reminder' }))
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Keep my words')
@@ -91,10 +121,11 @@ it('keeps a draft and retains the selected idea until the draft is cleared', () 
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Remind me to {habit} at {time}.')
 })
 
-it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reason at %s', state => {
+it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reason at %s', async state => {
   const send = vi.fn()
   conversation(send, state)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   expect(within(document.querySelector<HTMLElement>('[data-prompt-library]')!).getByText(state === 'offline' ? en.shell.composer.offline.reason : en.shell.composer.limit.reason.replace('{allowance}', '5'))).toBeInTheDocument()
   const row = screen.getByRole('button', { name: 'Plan my morning' })
   expect(row).toBeDisabled()
@@ -103,6 +134,7 @@ it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reas
 })
 
 it('searches every category in the current language, paginates, and clears a miss', async () => {
+  const { PromptLibrary } = await import('@/components/chat/prompt-library')
   render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection /></NextIntlClientProvider>)
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Começar' })).toBeVisible())
   expect(screen.queryByRole('heading', { name: 'Entender' })).toBeNull()
@@ -121,14 +153,16 @@ it('searches every category in the current language, paginates, and clears a mis
   expect(screen.getByRole('heading', { name: 'Começar' })).toBeVisible()
 })
 
-it.each([[false, false], [false, true], [true, false]])('excludes Calendar from the filter and search with Pro %s and Google %s', (hasProAccess, hasGoogleConnection) => {
+it.each([[false, false], [false, true], [true, false]])('excludes Calendar from the filter and search with Pro %s and Google %s', async (hasProAccess, hasGoogleConnection) => {
+  const { PromptLibrary } = await import('@/components/chat/prompt-library')
   render(<NextIntlClientProvider locale="en" messages={en}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess={hasProAccess} hasGoogleConnection={hasGoogleConnection} /></NextIntlClientProvider>)
   expect(screen.queryByRole('button', { name: 'Calendar' })).toBeNull()
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Google' } })
   expect(screen.queryByRole('button', { name: 'Import this week' })).toBeNull()
 })
 
-it('renders the live composer labels as rows and reuses their activation', () => {
+it('renders the live composer labels as rows and reuses their activation', async () => {
+  const { PromptLibrary } = await import('@/components/chat/prompt-library')
   const onSelect = vi.fn()
   const onBack = vi.fn()
   const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0, profile: createMockProfile() })
@@ -148,14 +182,16 @@ it('returns focus to the header when sending removes the empty-thread trigger', 
   conversation(send)
   const headerTrigger = screen.getAllByRole('button', { name: 'Browse ideas' })[0]!
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[1]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Plan my morning' }))
   await waitFor(() => expect(headerTrigger).toHaveFocus())
   expect(send).toHaveBeenCalledOnce()
 })
 
-it.each(['offline', 'atLimit'] as const)('keeps ideas disabled at %s even while recording masks the composer state', state => {
+it.each(['offline', 'atLimit'] as const)('keeps ideas disabled at %s even while recording masks the composer state', async state => {
   render(<NextIntlClientProvider locale="en" messages={en}><Harness state={state} recording /></NextIntlClientProvider>)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   expect(screen.getByRole('button', { name: 'Plan my morning' })).toBeDisabled()
   expect(document.querySelector('[data-prompt-library] [data-capacity-notice]')).not.toBeNull()
 })
@@ -164,13 +200,15 @@ it('refocuses the library heading when reopened during its exit', async () => {
   conversation()
   const trigger = screen.getAllByRole('button', { name: 'Browse ideas' })[0]!
   fireEvent.click(trigger)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }))
   await waitFor(() => expect(trigger).toHaveFocus(), { interval: 1 })
   fireEvent.click(trigger)
-  expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
 })
 
-it('refocuses a retained heading when the real presence context becomes present again', () => {
+it('refocuses a retained heading when the real presence context becomes present again', async () => {
+  const { PromptLibrary } = await import('@/components/chat/prompt-library')
   const register = () => () => {}
   const view = (isPresent: boolean) => <NextIntlClientProvider locale="en" messages={en}><PresenceContext value={{ id: 'library', isPresent, register }}><PromptLibrary onBack={vi.fn()} onSelect={vi.fn()} suggestions={[]} hasProAccess hasGoogleConnection /></PresenceContext></NextIntlClientProvider>
   const { rerender } = render(view(true))
@@ -189,9 +227,11 @@ it('keeps heading focus when reopening before a deferred idea restores its trigg
   conversation()
   const trigger = screen.getAllByRole('button', { name: 'Browse ideas' })[0]!
   fireEvent.click(trigger)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: 'Remember' }))
   fireEvent.click(screen.getByRole('button', { name: 'Set a reminder' }))
   fireEvent.click(trigger)
+  expect(await screen.findByRole('heading', { name: 'Ideas' })).toHaveFocus()
   await new Promise(resolve => setTimeout(resolve, 50))
   expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus()
 })

@@ -4,6 +4,7 @@ import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -21,9 +22,13 @@ import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
-import { PromptLibrary } from '@/components/chat/prompt-library'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
+
+const PromptLibrary = dynamic(
+  () => import('@/components/chat/prompt-library').then(module => module.PromptLibrary),
+  { ssr: false, loading: () => null },
+)
 
 function ThinkingTrace({ steps, running }: Readonly<{
   steps: readonly { domain: string; access: string }[]

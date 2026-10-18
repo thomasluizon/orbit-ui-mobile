@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createChatStoreState } from '../stores/chat-store'
-import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, promptDisabledReason, findPromptSlot, filterPromptTemplates, preparePromptTemplate, promptCategories, PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '../chat/prompt-library'
+import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, filterPromptTemplates, promptCategories, PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '../chat/prompt-library'
+import { promptDisabledReason, findPromptSlot, preparePromptTemplate } from '../chat/composer-controls'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 

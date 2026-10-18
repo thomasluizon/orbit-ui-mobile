@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '@orbit/shared/chat'
+import { PROMPT_CATEGORIES, PROMPT_TEMPLATES } from '@orbit/shared/chat/prompt-library'
 import { PromptLibrary } from '@/components/chat/prompt-library'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -69,6 +69,7 @@ it('paints the library above the retained conversation', async () => {
   } as unknown as Parameters<typeof AstraConversation>[0]['chat']
   const { container } = render(<NextIntlClientProvider locale="en" messages={en}><div style={{ width: 320, height: 800 }}><AstraConversation chat={chat} /></div></NextIntlClientProvider>)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
+  await screen.findByRole('heading', { name: 'Ideas' })
   const library = container.querySelector<HTMLElement>('[data-prompt-library]')!
   library.style.opacity = '1'
   library.style.transform = 'none'
