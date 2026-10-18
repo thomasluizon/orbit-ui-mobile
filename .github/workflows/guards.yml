@@ -1,132 +1,91 @@
+# Each guard keeps its own status condition so failures do not skip later guards.
 name: Guards
-
-# The deterministic replacements for the Claude-session-only PostToolUse hooks
-# (D6): these hold for Codex, Claude, a human, or a bot, because CI
-# is the one layer nothing bypasses. Jobs:
-#   root-allowlist - deliberate root entries, root npm overrides, explicit Docker registries
-#   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
-#   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
-#   ratchet - the eslint-suppressions.json baselines may only shrink
-#   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
-#   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
-#   performance-workflow - generated measured-performance logic matches its canonical module
-#   review-harness - a UI pull request on redesign/main states what the review skills found
-
-on:
+'on':
   pull_request:
-    branches: [main, redesign/main]
-    # `labeled` and `unlabeled` are load-bearing, not tidiness. Two of these jobs carry a
-    # label escape hatch (ratchet:reseed, parity:exempt),
-    # and `edited` covers title, body and base but NOT labels. Without these
-    # two the sequence "the check fails, apply the label, merge" fires no new run, the failing
-    # check run stands, and every escape hatch is decorative unless the label was predicted and
-    # applied before the first run.
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    branches:
+      - main
+      - redesign/main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - labeled
+      - unlabeled
   push:
-    branches: [main]
-
+    branches:
+      - main
+concurrency:
+  group: '${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
 permissions:
   contents: read
   pull-requests: read
-
 jobs:
-  timeless:
-    name: Timeless Text
+  guards:
+    name: Guards
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      # The checker reads JS and TS comments with the installed TypeScript parser.
-      - run: npm ci
-      - name: Check text
+      - name: Use the repository npm version
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit
+      - name: 'Timeless Text: Check text'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             node tools/check-timeless.mjs --base origin/${{ github.base_ref }}
           else
             node tools/check-timeless.mjs --all
           fi
-
-  root-allowlist:
-    name: Root Allowlist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+        id: timeless__1
+        if: ${{ !cancelled() }}
       - run: node tools/check-root-allowlist.mjs
-      - name: Workspace packages declare no ignored overrides
+        id: root-allowlist__1
+        name: 'Root Allowlist: node tools/check-root-allowlist.mjs'
+        if: ${{ !cancelled() }}
+      - name: 'Root Allowlist: Workspace packages declare no ignored overrides'
         run: node tools/check-workspace-overrides.mjs
-      - name: Docker base images name an explicit registry
+        id: root-allowlist__2
+        if: ${{ !cancelled() }}
+      - name: 'Root Allowlist: Docker base images name an explicit registry'
         run: node tools/check-docker-registries.mjs
-
-  dashes:
-    name: Dash Ban
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: Changed files carry no new dashes
-        if: github.event_name == 'pull_request'
+        id: root-allowlist__3
+        if: ${{ !cancelled() }}
+      - name: 'Dash Ban: Changed files carry no new dashes'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
           git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -z \
             | xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files
-      - name: Baseline only shrinks
+        id: dashes__1
+      - name: 'Dash Ban: Baseline only shrinks'
         run: node tools/check-dashes.mjs --check-baseline
-      - name: PR title and body carry no dashes
-        # Human-authored prose only. A bot PR body is machine-copied upstream text
-        # (Dependabot quotes the dependency's own changelog verbatim), which Orbit
-        # neither wrote nor can edit, and which Dependabot regenerates on every
-        # rebase. The file-level dash check above still runs on bot PRs, because
-        # the files they change ARE Orbit's. See orbit-api#425, where a Hangfire
-        # release note's en dashes blocked a security-relevant NuGet bump.
-        if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
+        id: dashes__2
+        if: ${{ !cancelled() }}
+      - name: 'Dash Ban: PR title and body carry no dashes'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot') }}
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: '${{ github.event.pull_request.title }}'
+          PR_BODY: '${{ github.event.pull_request.body }}'
         run: node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
-
-  copy:
-    name: Copy Register
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+        id: dashes__3
       - run: node tools/check-copy.mjs --check
-
-  ratchet:
-    name: Suppressions Ratchet
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ratchet:reseed')
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+        id: copy__1
+        name: 'Copy Register: node tools/check-copy.mjs --check'
+        if: ${{ !cancelled() }}
       - run: node tools/check-suppressions-ratchet.mjs
-
-  parity:
-    name: Cross-Platform Parity
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: A UI change lands on both platforms or carries parity:exempt
+        id: ratchet__1
+        name: 'Suppressions Ratchet: node tools/check-suppressions-ratchet.mjs'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ratchet:reseed')) }}
+      - name: 'Cross-Platform Parity: A UI change lands on both platforms or carries parity:exempt'
         run: |
           changed=$(git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD)
           web=$(echo "$changed" | grep -Ec '^apps/web/(app|components|hooks|stores|lib)/' || true)
@@ -140,16 +99,9 @@ jobs:
             echo "::error::apps/mobile UI code changed with zero apps/web change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add parity:exempt with a one-line PR-body justification for a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
             exit 1
           fi
-
-  expo-pin:
-    name: Expo SDK Pin
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Detect apps/mobile/package.json change
+        id: parity__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]') }}
+      - name: 'Expo SDK Pin: Detect apps/mobile/package.json change'
         id: mobile-pkg
         run: |
           if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^apps/mobile/package\.json$'; then
@@ -157,36 +109,15 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/setup-node@v7
-        if: steps.mobile-pkg.outputs.changed == 'true'
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-        if: steps.mobile-pkg.outputs.changed == 'true'
-      - name: Expo-pinned versions still resolve to the SDK set
-        if: steps.mobile-pkg.outputs.changed == 'true'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - name: 'Expo SDK Pin: Expo-pinned versions still resolve to the SDK set'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (steps.mobile-pkg.outputs.changed == 'true') }}
         working-directory: apps/mobile
         run: CI=1 npx expo install --check
-
-  review-harness:
-    name: Redesign Review Harness
-    runs-on: ubuntu-latest
-    # Only a pull request has a body and a base to read. On a push to main there is nothing to check,
-    # and the checker itself exits 0 for any base that is not redesign/main.
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: A UI pull request on redesign/main records what the review skills found
+        id: expo-pin__2
+      - name: 'Redesign Review Harness: A UI pull request on redesign/main records what the review skills found'
         env:
-          # Through the environment, never argv: a body is untrusted text and interpolating it into a
-          # run block is a shell injection. The same reason check-dashes.mjs reads the title this way.
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BODY: '${{ github.event.pull_request.body }}'
         run: |
           set -euo pipefail
           printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
@@ -195,13 +126,96 @@ jobs:
             --base '${{ github.base_ref }}' \
             --body-file "$RUNNER_TEMP/pr-body.md" \
             --changed-files-file "$RUNNER_TEMP/changed.txt"
-
-  performance-workflow:
-    name: Performance Workflow Drift
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+        id: review-harness__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') }}
       - run: node tools/generate-performance-workflow.mjs --check
+        id: performance-workflow__1
+        name: 'Performance Workflow Drift: node tools/generate-performance-workflow.mjs --check'
+        if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
+      - name: 'Dependency Audit: Fail on critical production CVEs'
+        run: npm audit --omit=dev --audit-level=critical
+        id: dependency-audit__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - name: 'Dependency Audit: Report high and moderate advisories (non-blocking)'
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') && (always()) }}
+        run: npm audit --audit-level=moderate || true
+        id: dependency-audit__2
+      - name: 'Design Token Guard: Ban raw --slate-*, transition-all, h-screen in app code'
+        run: |
+          # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
+          # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
+          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
+            --include='*.ts' --include='*.tsx' --include='*.css' \
+            --exclude-dir=node_modules --exclude-dir=__tests__ \
+            --exclude='globals.css' --exclude='theme.ts' \
+            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
+            echo "$hits"
+            exit 1
+          fi
+          echo "Design token guard passed."
+        id: design-guard__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - name: 'Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit'
+        working-directory: packages/shared
+        run: |
+          set -euo pipefail
+          pin=$(cat src/types/__generated__/api.spec.commit)
+          if ! [[ "$pin" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The orbit-api commit pin must be a full 40-character SHA."
+            exit 1
+          fi
+          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
+          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
+        id: contract-drift__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - name: 'Contract Drift: Fail if the snapshot does not match the pinned API commit'
+        run: |
+          if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then
+            echo "::error::The committed Zod snapshot does not match the pinned orbit-api commit. Regenerate the snapshot from the pin or update both files together. See packages/shared/CONTRACT_DRIFT.md."
+            git diff -- packages/shared/src/types/__generated__/api.generated.ts
+            exit 1
+          fi
+          echo "The committed snapshot matches the pinned orbit-api commit."
+        id: contract-drift__2
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - name: 'Architecture map drift: Generate the architecture map'
+        run: node tools/arch-map.mjs
+        id: architecture-map__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
+      - name: 'Architecture map drift: The map is deterministic across two runs'
+        run: |
+          set -euo pipefail
+          for artifact in architecture.json architecture.html architecture.mmd; do
+            cp "$artifact" "$RUNNER_TEMP/first-$artifact"
+          done
+          node tools/arch-map.mjs > /dev/null
+          for artifact in architecture.json architecture.html architecture.mmd; do
+            if ! cmp -s "$artifact" "$RUNNER_TEMP/first-$artifact"; then
+              echo "::error::$artifact differs between two runs over an unchanged tree. The generator is not deterministic; a clock, a git SHA or an unsorted list has crept in."
+              diff "$RUNNER_TEMP/first-$artifact" "$artifact" | head -40 || true
+              exit 1
+            fi
+          done
+          echo "All three artifacts are byte-identical across two runs."
+        id: architecture-map__2
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
+      - name: 'Architecture map drift: Publish the map'
+        uses: actions/upload-artifact@v7
+        with:
+          name: architecture-map
+          path: |
+            architecture.json
+            architecture.html
+            architecture.mmd
+          if-no-files-found: error
+          retention-days: 14
+        id: architecture-map__3
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
+      - name: 'React Doctor: Fail on new React issues in changed files'
+        run: |
+          npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
+        id: react-doctor__1
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        timeout-minutes: 15

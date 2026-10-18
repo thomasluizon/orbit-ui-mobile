@@ -86,6 +86,25 @@ jobs:
 
       - run: npm run build
 
+  tool-hook-tests:
+    name: Tool and Hook Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Test guard workflow behavior
+        run: node --test tools/__tests__/guards-consolidation.test.mjs
+      - name: Run tools harness
+        if: ${{ !cancelled() }}
+        run: node tools/test-tools.mjs
+      - name: Run hooks harness
+        if: ${{ !cancelled() }}
+        run: node .claude/hooks/test-hooks.mjs
+
   unit-tests:
     name: Unit Tests
     needs: build
@@ -244,82 +263,3 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
 
       - run: npx turbo run lint
-
-  dependency-audit:
-    name: Dependency Audit
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Fail on critical production CVEs
-        run: npm audit --omit=dev --audit-level=critical
-
-      - name: Report high and moderate advisories (non-blocking)
-        if: always()
-        run: npm audit --audit-level=moderate || true
-
-  design-guard:
-    name: Design Token Guard
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Ban raw --slate-*, transition-all, h-screen in app code
-        run: |
-          # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
-          # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
-          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
-            --include='*.ts' --include='*.tsx' --include='*.css' \
-            --exclude-dir=node_modules --exclude-dir=__tests__ \
-            --exclude='globals.css' --exclude='theme.ts' \
-            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
-          if [ -n "$hits" ]; then
-            echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
-            echo "$hits"
-            exit 1
-          fi
-          echo "Design token guard passed."
-
-  contract-drift:
-    name: Contract Drift
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Regenerate Zod contract snapshot from the pinned orbit-api commit
-        working-directory: packages/shared
-        run: |
-          set -euo pipefail
-          pin=$(cat src/types/__generated__/api.spec.commit)
-          if ! [[ "$pin" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::The orbit-api commit pin must be a full 40-character SHA."
-            exit 1
-          fi
-          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
-          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
-
-      - name: Fail if the snapshot does not match the pinned API commit
-        run: |
-          if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then
-            echo "::error::The committed Zod snapshot does not match the pinned orbit-api commit. Regenerate the snapshot from the pin or update both files together. See packages/shared/CONTRACT_DRIFT.md."
-            git diff -- packages/shared/src/types/__generated__/api.generated.ts
-            exit 1
-          fi
-          echo "The committed snapshot matches the pinned orbit-api commit."

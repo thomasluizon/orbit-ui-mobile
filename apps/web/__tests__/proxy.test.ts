@@ -330,8 +330,9 @@ describe('proxy', () => {
 
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('notificationUrl')).toBe('/profile')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([
+      ['returnUrl', '/?notificationUrl=%2Fprofile'],
+    ])
   })
 
   it('stops browsers from caching the push service worker script', async () => {
@@ -358,8 +359,9 @@ describe('proxy', () => {
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.origin).toBe('https://app.useorbit.org')
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/profile')
-    expect(redirectUrl.searchParams.get('source')).toBe('notification')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([
+      ['returnUrl', '/profile?source=notification'],
+    ])
   })
 
   it('restores a missing access cookie from a valid refresh-backed session', async () => {
