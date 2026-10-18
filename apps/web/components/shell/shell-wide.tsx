@@ -193,14 +193,14 @@ function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ 
   )
 
   return (
-        <div data-shell-brand-row="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'px-3'}`}>
-          <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
-          <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
-            {!collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
-            {sidebarToggle}
-            {collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
-          </div>
-        </div>
+    <div data-shell-brand-row="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'px-3'}`}>
+      <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
+      <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
+        {!collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+        {sidebarToggle}
+        {collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+      </div>
+    </div>
   )
 }
 
