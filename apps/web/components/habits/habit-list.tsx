@@ -1384,7 +1384,7 @@ export function HabitList({
       <Fragment key={item.id}>
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
         {item.hasChildren ? (
-          <div id={childPanelId} hidden={collapsedIds.has(item.id)}>
+          <div id={childPanelId} className="habit-row-group" hidden={collapsedIds.has(item.id)}>
             {panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable))}
           </div>
         ) : null}

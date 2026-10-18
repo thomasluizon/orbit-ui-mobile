@@ -102,6 +102,14 @@ describe('Astra pending reply geometry in Chromium', () => {
       const pending = page.locator('[data-astra-pending]')
       const position = await pending.boundingBox()
       expect(position).not.toBeNull()
+      const avatar = page.locator('[data-astra-avatar]')
+      expect(await avatar.count()).toBe(1)
+      expect(await avatar.getAttribute('aria-hidden')).toBe('true')
+      const markPosition = (await avatar.boundingBox())!
+      expect(markPosition.width).toBe(24)
+      expect(markPosition.height).toBe(24)
+      expect(markPosition.x).toBeCloseTo(position!.x, 1)
+      expect(position!.y - markPosition.y - markPosition.height).toBeCloseTo(8, 1)
       expect(await pending.locator('[data-working-mark] > span').count()).toBe(3)
       const animation = await pending.evaluate(element => {
         const mark = element.querySelector('.astra-pending-pulse')!
@@ -128,6 +136,8 @@ describe('Astra pending reply geometry in Chromium', () => {
       expect(reply).not.toBeNull()
       expect(reply!.x).toBeCloseTo(position!.x, 1)
       expect(reply!.y).toBeCloseTo(position!.y, 1)
+      expect(await avatar.count()).toBe(1)
+      expect(await avatar.boundingBox()).toEqual(markPosition)
     } finally { await page.close() }
   })
 })

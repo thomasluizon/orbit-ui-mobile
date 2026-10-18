@@ -135,6 +135,21 @@ it('exchanges the single-use Google code once when the callback screen mounts tw
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
 })
 
+it.each([
+  ['/habits/new?title=X', '/habits/new?title=X'],
+  ['/habits/new?title=Beber%20%C3%A1gua&tag=one&tag=two', '/habits/new?title=Beber%20%C3%A1gua&tag=one&tag=two'],
+  ['/?date=2026-10-03', '/(tabs)?date=2026-10-03'],
+  ['//evil.example', '/(tabs)'],
+  ['https://evil.example/habits/new?title=X', '/(tabs)'],
+])('returns from the Google callback to the safe destination for %s', async (returnUrl, destination) => {
+  mocks.getStoredAuthReturnUrl.mockResolvedValue(returnUrl)
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
+
+  await mountCallbackScreens(1)
+
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(destination)
+})
+
 it('a rejected duplicate exchange never sends a signed-in person back to login', async () => {
   mocks.completeGoogleAuthFromUrl
     .mockResolvedValueOnce(success)

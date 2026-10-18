@@ -26,14 +26,14 @@ function usePrivacySections(): LegalDocumentSection[] {
       t('privacy.thirdParty.googlePlay'), t('privacy.thirdParty.admob'),
       t('privacy.thirdParty.sentry'), t('privacy.thirdParty.posthog'),
       t('privacy.thirdParty.render'), t('privacy.thirdParty.s3'),
-      t('privacy.thirdParty.turnstile'),
+      t('privacy.thirdParty.turnstile'), t('privacy.thirdParty.notion'),
     ] },
     { id: 'retention', title: t('privacy.retention.title'), paragraphs: [
       t('privacy.retention.intro'), t('privacy.retention.account'),
       t('privacy.retention.sessions'), t('privacy.retention.ai'),
       t('privacy.retention.reminderHistory'), t('privacy.retention.syncRecords'),
       t('privacy.retention.calendarSuggestions'), t('privacy.retention.billingRecords'),
-      t('privacy.retention.afterDeletion'),
+      t('privacy.retention.afterDeletion'), t('privacy.retention.notion'),
     ] },
     { id: 'google-scopes', title: t('privacy.googleScopes.title'), paragraphs: [
       t('privacy.googleScopes.intro'), t('privacy.googleScopes.auth'),

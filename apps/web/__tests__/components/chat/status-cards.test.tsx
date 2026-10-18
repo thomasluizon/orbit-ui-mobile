@@ -1,3 +1,7 @@
+import { buildChatFinalMessageFields } from '@orbit/shared/chat/final-message'
+import { chatStreamEventSchema } from '@orbit/shared/types/chat'
+import { apiStatusCardsFinalFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { MessageBubble } from '@/components/chat/message-bubble'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -12,6 +16,10 @@ vi.mock('next-intl', () => ({ useLocale: () => mocks.language, useTranslations: 
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <section>{body}{items.map((item) => <div data-testid="card-row" data-status={item.status} key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
+
+vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ content }: { content: string }) => <p>{content}</p> }))
 
 describe('Astra status cards on web', () => {
   beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
@@ -81,4 +89,20 @@ describe('Astra status cards on web', () => {
     const row = screen.getByText(/chat.calendarCard.syncchat.calendarCard.syncState.disabled/)
     expect(row).not.toHaveAttribute('data-status')
   })
+})
+
+it('renders API streak, calendar and both record list blocks in the final message', () => {
+  const event = chatStreamEventSchema.parse(apiStatusCardsFinalFixture)
+  if (event.type !== 'final') throw new Error('Expected a final event')
+  const message = { id: 'status', role: 'ai' as const, timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) }
+  const { container, rerender } = render(<MessageBubble message={message} />)
+  expect(screen.getByRole('button', { name: 'chat.streakCard.open' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Dentist' })).toBeInTheDocument()
+  expect(screen.getByText('Morning')).toBeInTheDocument()
+  expect(screen.getByText('Evening')).toBeInTheDocument()
+  expect(container.querySelectorAll('section')).toHaveLength(4)
+  rerender(<MessageBubble message={message} isStreaming />)
+  expect(container.querySelectorAll('section')).toHaveLength(0)
+  rerender(<MessageBubble message={{ ...message, role: 'user' }} />)
+  expect(container.querySelectorAll('section')).toHaveLength(0)
 })

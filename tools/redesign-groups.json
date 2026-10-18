@@ -166,6 +166,7 @@
       "m-overlay-components-profile-preferences-content",
       "m-overlay-marketing-consent-marketing-consent-prompt",
       "m-overlay-profile-advanced-sections",
+      "m-overlay-profile-notion-connection-sheet",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
       "m-route-profile-account",
@@ -179,6 +180,7 @@
       "overlay-components-fresh-start-modal",
       "overlay-components-preference-picker-sheet",
       "overlay-marketing-consent-marketing-consent-prompt",
+      "overlay-profile-notion-connection-sheet",
       "overlay-profile-profile-api-keys",
       "route-delete-account",
       "route-profile",
@@ -203,6 +205,7 @@
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-create-goal-sheet",
       "m-overlay-goals-edit-goal-modal",
+      "m-overlay-goal-detail-drawer-goal-progress-form",
       "m-overlay-goals-goal-detail-drawer",
       "m-overlay-goals-goal-habits-field",
       "m-overlay-progress-progress-content",
@@ -212,6 +215,7 @@
       "overlay-edit-goal-modal-edit-goal-deadline-field",
       "overlay-goals-create-goal-sheet",
       "overlay-goals-edit-goal-modal",
+      "overlay-goal-detail-drawer-goal-progress-form",
       "overlay-goals-goal-detail-drawer",
       "overlay-goals-goal-habits-field",
       "overlay-ui-streak-legend",
@@ -246,8 +250,10 @@
       "overlay-ui-personal-text-details"
     ],
     "Orbit Verificacao": [
+      "m-route-auth-callback-notion",
       "m-route-auth-callback",
       "m-route-step-up",
+      "route-auth-callback-notion",
       "route-auth-callback",
       "route-step-up"
     ],

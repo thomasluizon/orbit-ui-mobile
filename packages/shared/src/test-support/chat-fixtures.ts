@@ -210,3 +210,23 @@ export function makePartialScheduleSummaryOperation(scenario: typeof partialSche
   return makePendingAgentOperation({ capabilityId: 'habits.write', actionKey: 'updateHabit', riskClass: 'Low', confirmationRequirement: 'None',
     changes: fields, items: [{ itemId: entityId, entityId, entityName, fields, stateFingerprint: 'target-state' }], changeTargetCount: 1 })
 }
+
+export const apiStatusCardsFinalFixture = {
+  type: 'final',
+  response: {
+    aiMessage: 'Here is your streak.',
+    actions: [],
+    streak: {
+      currentStreak: 3, longestStreak: 9, level: 2, totalXp: 120, xpForNextLevel: 200,
+      lastActiveDate: '2026-10-16', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress',
+    },
+    calendar: {
+      events: [{ title: 'Dentist', start: '2026-10-17T13:00:00Z', end: null, isAllDay: false }],
+      sync: null, surfaceId: 'calendar',
+    },
+    recordLists: [
+      { kind: 'tags' as const, totalCount: 1, items: [{ id: 'morning', title: 'Morning' }], surfaceId: null },
+      { kind: 'tags' as const, totalCount: 1, items: [{ id: 'evening', title: 'Evening' }], surfaceId: null },
+    ],
+  },
+}

@@ -35,12 +35,13 @@ function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
 interface GoalProgressBlockProps {
   goal: Goal
   isUpdatingStatus: boolean
+  onEditProgress: () => void
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
   headingRef: Ref<View>
 }
 
-export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail, headingRef }: Readonly<GoalProgressBlockProps>) {
+export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditProgress, refetchDetail, headingRef }: Readonly<GoalProgressBlockProps>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -108,6 +109,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} color={tokens.fg1} /></PillButton>
         <Text style={[styles.body, { color: tokens.fg3 }]}>{goal.unit}</Text>
         </ActionRow></View>
+        <ActionRow><PillButton variant="ghost" accessibleName={t('goals.updateProgress')} disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></ActionRow>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.screenReader}>{announcement}</Text>

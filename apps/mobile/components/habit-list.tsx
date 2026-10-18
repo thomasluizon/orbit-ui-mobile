@@ -1501,7 +1501,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         options?: {
           isDrillCard?: boolean
           onLongPressCard?: () => void
-          panelStart?: boolean
           panelEnd?: boolean
         },
       ) => {
@@ -1518,7 +1517,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             selectedDate={selectedDate}
             today={todayStr}
             depth={depth === 0 ? 0 : 1}
-            panelStart={options?.panelStart}
             panelEnd={options?.panelEnd}
             hasChildren={hasChildren}
             isExpanded={!collapsedIds.has(habit.id)}
@@ -1564,7 +1562,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onLongPressCard: isDndEnabled
               ? () => prepareDrag(item, drag)
               : undefined,
-            panelStart: item.depth === 0,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
         )
@@ -1791,7 +1788,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         keyExtractor={keyExtractor}
         renderItem={({ item, index }) => <>
           {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: 0 }]}>{groupHeadings.get(item.id)}</Text> : null}
-          {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelStart: item.depth === 0, panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
+          {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
         </>}
         extraData={listExtraData}
         keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}

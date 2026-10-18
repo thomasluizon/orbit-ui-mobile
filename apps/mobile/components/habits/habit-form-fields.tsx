@@ -10,6 +10,7 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
 import { toTime24,
   buildHabitAstraFallbackCopy,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
   createHabitFormController,
@@ -260,6 +261,10 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
+  isEmojiSuggesting = false,
+  emojiSuggestionError,
+  emojiSuggestionLimitReached = false,
   isSuggesting = false,
   readPhraseLocally = false,
   lockedGeneral = null,
@@ -353,6 +358,11 @@ export function HabitFormFields({
   )
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
 
+  const emojiAvailability = buildHabitEmojiSuggestionAvailability(title, atMessageLimit || emojiSuggestionLimitReached, {
+    titleRequired: t('habits.form.titleRequired'),
+    limitReached: astraFallbackCopy.limitMessage,
+  })
+
   const controller = useMemo(
     () => createHabitFormController({
       onSlipAlertEnabledChange,
@@ -425,7 +435,12 @@ export function HabitFormFields({
         onQuantityChange={controller.setQuantity}
         onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onEmojiSelect={controller.setEmoji}
-        isSuggestionDisabled={isSuggesting}
+        onSuggestEmoji={onSuggestEmoji}
+        canSuggestEmoji={emojiAvailability.canSuggest}
+        isEmojiSuggesting={isEmojiSuggesting}
+        emojiSuggestionHint={emojiAvailability.hint}
+        emojiSuggestionError={emojiSuggestionError}
+        isSuggestionDisabled={isSuggesting && !isEmojiSuggesting}
         onValueChange={controller.setTitle}
         proposed={proposal.setup}
         scheduleLocked={lockedGeneral === true}

@@ -47,6 +47,7 @@ const mockShell = vi.hoisted(() => ({ wide: false }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mockShell.wide, useIsDesktop: () => mockShell.wide }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
+  onSuggestEmoji: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
   onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
   onSuggestionContextChange: undefined as undefined | (() => void),
   onPhraseOwnershipChange: undefined as undefined | ((ownership: { cadence: boolean; dueTime: boolean }) => void),
@@ -199,17 +200,20 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
+    onSuggestEmoji,
     onSuggestSetup,
     onSuggestionContextChange,
     onPhraseOwnershipChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
+    onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestionContextChange?: () => void
     onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
     onToggleGoal: (goalId: string) => void
   }) => {
+    mockHabitFormFieldsState.onSuggestEmoji = onSuggestEmoji
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
     mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
     mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
@@ -235,17 +239,20 @@ vi.mock('./habit-form-fields', () => ({
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
+    onSuggestEmoji,
     onSuggestSetup,
     onSuggestionContextChange,
     onPhraseOwnershipChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
+    onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestionContextChange?: () => void
     onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
     onToggleGoal: (goalId: string) => void
   }) => {
+    mockHabitFormFieldsState.onSuggestEmoji = onSuggestEmoji
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
     mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
     mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
@@ -1022,6 +1029,58 @@ describe('CreateHabitModal', () => {
     })
   })
 
+  it.each(['', '   '])('does not request an emoji for an empty title %j', async (title) => {
+    mockFormGetValues.mockImplementation((field: unknown) => field === 'title' ? title : undefined)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    await act(async () => { await mockHabitFormFieldsState.onSuggestEmoji!() })
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [new Error('offline'), 'habits.form.aiSuggestError'],
+    [{ data: { errorCode: 'PAY_GATE' } }, 'habits.form.aiSuggestLimitReached'],
+  ])('reports an emoji request failure and preserves the draft', async (failure, message) => {
+    mockFormGetValues.mockImplementation((field: unknown) => field === 'title' ? 'Swim' : undefined)
+    mockSuggestMutateAsync.mockRejectedValue(failure)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    await act(async () => { await mockHabitFormFieldsState.onSuggestEmoji!() })
+    expect(mockShowError).toHaveBeenCalledWith(message)
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each(['🏊', null])('requests only an emoji and preserves every other entered habit field: %s', async (emoji) => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return { title: 'Swim', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      expect(mockHabitFormFieldsState.onSuggestEmoji).toBeTypeOf('function')
+      proposal = await mockHabitFormFieldsState.onSuggestEmoji?.()
+    })
+    expect(proposal?.setup).toBe(Boolean(emoji))
+
+    expect(mockFormSetValue.mock.calls).toEqual(emoji ? [['emoji', emoji, { shouldDirty: true }]] : [])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
   it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
     mockFormGetValues.mockImplementation((field?: string) => {
       if (field === 'title') return 'Swim'
@@ -1133,6 +1192,54 @@ describe('CreateHabitModal', () => {
     expect(screen.getByDisplayValue('Edited while pending')).toBeDefined()
     expect(screen.getByDisplayValue('Suggested stretch')).toBeDefined()
     expect(proposal).toEqual({ setup: true, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 })
+  })
+
+  it('ignores a pending emoji suggestion after the title changes', async () => {
+    let title = 'Run'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    const onSuggestEmoji = mockHabitFormFieldsState.onSuggestEmoji
+    if (!onSuggestEmoji) throw new Error('Expected the suggestion handler')
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    act(() => {
+      proposalPromise = Promise.resolve(onSuggestEmoji())
+    })
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Walk'
+    act(() => mockHabitFormFieldsState.onSuggestionContextChange?.())
+
+    let proposal: HabitFormProposal | null | undefined
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏃',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: ['Old step'],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(screen.queryByDisplayValue('Old step')).not.toBeInTheDocument()
   })
 
   it('ignores a pending Astra suggestion after the title changes', async () => {

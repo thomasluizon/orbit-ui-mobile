@@ -2296,7 +2296,9 @@ describe('HabitList', () => {
       </View>)
     })
     const emptyMessageKey = surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'
+    let rowIndex = 0
     const geometry = measureSafeArea((composition! as GeometryTree).toJSON(), (host) => {
+      if (host.props.testID === 'habit-row') return `habit-row-${rowIndex++}`
       if (host.props.testID === 'drill-content') return 'content'
       if (surface !== 'deep' && host.props.accessibilityLabel === 'common.back') return 'control'
       if (host.props.accessibilityRole === 'button') {
@@ -2315,12 +2317,8 @@ describe('HabitList', () => {
       if (surface === 'filtered-empty') expect(geometry.has('show-completed')).toBe(true)
     }
     if (surface === 'populated' || surface === 'deep') {
-      const rowHosts = composition!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
-        typeof node.type === 'string' && node.props.testID === 'habit-row')
-      expect(rowHosts).toHaveLength(2)
-      for (const row of rowHosts) {
-        expect(StyleSheet.flatten(row.props.style).marginBottom).toBe(12)
-      }
+      expect(rowIndex).toBe(2)
+      expect(geometry.get('habit-row-1')!.top - geometry.get('habit-row-0')!.bottom).toBe(12)
     }
   })
 

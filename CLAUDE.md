@@ -58,6 +58,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `questions.md` | Run-level redesign questions, decision criteria and resolved composition decisions. |
 | `design/canvas/` | Granted drawings, design tokens and surface amendments. Outranks DESIGN.md prose on appearance; never its Information architecture or Bans. |
 | `design/google-sign-in-surfaces.md` | Google sign-in mark owners and theme, locale and request-state coverage. |
+| `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |
 | `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
 | `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, scoped header search at every width, retained actions, state coverage, long-list rendering and platform mirrors. |
@@ -66,7 +67,9 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
+| `design/goal-forecast-surfaces.md` | Reachable goal forecast owners, supplied metrics, mirrored states and verification boundaries. |
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
+| `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
@@ -76,11 +79,13 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
-| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
+| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render releases with redesign Worker route verification. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
 | `FEATURES.md` | Retained Astra and MCP tool-count inventory that no generated artifact carries; verify every count against its named `orbit-api` source. |
+| `.claude/skills/flag/SKILL.md` | Inspect and change production or staging feature flags through admin Orbit MCP, with before and after verification. |
+| `.claude/skills/flag/guide.md` | Plain and version flags, account targeting, flag lifecycle, build selection, and API versioning. |
 | `TESTING.md` | Test authoring rules, suite catalog, CI ownership and local verification commands. |
 | `architecture.json` | Generated route and screen map, plus endpoints, dependencies, i18n ownership, and test coverage; NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
@@ -96,7 +101,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
-| `.claude/skills/release/SKILL.md` | Planning production and staging gaps, then running manual releases in service order. |
+| `.claude/skills/release/SKILL.md` | Planning production, opt-in redesign web, and staging gaps, with Worker route verification and go-live dependencies. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
 
 **Research reports do not live in this repo**: they go stale silently, then get cited as authority long after they expire. Durable knowledge is an ADR in the brain vault; `/deep-research` writes there.
