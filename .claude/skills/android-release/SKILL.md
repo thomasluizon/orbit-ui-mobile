@@ -71,15 +71,17 @@ Review current limits in [Expo pricing](https://expo.dev/pricing) and the accoun
 screen before rollout. A self-hosted service must implement the [Expo Updates protocol](https://docs.expo.dev/technical-specs/expo-updates-1/),
 including compatible manifests and assets; hosting static bundles alone is insufficient.
 
-Set the `EXPO_TOKEN` GitHub Actions secret for both the `production` and `android-internal` environments
-in **Settings > Environments > Environment secrets**. The token must publish to the EAS project in
+The `EXPO_TOKEN` GitHub Actions secret must be visible to both the `production` and `android-internal`
+jobs. Define it in **Settings > Secrets and variables > Actions**, or use an environment override in
+**Settings > Environments > Environment secrets**. The token must publish to the EAS project in
 `app.json`; never pass it as a command-line argument. Verify publication in that project's **Updates**
 screen: both channel names must resolve updates for the intended Android runtime and source commits.
 The SDK requires an EAS environment: the workflow uses `production` for open/production and `preview`
 for internal. In the EAS project's **Environment variables** screen, keep public API, Google, Turnstile,
 Sentry and PostHog settings equal to the corresponding GitHub release values. In particular,
 `EXPO_PUBLIC_API_BASE` must be `https://api.useorbit.org` in `production` and
-`https://api-staging.useorbit.org` in `preview`. Verify an internal update retains the staging runtime
+`https://api-staging.useorbit.org` in `preview`. Keep `ORBIT_APP_VARIANT` equal to `production` and
+`staging`, respectively. Verify an internal update retains the staging runtime
 and API target before using it.
 
 Device verification belongs to the release coordinator. Use a disposable AVD and a release APK built
