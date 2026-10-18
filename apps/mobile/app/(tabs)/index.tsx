@@ -21,6 +21,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useTodayMotion } from './use-today-motion'
@@ -255,6 +256,7 @@ function TodayScreenContent() {
           onGoToNextDay={date.goToNextDay}
         />
       </View>
+      <SetupChecklistCard />
       {todayFocused && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
         ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (
