@@ -539,7 +539,12 @@ function isTransientNetworkError(error: unknown): boolean {
   )
 }
 
+function isProDenial(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 403 && error.code === 'PAY_GATE'
+}
+
 function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: number): boolean {
+  if (isProDenial(error)) return true
   if (!(error instanceof Error)) return nextRetries >= maxRetries
 
   const message = error.message.toLowerCase()
@@ -555,6 +560,7 @@ function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: num
 }
 
 function shouldStopFlushing(error: unknown): boolean {
+  if (isProDenial(error)) return false
   if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return true
   if (!(error instanceof Error)) return false
 
