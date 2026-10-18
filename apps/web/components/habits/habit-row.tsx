@@ -332,7 +332,7 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
   const minHeight = isChild ? 52 : 68
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`relative ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'} ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
+      className={`relative rounded-[20px] shadow-[inset_0_0_0_1px_var(--hairline)] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'}`}
       style={{ minHeight }}>
       {largeText && !supportingMeta ? (
         <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? SPACING.s4 : SPACING.s8 }}>

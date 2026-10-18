@@ -1,3 +1,4 @@
+import { DailyStreakMoment } from './daily-streak-moment'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import {
@@ -28,6 +29,7 @@ function getCelebrationCopy(
   pluralCount?: number
 } {
   switch (active.kind) {
+    case 'daily-streak':
     case 'streak':
       return {
         eyebrowKey: 'celebration.streak.eyebrow',
@@ -73,7 +75,7 @@ export function CelebrationPanel() {
   const complete = useUIStore((state) => state.completeActiveCelebration)
 
   useEffect(() => {
-    if (!active || reducedMotion) return
+    if (!active || active.kind === 'daily-streak' || reducedMotion) return
     rise.setValue(0)
     sweep.setValue(0)
     const timing = {
@@ -93,6 +95,7 @@ export function CelebrationPanel() {
   if (!active) return null
   if (active.kind === 'streak' && !STREAK_MILESTONES.has(active.payload.streak)) return null
 
+  if (active.kind === 'daily-streak') return <DailyStreakMoment key={active.id} id={active.id} streak={active.payload.streak} reducedMotion={reducedMotion} onDismiss={() => complete(active.id)} />
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
   const translatedLine = t(lineKey, values)
   const line = pluralCount === undefined

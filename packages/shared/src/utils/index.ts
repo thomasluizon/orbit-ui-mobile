@@ -15,6 +15,7 @@ export {
   parseAPIDate,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAccountDay,
   getAccountDateTime,
   millisecondsUntilNextDay,
   nowDate,
@@ -225,6 +226,8 @@ export type {
 export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
+  applyHabitEmojiSuggestion,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,

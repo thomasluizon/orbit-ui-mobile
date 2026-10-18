@@ -289,7 +289,12 @@ function compactQueuedMutations(
     )
     const createMutation = createIndex >= 0 ? next[createIndex] : undefined
 
-    if (createMutation && MERGE_INTO_CREATE_TYPES.has(incoming.type)) {
+    if (
+      createMutation &&
+      createMutation.status === 'pending' &&
+      createMutation.retries === 0 &&
+      MERGE_INTO_CREATE_TYPES.has(incoming.type)
+    ) {
       next[createIndex] = {
         ...createMutation,
         payload: mergePayload(createMutation.payload, incoming.payload),

@@ -44,5 +44,17 @@ export function createStyles(tokens: Tokens) {
       padding: SPACING.s16,
       gap: 16,
     },
+    messageTurn: {
+      gap: 8,
+    },
+    avatar: {
+      width: 24,
+      height: 24,
+      flexShrink: 0,
+    },
+    messageContent: {
+      minWidth: 0,
+      gap: 16,
+    },
   });
 }

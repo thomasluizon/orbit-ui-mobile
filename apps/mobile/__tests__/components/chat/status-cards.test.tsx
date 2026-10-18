@@ -1,3 +1,8 @@
+import { RecordListCard } from '@/components/chat/record-list-card'
+import { buildChatFinalMessageFields } from '@orbit/shared/chat/final-message'
+import { chatStreamEventSchema } from '@orbit/shared/types/chat'
+import { apiStatusCardsFinalFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { MessageBubble } from '@/components/message-bubble'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
@@ -29,6 +34,16 @@ function render(element: React.ReactElement) {
   TestRenderer.act(() => { tree = TestRenderer.create(element) })
   return tree
 }
+
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <Text>{children}</Text> }))
+vi.mock('@/components/chat/breakdown-suggestion', () => ({ BreakdownSuggestion: () => null }))
+vi.mock('@/components/chat/clarification-card', () => ({ ClarificationCard: () => null }))
+vi.mock('@/components/chat/pending-operation-card', () => ({ PendingOperationCard: () => null }))
+vi.mock('@/components/chat/habit-list-card', () => ({ HabitListCard: () => null }))
+vi.mock('@/components/chat/goal-list-card', () => ({ GoalListCard: () => null }))
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: {} }))
 
 describe('Astra status cards on mobile', () => {
   beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
@@ -97,4 +112,26 @@ describe('Astra status cards on mobile', () => {
     const row = tree.root.findAll((node: any) => node.props?.testID === 'card-row')[0]
     expect(row.props.nativeID).toBe('normal')
   })
+})
+
+it('renders API streak, calendar and both record list blocks in the final message', () => {
+  const event = chatStreamEventSchema.parse(apiStatusCardsFinalFixture)
+  if (event.type !== 'final') throw new Error('Expected a final event')
+  const message = { id: 'status', role: 'ai' as const, timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) }
+  const tree = render(<MessageBubble message={message} />)
+  expect(tree.root.findAllByType(StreakCard)).toHaveLength(1)
+  expect(tree.root.findAllByType(CalendarCard)).toHaveLength(1)
+  expect(renderedText(tree.toJSON())).toContain('Dentist')
+  expect(renderedText(tree.toJSON())).toContain('Morning')
+  expect(renderedText(tree.toJSON())).toContain('Evening')
+  expect(tree.root.findAllByType(RecordListCard)).toHaveLength(2)
+  TestRenderer.act(() => tree.update(<MessageBubble message={message} isStreaming />))
+  expect(tree.root.findAllByType(RecordListCard)).toHaveLength(0)
+  expect(tree.root.findAllByType(StreakCard)).toHaveLength(0)
+  expect(tree.root.findAllByType(CalendarCard)).toHaveLength(0)
+  TestRenderer.act(() => tree.update(<MessageBubble message={{ ...message, role: 'user' }} />))
+  expect(tree.root.findAllByType(RecordListCard)).toHaveLength(0)
+  expect(tree.root.findAllByType(StreakCard)).toHaveLength(0)
+  expect(tree.root.findAllByType(CalendarCard)).toHaveLength(0)
+  TestRenderer.act(() => tree.unmount())
 })

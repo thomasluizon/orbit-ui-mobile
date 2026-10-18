@@ -1488,7 +1488,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         options?: {
           isDrillCard?: boolean
           onLongPressCard?: () => void
-          panelStart?: boolean
           panelEnd?: boolean
         },
       ) => {
@@ -1504,7 +1503,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             selectedDate={selectedDate}
             today={todayStr}
             depth={depth === 0 ? 0 : 1}
-            panelStart={options?.panelStart}
             panelEnd={options?.panelEnd}
             hasChildren={hasChildren}
             isExpanded={!collapsedIds.has(habit.id)}
@@ -1549,7 +1547,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onLongPressCard: isDndEnabled
               ? () => prepareDrag(item, drag)
               : undefined,
-            panelStart: item.depth === 0,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
         )
