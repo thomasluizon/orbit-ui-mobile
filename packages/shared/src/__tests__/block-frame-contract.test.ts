@@ -3,6 +3,7 @@ import {
   findMissingBlockFrameLabels,
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
+  resolveBlockFrameState,
   type BlockFrameProps,
 } from '../contracts/blocks'
 
@@ -16,6 +17,13 @@ function frame(items: BlockFrameProps['items'], labels: RuntimeLabels = {}): Blo
 }
 
 describe('block frame contract', () => {
+  it('guards actions with missing consequence labels and stale state on both platforms', () => {
+    const unsafe = frame([{ id: 'one', label: 'One', irreversible: true }])
+    expect(resolveBlockFrameState(unsafe)).toEqual({ missingLabels: ['irreversibleLabel', 'confirmNote'], hasIrreversibleItem: true, canRenderActions: false })
+    expect(resolveBlockFrameState({ ...unsafe, irreversibleLabel: 'Permanent', confirmNote: 'Confirm' })).toMatchObject({ canRenderActions: true })
+    expect(resolveBlockFrameState({ state: 'stale', title: 'Frame', items: [], staleMessage: 'Stale' })).toMatchObject({ hasIrreversibleItem: false, canRenderActions: false })
+    expect(resolveBlockFrameState(frame([]))).toMatchObject({ missingLabels: [], canRenderActions: true })
+  })
   it('requires no labels for reversible plain items', () => {
     expect(findMissingBlockFrameLabels(frame([
       { id: 'one', label: 'One' },

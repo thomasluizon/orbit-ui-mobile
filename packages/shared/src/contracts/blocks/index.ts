@@ -1,5 +1,6 @@
 export {
   findMissingBlockFrameLabels,
+  resolveBlockFrameState,
   resolveBlockFrameRows,
   type BlockFrameItem,
   type BlockFrameItemStatus,

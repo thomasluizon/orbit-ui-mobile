@@ -87,9 +87,10 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <InsetFocusPressable selectionRingWidth={1.5}
+      data-slot="list-row-body"
       {...navigationProps}
       ref={elementRef}
       accessibilityRole="radio"

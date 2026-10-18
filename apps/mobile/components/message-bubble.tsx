@@ -7,16 +7,8 @@ import { ArrowUpRight } from "@/components/ui/icons";
 import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
-import {
-  getRelatedSurfaces,
-  getChatMessageParts,
-  hasChatProse,
-  partitionMessageActions,
-  selectMessageOperationBlocks,
-  stripChatDirectives,
-  updatePendingOperationMessage,
-  attachClarificationPreview,
-} from "@orbit/shared/chat";
+import { getMessageBubbleView, getMessageBubbleOperations } from '@orbit/shared/chat'
+
 import { useChatStore } from '@/stores/chat-store'
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
@@ -36,7 +28,6 @@ function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
 }>) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
-  if (!isUser && !hasChatProse(sourceText) && !(showImage && message.imageUrl)) return null;
   return (
     <View
       testID="message-prose"
@@ -59,20 +50,8 @@ function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
   );
 }
 
-export function MessageBubble({
-  message,
-  blockAnswerInteraction,
-  laterMessages,
-  animateEntry,
-  isStreaming = false,
-  onBreakdownConfirmed,
-  onActionChipClick,
-  onPendingOperationRevise,
-  onPendingOperationRefresh,
-  onPendingOperationConfirmExecute,
-  onPendingOperationPrepareStepUp,
-  onPendingOperationVerifyStepUp,
-}: Readonly<MessageBubbleProps>) {
+export function MessageBubble(props: Readonly<MessageBubbleProps>) {
+  const { message, blockAnswerInteraction, animateEntry, onBreakdownConfirmed, onActionChipClick } = props
   const { t } = useTranslation();
   const router = useRouter();
   const { currentScheme, currentTheme } = useAppTheme()
@@ -85,25 +64,10 @@ export function MessageBubble({
     new Set(),
   );
 
-  const isUser = message.role === "user";
-  const parts = isUser ? [{ type: "text" as const, text: message.content }] : getChatMessageParts(message, isStreaming);
-  const operationBlocks = useMemo(() => selectMessageOperationBlocks(message), [message]);
-
-  const {
-    clarificationActions,
-    nonSuggestionActions,
-    suggestionActions,
-  } = useMemo(
-    () => partitionMessageActions(operationBlocks.actions, message.policyDenials),
-    [operationBlocks.actions, message.policyDenials],
-  );
-  const relatedSurfaces = useMemo(
-    () => getRelatedSurfaces(message.relatedSurfaces),
-    [message.relatedSurfaces],
-  );
-
+  const { isUser, parts, relatedSurfaces, nonSuggestionActions, suggestions, outcomes } = getMessageBubbleView(props, dismissedBreakdowns)
+  const operations = getMessageBubbleOperations(props, useChatStore.getState().transitionMessage)
   function dismissBreakdown(key: string) {
-    setDismissedBreakdowns((prev) => new Set([...prev, key]));
+    setDismissedBreakdowns(previous => new Set([...previous, key]))
   }
 
   const senderLabel = isUser ? t("chat.senderYou") : t("chat.senderOrbit");
@@ -117,12 +81,11 @@ export function MessageBubble({
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
-        {parts.map((part, index) => {
-          if (!part) return null;
-          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={laterMessages?.some(later => !('blockId' in part.block) || later.answerToBlockId !== part.block.blockId)} onActionChipClick={onActionChipClick} />;
-          return <MessageProse key={index} message={message}
-            sourceText={isUser ? part.text : stripChatDirectives(part.text, isStreaming)}
-            styles={styles} showImage={index === 0} />;
+        {parts.map(part => {
+          if (part.type === 'block') return <ChatBlock key={part.key} part={part.part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={part.expired} onActionChipClick={onActionChipClick} />
+          return <MessageProse key={part.key} message={message}
+            sourceText={part.text}
+            styles={styles} showImage={part.showImage} />;
         })}
 
         {!isUser && relatedSurfaces.length > 0 ? (
@@ -157,75 +120,28 @@ export function MessageBubble({
           <ActionChips actions={nonSuggestionActions} onChipClick={onActionChipClick} />
         )}
 
-        {!isUser && suggestionActions.length > 0 && (
+        {!isUser && suggestions.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {suggestionActions.map((action) => {
-              const actionKey =
-                action.entityId ?? action.entityName ?? "suggestion";
-              if (dismissedBreakdowns.has(actionKey)) return null;
-              return (
-                <BreakdownSuggestion
-                  key={actionKey}
-                  parentName={action.entityName || "Habit"}
-                  subHabits={action.suggestedSubHabits ?? []}
-                  warning={action.conflictWarning}
-                  onConfirmed={() => onBreakdownConfirmed?.()}
-                  onCancelled={() => dismissBreakdown(actionKey)}
-                />
-              );
-            })}
+            {suggestions.map(({ key, ...suggestion }) => <BreakdownSuggestion key={key} {...suggestion}
+              onConfirmed={() => onBreakdownConfirmed?.()} onCancelled={() => dismissBreakdown(key)} />)}
           </View>
         )}
 
-        {!isUser && clarificationActions.length > 0 && (
+        {!isUser && operations.clarifications.length > 0 && (
           <View style={styles.breakdownContainer}>
-            {clarificationActions.map((action) => (
-              <ClarificationCard
-                key={action.clarificationRequest.operationId}
-                pendingOperation={message.clarificationPreviews?.[action.clarificationRequest.operationId]}
-                onPreview={(operation) => useChatStore.getState().transitionMessage(message.id, (current) => attachClarificationPreview(current, action.clarificationRequest.operationId, operation))}
-                savedState={message.pendingOperationStates?.[message.clarificationPreviews?.[action.clarificationRequest.operationId]?.id ?? '']}
-                onStateChange={(operationId, patch) => useChatStore.getState().transitionMessage(message.id, (current) => updatePendingOperationMessage(current, operationId, patch))}
-                clarificationRequest={action.clarificationRequest}
-                entityName={action.entityName}
-                onPendingOperationRevise={onPendingOperationRevise}
-                onPendingOperationRefresh={onPendingOperationRefresh}
-                onPendingOperationConfirmExecute={onPendingOperationConfirmExecute}
-                onPendingOperationPrepareStepUp={onPendingOperationPrepareStepUp}
-                onPendingOperationVerifyStepUp={onPendingOperationVerifyStepUp}
-                onActionChipClick={onActionChipClick}
-              />
-            ))}
+            {operations.clarifications.map(({ key, ...clarification }) => <ClarificationCard key={key} {...clarification} />)}
           </View>
         )}
 
-        {!isUser &&
-          message.pendingOperations &&
-          message.pendingOperations.length > 0 &&
-          onPendingOperationConfirmExecute &&
-          onPendingOperationPrepareStepUp &&
-          onPendingOperationVerifyStepUp && (
-            <View style={styles.operationStack}>
-              {message.pendingOperations.map((pendingOperation) => (
-                <PendingOperationCard
-                  key={pendingOperation.id}
-                  pendingOperation={pendingOperation}
-                  savedState={message.pendingOperationStates?.[pendingOperation.id]}
-                  onStateChange={(patch) => useChatStore.getState().transitionMessage(message.id, (current) => updatePendingOperationMessage(current, pendingOperation.id, patch))}
-                  onRevise={onPendingOperationRevise}
-                  onRefresh={onPendingOperationRefresh}
-                  onOpenTarget={onActionChipClick}
-                  onConfirmExecute={onPendingOperationConfirmExecute}
-                  onPrepareStepUp={onPendingOperationPrepareStepUp}
-                  onVerifyStepUp={onPendingOperationVerifyStepUp}
-                />
-              ))}
-            </View>
-          )}
-
-        {!isUser && operationBlocks.outcomes.length > 0 ? (
+        {!isUser && operations.pendingOperations.length > 0 && (
           <View style={styles.operationStack}>
-            <OperationOutcomes outcomes={operationBlocks.outcomes} />
+            {operations.pendingOperations.map(({ key, ...operation }) => <PendingOperationCard key={key} {...operation} />)}
+          </View>
+        )}
+
+        {!isUser && outcomes.length > 0 ? (
+          <View style={styles.operationStack}>
+            <OperationOutcomes outcomes={outcomes} />
           </View>
         ) : null}
       </View>

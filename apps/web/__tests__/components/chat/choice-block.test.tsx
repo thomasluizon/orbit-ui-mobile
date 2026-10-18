@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { choiceBlockFixture, pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
+import { pickListBlockSchema } from '@orbit/shared/types/chat'
 import { ChoiceBlock } from '@/components/chat/choice-block'
 import { PickListBlock } from '@/components/chat/pick-list-block'
 
@@ -142,9 +143,13 @@ it.each(['offline', 'limit'])('shows the current %s reason after a failed answer
 })
 
 it('opens the full pick-list habit name before selecting it', () => {
-  const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={pickListBlockFixture} interaction={interaction()} /></NextIntlClientProvider>)
+  const block = pickListBlockSchema.parse({ ...pickListBlockFixture, items: pickListBlockFixture.items.map(item => ({ ...item, id: `item ${item.id}` })) })
+  const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={block} interaction={interaction()} /></NextIntlClientProvider>)
   const label = pickListBlockFixture.items[0]!.label
   const disclosure = screen.getByRole('button', { name: label })
+  const targetIds = disclosure.getAttribute('aria-controls')!.split(/\s+/)
+  expect(targetIds).toHaveLength(1)
+  expect(document.getElementById(targetIds[0]!)).toHaveTextContent(label)
   expect(disclosure).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(disclosure)
   expect(disclosure).toHaveAttribute('aria-expanded', 'true')

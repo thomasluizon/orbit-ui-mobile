@@ -92,10 +92,25 @@ it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on
     const tokens = resolveWebThemeVariables('orange', mode)
     const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
-    const row = page.getByRole('checkbox').first()
-    await row.hover()
-    const colors = await row.evaluate(element => [...element.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => getComputedStyle(span).color))
-    expect(colors.length).toBeGreaterThanOrEqual(2)
-    for (const color of colors) expect(controlContrast(color, tokens['--bg-hover']!, [tokens['--bg']!, tokens['--bg-card']!]).graphic).toBeGreaterThanOrEqual(4.5)
+    const row = page.locator('[data-answer-block="pickList"] [data-slot="list-row-body"]').first()
+    const labelArea = row.getByRole('button')
+    await labelArea.hover()
+    const expectedFill = await row.evaluate(element => {
+      const probe = document.createElement('span')
+      probe.style.backgroundColor = 'var(--bg-hover)'
+      element.append(probe)
+      const color = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return color
+    })
+    await expect.poll(() => labelArea.evaluate(element => getComputedStyle(element.querySelector('[data-press-fill]')!).backgroundColor)).toBe(expectedFill)
+    const measured = await row.evaluate(element => ({
+      fill: getComputedStyle(element.querySelector('[data-personal-text-action] [data-press-fill]')!).backgroundColor,
+      colors: [...element.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="check-row-description"]')]
+        .filter(text => text.getBoundingClientRect().height > 0).map(text => getComputedStyle(text).color),
+    }))
+    expect(measured.colors).toHaveLength(2)
+    expect(measured.fill).not.toBe('rgba(0, 0, 0, 0)')
+    for (const color of measured.colors) expect(controlContrast(color, measured.fill, [tokens['--bg']!, tokens['--bg-card']!]).graphic).toBeGreaterThanOrEqual(4.5)
   } finally { await page.close() }
 })

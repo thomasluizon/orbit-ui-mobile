@@ -9,7 +9,7 @@ import type {
   ResolvedBlockFrameRow,
 } from '@orbit/shared/contracts/blocks'
 import {
-  findMissingBlockFrameLabels,
+  resolveBlockFrameState,
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
@@ -163,14 +163,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
   useEffect(() => {
     if (props.focusTitleOnMount) titleRef.current?.focus({ preventScroll: true })
   }, [props.focusTitleOnMount])
-  const missingLabels = findMissingBlockFrameLabels(props)
+  const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
   if (process.env.NODE_ENV !== 'production' && missingLabels.length > 0) {
     throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
   }
 
-  const hasIrreversibleItem = props.items.some((item) => item.irreversible === true)
-  // WHY: An unsafe batch must not remain one tap from running when consequence labels are missing. https://github.com/thomasluizon/orbit-tickets/issues/349
-  const canRenderActions = missingLabels.length === 0 && props.state !== 'stale'
 
   return (
     <section
