@@ -205,6 +205,7 @@
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-create-goal-sheet",
       "m-overlay-goals-edit-goal-modal",
+      "m-overlay-goal-detail-drawer-goal-progress-form",
       "m-overlay-goals-goal-detail-drawer",
       "m-overlay-goals-goal-habits-field",
       "m-overlay-progress-progress-content",
@@ -214,6 +215,7 @@
       "overlay-edit-goal-modal-edit-goal-deadline-field",
       "overlay-goals-create-goal-sheet",
       "overlay-goals-edit-goal-modal",
+      "overlay-goal-detail-drawer-goal-progress-form",
       "overlay-goals-goal-detail-drawer",
       "overlay-goals-goal-habits-field",
       "overlay-ui-streak-legend",
@@ -260,10 +262,12 @@
       "m-overlay-milestone-share-milestone-share-prompt",
       "m-overlay-referral-referral-drawer",
       "m-overlay-referral-referral-prompt",
+      "m-overlay-share-share-card-sheet",
       "m-route-wrapped",
       "overlay-milestone-share-milestone-share-prompt",
       "overlay-referral-referral-drawer",
       "overlay-referral-referral-prompt",
+      "overlay-share-share-card-sheet",
       "route-wrapped"
     ]
   },

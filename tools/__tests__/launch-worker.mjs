@@ -64,7 +64,10 @@ const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError
   { match: "auth token --user test-owner", stdout: "test-github-token" },
   { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: queuedRuns, workflow_runs: [] }), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
   { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
-  { match: "pulls?state=open", stdout: JSON.stringify(pulls) },
+  ...Array.from({ length: Math.floor(pulls.length / 100) + 1 }, (_, page) => ({
+    match: `pulls?state=open&per_page=100&page=${page + 1}`,
+    stdout: JSON.stringify(pulls.slice(page * 100, (page + 1) * 100)),
+  })),
 ])
 
 /** The launcher writes its worker log outside every repository, so the fixture root cannot hold it. */
@@ -269,7 +272,7 @@ export const cases = async () => {
   const refusedResult = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ pulls: aboveCapPulls }) })
   const refusedBody = JSON.parse(refusedResult.stdout)
   T(`${TOOL}: admission refuses before reservation and wake source`, refusedResult.status === 8 && refusedBody.reason === "ADMISSION_REFUSED" && refusedBody.counts.openPullRequests === pullsPerRepository * repositoryCount && refusedBody.limits.maxOpenPullRequests === pullRequestCap && !existsSync(join(admissionFixture.worktree, ".git", "orbit-worker-launches")) && readWakeSourceStates(admissionFixture.base).live.length === 0, JSON.stringify(refusedBody))
-  const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: aboveCapPulls, queuedRuns: 100 }) })
+  const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: aboveCapPulls, queuedRuns: admissionConfig.caps.maxQueuedRuns + 1 }) })
   T(`${TOOL}: existing pull request proceeds above both caps`, admittedExisting.status === 0, admittedExisting.stderr)
   discardLog(admittedExisting.stdout)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]

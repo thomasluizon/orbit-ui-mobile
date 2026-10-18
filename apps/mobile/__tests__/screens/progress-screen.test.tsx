@@ -336,6 +336,11 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
+  it('offers Share progress from the populated period window', async () => {
+    const tree = await renderProgress()
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'shareCard.entry')).toHaveLength(1)
+  })
+
   it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
     mocks.freeze.streakInfo.repairableGapDates = ['2026-09-02']

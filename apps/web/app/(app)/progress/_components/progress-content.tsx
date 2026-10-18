@@ -1,5 +1,7 @@
 'use client'
 
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+
 import { ActionRow } from '@/components/ui/action-row'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 
@@ -513,6 +515,7 @@ function WindowSection() {
         {bestWeekday ? <StatTile value={t(`dates.daysAbbreviated.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
       </WindowFigureGrid>
       <TopHabitRow habit={topHabit} />
+      <ActionRow><ShareCardEntryButton variant="button" /></ActionRow>
     </WindowFrame>
   )
 }
