@@ -47,9 +47,9 @@ function RadioRowContent({ label, wrapLabel, textMode, description, selected = f
       </span>
       {meta ? <span className="orbit-radio-row-secondary shrink-0" style={{ color: secondaryColor, fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
       {tag ? <span className="orbit-radio-row-secondary shrink-0 uppercase" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
-      <span aria-hidden="true" className="flex shrink-0 items-center" style={{ minHeight: wrapLabel ? 'calc(var(--fs-base) * 1.4)' : undefined }}>
+      {wrapLabel ? <span className="flex shrink-0 items-center" style={{ minHeight: 'calc(var(--fs-base) * 1.4)' }}>
         <RadioGlyph selected={selected} size={24} />
-      </span>
+      </span> : <RadioGlyph selected={selected} size={24} />}
     </>
   )
 }
