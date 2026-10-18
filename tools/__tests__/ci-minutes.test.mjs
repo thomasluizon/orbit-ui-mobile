@@ -76,8 +76,7 @@ test("mutation reporting stays off PRs and executes the full nightly set", () =>
   assert.ok(mutation.jobs.nightly.steps.some((step) => step.with?.name === "mutation-report-nightly"))
 })
 
-test("parallel layout keeps journal cases together and leaves local scheduling unchanged", () => {
-  assert.match(read("apps/web/e2e/layout/today-row-semantics.spec.ts"), /test\.describe\.configure\(\{ mode: 'default' \}\)/)
+test("parallel layout leaves local scheduling unchanged", () => {
   for (const ci of [false, true]) {
     const env = { ...process.env, LAYOUT: "1" }
     if (ci) env.CI = "true"

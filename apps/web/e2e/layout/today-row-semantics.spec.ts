@@ -12,9 +12,6 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const selectedDate = '2026-09-04'
-/** These cases clear and inspect the same mock mutation journal. */
-test.describe.configure({ mode: 'default' })
-
 const mutationJournalUrl = 'http://127.0.0.1:5099/_test/habit-mutations'
 const mutationsSchema = z.array(z.object({ method: z.string(), path: z.string(), body: z.unknown() }))
 const children = [0, 1].map((position) => makeHabitScheduleItem({
@@ -30,8 +27,8 @@ const items = [
     children, scheduledDates: [selectedDate] }),
 ]
 
-async function readMutations(request: APIRequestContext) {
-  const response = await request.get(mutationJournalUrl)
+async function readMutations(request: APIRequestContext, token: string) {
+  const response = await request.get(mutationJournalUrl, { headers: { Authorization: `Bearer ${token}` } })
   expect(response.ok()).toBe(true)
   return mutationsSchema.parse(await response.json())
 }
@@ -42,9 +39,9 @@ for (const width of [412, 1280]) {
     const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
     await setLayoutProfileSession(context, profile)
     await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
-    await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
+    const token = await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
     await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
-    const cleared = await request.delete(mutationJournalUrl)
+    const cleared = await request.delete(mutationJournalUrl, { headers: { Authorization: `Bearer ${token}` } })
     expect(cleared.ok()).toBe(true)
     await page.goto('/')
     const list = page.locator('[data-habit-list]')
@@ -81,8 +78,8 @@ for (const width of [412, 1280]) {
     await expect(firstBody).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown')
     await expect(firstBody).toHaveAttribute('aria-roledescription', ptBr.dragAndDrop.roleDescription)
     await page.keyboard.press('Alt+ArrowDown')
-    await expect.poll(async () => (await readMutations(request)).filter((mutation) => mutation.path === API.habits.reorder).length).toBe(1)
-    const reorder = (await readMutations(request)).find((mutation) => mutation.path === API.habits.reorder)!
+    await expect.poll(async () => (await readMutations(request, token)).filter((mutation) => mutation.path === API.habits.reorder).length).toBe(1)
+    const reorder = (await readMutations(request, token)).find((mutation) => mutation.path === API.habits.reorder)!
     expect(reorder.method).toBe('PUT')
     expect(reorderHabitsRequestSchema.parse(reorder.body)).toEqual({ positions: [
       { habitId: 'semantics-second', position: 0 },
@@ -93,9 +90,9 @@ for (const width of [412, 1280]) {
     await expect(firstBody).toBeFocused()
     await ring.focus()
     await page.keyboard.press('Enter')
-    await expect.poll(async () => (await readMutations(request)).filter((mutation) => mutation.path === API.habits.log('semantics-first')).length).toBe(1)
-    const log = (await readMutations(request)).find((mutation) => mutation.path === API.habits.log('semantics-first'))!
+    await expect.poll(async () => (await readMutations(request, token)).filter((mutation) => mutation.path === API.habits.log('semantics-first')).length).toBe(1)
+    const log = (await readMutations(request, token)).find((mutation) => mutation.path === API.habits.log('semantics-first'))!
     expect(log.method).toBe('POST')
-    expect((await readMutations(request)).filter((mutation) => mutation.path === API.habits.reorder)).toHaveLength(1)
+    expect((await readMutations(request, token)).filter((mutation) => mutation.path === API.habits.reorder)).toHaveLength(1)
   })
 }
