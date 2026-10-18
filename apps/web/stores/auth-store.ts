@@ -6,6 +6,7 @@ import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { getQueryClient } from '@/lib/query-client'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
+import { clearDesignCookie } from '@/lib/design-cookie'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 const SESSION_RECOVERY_CHECK_LIMIT = 3
@@ -310,6 +311,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
+    clearDesignCookie()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1

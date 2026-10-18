@@ -15,6 +15,10 @@ vi.mock('@/components/service-worker-bridge', () => ({
   ServiceWorkerBridge: () => <div data-testid="service-worker-bridge" />,
 }))
 
+vi.mock('@/components/design-cookie-sync', () => ({
+  DesignCookieSync: () => <div data-testid="design-cookie-sync" />,
+}))
+
 import { Providers } from '@/lib/providers'
 
 describe('Providers', () => {
@@ -39,6 +43,14 @@ describe('Providers', () => {
 
     expect(screen.getByTestId('query-provider')).toContainElement(
       screen.getByTestId('service-worker-bridge'),
+    )
+  })
+
+  it('mounts design cookie sync inside the query provider', () => {
+    render(<Providers><div /></Providers>)
+
+    expect(screen.getByTestId('query-provider')).toContainElement(
+      screen.getByTestId('design-cookie-sync'),
     )
   })
 })
