@@ -10,6 +10,7 @@ import {
   TodayHabitsPanel,
   TodayOverlays,
 } from './today-page-view'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
 import type { TodayInitialHabits } from './today-initial-data'
@@ -123,6 +124,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
               suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || !view.data.hasFetched || view.data.showLoadError}
             />
           </TodayHeaderRegion>
+          <SetupChecklistCard />
           {view.nav.dateStr === view.nav.today && !view.isSelectMode && !view.showCreateModal && !view.listSurfaceOpen && view.data.hasFetched && !view.data.showLoadError
             ? <TodayAISummary date={view.nav.dateStr} /> : null}
         </PreloadedProfileContext.Provider>

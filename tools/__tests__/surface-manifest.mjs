@@ -100,6 +100,7 @@ export async function cases() {
     ["route-explore", "route-insights"].every((surfaceId) => surfaces.find((surface) => surface.surfaceId === surfaceId)?.counterpart?.status === "web-only"),
   )
   T("the manifest omits commit provenance", !("generatedFrom" in manifest))
+  T("the manifest omits derived totals", !("surfaceCount" in manifest) && !("cellCount" in manifest))
   T("surface cells omit import closure sizes", manifest.cells.every((cell) => !("closureSize" in cell)))
 
   const manifestPath = join(repository.path, ".claude", "manifests", "surfaces.json")
@@ -125,12 +126,14 @@ export async function cases() {
   repository.git(["checkout", "-q", "-b", "surface-a"])
   write(join(repository.path, "apps/web/app/(app)/page.tsx"), "import { RootDetail } from './root-detail'\nexport default function TodayPage() { return <RootDetail /> }\n")
   write(join(repository.path, "apps/web/app/(app)/root-detail.tsx"), "export function RootDetail() { return null }\n")
-  repository.git(["add", "apps/web/app/(app)/page.tsx", "apps/web/app/(app)/root-detail.tsx"])
+  write(join(repository.path, "apps/web/app/(app)/journal/page.tsx"), "export default function Journal() { return null }\n")
+  repository.git(["add", "apps/web/app/(app)/page.tsx", "apps/web/app/(app)/root-detail.tsx", "apps/web/app/(app)/journal/page.tsx"])
   repository.git(["commit", "-q", "-m", "change the web root surface"])
   const firstBranch = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
   T("the first surface branch regenerates its inventory", firstBranch.status === 0, firstBranch.stderr)
   const firstCells = JSON.parse(readFileSync(manifestPath, "utf8")).cells
   T("the first branch records its own new file", firstCells.some((cell) => cell.surfaceId === "route-root" && cell.ownedFiles.includes("apps/web/app/(app)/root-detail.tsx")))
+  T("the first branch adds a surface", firstCells.length === manifest.cells.length + 4 && firstCells.some((cell) => cell.surfaceId === "route-journal"))
   repository.git(["add", ".claude/manifests/surfaces.json"])
   repository.git(["commit", "-q", "-m", "refresh the web root inventory"])
 
@@ -138,20 +141,28 @@ export async function cases() {
   repository.git(["checkout", "-q", "-b", "surface-b"])
   write(join(repository.path, "apps/mobile/app/preferences.tsx"), "import { BranchDetail } from '@/components/preferences/branch-detail'\nexport default function Preferences() { return <BranchDetail /> }\n")
   write(join(repository.path, "apps/mobile/components/preferences/branch-detail.tsx"), "export function BranchDetail() { return null }\n")
-  repository.git(["add", "apps/mobile/app/preferences.tsx", "apps/mobile/components/preferences/branch-detail.tsx"])
+  write(join(repository.path, "apps/mobile/app/journal.tsx"), "export default function Journal() { return null }\n")
+  repository.git(["add", "apps/mobile/app/preferences.tsx", "apps/mobile/components/preferences/branch-detail.tsx", "apps/mobile/app/journal.tsx"])
   repository.git(["commit", "-q", "-m", "change mobile preferences"])
   const secondBranch = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
   T("the second surface branch regenerates its inventory", secondBranch.status === 0, secondBranch.stderr)
   const secondCells = JSON.parse(readFileSync(manifestPath, "utf8")).cells
   T("the second branch records its own new file", secondCells.some((cell) => cell.surfaceId === "m-route-preferences" && cell.ownedFiles.includes("apps/mobile/components/preferences/branch-detail.tsx")))
+  T("the second branch adds a different surface", secondCells.length === manifest.cells.length + 4 && secondCells.some((cell) => cell.surfaceId === "m-route-journal"))
   repository.git(["add", ".claude/manifests/surfaces.json"])
   repository.git(["commit", "-q", "-m", "refresh mobile preferences inventory"])
 
   const merge = repository.git(["merge", "--no-commit", "--no-ff", "surface-a"])
   T("different surface branches merge without a manifest conflict", merge.status === 0, merge.stdout + merge.stderr)
   if (merge.status === 0) {
+    const mergedInventory = readFileSync(manifestPath, "utf8")
+    const mergedCells = JSON.parse(mergedInventory).cells
+    T("git retains both added surfaces and all their cells", mergedCells.length === manifest.cells.length + 8 && ["route-journal", "m-route-journal"].every((surfaceId) => mergedCells.some((cell) => cell.surfaceId === surfaceId)))
     const mergedCheck = run("surface-manifest.mjs", checkArgs, checkOptions)
     T("the combined surface branches pass --check", mergedCheck.status === 0, mergedCheck.stderr)
+    const mergedSurfaceCount = new Set(mergedCells.map((cell) => cell.surfaceId)).size
+    T("--check reports the combined derived totals", mergedCheck.stdout.includes(`(${mergedSurfaceCount} surfaces, ${mergedCells.length} cells)`), mergedCheck.stdout)
+    T("--check leaves the merged manifest unchanged", readFileSync(manifestPath, "utf8") === mergedInventory)
   }
   repository.git(["merge", "--abort"])
   repository.git(["checkout", "-q", "main"])
@@ -206,7 +217,7 @@ export async function cases() {
   write(join(repository.path, "apps/web/app/(app)/page.tsx"), "import { EmptyState } from './empty-state'\nexport default function TodayPage() { return <EmptyState /> }\n")
   write(join(repository.path, "apps/web/app/(app)/empty-state.tsx"), "export function EmptyState() { return null }\n")
   const changedStates = run("surface-manifest.mjs", checkArgs, checkOptions)
-  T("--check exits 1 when a surface gains an empty state", changedStates.status === 1 && changedStates.stderr.includes("cellCount"), changedStates.stderr)
+  T("--check exits 1 and names the surface that gains an empty state", changedStates.status === 1 && changedStates.stderr.includes("route-root"), changedStates.stderr)
 
   const rejected = run("surface-manifest.mjs", ["--check", "--json"], checkOptions)
   T("--check and --json are refused rather than silently ordered", rejected.status === 2, rejected.stderr)
