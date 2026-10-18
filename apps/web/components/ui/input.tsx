@@ -45,8 +45,8 @@ function Control({ props, controlId, descriptionId }: Readonly<{ props: InputPro
     onBlur: props.onBlur,
     className: 'block resize-none placeholder:text-[var(--fg-3)]',
   } as const
-  if (multiline) return <><TypedTextarea {...shared} ref={(control) => { inputRef.current = control }} rows={props.rows} style={{ ...CONTROL_STYLE, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} /><Marks value={props.value} marks={marks} label={marksLabel} /></>
-  return <div className="flex items-center"><input {...shared} ref={(control) => { inputRef.current = control }} type={props.kind ?? 'text'} onKeyDown={(event) => { if (event.key === 'Enter' && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} style={{ ...CONTROL_STYLE, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} />{props.trailing ? <span className="shrink-0 pr-4">{props.trailing}</span> : null}</div>
+  if (multiline) return <><TypedTextarea proposed={props.proposed} {...shared} ref={(control) => { inputRef.current = control }} rows={props.rows} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} /><Marks value={props.value} marks={marks} label={marksLabel} /></>
+  return <div className="flex items-center"><input {...shared} ref={(control) => { inputRef.current = control }} type={props.kind ?? 'text'} onKeyDown={(event) => { if (event.key === 'Enter' && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} />{props.trailing ? <span className="shrink-0 pr-4">{props.trailing}</span> : null}</div>
 }
 
 export function Input(props: Readonly<InputProps>) {

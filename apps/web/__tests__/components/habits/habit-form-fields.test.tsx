@@ -615,7 +615,8 @@ describe('HabitFormFields', () => {
     }, true)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+    expect(screen.getByRole('spinbutton').closest('[data-proposed]')).not.toBeNull()
     expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
@@ -779,6 +780,87 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
 })
 
+
+describe('manual schedule creation', () => {
+  beforeEach(() => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+  })
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+    mockProfileState.aiMessagesUsed = 5
+    const ask = vi.fn()
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    fireEvent.click(screen.getByRole('radio', { name: `habits.form.unit${unit}` }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '12' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '0' } })
+    expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('habits.form.frequencyRequired')
+    expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    expect(helpers.validateAll()).toBeNull()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+    const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const quantity = screen.getByRole('spinbutton', { name: 'habits.form.frequency' })
+    for (const control of [quantity, screen.getByRole('radio', { name: 'habits.form.every' }), screen.getByRole('radio', { name: 'habits.form.unitDay' }), screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })]) {
+      expect(control.closest('[data-proposed]')).not.toBeNull()
+    }
+    expect(quantity).toHaveValue(1)
+    expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-3)')
+    expect(screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' }).closest('[data-proposed]')).toBeNull()
+    quantity.focus()
+    if (edit === 'quantity') fireEvent.change(quantity, { target: { value: '2' } })
+    else if (edit === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    else if (edit === 'mode') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    else fireEvent.click(screen.getByRole('button', { name: edit === 'day' ? helpers.daysList.find((day) => day.value === 'Tuesday')!.accessibleLabel : 'habits.form.repeatMore' }))
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    if (edit === 'quantity') {
+      expect(screen.getByRole('spinbutton')).toBe(quantity)
+      expect(quantity).toHaveFocus()
+      expect(quantity).toHaveValue(2)
+      expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-1)')
+    }
+    expect(helpers.form.getValues('title')).toBe('Read')
+  })
+
+  it('disables manual scheduling for a locked parent', () => {
+    renderForm(createFormHelpers({ title: 'Read', isGeneral: true }), undefined, true, false, true)
+    expect(screen.getByRole('radio', { name: /habits.form.every/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /habits.form.unitMonth/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toBeDisabled()
+  })
+})
 
 describe('habit end time', () => {
   function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {

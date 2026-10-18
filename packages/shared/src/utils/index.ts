@@ -264,6 +264,7 @@ export type {
   HabitUnderstandingLabels,
   HabitUnderstandingProps,
   HabitRepeatIntervalProps,
+  HabitScheduleFieldsProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

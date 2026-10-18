@@ -12,6 +12,7 @@ import { buildHabitUnderstandingLabels, buildHabitUnderstandingSentence, readHab
 import { Input } from '@/components/ui/input'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
+import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -32,6 +33,26 @@ describe('habit understanding geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352])('contains manual schedule choices within their field column at %s', async (width) => {
+    const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
+      <HabitScheduleFields unit="Month" quantity={3} flexible disabled={false} onChange={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1000 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="padding:16px;max-width:620px">${view.container.innerHTML}</main>`)
+      const groups = await page.locator('[role="radiogroup"]').evaluateAll((elements) => elements.map((element) => {
+        const group = element.getBoundingClientRect()
+        const parent = element.parentElement!.getBoundingClientRect()
+        return { left: group.left - parent.left, right: parent.right - group.right }
+      }))
+      expect(groups).toHaveLength(2)
+      for (const group of groups) {
+        expect(group.left).toBeGreaterThanOrEqual(0)
+        expect(group.right).toBeGreaterThanOrEqual(0)
+      }
+    } finally { await page.close(); view.unmount() }
+  })
 
 
   it.each(['light', 'dark'] as const)('paints typed habit text with the foreground token in %s', async (mode) => {

@@ -12,6 +12,7 @@ type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type DisabledVariant = Extract<RadioRowProps, { disabled: true }>
 type EnabledVariant = Extract<RadioRowProps, { disabled?: false }>
 type ExpectedBase = {
+  proposed?: boolean
   label: string
   textMode?: 'personal'
   description?: string

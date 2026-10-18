@@ -1,7 +1,7 @@
 'use client'
 
 import { TypedTextarea } from '@/components/ui/typed-textarea'
-import { useMemo, type Ref } from 'react'
+import { useMemo, type Ref, type CSSProperties } from 'react'
 import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -28,6 +28,7 @@ export function HabitUnderstanding({
   consumed,
   proposed = false,
   scheduleLocked = false,
+  showCountCorrection = true,
   onValueChange,
   onEmojiSelect,
   isSuggestionDisabled = false,
@@ -90,24 +91,24 @@ export function HabitUnderstanding({
               />
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
-            <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+            <p className={`text-[17px] font-medium leading-[1.4] ${proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{sentence}</p>
+            <ScheduleCorrections proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
           </section>
         </Proposed>
       ) : null}
       {hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>
-          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
         </div>
       ) : null}
     </div>
   )
 }
 
-type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels'> & { showCount: boolean }
+type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> & { showCount: boolean }
 
-function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
+function ScheduleCorrections({ proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
   return (
     <>
       <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
@@ -115,7 +116,8 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
           const selected = daily || days.includes(day.value)
           return (
             <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-              className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
+              style={proposed ? { '--selection-ring-color': 'var(--fg-3)' } as CSSProperties : undefined}
+              className={`orbit-selection-ring orbit-selection-ring-thin habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? proposed ? 'bg-[var(--bg-well)] text-[var(--fg-3)] enabled:hover:text-[var(--fg-2)] active:text-[var(--fg-2)]' : 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
               onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
           )
         })}
@@ -125,7 +127,7 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
           <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
             <Minus size={20} strokeWidth={2} aria-hidden="true" />
           </button>
-          <span className="min-w-7 text-center font-mono text-xl tabular-nums">{quantity}</span>
+          <span className={`min-w-7 text-center font-mono text-xl tabular-nums ${proposed ? 'text-[var(--fg-3)]' : ''}`}>{quantity}</span>
           <button type="button" aria-label={labels.more} disabled={scheduleLocked} className="habit-control-motion grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(quantity + 1)}>
             <Plus size={20} strokeWidth={2} aria-hidden="true" />
           </button>

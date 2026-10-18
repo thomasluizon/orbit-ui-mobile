@@ -232,6 +232,15 @@ export interface HabitUnderstandingLabels {
   proposed: string
 }
 
+export interface HabitScheduleFieldsProps {
+  proposed?: boolean
+  unit: FrequencyUnit | null
+  quantity: number | null
+  flexible: boolean
+  disabled: boolean
+  onChange: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
+}
+
 export interface HabitRepeatIntervalProps {
   visible: boolean
   intervalWeeks: number
@@ -249,6 +258,7 @@ export interface HabitUnderstandingProps {
   dayOptions: HabitDayOption[]
   quantity: number
   mode: 'fixed' | 'flexible'
+  showCountCorrection?: boolean
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
   proposed?: boolean
@@ -375,6 +385,7 @@ export interface HabitFormController {
   setIntervalWeeks: (intervalWeeks: number) => void
   toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
   setQuantity: (quantity: number) => void
+  setSchedule: (unit: FrequencyUnit, quantity: number | null, flexible: boolean) => void
 }
 
 export function createHabitFormController({
@@ -405,16 +416,7 @@ export function createHabitFormController({
     resolveSetupProposal: (): void => resolveSection('setup'),
     resolveSubHabitProposal: (): void => resolveSection('subHabits'),
     releaseDueTime: (): void => releaseOwnership('dueTime'),
-    readPhrase: (enabled: boolean, read: HabitPhraseRead, emoji: string): void => {
-      target.setOwnership(applyHabitPhraseRead(
-        enabled,
-        read,
-        emoji,
-        lockedGeneral,
-        target.getOwnership(),
-        target,
-      ))
-    },
+    readPhrase: (enabled, read, emoji) => readOwnedHabitPhrase(enabled, read, emoji, lockedGeneral, target),
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', dueTime)
@@ -459,6 +461,17 @@ export function createHabitFormController({
       releaseOwnership('cadence')
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
+    setSchedule: (unit, quantity, flexible): void => {
+      if (lockedGeneral === true) return
+      onSuggestionContextChange?.()
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (flexible) target.setFlexible()
+      else target.setRecurring()
+      target.setField('frequencyUnit', unit)
+      target.setField('frequencyQuantity', quantity)
+      if (flexible || unit !== 'Day' || quantity !== 1) target.setField('days', [])
+    },
     setIntervalWeeks: (intervalWeeks): void => {
       resolveSection('setup')
       releaseOwnership('cadence')
@@ -470,6 +483,16 @@ export function createHabitFormController({
       target.setField('intervalWeeks', Math.max(1, Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks)))
     },
   }
+}
+
+function readOwnedHabitPhrase(
+  enabled: boolean,
+  read: HabitPhraseRead,
+  emoji: string,
+  lockedGeneral: boolean | null,
+  target: HabitFormControllerTarget,
+): void {
+  target.setOwnership(applyHabitPhraseRead(enabled, read, emoji, lockedGeneral, target.getOwnership(), target))
 }
 
 export function applyHabitDayCorrection(
@@ -590,6 +613,8 @@ function getHabitRecurringIntervalUnderstandingKey(
   frequencyUnit: FrequencyUnit | null | undefined,
   quantity: number,
 ): string | null {
+  if (frequencyUnit === 'Day') return 'habits.form.understoodEveryNDays'
+  if (frequencyUnit === 'Week') return quantity === 1 ? 'habits.form.understoodEveryWeek' : 'habits.form.understoodEveryNWeeks'
   if (frequencyUnit === 'Month') {
     return quantity === 1 ? 'habits.form.understoodEveryMonth' : 'habits.form.understoodEveryNMonths'
   }
@@ -603,6 +628,7 @@ function getHabitFlexibleIntervalUnderstandingKey(
   frequencyUnit: FrequencyUnit | null | undefined,
   quantity: number,
 ): string | null {
+  if (frequencyUnit === 'Day') return quantity === 1 ? 'habits.form.understoodDayOnce' : 'habits.form.understoodDayCount'
   if (frequencyUnit === 'Month') {
     return quantity === 1 ? 'habits.form.understoodMonthOnce' : 'habits.form.understoodMonth'
   }
@@ -640,6 +666,7 @@ export function buildHabitUnderstandingSentence(
   translate: UnderstandingTranslator,
   intervalWeeks = 1,
 ): string | null {
+  if ((isFlexible || frequencyUnit) && (!Number.isInteger(quantity) || quantity < 1)) return ''
   let key: string
   let values: Record<string, string | number> = {}
   const intervalKey = isFlexible

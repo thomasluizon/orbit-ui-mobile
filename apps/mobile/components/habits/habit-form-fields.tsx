@@ -46,6 +46,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
+import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
@@ -286,9 +287,10 @@ export function HabitFormFields({
   const emoji = useWatch({ control: form.control, name: 'emoji' }) ?? ''
   const watchedDays = useWatch({ control: form.control, name: 'days' })
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
-  const frequencyQuantity = useWatch({ control: form.control, name: 'frequencyQuantity' }) ?? 3
+  const watchedQuantity = useWatch({ control: form.control, name: 'frequencyQuantity' })
   const intervalWeeks = useWatch({ control: form.control, name: 'intervalWeeks' }) ?? 1
   const frequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
+  const frequencyQuantity = watchedQuantity ?? (frequencyUnit ? 0 : 3)
   const isFlexible = useWatch({ control: form.control, name: 'isFlexible' }) ?? false
   const dueDate = useWatch({ control: form.control, name: 'dueDate' }) ?? ''
   const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
@@ -433,6 +435,7 @@ export function HabitFormFields({
         sentence={sentence}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
+        showCountCorrection={!frequencyUnit || frequencyUnit === 'Week'}
         dayOptions={daysList}
         days={days}
         daily={daily}
@@ -454,6 +457,14 @@ export function HabitFormFields({
         <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} placement="column" chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
+            <HabitScheduleFields
+              proposed={proposal.setup}
+              unit={frequencyUnit ?? null}
+              quantity={watchedQuantity ?? null}
+              flexible={isFlexible}
+              disabled={lockedGeneral === true}
+              onChange={controller.setSchedule}
+            />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
             <View style={{ gap: 16 }}>
               <TimeField
