@@ -46,9 +46,98 @@ permissions:
   contents: read
   deployments: write
 
+concurrency:
+  group: android-design-release-${{ inputs.track == 'internal' && 'staging' || 'production' }}
+  cancel-in-progress: false
+
 jobs:
+  publish-design-bundles:
+    name: Validate and publish both Android designs
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.track == 'internal' && 'android-internal' || 'production' }}
+      deployment: false
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+      ORBIT_APP_VARIANT: ${{ inputs.track == 'internal' && 'staging' || 'production' }}
+      EXPO_PUBLIC_API_BASE: ${{ inputs.track == 'internal' && 'https://api-staging.useorbit.org' || 'https://api.useorbit.org' }}
+      EXPO_PUBLIC_SENTRY_ENVIRONMENT: ${{ inputs.track == 'internal' && 'staging' || 'production' }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+      EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ inputs.track == 'internal' && vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY || vars.PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      EAS_UPDATE_ENVIRONMENT: ${{ inputs.track == 'internal' && 'preview' || 'production' }}
+    steps:
+      - name: Validate binary source and update credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            echo "::error::Android design releases must build the native union from main" >&2
+            exit 1
+          fi
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is required to publish the design bundles" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: legacy
+
+      - uses: actions/checkout@v7
+        with:
+          ref: redesign/main
+          path: redesign
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            legacy/package-lock.json
+            redesign/package-lock.json
+
+      - name: Install both locked dependency trees
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix legacy --prefer-offline --no-audit --fund=false
+          npm ci --prefix redesign --prefer-offline --no-audit --fund=false
+
+      - name: Require the shared native union and both switching paths
+        run: node legacy/apps/mobile/scripts/check-design-bundles.js legacy redesign
+
+      - name: Publish the legacy and redesign Android bundles
+        shell: bash
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+        run: |
+          set -euo pipefail
+          for design in legacy redesign; do
+            source_commit=$(git -C "$design" rev-parse HEAD)
+            node "$design/apps/mobile/scripts/set-app-version.js" "$APP_VERSION" "$ANDROID_VERSION_CODE"
+            (
+              cd "$design/apps/mobile"
+              npx --yes eas-cli@25.2.0 update \
+                --channel "$design" \
+                --platform android \
+                --environment "$EAS_UPDATE_ENVIRONMENT" \
+                --message "Android $APP_VERSION ($ANDROID_VERSION_CODE): $design $source_commit" \
+                --upload-source-maps \
+                --non-interactive
+            )
+            echo "| $design bundle source | \`$source_commit\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
   release-android:
     name: Build and publish Android app
+    needs: publish-design-bundles
     runs-on: ubuntu-latest
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
@@ -66,8 +155,8 @@ jobs:
           RELEASE_TRACK: ${{ inputs.track }}
         run: |
           set -euo pipefail
-          if [ "$RELEASE_TRACK" != internal ] && [ "$GITHUB_REF_NAME" != main ]; then
-            echo "::error::Open and production Android releases must run from main" >&2
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            echo "::error::Android design releases must run from main" >&2
             exit 1
           fi
       # First step on purpose: every later step can fail, and when one does the
@@ -491,8 +580,8 @@ jobs:
 
       # Uploads straight to the Play Developer API. eas-cli submit routed the AAB
       # through Expo's GCS bucket and sent the Play service account key to Expo's
-      # backend to make this same androidpublisher call, which put a third party and
-      # an Expo account (EXPO_TOKEN) on the release path for no capability gained.
+      # backend to make this same androidpublisher call. The direct upload keeps
+      # the Play credential out of the separate EAS Update publication job.
       # Pinned to the v1.1.5 commit: this step handles the Play signing credential,
       # and a floating tag would let an upstream retag change what runs here.
       - name: Submit build to Google Play

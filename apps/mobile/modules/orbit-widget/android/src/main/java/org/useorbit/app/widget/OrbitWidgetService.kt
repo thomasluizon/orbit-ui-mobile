@@ -3,6 +3,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -81,6 +82,10 @@ data class WidgetColors(
 class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
+    private var habitsSession: String? = null
+    private val accounts = WidgetAccountState(OrbitWidgetModule.accountRenderLock) {
+        OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }
+    }
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colors: WidgetColors = defaultColors()
@@ -89,7 +94,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
         private const val TAG = "OrbitWidget"
-        private const val FRESH_WINDOW_MS = 15_000L
 
         // Cap rasterized background bitmaps. Android rejects a widget update whose
         // summed RemoteViews bitmap memory (card background + every inlined list-item
@@ -146,9 +150,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
 
         /** Resolves a synced token color (or its purple-dark fallback) to an ARGB int. */
-        private fun readColor(prefs: android.content.SharedPreferences, token: String): Int {
+        private fun readColor(context: Context, prefs: android.content.SharedPreferences, token: String): Int {
             val fallback = FALLBACK_COLORS.getValue(token)
-            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + token, fallback) ?: fallback
+            val mode = if (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+                Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
+            val resolvedToken = if (token == "streak") "streakText" else token
+            val key = if (prefs.getBoolean("theme_mode_preferences", false)) "${mode}_$resolvedToken" else token
+            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + key, fallback) ?: fallback
             return parseColor(value, fallback)
         }
 
@@ -175,17 +183,17 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         fun getThemeColors(context: Context): WidgetColors {
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             return WidgetColors(
-                primary = readColor(prefs, "primary"),
-                background = readColor(prefs, "background"),
-                surface = readColor(prefs, "surface"),
-                surfaceGround = readColor(prefs, "surfaceGround"),
-                textPrimary = readColor(prefs, "textPrimary"),
-                textMuted = readColor(prefs, "textMuted"),
-                border = readColor(prefs, "border"),
-                borderMuted = readColor(prefs, "borderMuted"),
-                overdue = readColor(prefs, "overdue"),
-                streak = readColor(prefs, "streak"),
-                statusEmpty = readColor(prefs, "statusEmpty")
+                primary = readColor(context, prefs, "primary"),
+                background = readColor(context, prefs, "background"),
+                surface = readColor(context, prefs, "surface"),
+                surfaceGround = readColor(context, prefs, "surfaceGround"),
+                textPrimary = readColor(context, prefs, "textPrimary"),
+                textMuted = readColor(context, prefs, "textMuted"),
+                border = readColor(context, prefs, "border"),
+                borderMuted = readColor(context, prefs, "borderMuted"),
+                overdue = readColor(context, prefs, "overdue"),
+                streak = readColor(context, prefs, "streak"),
+                statusEmpty = readColor(context, prefs, "statusEmpty")
             )
         }
 
@@ -313,6 +321,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      */
     private fun renderPlaceholder(showSkeleton: Boolean) {
         habits = emptyList()
+        habitsSession = null
         lang = detectLanguage(null)
         headerLabel = tr(lang, "today")
 
@@ -350,70 +359,76 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     private fun loadWidgetData() {
         colors = getThemeColors(context)
-        val token = OrbitWidgetModule.getToken(context)
-        if (token == null) {
-            renderPlaceholder(showSkeleton = false)
-            return
+        val token = synchronized(OrbitWidgetModule.accountRenderLock) {
+            val currentToken = OrbitWidgetModule.getToken(context)
+            if (currentToken == null) {
+                renderPlaceholder(showSkeleton = false)
+                return
+            }
+            currentToken
         }
 
         val widgetData = resolveWidgetData(token)
-        if (widgetData == null) {
-            renderPlaceholder(showSkeleton = true)
-            return
-        }
 
-        lang = detectLanguage(widgetData.language)
-        val streak = widgetData.currentStreak ?: 0
-        habits = flattenHabits(widgetData.items ?: emptyList())
-        headerLabel = if (widgetData.dayOffset == 1 && habits.isNotEmpty()) {
-            tr(lang, "tomorrow")
-        } else {
-            tr(lang, "today")
-        }
-
-        // Count each sub-habit as its own item so the total matches the Today list.
-        // Bad (avoid) habits never count toward progress: a slip is not a completion.
-        var totalCount = 0
-        var completedCount = 0
-        for (habit in habits.filter { it.depth == 0 }) {
-            if (habit.hasChildren) {
-                totalCount += habit.childrenTotal
-                completedCount += habit.childrenDone
-            } else if (!habit.isBadHabit) {
-                totalCount += 1
-                if (habit.isCompleted) completedCount += 1
+        accounts.withCurrentAccount({ OrbitWidgetModule.sessionKey(token) }, Unit) {
+            if (widgetData == null) {
+                renderPlaceholder(showSkeleton = true)
+                return@withCurrentAccount
             }
-        }
-        val subtitleText = "$completedCount ${tr(lang, "of")} $totalCount ${tr(lang, "completed")}"
+            lang = detectLanguage(widgetData.language)
+            val streak = widgetData.currentStreak ?: 0
+            habits = flattenHabits(widgetData.items ?: emptyList())
+            habitsSession = OrbitWidgetModule.sessionKey(token)
+            headerLabel = if (widgetData.dayOffset == 1 && habits.isNotEmpty()) {
+                tr(lang, "tomorrow")
+            } else {
+                tr(lang, "today")
+            }
 
-        // Cache header info for the provider to read
-        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("header_label", headerLabel)
-            .putInt("habit_count", totalCount)
-            .putInt("completed_count", completedCount)
-            .putInt("user_streak", streak)
-            .putString("lang", lang)
-            .apply()
+            // Count each sub-habit as its own item so the total matches the Today list.
+            // Bad (avoid) habits never count toward progress: a slip is not a completion.
+            var totalCount = 0
+            var completedCount = 0
+            for (habit in habits.filter { it.depth == 0 }) {
+                if (habit.hasChildren) {
+                    totalCount += habit.childrenTotal
+                    completedCount += habit.childrenDone
+                } else if (!habit.isBadHabit) {
+                    totalCount += 1
+                    if (habit.isCompleted) completedCount += 1
+                }
+            }
+            val subtitleText = "$completedCount ${tr(lang, "of")} $totalCount ${tr(lang, "completed")}"
 
-        val colors = getThemeColors(context)
-        val density = context.resources.displayMetrics.density
-        val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val flameBitmap = createFlameBitmap(density, colors.streak)
-        updateWidgets { views ->
-            views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setTextColor(R.id.widget_header, colors.textPrimary)
-            views.setTextViewText(R.id.widget_subtitle, subtitleText)
-            views.setTextColor(R.id.widget_subtitle, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
-            views.setTextViewText(R.id.widget_streak, "$streak")
-            views.setTextColor(R.id.widget_streak, colors.textPrimary)
-            views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
-            views.setViewVisibility(R.id.widget_flame, streakVisible)
-            views.setViewVisibility(R.id.widget_streak, streakVisible)
-            // Restore refresh button, hide loading spinner and skeleton
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-            views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
+            // Cache header info for the provider to read
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("header_label", headerLabel)
+                .putInt("habit_count", totalCount)
+                .putInt("completed_count", completedCount)
+                .putInt("user_streak", streak)
+                .putString("lang", lang)
+                .apply()
+
+            val colors = getThemeColors(context)
+            val density = context.resources.displayMetrics.density
+            val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
+            val flameBitmap = createFlameBitmap(density, colors.streak)
+            updateWidgets { views ->
+                views.setTextViewText(R.id.widget_header, headerLabel)
+                views.setTextColor(R.id.widget_header, colors.textPrimary)
+                views.setTextViewText(R.id.widget_subtitle, subtitleText)
+                views.setTextColor(R.id.widget_subtitle, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
+                views.setTextViewText(R.id.widget_streak, "$streak")
+                views.setTextColor(R.id.widget_streak, colors.textPrimary)
+                views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
+                views.setViewVisibility(R.id.widget_flame, streakVisible)
+                views.setViewVisibility(R.id.widget_streak, streakVisible)
+                // Restore refresh button, hide loading spinner and skeleton
+                views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
+                views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+                views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
+            }
         }
     }
 
@@ -439,23 +454,25 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        val cachedData = parseWidgetResponse(prefs.getString("habits_json", null))
-        val cacheAge = System.currentTimeMillis() - prefs.getLong("habits_updated_at", 0L)
-        if (cachedData != null && cacheAge in 0L..FRESH_WINDOW_MS) {
-            return cachedData
-        }
-
-        val freshJson = fetchWidget(token)
-        val freshData = parseWidgetResponse(freshJson)
-        if (freshData != null && freshJson != null) {
-            prefs.edit()
-                .putString("habits_json", freshJson)
-                .putLong("habits_updated_at", System.currentTimeMillis())
-                .apply()
-            return freshData
-        }
-
-        return cachedData
+        return accounts.resolve(
+            session = OrbitWidgetModule.sessionKey(token),
+            readCache = {
+                WidgetCache(
+                    prefs.getString("habits_json", null),
+                    prefs.getString("habits_session", null),
+                    prefs.getLong("habits_updated_at", 0L)
+                )
+            },
+            fetch = { fetchWidget(token) },
+            parse = ::parseWidgetResponse,
+            writeCache = { json, session ->
+                prefs.edit()
+                    .putString("habits_json", json)
+                    .putString("habits_session", session)
+                    .putLong("habits_updated_at", System.currentTimeMillis())
+                    .apply()
+            }
+        )
     }
 
     private fun parseWidgetResponse(json: String?): HabitWidgetResponse? {
@@ -552,14 +569,21 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     override fun onDestroy() {
-        habits = emptyList()
+        synchronized(OrbitWidgetModule.accountRenderLock) {
+            habits = emptyList()
+            habitsSession = null
+        }
     }
 
-    override fun getCount(): Int = runCatching { habits.size }.getOrDefault(0)
+    override fun getCount(): Int = runCatching {
+        accounts.withCurrentAccount({ habitsSession }, 0) { habits.size }
+    }.getOrDefault(0)
 
     override fun getViewAt(position: Int): RemoteViews {
         return try {
-            buildItemView(position)
+            accounts.withCurrentAccount({ habitsSession }, RemoteViews(context.packageName, R.layout.widget_item)) {
+                buildItemView(position)
+            }
         } catch (_: Exception) {
             RemoteViews(context.packageName, R.layout.widget_item)
         }

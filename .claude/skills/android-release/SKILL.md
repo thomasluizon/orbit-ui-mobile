@@ -30,9 +30,63 @@ GitHub environment supplies the Firebase config containing both Android app clie
 the other tracks use the repository secret.
 Each successful Play upload records an Android GitHub Deployment with the commit, version and
 versionCode. The workflow derives each new versionCode from the last run across tracks;
-Play enforces uniqueness within each package. `open` and `production` require `main`; `internal` builds the selected branch.
+Play enforces uniqueness within each package. Every track builds the native union from `main`.
 A binary is never promoted
 between tracks because its API base is fixed when it is built.
+
+## Design bundles
+
+One binary contains the native union for both designs and embeds the legacy JavaScript from `main`.
+The `publish-design-bundles` job checks out that exact release commit and `redesign/main`, installs
+both lockfiles, and runs `apps/mobile/scripts/check-design-bundles.js`. It refuses publication until
+the redesign branch contains the same native bridge, local modules, plugins, and switching adapter.
+The redesign's `lib/design-bundle-identity.ts` must declare `redesign`; `main` declares `legacy`.
+Land the redesign switch-back pull request before dispatching the first dual-design release.
+
+The job publishes Android updates to the `legacy` and `redesign` EAS channels, then the dependent
+build job builds and uploads the union binary. Both updates use the release version and versionCode.
+The checked-out commits appear in the workflow summary. EAS CLI is pinned in the workflow; do not
+replace it with an unversioned invocation.
+
+Production uses runtime `orbit-android-designs-1`; the internal staging variant appends `-staging`.
+Both designs share the same fixed runtime within a variant. When native code or native dependencies
+change, advance the runtime in both branches and build another binary before targeting it with updates.
+Keep `expo-linear-gradient` in the union even when the redesign does not call it. Keep the widget
+bridge backward compatible with one-argument and two-argument `syncWidgetData` and both theme maps.
+
+Each cold process starts on the embedded legacy bundle. The startup plugin clears Expo's persisted
+request override before constructing the controller, restoring the declared `orbit-design-launch`
+header's `embedded` value; fetched updates use `selected`. Expo captures startup configuration during
+construction, so its public header setter cannot perform this initial reset. The native adapter uses
+the installed `UpdatesConfigurationOverride` preference keys, and a compatibility test checks them
+against the installed Expo source. Recheck that dependency when upgrading Expo.
+Expo selects cached updates by their full request headers, so an offline cold start stays on the
+embedded bundle. The native process guard permits one design reload, including across JavaScript
+reloads. The launch reads the saved account flag from SecureStore; sign-in and foreground refreshes
+save the next launch's choice. Sign-out selects legacy on the next cold launch. Header overrides keep
+Expo's anti-bricking measures enabled.
+
+Use EAS Update's free allowance while the account's updating users, bandwidth and storage fit it.
+Review current limits in [Expo pricing](https://expo.dev/pricing) and the account's **Billing > Usage**
+screen before rollout. A self-hosted service must implement the [Expo Updates protocol](https://docs.expo.dev/technical-specs/expo-updates-1/),
+including compatible manifests and assets; hosting static bundles alone is insufficient.
+
+The `EXPO_TOKEN` GitHub Actions secret must be visible to both the `production` and `android-internal`
+jobs. Define it in **Settings > Secrets and variables > Actions**, or use an environment override in
+**Settings > Environments > Environment secrets**. The token must publish to the EAS project in
+`app.json`; never pass it as a command-line argument. Verify publication in that project's **Updates**
+screen: both channel names must resolve updates for the intended Android runtime and source commits.
+The SDK requires an EAS environment: the workflow uses `production` for open/production and `preview`
+for internal. In the EAS project's **Environment variables** screen, keep public API, Google, Turnstile,
+Sentry and PostHog settings equal to the corresponding GitHub release values. In particular,
+`EXPO_PUBLIC_API_BASE` must be `https://api.useorbit.org` in `production` and
+`https://api-staging.useorbit.org` in `preview`. Keep `ORBIT_APP_VARIANT` equal to `production` and
+`staging`, respectively. Verify an internal update retains the staging runtime
+and API target before using it.
+
+Device verification belongs to the release coordinator. Use a disposable AVD and a release APK built
+with `npm run android:apk:emulator`, without Metro. Verify flag off, on, and off again across cold
+restarts, then verify offline startup, failed bundle download, sign-out, and one reload per process.
 
 ## Step 1 - Read the last run to derive the defaults
 

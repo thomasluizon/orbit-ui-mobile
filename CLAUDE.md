@@ -67,7 +67,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review, readiness, and handoff contract. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
-| `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
+| `.claude/skills/android-release/SKILL.md` | Publishing both Android design bundles and dispatching `android-release.yml` to a Google Play track. |
 | `.claude/skills/release/SKILL.md` | Planning production, opt-in redesign web, and staging gaps, with Worker route verification and go-live dependencies. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |
 

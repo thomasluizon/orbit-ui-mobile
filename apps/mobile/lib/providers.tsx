@@ -33,6 +33,8 @@ import { PostHogProvider } from 'posthog-react-native'
 import { useSegments } from 'expo-router'
 import { useConfig } from '@/hooks/use-config'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
+import { launchAccountDesign } from './design-bundle'
+import { refreshDesignFlag, subscribeToDesignFlag } from './design-flag-refresh'
 import './i18n'
 
 void SplashScreen.preventAutoHideAsync()
@@ -71,6 +73,7 @@ function PostHogGate() {
 
 function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const initialize = useAuthStore((s) => s.initialize)
+  const accountId = useAuthStore((s) => s.isAuthenticated ? s.user?.userId ?? null : null)
   const [ready, setReady] = useState(false)
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
@@ -89,12 +92,15 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   })
 
   useEffect(() => {
+    const unsubscribeDesignFlag = subscribeToDesignFlag()
     async function boot() {
       let isAuthenticated = false
 
       try {
         await initialize()
-        isAuthenticated = useAuthStore.getState().isAuthenticated
+        const session = useAuthStore.getState()
+        isAuthenticated = session.isAuthenticated
+        if (await launchAccountDesign(isAuthenticated ? session.user?.userId ?? null : null)) return
       } catch {}
 
       if (isAuthenticated) {
@@ -108,7 +114,12 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
       setReady(true)
     }
     void boot()
+    return unsubscribeDesignFlag
   }, [initialize])
+
+  useEffect(() => {
+    if (ready && accountId) void refreshDesignFlag()
+  }, [ready, accountId])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
@@ -118,7 +129,10 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (nextState === 'active') {
         reconcileSessionOnForeground()
-          .then(syncWidgetDataSafely)
+          .then(() => {
+            syncWidgetDataSafely()
+            void refreshDesignFlag()
+          })
           .catch(() => {})
       }
     }
@@ -143,6 +157,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <ThemeProvider>
       <View style={{ flex: 1 }}>
+        {posthog ? <PostHogGate /> : null}
         <OfflineManager />
         <AccountEventConnection />
         {children}
@@ -154,7 +169,6 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 export function Providers({ children }: Readonly<ProvidersProps>) {
   const content = (
     <QueryClientProvider client={queryClient}>
-      {posthog && <PostHogGate />}
       <AuthInitializer>{children}</AuthInitializer>
     </QueryClientProvider>
   )

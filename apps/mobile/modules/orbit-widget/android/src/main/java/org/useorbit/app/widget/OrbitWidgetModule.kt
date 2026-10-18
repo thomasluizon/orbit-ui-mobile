@@ -4,17 +4,26 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.security.MessageDigest
+import org.json.JSONObject
 
 class OrbitWidgetModule : Module() {
   companion object {
     private const val PREFS_NAME = "orbit_widget_prefs"
     private const val KEY_TOKEN = "auth_token"
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
+    internal val accountRenderLock = Any()
     const val COLOR_KEY_PREFIX = "color_"
+    private val NAME_IDENTIFIER_CLAIMS = listOf(
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+      "nameid",
+      "sub"
+    )
 
     fun getEncryptedPrefs(context: Context): SharedPreferences {
       return try {
@@ -44,6 +53,40 @@ class OrbitWidgetModule : Module() {
     fun getToken(context: Context): String? {
       return try {
         getEncryptedPrefs(context).getString(KEY_TOKEN, null)
+      } catch (_: Exception) {
+        null
+      }
+    }
+
+    /**
+     * A non-reversible name for the session that owns a cached payload. The session is the
+     * ACCOUNT, never the access token.
+     */
+    fun sessionKey(token: String): String =
+      MessageDigest.getInstance("SHA-256")
+        .digest((accountId(token) ?: token).toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
+
+    /**
+     * The account a JWT names, or null when it names none. The three claims and their precedence
+     * are copied from `getUserFromPayload` in `apps/mobile/stores/auth-store.ts`, which reads
+     * these same tokens in production.
+     */
+    private fun accountId(token: String): String? {
+      val segments = token.split(".")
+      if (segments.size < 2) return null
+
+      return try {
+        val normalized = segments[1].replace('-', '+').replace('_', '/')
+        val json = JSONObject(
+          String(
+            Base64.decode(normalized, Base64.NO_PADDING or Base64.NO_WRAP),
+            Charsets.UTF_8
+          )
+        )
+        NAME_IDENTIFIER_CLAIMS.firstNotNullOfOrNull { claim ->
+          json.optString(claim).takeIf { it.isNotEmpty() }
+        }
       } catch (_: Exception) {
         null
       }
@@ -83,20 +126,28 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("saveToken") { token: String ->
       val context = moduleContext()
-      getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply()
+      WidgetAccountState(accountRenderLock) { getToken(context)?.let { sessionKey(it) } }
+        .replaceAccount(
+          sessionKey(token),
+          saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() },
+          clearCache = { clearWidgetCache(context) }
+        )
       refreshWidgets(context)
     }
 
     AsyncFunction("clearToken") {
       val context = moduleContext()
-      getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply()
-      clearWidgetCache(context)
+      synchronized(accountRenderLock) {
+        getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply()
+        clearWidgetCache(context)
+      }
       refreshWidgets(context)
     }
 
     AsyncFunction("syncTheme") { colors: Map<String, String> ->
       val context = moduleContext()
       val editor = context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE).edit()
+      editor.putBoolean("theme_mode_preferences", colors.keys.any { it.startsWith("dark_") || it.startsWith("light_") })
       for ((token, value) in colors) {
         editor.putString("$COLOR_KEY_PREFIX$token", value)
       }
@@ -104,13 +155,26 @@ class OrbitWidgetModule : Module() {
       refreshWidgets(context)
     }
 
-    AsyncFunction("syncWidgetData") { json: String ->
+    AsyncFunction("syncWidgetData") { json: String, token: String? ->
       val context = moduleContext()
-      context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit()
-        .putString("habits_json", json)
-        .putLong("habits_updated_at", System.currentTimeMillis())
-        .apply()
+      // Label the payload with the caller's account, since sign-out can occur during the fetch.
+      // Compare accounts so a token refresh keeps the same account's cache.
+      synchronized(accountRenderLock) {
+        val authorizingToken = token ?: getToken(context)
+        if (authorizingToken != null) {
+          val session = sessionKey(authorizingToken)
+          if (getToken(context)?.let { sessionKey(it) } == session) {
+            context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
+              .edit()
+              .putString("habits_json", json)
+              .putString("habits_session", session)
+              .putLong("habits_updated_at", System.currentTimeMillis())
+              .putBoolean("refresh_loading", false)
+              .putBoolean("loading_skeleton", false)
+              .apply()
+          }
+        }
+      }
       refreshWidgets(context)
     }
 

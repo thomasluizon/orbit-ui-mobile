@@ -19,11 +19,18 @@ export interface WidgetThemeColors {
   statusEmpty: string
 }
 
+export type WidgetThemeMode = 'dark' | 'light'
+export type RedesignWidgetThemeColors = Omit<WidgetThemeColors, 'primary' | 'streak'> & {
+  textSecondary: string
+  streakText: string
+}
+export type WidgetThemePreferences = Record<`${WidgetThemeMode}_${keyof RedesignWidgetThemeColors}`, string>
+
 export interface OrbitWidgetModuleType {
   saveToken(token: string): Promise<void>
   clearToken(): Promise<void>
-  syncTheme(colors: WidgetThemeColors): Promise<void>
-  syncWidgetData(json: string): Promise<void>
+  syncTheme(colors: WidgetThemeColors | WidgetThemePreferences): Promise<void>
+  syncWidgetData(json: string, token?: string): Promise<void>
 }
 
 export type OnLoadEventPayload = {
