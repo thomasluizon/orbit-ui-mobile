@@ -18,7 +18,9 @@ interface BreakdownSuggestionState {
   addHabit: () => void
   atCapacity: boolean
   createError: boolean
-  removeHabit: (id: string) => void
+  removalId: string | null
+  setRemovalId: Dispatch<SetStateAction<string | null>>
+  removeHabit: () => void
   hasSubmitted: boolean
   createAsParent: boolean
   completed: boolean
@@ -55,6 +57,7 @@ export function useBreakdownSuggestionState({
   const [habits, setHabits] = useState<BreakdownDraftHabit[]>(() =>
     createBreakdownDrafts(subHabits),
   )
+  const [removalId, setRemovalId] = useState<string | null>(null)
   const [capacityDenied, setCapacityDenied] = useState(false)
   const [createError, setCreateError] = useState(false)
   const [createAsParent, setCreateAsParent] = useState(false)
@@ -78,10 +81,11 @@ export function useBreakdownSuggestionState({
     setEditingId(habit.id)
   }
 
-  const removeHabit = (id: string) => {
-    if (groupingLocked) return
-    setHabits((current) => current.filter((habit) => habit.id !== id))
-    setEditingId(habits.find((habit) => habit.id !== id)?.id ?? null)
+  const removeHabit = () => {
+    if (groupingLocked || removalId == null) return
+    setHabits((current) => current.filter((habit) => habit.id !== removalId))
+    if (editingId === removalId) setEditingId(null)
+    setRemovalId(null)
   }
 
   const editTitle = useCallback((id: string, title: string) => {
@@ -131,6 +135,8 @@ export function useBreakdownSuggestionState({
   }, [createAsParent, habits, hasSubmitted, isSubmitting, onBulkCreate, onConfirmed, parentName, rejected, results])
 
   return {
+    removalId,
+    setRemovalId,
     capacityDenied,
     addHabit,
     atCapacity: habits.length >= MAX_BULK_OPERATION_SIZE,

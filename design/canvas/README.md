@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager, ordered Astra reply parts and Perfil sub-menu amendments. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager, selectable BarChart columns, ordered Astra reply parts and Perfil sub-menu amendments. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
 
 ## The authority
@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
 | #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
@@ -44,6 +45,19 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### BarChart amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Progresso overview | Thirty daily columns remain visible at compact and wide widths. Existing completion figures, best weekday, top habit, navigation and loading, empty, locked and error states stay with their owners. |
+| Astra metrics block | Existing metric series and figure rows use the shared selectable chart. No-data and absent-series behavior, habit context and destination links remain. |
+| Astra period insight | Existing daily and weekly series use the same control on the overview page. Figures, habit rows, narrative pages, paging and destination links remain. |
+| Shared chart control | Full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
+
+Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
+mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
+TalkBack and real Android text rendering remain device-verification boundaries.
 
 ### Ordered Astra reply surface inventory
 

@@ -473,8 +473,6 @@ function buildManifest(baselineRef) {
     themes: THEMES,
     locales: LOCALES,
     platforms: ["web", "mobile"],
-    surfaceCount: surfaces.length,
-    cellCount: cells.length,
     cells,
   }
 }
@@ -531,7 +529,7 @@ function checkCommittedManifest(manifest) {
     return 1
   }
   process.stdout.write(
-    `surface-manifest: the committed inventory matches this tree (${manifest.surfaceCount} surfaces, ${manifest.cellCount} cells).\n`,
+    `surface-manifest: the committed inventory matches this tree (${cellsBySurfaceId(manifest).size} surfaces, ${manifest.cells.length} cells).\n`,
   )
   return 0
 }
@@ -580,8 +578,8 @@ function main() {
   process.stdout.write(`wrote ${toPosix(MANIFEST_PATH)}\n`)
   process.stdout.write(`  HEAD         ${gitSha("HEAD") ?? "unknown"}\n`)
   process.stdout.write(`  baseline     ${manifest.baselineRef} (${manifest.baselineSha.slice(0, 8)})\n`)
-  process.stdout.write(`  surfaces     ${manifest.surfaceCount}\n`)
-  process.stdout.write(`  cells        ${manifest.cellCount} (state x ${THEMES.length} themes x ${LOCALES.length} locales)\n`)
+  process.stdout.write(`  surfaces     ${cellsBySurfaceId(manifest).size}\n`)
+  process.stdout.write(`  cells        ${manifest.cells.length} (state x ${THEMES.length} themes x ${LOCALES.length} locales)\n`)
   for (const platform of manifest.platforms) {
     const surfaces = new Set(manifest.cells.filter((cell) => cell.platform === platform).map((cell) => cell.surfaceId))
     process.stdout.write(`    ${platform.padEnd(7)} ${String(surfaces.size).padStart(3)} surfaces / ${String(tally((cell) => cell.platform === platform)).padStart(4)} cells\n`)
