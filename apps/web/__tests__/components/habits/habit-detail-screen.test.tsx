@@ -717,7 +717,7 @@ describe('HabitDetailScreen', () => {
     render(<HabitDetailScreen habitId="habit-1" />)
     const card = screen.getByText('habits.reschedule.freePrompt').parentElement!
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(within(card).getByTestId('astra-glyph')).toHaveAttribute('data-size', '20')
+    expect(within(card).queryByTestId('astra-glyph')).not.toBeInTheDocument()
     expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
     expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
       ['habits.reschedule.dismiss', 'ghost', 'sm'],

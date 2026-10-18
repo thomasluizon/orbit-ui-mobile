@@ -153,7 +153,7 @@ describe('RescheduleSheet', () => {
     expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
     expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
     expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
-    expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).toHaveAttribute('color', 'var(--fg-1)')
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
   })
 
   it('adds the year to a proposed date outside the account year', () => {

@@ -170,3 +170,18 @@ it('opens and reopens the proactive message without following a previous streami
     expect(useChatStore.getState().messages.some((message) => message.id === 'old-29')).toBe(true)
   } finally { void TestRenderer.act(() => tree.update(<></>)); __resetTestHostConfig() }
 })
+
+it('retains the AI disclosure in the populated summary destination', async () => {
+  useChatStore.setState({ messages: [], proactiveEntryId: null })
+  useChatStore.getState().openDailySummary('2026-08-29', 'First sentence. Full guidance.')
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={{ ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }} />) })
+  expect(hosts(tree).filter((node) => String(node.type) === 'ChatEmptyStateStub')).toHaveLength(0)
+  const list = hosts(tree).find((node) => String(node.type) === 'FlatList')!
+  expect(list.props.ListFooterComponent).toBeTruthy()
+  let footer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { footer = TestRenderer.create(list.props.ListFooterComponent as React.ReactElement) })
+  const disclosure = hosts(footer).filter((node) => node.props.testID === 'astra-ai-disclosure')
+  expect(disclosure).toHaveLength(1)
+  expect(disclosure[0]!.props.children).toBe('aiDisclosure.notMedicalAdvice')
+})

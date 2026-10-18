@@ -174,6 +174,12 @@ the composer pill is a real button with a hit area at the touch floor, a padded 
 fill and a focus ring, labelled `Abrir conversa`. On wide web the sidebar Astra row opens the
 conversation. Habit detail's own composer glyph remains an entry at every width.
 
+**Astra's glyph appears once per place outside the conversation.** Keep it on the wide sidebar
+Astra row, the compact composer, habit detail's composer and Hoje's single slot. Other Astra actions
+and settings use their text; section headers, plan surfaces, badges, empty regions and sheets add no
+repeated mark. Conversation headers, participant avatars and conversation-owned empty states keep
+their own rules. The Perfil Astra settings row retains its text and row alignment without a glyph.
+
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
@@ -213,7 +219,7 @@ for, and building that instead is the defect.
 Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
 one sub-screen with a page title and a visible back control returning to Perfil. Every top-level row
 carries a 24 leading icon: `User` for the account row, `Crown` for Orbit Pro, `Settings`
-for Preferências, `AstraGlyph` for Astra, `Bell` for Notificações. A row title and its value or
+for Preferências and `Bell` for Notificações. Astra keeps its text without a repeated glyph. A row title and its value or
 description each take one line. The trial end date lives on the Pro screen. Calendar sync opens the Calendários sheet, its one home. The account row
 keeps the name and email; the position directly beneath it stays available for Orbit Pro.
 
@@ -282,6 +288,16 @@ gate cannot be dropped before undo exists.
 
 ### The proactive line
 
+**Hoje has one Astra slot above the date, on web and Android.** It shows exactly one item in
+this order: an unread proactive check-in, otherwise the returning line, otherwise today's daily
+summary when the account can receive it. The summary keeps its on-demand query, account timezone
+refresh and plan behavior. Its first sentence occupies the same slot; pressing it opens the full
+summary as Astra's first message in the conversation. The AI disclosure remains in empty and populated
+conversations. Loading, error and retry use that same line;
+the free plan's line opens upgrade. A disabled summary preference or absent summary leaves no line.
+There is no separate daily-summary section, heading, AI badge, expand control or Astra button on Hoje.
+
+
 The line and the push open the current item as Astra's first message, with its full text and one
 action. The action sends the item's prompt through the normal conversation and preview flow.
 The line stays available at the daily message limit and offline using the last fetched item;
@@ -289,7 +305,7 @@ its action is disabled with the limit or offline reason. An ended item keeps its
 its action with an explanation. The Perfil Astra notifications switch controls push delivery only.
 
 Astra reaches the person before the person opens the app. The push is a **pointer**, never the only
-copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the composer glyph owns. Two consequences are
+copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48 and one 20px Astra glyph, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the composer glyph owns. Two consequences are
 deliberate. The proactive layer has a visible place to be audited instead of only firing into the
 void, and a person who denies notification permission still gets the whole mechanism.
 
@@ -301,8 +317,7 @@ structurally rather than by designing them.
 carries the single most relevant thing Astra noticed, and acting on it advances the slot to the next
 thing. There is no dismiss control, because the audience is a person who is already overwhelmed and a
 dismiss control makes the top of the busiest screen one more chore. There is no persistence either,
-because a line whose action the person will not take parks there and stops being read. **When Astra
-noticed nothing, the slot is absent**, not empty: the line collapses and Hoje starts at the date.
+because a line whose action the person will not take parks there and stops being read. **When none of these items applies, the slot is absent**, not empty: the line collapses and Hoje starts at the date.
 
 ### Generative blocks
 
@@ -1067,6 +1082,11 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Press feedback:** `scale(0.96)` on pointer-down over 150ms, `ease-out`, via a CSS transition so a release mid-press returns smoothly. A `static` prop disables it where motion would distract.
 
 ## Surface rules
+
+Hoje starts with its single Astra slot, then the date and habits. The slot chooses an unread
+check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
+states. No second insight block belongs below the date. Only the way in and the slot carry Astra's
+glyph outside the conversation.
 
 - **Translucency ladder on dark:** 0.04 card / 0.06 field / 0.08 well / 0.12 elev-2, white-alpha over the canvas. Surfaces stack by alpha, not by lighter hexes.
 - **Opaque white cards on light.** Never translucent.

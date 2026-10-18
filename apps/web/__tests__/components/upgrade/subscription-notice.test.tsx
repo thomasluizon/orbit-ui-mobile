@@ -14,9 +14,9 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
-  it('identifies Astra and shows Pro resources without dash markers', () => {
+  it('shows Pro resources without repeating the Astra mark', () => {
     const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
-    expect(container.querySelector('[data-asset="astra-mark"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'upgrade.included' })).toBeInTheDocument()
     expect(container.querySelector('[data-icon="minus"]')).not.toBeInTheDocument()
   })

@@ -5,7 +5,6 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Shell412 } from '@/components/shell/shell-412'
 import { KeyboardAwareScrollView, KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
@@ -36,7 +35,7 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
     header={<AppBar title={props.title ?? ''} onBack={() => props.onAttemptDismiss?.()} backLabel={t('common.back')} />}
     action={<View style={[styles.action, width >= 640 && styles.wideAction]}>{props.actions}</View>}>
     <KeyboardAwareScrollView avoidKeyboard={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-    {fromConversation ? <View style={styles.origin}><AstraGlyph size={20} /><Text style={[styles.originText, { color: tokens.fg2 }]}>{t('habits.form.fromConversation')}</Text></View> : null}
+    {fromConversation ? <View style={styles.origin}><Text style={[styles.originText, { color: tokens.fg2 }]}>{t('habits.form.fromConversation')}</Text></View> : null}
     {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={() => props.onAttemptDismiss?.()} /> : null}
     {props.children}
     </KeyboardAwareScrollView>

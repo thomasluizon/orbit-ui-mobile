@@ -100,6 +100,7 @@ describe('Hoje single summary slot', () => {
     const tree = await mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
     expect(slot(tree)).toHaveLength(absent ? 0 : 1)
     if (!absent) {
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(state === 'loading' ? 1 : 0)
       expect(slot(tree)[0]!.props.accessibilityLabel).toBe(sentence)
       expect(slot(tree)[0]!.props.accessibilityState).toEqual({ busy: mocks.isLoading || mocks.isFetching, disabled: ['loading', 'retrying'].includes(state) })
       if (state === 'error') { await press(tree); expect(mocks.refetch).toHaveBeenCalledOnce() }

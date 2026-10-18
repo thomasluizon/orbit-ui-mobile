@@ -29,6 +29,7 @@ that disagrees with production is a trap rather than an authority.
 | Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
+| Hoje one Astra slot | Web and Android show one slot above the date: unread proactive check-in, otherwise returning guidance, otherwise the daily summary. The summary's first sentence opens its full text as Astra's first conversation message. Loading, retry and the free plan's upgrade path use the same slot. One 20px glyph, one padded target at least 48 high and at most two prose lines | Supersedes the separate summary block. Hoje carries no second insight, AI badge, expand action or round Astra button. Only the way in and this slot carry the glyph outside the conversation. |
 | Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
@@ -292,3 +293,36 @@ produces when the prompt describes the screen that exists instead of the job the
 They live in their own folder rather than beside the authority because prose asking an implementer to
 ignore a file in front of them is not a control. `Orbit Insights.dc.html` was deleted on 2026-08-16
 with the `/insights` route.
+
+### Astra glyph surface inventory
+
+Each row names the paired web and Android component unless a platform is explicit.
+The glyph primitives provide the asset; their consumers below own its placement.
+
+| Consumer | Disposition |
+|---|---|
+| `today/today-astra` | Moved its sole 20px glyph into `today/today-astra-line`, shared by the check-in, returning line and summary states. |
+| `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
+| `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
+| `shell/composer` | Retained the compact Hoje and habit-detail conversation entry. Wide Hoje uses the sidebar. |
+| `profile/profile-nav-icon` | Removed the Astra settings glyph. The labelled settings row remains aligned with its neighbours. |
+| `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
+| `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
+| `habits/habit-form-fields/habit-emoji-selector` | Replaced the icon-only suggestion action with its localized text. Loading, focus, retry and error behavior remain. |
+| `habits/habit-detail-screen` | Removed the ask row's glyph and rescue-plan badge glyph; the row, composer, proposal and upgrade actions remain. |
+| `habits/reschedule-sheet` | Removed the heading glyph; Astra attribution, disclosure and proposal actions remain. |
+| `goals/goal-detail-drawer` | Removed the ask row's glyph; the text action and contextual request remain. |
+| `upgrade/page` (web), `app/upgrade` (Android) | Removed the pitch glyph; plans and purchase states remain. |
+| `upgrade/subscription-notice` | Removed the lapsed-plan glyph; notices and recovery actions remain. |
+| `upgrade/billing-dashboard`, `upgrade/play-billing-dashboard` (web), `upgrade/plan-summary-card` (Android) | Removed plan-summary glyphs; provider-specific management, facts and actions remain. |
+| `review-moment/review-moment-sheet` (Android) | Removed the sheet glyph; rating copy, request and dismissal remain. The web review moment already uses text. |
+| `ui/empty-state` | Retained Astra rendering for its only Astra-mark callers, `chat/chat-empty-state` on each platform, inside the conversation. Other callers use the Orbit mark. |
+| `chat/breakdown-suggestion` | Retained the conversation-owned empty proposal mark; only conversation message bubbles render this component. |
+| `chat/conversation` | Retained header, participant and pending-reply marks under the conversation rules. |
+
+Vitest covers slot priority, summary handoff, refresh, retry, free-plan navigation and suppression on
+both platforms. Empty and populated conversations retain the AI disclosure; the loaded summary
+destination is covered explicitly. A hermetic Chromium Vitest composition counts visible insight slots and Astra glyphs
+at 412, 1024 and 1352 in English and Brazilian Portuguese for check-in, returning, loading, loaded,
+error, free-plan and absent states. Native component tests cover semantics and two-line prose;
+Android font rendering remains a device-verification boundary.

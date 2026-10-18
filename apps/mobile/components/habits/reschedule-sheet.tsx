@@ -12,7 +12,6 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
@@ -179,7 +178,6 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <AstraGlyph size={20} color={tokens.fg1} />
           <Text style={styles.astraName}>Astra</Text>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>

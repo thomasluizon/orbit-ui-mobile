@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ProBenefits } from './pro-benefits'
 import { Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
@@ -25,7 +24,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
   return (
     <View style={styles.billingStack}>
       <View style={{ gap: 16, paddingVertical: 16 }}>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><AstraGlyph size={96} color={tokens.fg1} /></View>
         <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{t('upgrade.billing.lapsed.title')}</Text>
         {endedAt ? <Text style={[styles.billingMeta, { color: tokens.fg3 }]}>{t(endedKey, { date: endedAt })}</Text> : null}
         {paymentFailed ? <View style={{ gap: 4 }}>

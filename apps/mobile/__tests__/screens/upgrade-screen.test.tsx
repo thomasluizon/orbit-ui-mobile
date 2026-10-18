@@ -243,7 +243,7 @@ function assertSubscriptionContent(tree: Awaited<ReturnType<typeof renderScreen>
   const pitch = state === 'free' || state === 'trial'
   const expired = state === 'expired'
   const play = state.startsWith('play')
-  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(0)
   const resourceLists = tree.root.findAll((node) => node.type === 'View'
     && node.props.accessibilityLabel === (pitch ? messages.upgrade.outcomes.label : messages.upgrade.included))
   expect(resourceLists).toHaveLength(pitch ? 2 : 1)

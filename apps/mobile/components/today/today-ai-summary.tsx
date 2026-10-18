@@ -23,13 +23,13 @@ function DailySummary({ date, language, timeZone }: Readonly<{ date: string; lan
   const { summary, isLoading, isFetching, error, refetch } = useSummary({
     date, locale: language ?? locale, timeZone, hasProAccess: true, aiSummaryEnabled: true,
   })
-  if (isLoading || error) return <TodayAstraLine
+  if (isLoading || error) return <TodayAstraLine announce
     text={isLoading ? t('summary.loading') : t('summary.error')}
     destination={isLoading ? t('summary.loading') : t('summary.retry')}
-    busy={isLoading || isFetching} disabled={isLoading || isFetching}
+    loading={isLoading} busy={isLoading || isFetching} disabled={isLoading || isFetching}
     onPress={() => void refetch()} />
   if (!summary) return null
-  return <TodayAstraLine text={getSummaryFirstSentence(summary)} destination={t('todayAstra.openConversation')} busy={isFetching}
+  return <TodayAstraLine announce text={getSummaryFirstSentence(summary)} destination={t('todayAstra.openConversation')} busy={isFetching}
     onPress={() => {
       useChatStore.getState().openDailySummary(date, summary)
       useUIStore.getState().setAstraConversationOpen(true)

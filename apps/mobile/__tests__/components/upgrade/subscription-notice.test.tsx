@@ -30,9 +30,9 @@ function noticeText(nextStatus: SubscriptionStatus) {
 }
 
 describe('lapsed subscription notice (mobile)', () => {
-  it('identifies Astra and shows Pro resources without dash markers', () => {
+  it('shows Pro resources without repeating the Astra mark', () => {
     const text = noticeText(status)
-    expect(text).toContain('astra-mark')
+    expect(text).not.toContain('astra-mark')
     expect(text).toContain('upgrade.included')
     expect(text).not.toContain('\"name\":\"minus\"')
   })

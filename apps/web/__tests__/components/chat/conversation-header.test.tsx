@@ -112,3 +112,11 @@ it('opens and reopens the proactive message above an existing long streaming thr
     expect(useChatStore.getState().messages.some((message) => message.id === 'old-29')).toBe(true)
   } finally { height.mockRestore(); scroll.mockRestore() }
 })
+
+it('retains the AI disclosure in the populated summary destination', () => {
+  useChatStore.setState({ messages: [], proactiveEntryId: null })
+  useChatStore.getState().openDailySummary('2026-08-29', 'First sentence. Full guidance.')
+  render(<AstraConversation chat={{ ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }} />)
+  expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
+  expect(screen.getByTestId('astra-ai-disclosure')).toHaveTextContent('aiDisclosure.notMedicalAdvice')
+})

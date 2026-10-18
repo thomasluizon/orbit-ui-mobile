@@ -58,7 +58,6 @@ import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
@@ -134,7 +133,7 @@ function ReminderReadout({ habit, tokens }: Readonly<{ habit: NormalizedHabit; t
   return <View testID="habit-detail-reminders" style={styles.reminders}><Text style={[styles.reminderHeading, { color: tokens.fg2 }]}>{t('habits.detail.reminders')}</Text>{rows.map((row) => <View key={row.key} style={styles.reminderRow}><Text style={[styles.reminderTime, { color: tokens.fg1 }]}>{displayTime(row.time)}</Text><Text style={[styles.muted, { color: tokens.fg3 }]}>{row.label}</Text></View>)}</View>
 }
 
-function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; tokens: ReturnType<typeof createTokensV2> }>) {
+function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
   const { t } = useTranslation()
   const openConversation = () => {
     prepareChatRequest(useChatStore.getState(), {
@@ -146,7 +145,7 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
   }
   return (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <ListRow placement="column" icon={<AstraGlyph size={24} color={tokens.fg1} />} title={t('habits.detail.askAstra')} onClick={openConversation} />
+    <ListRow placement="column" title={t('habits.detail.askAstra')} onClick={openConversation} />
   )
 }
 
@@ -352,7 +351,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
   if (!hasPro) {
     return (
       <View testID="rescue-free-card" style={card}>
-        <View style={styles.rescueHead}><AstraGlyph size={20} color={tokens.fg1} /><Badge>{t('habits.detail.proGate')}</Badge></View>
+        <View><Badge>{t('habits.detail.proGate')}</Badge></View>
         <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.reschedule.freePrompt')}</Text>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
@@ -659,7 +658,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         {subHabitCreation}
       </Surface> : subHabitCreation}
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
-      <AskAstraRow habit={habit} tokens={tokens} />
+      <AskAstraRow habit={habit} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
       <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><Animated.View nativeID="habit-detail-fields" style={{ opacity: detailOpacity, display: detailsOpen ? 'flex' : 'none' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View></View>
       <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
@@ -720,7 +719,6 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
   rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },
   rescueContent: { gap: 12 },
-  rescueHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rescueValues: { gap: 4 },
   rescueDate: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 20, lineHeight: 26, fontVariant: ['tabular-nums'] },
   rescueSchedule: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },

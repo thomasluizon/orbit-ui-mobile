@@ -2675,7 +2675,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const card = tree.root.findByProps({ testID: 'rescue-free-card' })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(card.findByType('AstraGlyph').props.size).toBe(20)
+    expect(card.findAllByType('AstraGlyph')).toHaveLength(0)
     expect(textsOf(card)).toEqual(['habits.detail.proGate', 'habits.reschedule.freePrompt', 'habits.reschedule.dismiss', 'habits.reschedule.upgrade'])
     expect(card.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)

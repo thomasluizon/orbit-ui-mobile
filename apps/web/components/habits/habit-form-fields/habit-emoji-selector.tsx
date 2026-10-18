@@ -1,5 +1,4 @@
 import { PillButton } from '@/components/ui/pill-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback, useId } from 'react'
 import { X, Plus, Trash2 } from '@/components/ui/icons'
@@ -25,16 +24,14 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   return onSuggest ? (
     <PillButton
       variant="ghost"
-      iconOnly
       minimumHeight={TOUCH_TARGET_MIN}
-      label={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
       loading={isSuggesting}
       focusableWhenLoading
       disabled={!isSuggesting && (!canSuggest || isDisabled)}
       descriptionId={[suggestionHint ? hintId : '', suggestionError ? errorId : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
-      <AstraGlyph size={20} />
+      {t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
     </PillButton>
   ) : null
 }

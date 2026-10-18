@@ -675,8 +675,8 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
-      "emojiSuggest": "Sugerir um emoji",
-      "emojiSuggesting": "Buscando um emoji…",
+      "emojiSuggest": "Sugerir emoji",
+      "emojiSuggesting": "Buscando emoji…",
       "aiSuggest": "Sugerir com IA",
       "aiSuggesting": "Pensando…",
       "aiSuggestApplied": "Sugestão de IA aplicada",
@@ -2379,7 +2379,7 @@
   "summary": {
     "title": "Seu dia",
     "loading": "Dando uma olhada no seu dia...",
-    "error": "Não foi possível carregar seu resumo.",
+    "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",

@@ -1,6 +1,5 @@
 'use client'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 
@@ -197,7 +196,6 @@ export default function UpgradePage() {
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
-        <AstraGlyph size={96} color="var(--fg-1)" />
         <PricingSection
           focusOnMount={showPitch}
           profile={status}

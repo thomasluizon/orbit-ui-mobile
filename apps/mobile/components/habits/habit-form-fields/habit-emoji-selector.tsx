@@ -1,5 +1,4 @@
 import { PillButton } from '@/components/ui/pill-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
@@ -28,21 +27,20 @@ interface HabitEmojiSelectorProps {
   wellSize?: number;
 }
 
-function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, tokens }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError' | 'tokens'>>) {
+function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'>>) {
   const { t } = useTranslation()
   return onSuggest ? (
     <PillButton
       variant="ghost"
-      iconOnly
+      accessibleName={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
       minimumHeight={TOUCH_TARGET_MIN}
-      label={t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
       loading={isSuggesting}
       focusableWhenLoading
       disabled={!isSuggesting && (!canSuggest || isDisabled)}
       hint={[suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
-      <AstraGlyph size={20} color={tokens.fg1} />
+      {t(isSuggesting ? 'habits.form.emojiSuggesting' : 'habits.form.emojiSuggest')}
     </PillButton>
   ) : null
 }
@@ -119,7 +117,7 @@ export function HabitEmojiSelector({
             <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
           )}
         </Pressable>
-        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} tokens={tokens} />
+        <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} />
         </View>
         {onSuggest && suggestionHint ? <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionHint}</Text> : null}
         {onSuggest ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{suggestionError}</Text> : null}

@@ -675,8 +675,8 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
-      "emojiSuggest": "Suggest an emoji",
-      "emojiSuggesting": "Finding an emoji…",
+      "emojiSuggest": "Suggest emoji",
+      "emojiSuggesting": "Finding emoji…",
       "aiSuggest": "Suggest with AI",
       "aiSuggesting": "Thinking…",
       "aiSuggestApplied": "AI suggestion applied",
@@ -2379,7 +2379,7 @@
   "summary": {
     "title": "Your Day",
     "loading": "Checking in on your day...",
-    "error": "Couldn't load your summary.",
+    "error": "Couldn't load your summary. Try again.",
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",

@@ -87,6 +87,7 @@ describe('Hoje single summary slot', () => {
     const { container } = mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
     expect(container.querySelectorAll('[data-today-astra-slot]')).toHaveLength(absent ? 0 : 1)
     if (!absent) {
+      expect(container.querySelectorAll('[data-summary-skeleton]')).toHaveLength(state === 'loading' ? 1 : 0)
       const action = screen.getByRole(state === 'free' ? 'link' : 'button', { name: sentence })
       if (['loading', 'retrying'].includes(state)) expect(action).toBeDisabled()
       else expect(action).not.toBeDisabled()

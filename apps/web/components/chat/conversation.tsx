@@ -296,7 +296,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </div>
         </div> : null}
         </div>
-
+        {!showSuggestions ? <p data-testid="astra-ai-disclosure" className="mx-auto max-w-[300px] py-4 text-center text-xs leading-[1.4] text-[var(--fg-3)]">{t('aiDisclosure.notMedicalAdvice')}</p> : null}
       </div>
 
       <div className="shrink-0">

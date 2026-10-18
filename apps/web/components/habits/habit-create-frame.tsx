@@ -8,7 +8,6 @@ import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigati
 import { useTranslations } from 'next-intl'
 import { Sheet } from '@/components/ui/sheet'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import { ShellHeader, useHasShellHeaderHost } from '@/components/shell/shell-header'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -42,7 +41,7 @@ function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, on
   return <>
     <ShellHeader><AppBar title={title ?? ''} onBack={() => onAttemptDismiss?.()} backLabel={t('common.back')} /></ShellHeader>
     <div data-habit-create-screen="" className="flex flex-col gap-6 px-4 py-4">
-      {fromConversation ? <div className="flex items-start gap-2 text-sm text-[var(--fg-2)]"><AstraGlyph size={20} /><p className="min-w-0 flex-1 text-pretty leading-[1.5]">{t('habits.form.fromConversation')}</p></div> : null}
+      {fromConversation ? <div className="flex items-start gap-2 text-sm text-[var(--fg-2)]"><p className="min-w-0 flex-1 text-pretty leading-[1.5]">{t('habits.form.fromConversation')}</p></div> : null}
       <div className="w-full max-w-[560px]">{children}</div>
       {!hosted ? footer : null}
     </div>

@@ -309,14 +309,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
+              ListFooterComponent={<>{showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
                 {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
                   <AstraGlyph size={24} />
                 </View> : null}
                 <View style={styles.messageContent}>
                   {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={activeSteps} running />}
                 </View>
-              </View> : null}
+              </View> : null}<Text testID="astra-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />

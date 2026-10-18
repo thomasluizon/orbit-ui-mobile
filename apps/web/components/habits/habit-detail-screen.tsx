@@ -56,7 +56,6 @@ import { useUIStore } from '@/stores/ui-store'
 import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
@@ -326,7 +325,7 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
   }
   return (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <ListRow placement="column" icon={<AstraGlyph size={24} color="var(--fg-1)" />} title={t('habits.detail.askAstra')} titleTranslate="no" onClick={openConversation} />
+    <ListRow placement="column" title={t('habits.detail.askAstra')} titleTranslate="no" onClick={openConversation} />
   )
 }
 
@@ -410,7 +409,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   if (!hasProAccess) {
     return (
       <div ref={cardRef} className={rescueCardClass}>
-        <div className="flex items-center gap-2"><AstraGlyph size={20} color="var(--fg-1)" /><Badge>{t('habits.detail.proGate')}</Badge></div>
+        <div className="flex items-center gap-2"><Badge>{t('habits.detail.proGate')}</Badge></div>
         <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.reschedule.freePrompt')}</p>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
