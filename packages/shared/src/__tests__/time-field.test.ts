@@ -5,6 +5,7 @@ import {
   formatTimeFieldInput,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  reconcileTimeFieldInput,
   parseTypedTimeFieldValue,
   selectTimeFieldHour,
   selectTimeFieldMinute,
@@ -81,6 +82,18 @@ describe('time field input formatting', () => {
     expect(changeTimeFieldInput('7:30 pm', '', 'h12')).toEqual({ draft: '7:30 pm', parsed: '19:30', clear: false })
     expect(changeTimeFieldInput('7:', '', 'h12')).toEqual({ draft: '7:', parsed: null, clear: false })
     expect(changeTimeFieldInput('', '7:30 pm', 'h12')).toEqual({ draft: '', parsed: null, clear: true })
+  })
+
+  it.each([
+    { draft: '08:00', previous: 'h12', next: 'h23', display: '08:00', parsed: '08:00' },
+    { draft: '8:13 pm', previous: 'h12', next: 'h23', display: '20:13', parsed: '20:13' },
+    { draft: '00:00', previous: 'h23', next: 'h12', display: '12:00 am', parsed: '00:00' },
+    { draft: '8:13 pm', previous: 'h23', next: 'h12', display: '8:13 pm', parsed: '20:13' },
+    { draft: '08:', previous: 'h12', next: 'h23', display: '08:', parsed: null },
+    { draft: '25:00', previous: 'h12', next: 'h23', display: '25:00', parsed: null },
+    { draft: '', previous: 'h12', next: 'h23', display: '', parsed: null },
+  ] as const)('reconciles "$draft" from $previous to $next without guessing an invalid time', ({ draft, previous, next, display, parsed }) => {
+    expect(reconcileTimeFieldInput(draft, previous, next)).toEqual({ draft: display, parsed })
   })
 
   it('keeps the picker draft in 24-hour time across hour, minute, and period choices', () => {

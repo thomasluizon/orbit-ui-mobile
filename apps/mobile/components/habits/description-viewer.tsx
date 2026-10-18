@@ -1,9 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import Clipboard from "@react-native-clipboard/clipboard";
-import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
-import { Check, Copy } from "@/components/ui/icons";
-import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
+import { DescriptionCopyButton } from "./description-copy-button";
 import { Sheet } from '@/components/ui/sheet';
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from "@/lib/theme";
@@ -22,52 +19,19 @@ export function DescriptionViewer({
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
-  const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const [copied, setCopied] = useState(false);
-  const handleClose = useCallback(() => {
-    setCopied(false);
-    onClose();
-  }, [onClose]);
-
-  const copyDescription = useCallback(() => {
-    Clipboard.setString(description);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [description]);
-
   return (
     open ? (<Sheet
       open
-      onClose={handleClose}
+      onClose={onClose}
       title={title}
     >
       <View>
-        <View style={styles.copyRow}>
-          <Pressable
-            onPress={copyDescription}
-            accessibilityRole="button"
-            accessibilityLabel={t("habits.detail.copyDescription")}
-            style={({ pressed }) => [
-              styles.copyButton,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-              },
-              pressed ? styles.copyButtonPressed : null,
-            ]}
-          >
-            {copied ? (
-              <Check size={20} color={tokens.statusDone} strokeWidth={1.8} />
-            ) : (
-              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-          </Pressable>
-        </View>
+        <DescriptionCopyButton key={description} description={description} />
         <View
           style={[
             styles.card,
@@ -82,23 +46,6 @@ export function DescriptionViewer({
 }
 
 const styles = StyleSheet.create({
-  copyRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-      paddingBottom: 8,
-  },
-  copyButton: {
-    width: TOUCH_TARGET_MIN,
-    height: TOUCH_TARGET_MIN,
-    borderRadius: 999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  copyButtonPressed: {
-    transform: [{ scale: 0.96 }],
-  },
   card: {
     minWidth: 0,
     borderRadius: 18,

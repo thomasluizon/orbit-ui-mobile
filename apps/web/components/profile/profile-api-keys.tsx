@@ -10,6 +10,7 @@ import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/s
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { McpCodeClient } from '@/components/profile/mcp-code-client'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Input } from '@/components/ui/input'
@@ -494,11 +495,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
           ) : null}
           {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
-          <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
-            <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
-            <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
-            <p className="break-all font-mono text-[12px] text-[var(--fg-2)]">{getMcpEndpointUrl(accountEventApiBase())}</p>
-          </div>
+          <McpCodeClient endpoint={getMcpEndpointUrl(accountEventApiBase())} />
         </>
       </ApiKeyAccessContent>
 

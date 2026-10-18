@@ -7,7 +7,7 @@ import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
 
-const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }))
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), wide: true }))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
@@ -16,7 +16,6 @@ vi.mock('next/navigation', () => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Person', email: 'person@example.com' } }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
-vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
 vi.mock('@/components/command/command-palette', () => ({
   CommandPalette: () => useShellStore((state) => state.paletteOpen) ? <div role="dialog" aria-label="Search palette" /> : null,
 }))
@@ -38,9 +37,9 @@ function buildChat(draft: string): ChatController {
   } as unknown as ChatController
 }
 
-function App({ draft = '' }: Readonly<{ draft?: string }>) {
+function App({ draft = '', chat }: Readonly<{ draft?: string; chat?: ChatController }>) {
   const open = useUIStore((state) => state.astraConversationOpen)
-  return <DestinationShell conversation={<AstraConversation chat={buildChat(draft)} />} conversationOpen={open}
+  return <DestinationShell conversation={<AstraConversation chat={chat ?? buildChat(draft)} />} conversationOpen={open}
     conversationLabel="Astra" onCreate={() => navigation.push('/habits/new')}>
     <h1>{navigation.pathname}</h1>
   </DestinationShell>
@@ -48,11 +47,12 @@ function App({ draft = '' }: Readonly<{ draft?: string }>) {
 
 beforeEach(() => {
   navigation.pathname = '/'
+  navigation.wide = true
   navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
-    matches: /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
   })))
 })
 afterEach(() => vi.unstubAllGlobals())
@@ -130,4 +130,78 @@ it('closes Astra before opening sidebar search', () => {
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   expect(screen.getByRole('dialog', { name: 'Search palette' })).toBeVisible()
+})
+
+it.each([false, true])('opens and closes Astra by keyboard on every destination with wide=%s', (wide) => {
+  navigation.wide = wide
+  for (const pathname of ['/', '/calendar', '/progress', '/profile']) {
+    navigation.pathname = pathname
+    const view = render(<App draft="Keep this draft" />)
+    const heading = screen.getByRole('heading', { name: pathname })
+    heading.tabIndex = -1
+    act(() => heading.focus())
+    fireEvent.keyDown(heading, { key: 'g' })
+    fireEvent.keyDown(heading, { key: 'a' })
+    const conversation = screen.getByRole('dialog', { name: 'Astra' })
+    expect(conversation).toHaveAttribute('data-shell-conversation', 'overlay')
+    if (wide) expect(conversation).not.toHaveAttribute('aria-modal')
+    else expect(conversation).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
+    expect(document.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
+    expect(navigation.push).not.toHaveBeenCalled()
+    expect(navigation.pathname).toBe(pathname)
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(conversation).toBeVisible()
+    act(() => within(conversation).getByRole('button', { name: 'common.closeConversation' }).focus())
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+    expect(heading).toHaveFocus()
+    expect(heading).toBeVisible()
+    view.unmount()
+  }
+})
+
+it.each([false, true])('preserves composer error recovery when opened by the chord with wide=%s', (wide) => {
+  navigation.wide = wide
+  const chat = buildChat('Keep this draft')
+  const retry = vi.fn()
+  chat.composerProps = { ...chat.composerProps, errorMessage: 'Message not sent', errorRecovery: { label: 'Try again', onSelect: retry } }
+  render(<App chat={chat} />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  expect(within(conversation).getByRole('alert')).toHaveTextContent('Message not sent')
+  fireEvent.click(within(conversation).getByRole('button', { name: 'Try again' }))
+  expect(retry).toHaveBeenCalledOnce()
+  expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
+})
+
+it.each([false, true])('opens the conversation with disabled sending at the daily limit with wide=%s', (wide) => {
+  navigation.wide = wide
+  const chat = buildChat('Keep this draft')
+  chat.composerProps = { ...chat.composerProps, state: 'atLimit', limitReason: 'Daily allowance reached' }
+  render(<App chat={chat} />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  expect(within(conversation).getByText('Daily allowance reached')).toBeVisible()
+  expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toBeDisabled()
+  expect(within(conversation).getByRole('button', { name: words.send })).toBeDisabled()
+  expect(conversation).toContainElement(document.activeElement as HTMLElement)
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+})
+
+it.each([
+  ['/wrapped', false], ['/wrapped', true], ['/habits/new', false],
+] as const)('does not open Astra where shell shortcuts are disabled at %s with wide=%s', (pathname, wide) => {
+  navigation.pathname = pathname
+  navigation.wide = wide
+  render(<App />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(navigation.push).not.toHaveBeenCalled()
 })
