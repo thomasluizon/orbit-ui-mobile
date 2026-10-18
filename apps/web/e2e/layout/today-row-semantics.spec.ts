@@ -12,6 +12,9 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const selectedDate = '2026-09-04'
+/** These cases clear and inspect the same mock mutation journal. */
+test.describe.configure({ mode: 'default' })
+
 const mutationJournalUrl = 'http://127.0.0.1:5099/_test/habit-mutations'
 const mutationsSchema = z.array(z.object({ method: z.string(), path: z.string(), body: z.unknown() }))
 const children = [0, 1].map((position) => makeHabitScheduleItem({

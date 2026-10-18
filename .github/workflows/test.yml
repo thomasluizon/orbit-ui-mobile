@@ -99,8 +99,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Test guard workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs
+      - name: Test CI workflow behavior
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs
 
       # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
       # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
@@ -149,7 +149,7 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
 
       - name: Run tests with coverage thresholds
-        run: npx turbo run test -- --coverage
+        run: npx turbo run test --concurrency=1 -- --coverage
 
       - name: Verify coverage reports
         run: |
