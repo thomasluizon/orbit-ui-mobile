@@ -3023,6 +3023,13 @@
     "linkedHabits": "Hábitos vinculados",
     "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
+      "title": "Previsão",
+      "projectedCompletion": "Conclusão prevista",
+      "velocity": "Ritmo diário",
+      "daysToDeadline": "Dias até o prazo",
+      "noData": "Sem dados",
+      "dailyPace": "{value} {unit}/dia",
+      "weeklyAdherence": "Taxa semanal: {percent}%",
       "onTrack": "Em dia",
       "atRisk": "Em risco",
       "behind": "Atrasada",
