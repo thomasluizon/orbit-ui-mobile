@@ -161,7 +161,7 @@ vi.mock('expo-sharing', () => {
 })
 
 vi.mock('@react-native-clipboard/clipboard', () => ({
-  default: { setString: vi.fn() },
+  default: { setString: vi.fn(), getString: vi.fn() },
 }))
 
 vi.mock('expo-device', () => ({
@@ -1336,6 +1336,8 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
     vi.mocked(Clipboard.setString).mockReset()
+    let finishRead!: (value: string) => void
+    vi.mocked(Clipboard.getString).mockReset().mockImplementationOnce(() => new Promise<string>((resolve) => { finishRead = resolve }))
     const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
     const endpoint = getMcpEndpointUrl(API_BASE)
@@ -1348,6 +1350,12 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => pendingCopy.props.onPress?.())
     expect(Clipboard.setString).toHaveBeenCalledTimes(1)
     await TestRenderer.act(async () => {})
+    expect(findButtonByText(tree, 'orbitMcp.copy').props.accessibilityState.disabled).toBe(true)
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
+    await TestRenderer.act(async () => {
+      finishRead(endpoint)
+      await Promise.resolve()
+    })
     expect(findButtonByText(tree, 'orbitMcp.copied').props.accessibilityState.disabled).toBe(false)
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
@@ -1359,6 +1367,7 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
     vi.mocked(Clipboard.setString).mockReset().mockImplementationOnce(() => { throw new Error('Clipboard unavailable') })
+    vi.mocked(Clipboard.getString).mockReset().mockResolvedValue(getMcpEndpointUrl(API_BASE))
     const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
     await TestRenderer.act(async () => {
@@ -1373,6 +1382,41 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(nodeText(tree.root)).toContain('orbitMcp.copied')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copyError')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['unchanged content', 'read failure'])('confirms the MCP endpoint after a native write with %s and allows retry', async (failure) => {
+    mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
+    mockStepUpVerified.current = true
+    const endpoint = getMcpEndpointUrl(API_BASE)
+    vi.mocked(Clipboard.setString).mockReset()
+    const readClipboard = vi.mocked(Clipboard.getString).mockReset().mockResolvedValue(endpoint)
+    if (failure === 'unchanged content') readClipboard.mockResolvedValueOnce('Previous clipboard content')
+    else readClipboard.mockRejectedValueOnce(new Error('Clipboard read unavailable'))
+    const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'orbitMcp.copy').props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(Clipboard.setString).toHaveBeenCalledWith(endpoint)
+    expect(nodeText(tree.root)).toContain('orbitMcp.copyError')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
+    const endpointText = tree.root.findAll((node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes(endpoint))[0]
+    expect(endpointText.props.selectable).toBe(true)
+    expect(findButtonByText(tree, 'orbitMcp.copy').props.accessibilityState.disabled).toBe(false)
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'orbitMcp.copy').props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(Clipboard.setString).toHaveBeenCalledTimes(2)
+    expect(Clipboard.getString).toHaveBeenCalledTimes(2)
+    expect(findButtonByText(tree, 'orbitMcp.copied').props.accessibilityState.disabled).toBe(false)
     expect(nodeText(tree.root)).not.toContain('orbitMcp.copyError')
     TestRenderer.act(() => tree.unmount())
   })

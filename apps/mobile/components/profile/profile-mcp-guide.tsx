@@ -21,7 +21,9 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
     if (copyState === 'copying') return
     setCopyState('copying')
     try {
-      await Promise.resolve(Clipboard.setString(endpoint))
+      Clipboard.setString(endpoint)
+      const copiedText = await Clipboard.getString()
+      if (copiedText !== endpoint) throw new Error('Clipboard content mismatch')
       setCopyState('copied')
     } catch {
       setCopyState('error')

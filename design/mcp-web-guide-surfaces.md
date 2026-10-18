@@ -19,8 +19,10 @@ focus, dismissal and the pinned action row. Its body keeps the instructions and 
 The four setup steps and OAuth copy reuse the production translation keys in both locales.
 
 The profile composition tests exercise the real entry and guide. Clipboard adapters remain the
-browser Clipboard API and the installed native clipboard module. Web covers a rejected write and
-an unavailable Clipboard API; Android covers a synchronous native bridge failure.
+browser Clipboard API and the installed native clipboard module. Web awaits the write acknowledgement
+and covers a rejected write and an unavailable Clipboard API. Android confirms the endpoint through
+clipboard read-back before reporting success. Its coverage includes a synchronous bridge failure,
+a normally returning write that leaves previous content, a rejected read, retry and pending confirmation.
 
 Client-selector composition tests switch through Claude Code, open and dismiss the Claude Web guide,
 then return to the unchanged JSON configuration. Web runs this path in both supported locales.
