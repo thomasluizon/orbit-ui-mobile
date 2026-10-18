@@ -20,6 +20,7 @@ describe('ui store', () => {
   beforeEach(() => {
     globalThis.localStorage.clear()
     useUIStore.setState({
+      setupChecklistDismissed: false,
       activeFilters: {},
       activeView: 'today',
       activeCelebration: null,
@@ -504,4 +505,16 @@ describe('ui store', () => {
       expect(persisted).not.toContain('followToday')
     })
   })
+  it('retains production checklist dismissals within their account', async () => {
+    localStorage.setItem('orbit-ui-store:checklist-account', JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }))
+    setUIAccountScope('checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
+    setUIAccountScope('another-checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(false)
+    setUIAccountScope('checklist-account')
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true)
+    useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
+  })
+
+
 })

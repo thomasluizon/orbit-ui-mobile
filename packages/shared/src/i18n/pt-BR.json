@@ -47,7 +47,7 @@
     "homeScreen": {
       "title": "Tela inicial",
       "showGeneral": "Sem dia certo",
-      "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
+      "showGeneralDesc": "Aparecem no Hoje"
     },
     "clock": {
       "title": "Relógio",
@@ -771,6 +771,7 @@
       "dueDate": "Começar em",
       "dueTime": "Horário",
       "dueEndTime": "Horário final",
+      "endTimeRequiresStart": "Defina o horário inicial para adicionar o horário final.",
       "reminder": "Me lembrar",
       "reminderAtTime": "Na hora",
       "reminder5minAfter": "5 min depois",
@@ -913,6 +914,7 @@
       "linkedGoal": "Meta vinculada",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
       "copyDescription": "Copiar descrição",
+      "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
       "screenTitle": "Hábito",
       "loading": "Carregando hábito",
@@ -985,6 +987,8 @@
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
       "createAsParent": "Agrupar como hábito principal",
+      "groupingDenied": "Não foi possível agrupar os hábitos. Nada foi salvo. Desmarque a opção de agrupar para criar os hábitos separados.",
+      "capacityDenied": "A proposta passa do limite de hábitos. Remova um hábito da proposta e tente de novo.",
       "every": "a cada",
       "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"
@@ -1199,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} de {scheduled}",
+      "unscheduledDay": "{date} · Nada programado",
       "date": "Data",
       "rate": "Taxa",
       "completed": "Concluídos",
@@ -1655,6 +1661,10 @@
       "rejected": "{name} foi rejeitado. Nada foi salvo."
     },
     "breakdown": {
+      "unnamedHabit": "Hábito sem nome",
+      "removeTitle": "Remover hábito?",
+      "removeBody": "Remover “{name}” desta proposta? Ele não será criado quando você aprovar.",
+      "empty": "Não sobrou nenhum hábito proposto.",
       "title": "Dividir {name}",
       "frequency": "Mudar a frequência de {name}",
       "conflict": "Já existe um hábito chamado {name}.",
@@ -1916,7 +1926,6 @@
       "scopeLabel": "Escopo",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
-      "mcpLine": "Cole uma chave ativa nas configurações do seu cliente MCP. As instruções completas ficam nesta seção no app.",
       "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",
       "stepUpAction": "Entrar de novo",
       "revokeNamed": "Revogar {name}",
@@ -3382,6 +3391,7 @@
     "replaceKey": "Troque YOUR_API_KEY pela chave que você criou acima",
     "maxKeysReached": "Você chegou ao máximo de 5 chaves de API",
     "copyConfig": "Copiar configuração",
+    "configCopyError": "Não consegui copiar. Tente de novo.",
     "apiKeysError": "Não foi possível carregar as chaves de API",
     "createKeyError": "Não foi possível criar a chave de API",
     "scopesLabel": "Escopos:",
@@ -3455,7 +3465,8 @@
       },
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",
-      "dismiss": "Dispensar"
+      "dismiss": "Dispensar",
+      "dismissError": "Não foi possível dispensar a lista. Tente de novo."
     }
   },
   "terms": {

@@ -1,7 +1,10 @@
-import { cpSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { join, sep } from "node:path"
 
-import { check, root, T } from "./_harness.mjs"
+import { check, root, stage, T } from "./_harness.mjs"
 
 const TOOL = "check-dependency-edits.mjs"
 /** One extraction time for the whole staged tree, exactly as npm writes one. */
@@ -32,7 +35,148 @@ const stageTree = (label) => {
   return { repository, nodeModules }
 }
 
+const stageLockedPackage = (label, ignoreFiles = []) => {
+  const tree = stageTree(label)
+  const source = join(tree.repository, "published")
+  mkdirSync(source, { recursive: true })
+  writeFileSync(join(source, "package.json"), JSON.stringify({ name: "slow-extraction", version: "1.0.0" }))
+  writeFileSync(join(source, "index.js"), "published bytes\n")
+  writeFileSync(join(source, "README.md"), "published documentation\n")
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm"
+  const npmOptions = { cwd: source, encoding: "utf8", shell: process.platform === "win32" }
+  if (ignoreFiles.length > 0) {
+    for (const name of ignoreFiles) writeFileSync(join(source, name), `${name} published bytes\n`)
+    const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+    tar.c({ file: join(tree.repository, "slow-extraction-1.0.0.tgz"), cwd: tree.repository, gzip: true, sync: true },
+      ["package.json", "index.js", "README.md", ...ignoreFiles].map((name) => `published/${name}`))
+  } else {
+    const packed = spawnSync(npm, [
+      "pack", "--ignore-scripts", "--offline", "--cache", "../npm-cache", "--pack-destination", "..",
+    ], npmOptions)
+    if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr}`)
+  }
+  const archiveName = readdirSync(tree.repository).find((name) => name.endsWith(".tgz"))
+  writeFileSync(join(tree.repository, "package.json"), JSON.stringify({ name: "guard-fixture", version: "1.0.0", private: true }))
+  const installed = spawnSync(npm, [
+    "install", `./${archiveName}`, "--ignore-scripts", "--offline", "--no-audit", "--no-fund", "--cache", "./npm-cache",
+  ], { ...npmOptions, cwd: tree.repository })
+  if (installed.status !== 0) throw new Error(`npm install failed: ${installed.stderr}`)
+  const packageDirectory = join(tree.nodeModules, "slow-extraction")
+  for (const name of readdirSync(packageDirectory)) utimesSync(join(packageDirectory, name), at(0), at(0))
+  for (const [name, seconds] of [["index.js", 338], ["README.md", 339]]) {
+    utimesSync(join(packageDirectory, name), at(seconds), at(seconds))
+  }
+  const lock = JSON.parse(readFileSync(join(tree.repository, "package-lock.json"), "utf8"))
+  return { ...tree, packageDirectory, lock, archiveName }
+}
+
 export const cases = () => {
+  for (const [label, ignoreFiles] of [
+    ["renamed-ignore", [".gitignore"]],
+    ["npmignore-first", [".npmignore", ".gitignore"]],
+    ["gitignore-first", [".gitignore", ".npmignore"]],
+  ]) {
+    const extracted = stageLockedPackage(label, ignoreFiles)
+    T(`${label}: npm removes the archived .gitignore path`, !readdirSync(extracted.packageDirectory).includes(".gitignore"))
+    const ignorePath = join(extracted.packageDirectory, ".npmignore")
+    const expectedIgnore = ignoreFiles.includes(".npmignore") ? ".npmignore" : ".gitignore"
+    T(`${label}: npm installs the expected ignore bytes`, readFileSync(ignorePath, "utf8") === `${expectedIgnore} published bytes\n`)
+    check(TOOL, `${label}: unchanged npm extraction passes beyond the tolerance`, ["--root", extracted.repository], { status: 0 })
+    writeAt(ignorePath, "edited ignore bytes\n", at(338))
+    check(TOOL, `${label}: changed ignore contents still fail`, ["--root", extracted.repository], {
+      status: 1, stderr: /modified:.*\.npmignore/,
+    })
+  }
+  const slow = stageLockedPackage("locked-slow")
+  const snapshot = () => ["package.json", "index.js", "README.md"].map((name) => {
+    const path = join(slow.packageDirectory, name)
+    return [name, readFileSync(path).toString("base64"), statSync(path).mtimeMs]
+  })
+  const before = snapshot()
+  check(
+    TOOL,
+    "locked archive contents pass when clean extraction exceeds the default tolerance",
+    ["--root", slow.repository],
+    { status: 0, stdout: /No dependency was edited in place/ },
+  )
+  T("archive verification leaves installed contents and mtimes untouched", JSON.stringify(snapshot()) === JSON.stringify(before))
+  for (const mutation of ["modified", "missing", "extra", "missing manifest"]) {
+    const changed = stageLockedPackage(`locked-${mutation}`)
+    if (mutation === "modified") writeAt(join(changed.packageDirectory, "index.js"), "edited bytes\n", at(338))
+    if (mutation === "missing") rmSync(join(changed.packageDirectory, "index.js"))
+    if (mutation === "extra") writeAt(join(changed.packageDirectory, "extra.js"), "extra bytes\n", at(0))
+    if (mutation === "missing manifest") rmSync(join(changed.packageDirectory, "package.json"))
+    check(
+      TOOL,
+      `${mutation} installed files fail locked archive comparison`,
+      ["--root", changed.repository],
+      { status: 1, stderr: mutation === "missing manifest" ? /missing:.*package\.json/ : new RegExp(`${mutation}.*${mutation === "extra" ? "extra.js" : "index.js"}`) },
+    )
+  }
+
+  const archivePath = join(slow.repository, slow.archiveName)
+  const archiveBytes = readFileSync(archivePath)
+  writeFileSync(archivePath, Buffer.concat([archiveBytes, Buffer.from("corruption")]))
+  check(TOOL, "a corrupt archive cannot clear a timestamp finding", ["--root", slow.repository], {
+    status: 1, stderr: /could not verify locked archive: locked archive integrity mismatch/,
+  })
+  rmSync(archivePath)
+  check(TOOL, "an unavailable archive cannot clear a timestamp finding", ["--root", slow.repository], {
+    status: 1, stderr: /could not verify locked archive/,
+  })
+  writeFileSync(archivePath, archiveBytes)
+
+  const locked = slow.lock.packages["node_modules/slow-extraction"]
+  const lockPath = join(slow.repository, "package-lock.json")
+  const rewriteLock = () => writeFileSync(lockPath, JSON.stringify(slow.lock))
+  const integrity = locked.integrity
+  delete locked.integrity
+  rewriteLock()
+  check(TOOL, "an archive without locked integrity retains timestamp failures", ["--root", slow.repository], {
+    status: 1, stderr: /index\.js {2}\(\+338s/,
+  })
+  locked.integrity = integrity
+  rewriteLock()
+
+  for (const packagePath of ["apps/mobile/node_modules/@scope/slow-extraction", "node_modules/host/node_modules/slow-extraction"]) {
+    const relocated = stageTree(`locked-${packagePath.replaceAll("/", "-")}`)
+    if (packagePath.startsWith("node_modules/host/")) stagePackage(relocated.nodeModules, "host", { "index.js": 0 })
+    cpSync(slow.packageDirectory, join(relocated.repository, ...packagePath.split("/")), { recursive: true, preserveTimestamps: true })
+    cpSync(archivePath, join(relocated.repository, slow.archiveName))
+    writeFileSync(join(relocated.repository, "package-lock.json"), JSON.stringify({ ...slow.lock, packages: { [packagePath]: locked } }))
+    check(TOOL, `the owning lock resolves ${packagePath}`, ["--root", relocated.repository], { status: 0 })
+    check(TOOL, `a scan inside ${packagePath} still resolves the ancestor lock`, ["--root", join(relocated.repository, packagePath.split("node_modules/")[0])], { status: 0 })
+  }
+
+  locked.resolved = "https://registry.example/slow-extraction.tgz"
+  rewriteLock()
+  const fetchShim = stage("dependency-fetch.cjs", `
+const { readFileSync } = require("node:fs")
+globalThis.fetch = async (url, options) => {
+  if (url !== "https://registry.example/slow-extraction.tgz" || !(options.signal instanceof AbortSignal)) {
+    throw new Error("unexpected archive request")
+  }
+  return new Response(readFileSync(process.env.ARCHIVE_FIXTURE), { status: Number(process.env.ARCHIVE_STATUS) })
+}
+`)
+  for (const status of [200, 503]) {
+    check(TOOL, `HTTPS archive response ${status} is handled`, ["--root", slow.repository], {
+      status: status === 200 ? 0 : 1,
+      ...(status === 503 ? { stderr: /locked archive request failed \(503\)/ } : {}),
+    }, { env: {
+      NODE_OPTIONS: `--require "${fetchShim.split(sep).join("/")}"`,
+      ARCHIVE_FIXTURE: archivePath, ARCHIVE_STATUS: String(status),
+    } })
+  }
+
+  const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+  const alternateArchive = join(slow.repository, "alternate.tgz")
+  tar.c({ file: alternateArchive, cwd: slow.repository, gzip: true, sync: true }, ["published"])
+  locked.resolved = "file:alternate.tgz"
+  locked.integrity = `sha512-${createHash("sha512").update(readFileSync(alternateArchive)).digest("base64")}`
+  rewriteLock()
+  check(TOOL, "archive roots are stripped like npm extraction", ["--root", slow.repository], { status: 0 })
+
   const clean = stageTree("clean")
   stagePackage(clean.nodeModules, "react-native", { "index.js": 0, "src/deep/flags.kt": 90 })
   stagePackage(clean.nodeModules, "@expo/config", { "index.js": 12 })
