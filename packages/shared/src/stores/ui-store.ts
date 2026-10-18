@@ -27,11 +27,11 @@ type UIStoreSet = {
       | Partial<UIStoreState>
       | ((state: UIStoreState) => Partial<UIStoreState>),
     replace?: false,
-  ): void;
+  ): unknown;
   (
     state: UIStoreState | ((state: UIStoreState) => UIStoreState),
     replace: true,
-  ): void;
+  ): unknown;
 };
 
 type UIStoreGet = () => UIStoreState;
@@ -48,6 +48,7 @@ function isActiveView(value: unknown): value is ActiveView {
 }
 
 export interface PersistedUIState {
+  setupChecklistDismissed: boolean;
   activeFilters: HabitsFilter;
   activeView: ActiveView;
   calendarShowRecurring: boolean;
@@ -62,6 +63,7 @@ export function migratePersistedUIState(
     : {};
   delete activeFilters.search;
   return {
+    setupChecklistDismissed: state.setupChecklistDismissed === true,
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
@@ -69,6 +71,8 @@ export function migratePersistedUIState(
 }
 
 export interface UIStoreState {
+  setupChecklistDismissed: boolean;
+  setSetupChecklistDismissed: (dismissed: boolean) => Promise<void>;
   lastDestination: ShellDestinationId;
   setLastDestination: (destination: ShellDestinationId) => void;
   activeFilters: HabitsFilter;
@@ -149,12 +153,14 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
     activeFilters,
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
+    setupChecklistDismissed: state.setupChecklistDismissed,
   };
 }
 
 export function createUIStoreState(
   set: UIStoreSet,
   get: UIStoreGet,
+  getAccountGeneration: () => number = () => 0,
 ): UIStoreState {
   let createdHabitTimer: ReturnType<typeof setTimeout> | undefined;
   let celebrationSequence = 0;
@@ -191,6 +197,22 @@ export function createUIStoreState(
   }
 
   return {
+    setupChecklistDismissed: false,
+    setSetupChecklistDismissed: async (setupChecklistDismissed) => {
+      const previous = get().setupChecklistDismissed;
+      const accountGeneration = getAccountGeneration();
+      try {
+        await set({ setupChecklistDismissed });
+      } catch (error) {
+        if (getAccountGeneration() !== accountGeneration) throw error;
+        try {
+          await set({ setupChecklistDismissed: previous });
+        } catch (rollbackError) {
+          throw new AggregateError([error, rollbackError]);
+        }
+        throw error;
+      }
+    },
     lastDestination: "hoje",
     setLastDestination: (lastDestination) => set({ lastDestination }),
     activeFilters: {},
