@@ -179,6 +179,23 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const calendarShell = platform === 'web'
+      ? 'apps/web/app/(app)/calendar/_components/calendar-shell.tsx'
+      : 'apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx'
+    const originalCalendarShell = files[calendarShell]
+    for (const direction of ['next', 'previous']) {
+      const ids = [`${platform}:control:common.${direction}Week`]
+      if (platform === 'web') ids.push(`web:control:calendar.agenda.${direction}Day`)
+      const capabilities = inventory.entries.filter((entry) => ids.includes(entry.id))
+      const beforeCalendar = compare(capabilities, scan(current, platform), rules)
+      T(`${platform} ${direction} calendar controls retain their real rendered labels`, beforeCalendar.length === ids.length && beforeCalendar.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+      files[calendarShell] = originalCalendarShell.split('\n').filter((line) => !line.includes(`period?.${direction}Label`)).join('\n')
+      T(`${platform} mutation removes the ${direction} calendar button`, files[calendarShell] !== originalCalendarShell)
+      const afterCalendar = compare(capabilities, scan(current, platform), rules)
+      T(`${platform} shared labels cannot retain deleted ${direction} calendar controls`, afterCalendar.every((entry) => entry.disposition === 'missing'))
+      T(`${platform} deleting the ${direction} calendar button blocks its mapped capabilities`, newLosses(afterCalendar, beforeCalendar).length === ids.length)
+      files[calendarShell] = originalCalendarShell
+    }
     const id = `${platform}:control:chat.attachFile`
     const capability = inventory.entries.filter((entry) => entry.id === id)
     const before = compare(capability, scan(current, platform), rules)
