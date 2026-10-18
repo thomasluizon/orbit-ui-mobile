@@ -1,3 +1,4 @@
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useRouter } from 'expo-router'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
 import {
@@ -42,9 +43,9 @@ function buildMoreRows({ context: { profile, router, t }, openWidget }: Readonly
   context: RowContext
   openWidget: () => void
 }>) {
-  const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
+  const navigationRows = PROFILE_NAV_ITEMS.flatMap((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
-    return (
+    const navigationRow = (
       <ListRow
         key={item.id}
         textMode="label"
@@ -67,6 +68,7 @@ function buildMoreRows({ context: { profile, router, t }, openWidget }: Readonly
         }}
       />
     )
+    return item.id === 'wrapped' ? [navigationRow, <ShareCardEntryButton key="share-progress" />] : [navigationRow]
   })
 
   return navigationRows
