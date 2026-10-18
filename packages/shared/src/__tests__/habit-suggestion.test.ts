@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { buildHabitFormPatchFromSuggestion } from '../utils/habit-form-helpers'
+import { describe, expect, it, vi } from 'vitest'
+import { applyHabitEmojiSuggestion, buildHabitEmojiSuggestionAvailability, buildHabitFormPatchFromSuggestion } from '../utils/habit-form-helpers'
 import {
   habitSetupSuggestionSchema,
   type HabitSetupSuggestion,
@@ -193,5 +193,28 @@ describe('habitSetupSuggestionSchema', () => {
         checklistItems: [],
       }),
     ).toThrow()
+  })
+})
+
+describe('emoji-only suggestion application', () => {
+  it('changes only the emoji through the supplied field action', () => {
+    const onApply = vi.fn()
+    expect(applyHabitEmojiSuggestion('🏊', '🏃', onApply)).toBe(true)
+    expect(onApply).toHaveBeenCalledExactlyOnceWith('🏊')
+  })
+
+  it.each([null, '', '🏃'])('preserves the selected emoji for an empty or unchanged result %j', (emoji) => {
+    const onApply = vi.fn()
+    expect(applyHabitEmojiSuggestion(emoji, '🏃', onApply)).toBe(false)
+    expect(onApply).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['', false, false, 'Title required'],
+    ['   ', false, false, 'Title required'],
+    ['Swim', true, false, 'Limit reached'],
+    ['Swim', false, true, undefined],
+  ] as const)('explains availability for title %j at limit %s', (title, atLimit, canSuggest, hint) => {
+    expect(buildHabitEmojiSuggestionAvailability(title, atLimit, { titleRequired: 'Title required', limitReached: 'Limit reached' })).toEqual({ canSuggest, ...(hint ? { hint } : {}) })
   })
 })

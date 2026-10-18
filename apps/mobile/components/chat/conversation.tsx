@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
@@ -27,6 +26,7 @@ import { PendingReply, type PendingReplyHandle } from "@/components/chat/pending
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { AstraGlyph } from "@/components/ui/astra-glyph";
 import { MotionPressable } from "@/components/ui/motion-pressable";
 import { ChevronDown, Lightbulb, X } from "@/components/ui/icons";
 import { useChatStore } from '@/stores/chat-store';
@@ -57,8 +57,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
       {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
     </View> : null}
   </View>);
-  if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
-  return <View style={{ paddingVertical: 8 }}>
+  if (running) return <View testID="thinking-trace-running" accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
+  return <View testID="thinking-trace-completed" style={{ paddingVertical: 8 }}>
     <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
       <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
@@ -236,8 +236,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, []);
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
-    ({ item }) => (
-      <View style={{ gap: 16 }}>
+    ({ item, index }) => (
+      <View style={styles.messageTurn}>
+      {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+        <AstraGlyph size={24} />
+      </View> : null}
+      <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
@@ -253,6 +257,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       />
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+      </View>
       </View>
     ),
     [
@@ -271,6 +276,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       streamingMessageId,
       isTyping,
       verifyStepUpForBubble,
+      styles,
     ],
   );
 
@@ -328,7 +334,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={showPendingReply ? <PendingReply ref={attachPendingReply} /> : activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+              ListFooterComponent={showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
+                {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+                  <AstraGlyph size={24} />
+                </View> : null}
+                <View style={styles.messageContent}>
+                  {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={activeSteps} running />}
+                </View>
+              </View> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />
