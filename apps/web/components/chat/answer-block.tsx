@@ -58,7 +58,7 @@ function AnswerOptions({ definition, answer, disabled }: Readonly<{
   const options = blockAnswerOptions(definition)
   const single = definition.kind === 'choice' && !definition.block.multiSelect
   return options.map((option, index) => single
-    ? <RadioRow key={option.id} label={option.label} description={option.description ?? undefined}
+    ? <RadioRow wrapLabel key={option.id} label={option.label} description={option.description ?? undefined}
         meta={t('position', { position: index + 1, total: options.length })}
         selected={answer.selectedIds.includes(option.id)}
         onSelect={() => answer.setSelectedIds([option.id])}
@@ -120,14 +120,15 @@ export function AnswerBlock(props: AnswerBlockProps) {
   const { definition, interaction, expired = false } = props
   const t = useTranslations('chat.choice')
   const answer = useAnswer(props)
-  const [focusWhenClosed] = useState(!expired)
+  const [focusWhenClosed] = useState(!expired && !props.savedAnswer)
   const isChoice = definition.kind === 'choice'
   const title = isChoice ? definition.block.question : definition.block.title
-  const closed = answer.settled?.text ?? (expired && !answer.acting ? t('closed') : null)
+  const settled = props.savedAnswer ?? answer.settled
+  const closed = settled?.text ?? (expired && !answer.acting ? t('closed') : null)
   const disabled = answer.acting || interaction?.isSending === true
 
   return <div aria-live="polite" aria-atomic="true" className="min-w-0" data-answer-block={definition.kind}>
-    {closed ? <TerminalAnswer text={closed} answered={answer.settled?.answered === true} focus={focusWhenClosed} /> : <BlockFrame state={answer.acting ? 'acting' : 'resting'} title={title} wrapTitle items={[]}
+    {closed ? <TerminalAnswer text={closed} answered={settled?.answered === true} focus={focusWhenClosed} /> : <BlockFrame state={answer.acting ? 'acting' : 'resting'} title={title} wrapTitle items={[]}
       body={<AnswerBody definition={definition} answer={answer} disabled={disabled} />}
       actions={<AnswerSubmit definition={definition} interaction={interaction} answer={answer} disabled={disabled} />} />}
   </div>

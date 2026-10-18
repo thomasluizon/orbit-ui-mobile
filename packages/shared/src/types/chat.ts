@@ -431,6 +431,7 @@ export const chatMessageSchema = z.object({
     editedItemIds: z.array(z.string()).optional(),
     operation: pendingAgentOperationSchema.optional(),
   })).optional(),
+  blockAnswers: z.record(z.string(), z.object({ text: z.string(), answered: z.boolean() })).optional(),
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),

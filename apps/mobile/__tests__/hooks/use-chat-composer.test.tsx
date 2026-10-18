@@ -731,6 +731,21 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
   })
 
+  it('keeps the answered summary after the thread remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Continue.', actions: [] } })}\n\n`))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.blockAnswerInteraction.send({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }) })
+    const { ChoiceBlock: Answer } = await vi.importActual<typeof import('@/components/chat/choice-block')>('@/components/chat/choice-block')
+    const savedAnswer = useChatStore.getState().messages[0]!.blockAnswers?.[choiceBlockFixture.blockId]
+    let thread!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { thread = TestRenderer.create(<Answer block={choiceBlockFixture} interaction={composer.current.blockAnswerInteraction} expired savedAnswer={savedAnswer} />); mountedTrees.push(thread) })
+    expect(visibleMessageTexts(thread)).toContain('chat.choice.answered:{"options":"Evening"}')
+    await TestRenderer.act(() => thread.unmount())
+    await TestRenderer.act(() => { thread = TestRenderer.create(<Answer block={choiceBlockFixture} interaction={composer.current.blockAnswerInteraction} expired savedAnswer={savedAnswer} />); mountedTrees.push(thread) })
+    expect(visibleMessageTexts(thread)).toContain('chat.choice.answered:{"options":"Evening"}')
+  })
+
   it.each([400, 404, 409, 410])('returns block status %s without a later turn or a global retry', async status => {
     mocks.openChatStream.mockResolvedValue(Response.json({ error: 'Invalid answer' }, { status }))
     const composer = await renderComposer()

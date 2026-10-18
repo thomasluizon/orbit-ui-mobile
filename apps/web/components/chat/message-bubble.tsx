@@ -83,7 +83,7 @@ export function MessageBubble({
 
         {parts.map((part, index) => {
           if (!part) return null
-          if (part.type === 'block') return <ChatBlock key={index} part={part} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />
+          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />
           const sourceText = stripChatDirectives(part.text, isStreaming)
           if (!isUser && !hasChatProse(sourceText) && !(index === 0 && message.imageUrl)) return null
           return <div

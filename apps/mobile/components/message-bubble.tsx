@@ -119,7 +119,7 @@ export function MessageBubble({
       >
         {parts.map((part, index) => {
           if (!part) return null;
-          if (part.type === 'block') return <ChatBlock key={index} part={part} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />;
+          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />;
           return <MessageProse key={index} message={message}
             sourceText={isUser ? part.text : stripChatDirectives(part.text, isStreaming)}
             styles={styles} showImage={index === 0} />;

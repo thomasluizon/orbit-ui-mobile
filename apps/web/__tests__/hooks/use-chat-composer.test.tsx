@@ -531,6 +531,18 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
   })
 
+  it('keeps the answered summary after the thread remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(sseResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Continue.', actions: [] } })}\n\n`))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.blockAnswerInteraction.send({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }) })
+    const view = render(<AstraConversation chat={result.current} />)
+    expect(screen.getByText('chat.choice.answered:{"options":"Evening"}')).toBeInTheDocument()
+    view.unmount()
+    render(<AstraConversation chat={result.current} />)
+    expect(screen.getByText('chat.choice.answered:{"options":"Evening"}')).toBeInTheDocument()
+  })
+
   it.each([400, 404, 409, 410])('returns block status %s without inserting a later turn or a global retry', async status => {
     mocks.fetch.mockResolvedValue(Response.json({ error: 'Invalid answer' }, { status }))
     const { result } = renderHook(() => useChatComposer())

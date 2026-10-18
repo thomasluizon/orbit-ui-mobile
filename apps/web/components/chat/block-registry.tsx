@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AnswerBlockProps, ChatBlockKind, MessageBubbleProps } from '@orbit/shared/chat'
-import type { ChatBlockPart } from '@orbit/shared/types/chat'
+import type { ChatBlockPart, ChatMessage } from '@orbit/shared/types/chat'
 import { HabitListCard } from './habit-list-card'
 import { GoalListCard } from './goal-list-card'
 import { MetricsCard } from './metrics-card'
@@ -31,11 +31,13 @@ const blockRegistry: { [Kind in ChatBlockKind]: (block: BlockContent[Kind], onOp
   pickList: (block, _onOpen, props) => <PickListBlock key={block.blockId} block={block} {...props} />,
 }
 
-export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick, interaction, expired }: Readonly<{
+export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick, interaction, expired, savedAnswers }: Readonly<{
   part: { kind: Kind; block: BlockContent[Kind] }
+  savedAnswers?: ChatMessage['blockAnswers']
   interaction?: AnswerBlockProps['interaction']
   expired?: boolean
   onActionChipClick: OpenAction
 }>) {
-  return blockRegistry[part.kind](part.block, onActionChipClick, { interaction, expired })
+  const savedAnswer = 'blockId' in part.block ? savedAnswers?.[part.block.blockId] : undefined
+  return blockRegistry[part.kind](part.block, onActionChipClick, { interaction, expired, savedAnswer })
 }

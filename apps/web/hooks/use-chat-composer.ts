@@ -25,6 +25,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import {
   formatBlockAnswer,
+  recordBlockAnswer,
   type BlockAnswerRequest,
   type BlockAnswerResult,
   buildChatMessageWithFileContent,
@@ -619,11 +620,13 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         messageCost: request.kind === 'pickList' ? 0 : 1,
         blockAnswer: request.answer, onBlockResult: result => { outcome.result = result },
       }, false)
+      recordBlockAnswer(useChatStore.getState(), request.answer.blockId, outcome.result,
+        t('chat.choice.answered', { options: content }), t('chat.choice.closed'), t('chat.choice.alreadyAnswered'))
       return outcome.result
     } finally {
       blockSendInFlight.current = false
     }
-  }, [addMessage, atMessageLimit, isOnline, locale, performSend])
+  }, [addMessage, atMessageLimit, isOnline, locale, performSend, t])
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(

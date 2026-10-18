@@ -43,7 +43,7 @@ export function RadioGlyph({
   )
 }
 
-export function RadioRow({ label, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -59,7 +59,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
       <>
         {leading ? <View style={styles.leading}>{leading}</View> : null}
         <View style={styles.textBlock}>
-          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>}
+          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: tokens.fg1 }, wrapLabel ? { lineHeight: 22.4 } : null]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
