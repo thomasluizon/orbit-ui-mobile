@@ -1,8 +1,11 @@
 import type { AgentExecuteOperationResponse } from '../types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '../hooks/pending-operation-revision-core'
 import type { ChatMessage } from '../types/chat'
+import type { BlockAnswerInteraction } from './block-answer'
 
 export interface MessageBubbleProps {
+  blockAnswerInteraction?: BlockAnswerInteraction
+  hasLaterMessage?: boolean
   animateEntry?: boolean
   isStreaming?: boolean
   message: ChatMessage

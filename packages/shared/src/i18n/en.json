@@ -1214,6 +1214,21 @@
     }
   },
   "chat": {
+    "choice": {
+      "submit": "Send",
+      "review": "Review",
+      "freeText": "Your answer",
+      "answered": "You chose {options}",
+      "closed": "This question is closed.",
+      "alreadyAnswered": "This question was already answered.",
+      "invalid": "Check your selection and try again.",
+      "error": "Could not send your answer. Try again.",
+      "offline": "You’re offline. Your selection is kept.",
+      "limit": "You’ve used your {allowance} messages for today.",
+      "acting": "Sending your answer",
+      "proposed": "Suggested by Astra",
+      "position": "{position} of {total}"
+    },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
     "offline": {

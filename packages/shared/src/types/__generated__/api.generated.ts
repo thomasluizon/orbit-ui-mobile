@@ -549,6 +549,8 @@ export const PostApiChatBody = zod.object({
   "clientContext": zod.string().optional()
 })).and(zod.object({
   "confirmationToken": zod.string().optional()
+})).and(zod.object({
+  "blockAnswer": zod.string().optional()
 }))
 
 export const postApiChatResponseActionsItemSuggestedSubHabitsItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
@@ -923,6 +925,8 @@ export const PostApiChatStreamBody = zod.object({
   "clientContext": zod.string().optional()
 })).and(zod.object({
   "confirmationToken": zod.string().optional()
+})).and(zod.object({
+  "blockAnswer": zod.string().optional()
 }))
 
 export const PostApiChatStreamResponse = zod.unknown()

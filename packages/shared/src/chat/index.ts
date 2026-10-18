@@ -2,6 +2,7 @@ export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurfa
 export * from './action-chips'
 export * from './client-context'
 export * from './block-kinds'
+export * from './block-answer'
 export * from './final-message'
 export * from './message-actions'
 export * from './message-bubble'

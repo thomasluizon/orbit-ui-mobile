@@ -7,6 +7,7 @@ export type CheckRowProps = {
   labelExpanded?: boolean
   labelControls?: string
   checked: boolean
+  proposed?: boolean
   onChange: (checked: boolean) => void
   description?: string
   error?: string

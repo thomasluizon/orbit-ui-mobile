@@ -16,6 +16,7 @@ export function CheckRow({
   labelExpanded,
   labelControls,
   checked,
+  proposed = false,
   onChange,
   description,
   error,
@@ -43,12 +44,12 @@ export function CheckRow({
       <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span
-          className={`text-base font-medium ${checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}
+          className={`text-base font-medium ${proposed || checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}
         >
           {label}
         </span>
         {error || description ? (
-          <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>
+          <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-2)]'}`}>
             {error ?? description}
           </span>
         ) : null}

@@ -1214,6 +1214,21 @@
     }
   },
   "chat": {
+    "choice": {
+      "submit": "Enviar",
+      "review": "Revisar",
+      "freeText": "Sua resposta",
+      "answered": "Você escolheu {options}",
+      "closed": "Essa pergunta já fechou.",
+      "alreadyAnswered": "Essa pergunta já foi respondida.",
+      "invalid": "Confira sua seleção e tente de novo.",
+      "error": "Não foi possível enviar sua resposta. Tente de novo.",
+      "offline": "Você está sem conexão. Sua seleção fica aqui.",
+      "limit": "Você usou suas {allowance} mensagens de hoje.",
+      "acting": "Enviando sua resposta",
+      "proposed": "Sugestão da Astra",
+      "position": "{position} de {total}"
+    },
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
     "title": "Astra",
     "offline": {

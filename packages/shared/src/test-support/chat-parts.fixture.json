@@ -148,6 +148,66 @@
         "rows": [],
         "surfaceId": "profile"
       }
+    },
+    {
+      "type": "block",
+      "kind": "choice",
+      "block": {
+        "blockId": "00000000-0000-4000-8000-000000000083",
+        "question": "Qual horário combina com uma caminhada?",
+        "options": [
+          {
+            "id": "morning",
+            "label": "Caminhar pela manhã antes do trabalho",
+            "description": "Uma caminhada curta ao começar o dia."
+          },
+          {
+            "id": "lunch",
+            "label": "Caminhar na pausa depois do almoço",
+            "description": null
+          },
+          {
+            "id": "evening",
+            "label": "Caminhar à noite depois do trabalho",
+            "description": null
+          }
+        ],
+        "multiSelect": false,
+        "allowFreeText": true,
+        "expiresAtUtc": "2099-01-01T00:00:00Z"
+      }
+    },
+    {
+      "type": "block",
+      "kind": "pickList",
+      "block": {
+        "blockId": "00000000-0000-4000-8000-000000000084",
+        "title": "Escolha os hábitos para sua manhã",
+        "items": [
+          {
+            "id": "1",
+            "label": "Caminhar por alguns minutos pela manhã",
+            "detail": "Uma sugestão para experimentar na sua rotina."
+          },
+          {
+            "id": "2",
+            "label": "Beber água antes de começar o trabalho",
+            "detail": "Uma sugestão para experimentar na sua rotina."
+          },
+          {
+            "id": "3",
+            "label": "Ler algumas páginas durante a pausa",
+            "detail": "Uma sugestão para experimentar na sua rotina."
+          },
+          {
+            "id": "4",
+            "label": "Alongar o corpo antes de sair de casa",
+            "detail": "Uma sugestão para experimentar na sua rotina."
+          }
+        ],
+        "action": "create_habits",
+        "expiresAtUtc": "2099-01-01T00:00:00Z"
+      }
     }
   ]
 }

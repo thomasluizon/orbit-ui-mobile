@@ -1,3 +1,4 @@
+import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -708,6 +709,48 @@ describe('mobile useChatComposer', () => {
     for (const tree of mountedTrees.splice(0)) tree.unmount()
   })
 
+
+  it('sends a localized block answer once at quota and keeps the existing preview path', async () => {
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    mocks.locale = 'pt-BR'
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Nothing has been saved.', actions: [], pendingOperations: makeHeldHabitMessage().pendingOperations } })}\n\n`))
+    const composer = await renderComposer()
+    const request = { kind: 'pickList' as const, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1', '3'] }, labels: ['Caminhar', 'Ler'] }
+    await TestRenderer.act(async () => {
+      const answers = await Promise.all([composer.current.blockAnswerInteraction.send(request), composer.current.blockAnswerInteraction.send(request)])
+      expect(answers).toEqual([{ ok: true }, { ok: false, status: null }])
+    })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(appendFormPart).toHaveBeenCalledWith('blockAnswer', JSON.stringify(request.answer))
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'Caminhar e Ler')
+    const contextCall = appendFormPart.mock.calls.find(([key]) => key === 'clientContext')!
+    expect(JSON.parse(contextCall[1] as string).partKinds).toEqual(expect.arrayContaining(['choice', 'pickList']))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['Caminhar e Ler'])
+    expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
+  })
+
+  it.each([400, 404, 409, 410])('returns block status %s without a later turn or a global retry', async status => {
+    mocks.openChatStream.mockResolvedValue(Response.json({ error: 'Invalid answer' }, { status }))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => {
+      expect(await composer.current.blockAnswerInteraction.send({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] })).toEqual({ ok: false, status })
+    })
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(composer.current.canRetryLastSend).toBe(false)
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('blocks a choice answer at quota and all answers while offline', async () => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    const composer = await renderComposer()
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await TestRenderer.act(async () => { expect(await composer.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: null }) })
+    const offline = await renderComposer({ isOnline: false })
+    await TestRenderer.act(async () => { expect(await offline.current.blockAnswerInteraction.send({ ...request, kind: 'pickList' })).toEqual({ ok: false, status: null }) })
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+  })
   it.each([true, false])('scrolls sent messages with reduced motion %s', async (reducedMotion) => {
     vi.useFakeTimers()
     const listeners = new Set<(enabled: boolean) => void>()

@@ -16,6 +16,7 @@ export function CheckRow({
   onOpenLabel,
   labelExpanded,
   checked,
+  proposed = false,
   onChange,
   description,
   error,
@@ -26,6 +27,7 @@ export function CheckRow({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [pressed, setPressed] = useState(false)
+  const colors = checkRowTextColors(tokens, proposed, checked, pressed, Boolean(error))
 
   if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
@@ -57,13 +59,13 @@ export function CheckRow({
         <Text
           style={[
             styles.label,
-            { color: checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1 },
+            { color: colors.label },
           ]}
         >
           {label}
         </Text>
         {error || description ? (
-          <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>
+          <Text style={[styles.description, { color: colors.description }]}>
             {error ?? description}
           </Text>
         ) : null}
@@ -169,4 +171,11 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
       {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>
+}
+
+function checkRowTextColors(tokens: ReturnType<typeof createTokensV2>, proposed: boolean, checked: boolean, pressed: boolean, error: boolean) {
+  return {
+    label: proposed ? tokens.fg3 : checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1,
+    description: error ? tokens.statusBadText : proposed ? tokens.fg3 : tokens.fg2,
+  }
 }

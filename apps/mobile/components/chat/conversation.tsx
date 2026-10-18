@@ -112,6 +112,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     composerProps,
     showSuggestions,
     sendMessage,
+    blockAnswerInteraction,
     activeSteps,
     canShowFollowUps,
     scrollToBottom,
@@ -205,6 +206,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
+        hasLaterMessage={item.id !== messages.at(-1)?.id}
+        blockAnswerInteraction={blockAnswerInteraction}
         animateEntry={item.role === 'user' && !initialMessageIds.has(item.id)}
         isStreaming={item.id === streamingMessageId}
         onBreakdownConfirmed={handleBreakdownConfirmed}
@@ -230,6 +233,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       messages,
       canShowFollowUps,
       sendMessage,
+      blockAnswerInteraction,
       revisePendingOperationForBubble,
       refreshPendingOperationForBubble,
       prepareStepUpForBubble,

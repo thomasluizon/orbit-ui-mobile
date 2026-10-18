@@ -322,6 +322,43 @@ export const accountRowsCardSchema = z.object({
 
 export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
+const astraBlockOptionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1).max(40),
+  description: z.string().max(80).nullable().optional(),
+})
+
+export const choiceBlockSchema = z.object({
+  blockId: z.uuid(),
+  question: z.string().min(1).max(120),
+  options: z.array(astraBlockOptionSchema).min(2).max(4),
+  multiSelect: z.boolean(),
+  allowFreeText: z.boolean(),
+  expiresAtUtc: z.iso.datetime(),
+})
+
+export const pickListBlockSchema = z.object({
+  blockId: z.uuid(),
+  title: z.string().min(1),
+  items: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    detail: z.string().nullable(),
+  })).min(1).max(10),
+  action: z.enum(['create_habits', 'log_habits', 'skip_habits']),
+  expiresAtUtc: z.iso.datetime(),
+})
+
+export const blockAnswerSchema = z.object({
+  blockId: z.uuid(),
+  selectedIds: z.array(z.string().min(1)),
+  freeText: z.string().max(500).optional(),
+})
+
+export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
+export type PickListBlock = z.infer<typeof pickListBlockSchema>
+export type BlockAnswer = z.infer<typeof blockAnswerSchema>
+
 const chatBlockSchemas = {
   habitList: habitListCardSchema,
   goalList: goalListCardSchema,
@@ -332,6 +369,8 @@ const chatBlockSchemas = {
   calendar: calendarCardSchema,
   recordList: recordListCardSchema,
   accountRows: accountRowsCardSchema,
+  choice: choiceBlockSchema,
+  pickList: pickListBlockSchema,
 } satisfies Record<ChatBlockKind, z.ZodType>
 
 function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
@@ -350,6 +389,8 @@ export const chatPartSchema = z.union([
     blockPartSchema('calendar'),
     blockPartSchema('recordList'),
     blockPartSchema('accountRows'),
+    blockPartSchema('choice'),
+    blockPartSchema('pickList'),
   ]),
 ]).nullable().catch(null)
 

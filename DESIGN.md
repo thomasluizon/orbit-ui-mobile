@@ -308,6 +308,22 @@ The first block set, in build order: the **preview** block for anything Astra is
 tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
 frequency control.
 
+The **choice** block asks one question with two to four wrapping option rows. Single select uses
+`SelectCheck` radio rows with one roving tab stop and arrow-key selection; multi select uses
+`CheckRow` rows, each in the tab order. An explicit Send action submits, never arrow movement.
+Optional free text has a visible Input label and a 500-character limit. The **pick list** block
+uses proposed CheckRow items and one Review action that requests the existing write preview;
+nothing is written until that preview is approved. Both actions are unfilled, guard double presses,
+and disable every control while acting. Rows are at least 48 high and never ellipsize at 200% text.
+
+Answers become the next user turn, with labels formatted by `Intl.ListFormat` in the person's
+locale and ids carried separately in `blockAnswer`. An answered block collapses to a glyph and one
+`--fg-3` line naming the selection. A later message or a 404 or 410 closes an unanswered block;
+409 says it was already answered; 400 retains the selection with an inline error. Terminal lines
+receive focus without a focus ring and announce through the block's polite region. Offline retains
+selection and disables submission with a reason. The daily message limit disables choice Send
+with a reason; pick list Review stays available because it spends no message.
+
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
 Six rules govern all of them:
