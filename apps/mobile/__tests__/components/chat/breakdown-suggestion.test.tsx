@@ -21,8 +21,8 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+  ConfirmSheet: ({ open, onConfirm, onCancel, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; message: string }) =>
+    open ? React.createElement('ConfirmSheet', { onConfirm, onCancel, message }) : null,
 }))
 
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -81,6 +81,7 @@ describe('BreakdownSuggestion (mobile)', () => {
 
   it('collapses a rejected preview in place', () => {
     const tree = renderBreakdown()
+    TestRenderer.act(() => moreActions(tree).props.onPress())
     TestRenderer.act(() => press(tree, 'chat.preview.reject').props.onPress())
 
     expect(renderedText(tree.toJSON())).toContain('chat.preview.rejected')
@@ -185,6 +186,84 @@ describe('BreakdownSuggestion (mobile)', () => {
 
 })
 
+function removalControl(tree: ReactTestRenderer, name: string) {
+  const control = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes(name))[0]
+  expect(control).toBeDefined()
+  return control!
+}
+
+function openConfirmation(tree: ReactTestRenderer) {
+  const sheet = tree.root.findAll((node) => String(node.type) === 'ConfirmSheet')[0]!
+  return sheet.props as { onConfirm: () => void; onCancel: () => void; message: string }
+}
+
+it('confirms removal and creates only the retained proposal on Android', async () => {
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+  const tree = renderBreakdown() as ReactTestRenderer
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  expect(openConfirmation(tree).message).toContain('Dishes')
+  expect(renderedText(tree.root)).toContain('Dishes')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => openConfirmation(tree).onCancel())
+  expect(removalControl(tree, 'Dishes')).toBeDefined()
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  await act(() => openConfirmation(tree).onConfirm())
+  expect(renderedText(tree.root)).not.toContain('Dishes')
+  expect(renderedText(tree.root)).toContain('Laundry')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  await act(async () => { openConfirmation(tree).onConfirm(); await Promise.resolve() })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate.mock.calls[0]?.[0]).toEqual({ habits: [expect.objectContaining({ title: 'Laundry', frequencyUnit: 'Week' })] })
+  expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit'))).toHaveLength(0)
+  await act(() => tree.update(<></>))
+})
+
+it('disables approval and editing after removing every Android proposal', async () => {
+  const tree = renderBreakdown() as ReactTestRenderer
+  for (const name of ['Dishes', 'Laundry']) {
+    await act(() => pressTextControl(removalControl(tree, name)))
+    await act(() => openConfirmation(tree).onConfirm())
+  }
+  expect(renderedText(tree.root)).toContain('chat.breakdown.empty')
+  expect(press(tree, 'habits.breakdown.addHabit').props.testID).toBe('button-primary-sm')
+  expect(press(tree, 'chat.preview.approve').props.testID).toBe('button-secondary-sm')
+  expect(press(tree, 'chat.preview.approve').props.accessibilityState.disabled).toBe(true)
+  await act(() => moreActions(tree).props.onPress())
+  expect(press(tree, 'chat.preview.edit').props.accessibilityState.disabled).toBe(true)
+  expect(press(tree, 'chat.preview.reject').props.accessibilityState.disabled).toBe(false)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => tree.update(<></>))
+})
+
+it('disables removal while Android creation is pending', async () => {
+  isPending = true
+  const tree = renderBreakdown() as ReactTestRenderer
+  const remove = removalControl(tree, 'Dishes')
+  expect(remove.props.disabled).toBe(true)
+  expect(remove.props.accessibilityState).toMatchObject({ disabled: true })
+  expect(tree.root.findAll((node) => String(node.type) === 'ConfirmSheet')).toHaveLength(0)
+  await act(() => tree.update(<></>))
+})
+
+it('keeps removed proposals out of Android failure recovery', async () => {
+  bulkCreate.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(makeBulkCreateResponse(['Success']))
+  const tree = renderBreakdown() as ReactTestRenderer
+  await act(() => pressTextControl(removalControl(tree, 'Dishes')))
+  await act(() => openConfirmation(tree).onConfirm())
+  await act(() => press(tree, 'chat.preview.approve').props.onPress())
+  await act(async () => { openConfirmation(tree).onConfirm(); await Promise.resolve() })
+  expect(renderedText(tree.root)).toContain('habits.breakdown.retryError')
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Dishes'))).toHaveLength(0)
+  expect(tree.root.findAll((node) => String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Laundry'))).toHaveLength(0)
+  expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && renderedText(node.props.children) === 'chat.preview.approve')).toHaveLength(0)
+  await act(async () => { press(tree, 'chat.batch.retry').props.onPress(); await Promise.resolve() })
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
+  expect(bulkCreate).toHaveBeenCalledTimes(2)
+  for (const [request] of bulkCreate.mock.calls) expect(request).toEqual({ habits: [expect.objectContaining({ title: 'Laundry' })] })
+  await act(() => tree.update(<></>))
+})
 
 type NameInput = ReactTestInstance & {
   props: { autoFocus: boolean; value: string; onChangeText: (title: string) => void; onBlur: () => void; onFocus: () => void }
@@ -268,7 +347,9 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
     expect(bulkCreate).toHaveBeenCalledTimes(attempt)
     expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityLiveRegion === 'polite' && renderedText(node.props.children) === 'habits.breakdown.capacityDenied')).toHaveLength(1)
     expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.accessibilityRole === 'alert' && renderedText(node.props.children).length > 0)).toHaveLength(0)
+    await act(() => moreActions(tree).props.onPress())
     expect(press(tree, 'chat.preview.reject').props.disabled).toBe(false)
+    await act(() => (tree.root.findAll(node => node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress as () => void)())
     expect(press(tree, 'chat.batch.retry')).toBeUndefined()
     expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
   }
@@ -278,6 +359,8 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
   await act(() => nameInputs(tree)[0]!.props.onBlur())
   const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Sweep'))[0]!
   await act(() => (remove.props.onPress as () => void)())
+  expect(openConfirmation(tree).message).toContain('chat.breakdown.removeBody')
+  await act(() => openConfirmation(tree).onConfirm())
   const cadence = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('chat.breakdown.frequency') && String(node.props.accessibilityLabel).includes('Kitchen dishes'))[0]!
   await act(() => (cadence.props.onPress as () => void)())
   await act(() => press(tree, 'chat.preview.approve').props.onPress())
@@ -298,6 +381,8 @@ it('stops adding at 100 rows and allows adding again after removal', async () =>
   expect(nameInputs(tree)).toHaveLength(1)
   const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Habit 0'))[0]!
   await act(() => (remove.props.onPress as () => void)())
+  expect(openConfirmation(tree).message).toContain('chat.breakdown.removeBody')
+  await act(() => openConfirmation(tree).onConfirm())
   expect(press(tree, 'habits.breakdown.addHabit').props.disabled).toBe(false)
   expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).not.toContain('habits.breakdown.limit')
 })
@@ -313,6 +398,8 @@ it('never submits an oversized incoming proposal until it is reduced', async () 
   expect(bulkCreate).not.toHaveBeenCalled()
   const remove = tree.root.findAll(node => typeof node.type === 'string' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit') && String(node.props.accessibilityLabel).includes('Habit 0'))[0]!
   await act(() => (remove.props.onPress as () => void)())
+  expect(openConfirmation(tree).message).toContain('chat.breakdown.removeBody')
+  await act(() => openConfirmation(tree).onConfirm())
   await approveBreakdown(tree)
   expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
@@ -323,6 +410,7 @@ it('keeps an all-failed response editable and rejectable', async () => {
   const tree: ReactTestRenderer = renderBreakdown()
   await approveBreakdown(tree)
   expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('habits.breakdown.createError')
+  await act(() => moreActions(tree).props.onPress())
   await act(() => press(tree, 'chat.preview.reject').props.onPress())
   expect(renderedText(tree.root.findAll(node => String(node.type) === 'Text').map(node => node.props.children))).toContain('chat.preview.rejected')
 })
@@ -373,3 +461,34 @@ it('keeps a blank added row editable when it is focused again', async () => {
   await act(() => input.props.onChangeText('Sweep'))
   expect(nameInputs(tree)[0]!.props.value).toBe('Sweep')
 })
+
+it('names and confirms removal of a whitespace-only added draft', async () => {
+  const tree: ReactTestRenderer = renderBreakdown()
+  await act(() => press(tree, 'habits.breakdown.addHabit').props.onPress())
+  await act(() => nameInputs(tree)[0]!.props.onChangeText('   '))
+  await act(() => nameInputs(tree)[0]!.props.onBlur())
+  const remove = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).includes('habits.breakdown.removeHabit')).at(-1)!
+  expect(remove.props.accessibilityLabel).toContain('chat.breakdown.unnamedHabit')
+  await act(() => pressTextControl(remove))
+  expect(openConfirmation(tree).message).toContain('chat.breakdown.unnamedHabit')
+  expect(nameInputs(tree)[0]!.props.value).toBe('   ')
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => openConfirmation(tree).onConfirm())
+  expect(nameInputs(tree)).toHaveLength(0)
+  expect(renderedText(tree.root)).toContain('Dishes')
+  expect(renderedText(tree.root)).toContain('Laundry')
+  expect(press(tree, 'habits.breakdown.addHabit').props.disabled).toBe(false)
+  expect(bulkCreate).not.toHaveBeenCalled()
+  await act(() => tree.update(<></>))
+})
+
+it('limits the Android preview footer to three visible actions', async () => {
+  const tree = renderBreakdown() as ReactTestRenderer
+  const footer = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
+  expect(footer.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(3)
+  await act(() => tree.update(<></>))
+})
+
+function moreActions(tree: ReactTestRenderer): { props: { onPress: () => void } } {
+  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.actions.more')[0]! as unknown as { props: { onPress: () => void } }
+}
