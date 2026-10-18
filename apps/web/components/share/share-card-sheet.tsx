@@ -18,6 +18,16 @@ interface ShareCardSheetProps {
   onClose: () => void
 }
 
+function ShareCardFeedback({ hasError, savedFileName }: Readonly<{ hasError: boolean; savedFileName: string | null }>) {
+  const t = useTranslations()
+  return (
+    <div className={hasError || savedFileName ? 'pt-section-gap' : undefined}>
+      <p role="alert" className="text-base text-[var(--status-bad-text)]">{hasError ? t('shareCard.shareError') : ''}</p>
+      <p role="status" className="text-sm text-[var(--fg-2)]">{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</p>
+    </div>
+  )
+}
+
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
@@ -35,16 +45,17 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
 
   return (
     <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
-      <div className="flex min-w-0 flex-col gap-section-gap">
-        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
-        {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-section-gap">
-          {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
-        </div> : null}
-        {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
-        {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
-        {ready && recap ? <ShareCard ref={captureRef} recap={recap} variant="progress" /> : null}
-        <p role="alert" className="text-base text-[var(--status-bad-text)]">{hasError ? t('shareCard.shareError') : ''}</p>
-        <p role="status" className="text-sm text-[var(--fg-2)]">{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</p>
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-section-gap">
+          <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+          {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-section-gap">
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+          </div> : null}
+          {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
+          {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
+          {ready && recap ? <ShareCard ref={captureRef} recap={recap} variant="progress" /> : null}
+        </div>
+        <ShareCardFeedback hasError={hasError} savedFileName={savedFileName} />
       </div>
     </Sheet>
   )

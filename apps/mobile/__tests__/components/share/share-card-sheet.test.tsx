@@ -1,9 +1,11 @@
 import React from 'react'
+import * as ReactNative from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
@@ -41,6 +43,20 @@ describe('Share progress sheet', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     Object.assign(mocks, { isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false, canShareFiles: true, savedFileName: null })
+  })
+
+  it.each([412, 840, 1352])('adds no trailing space for empty feedback at %ipx', (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    try {
+      const tree = renderEntry()
+      openSheet(tree)
+      const geometry = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width, 1)
+      const content = geometry.boxes.find((box) => box.testID === 'sheet-body-slot')!
+      const card = geometry.boxes.find((box) => box.testID === 'share-card')!
+      expect(content.bottom - card.bottom).toBeCloseTo(0)
+    } finally {
+      dimensions.mockRestore()
+    }
   })
 
   it('opens on demand, renders the restored figures, and switches periods', () => {

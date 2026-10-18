@@ -27,13 +27,18 @@ describe('Share progress sheet geometry in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 360, 384, 412, 1440].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('fits the real sheet period selector at $width in $locale', async ({ width, locale }) => {
+  it.each([320, 360, 384, 412, 840, 1352, 1440].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('fits the real sheet period selector at $width in $locale', async ({ width, locale }) => {
     render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><ShareCardSheet onClose={vi.fn()} /></NextIntlClientProvider>)
     const dialog = screen.getByRole('dialog')
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="orbit-sheet-viewport">${dialog.outerHTML}</div>`)
       await loadAppFonts(page)
+      const trailingSpace = await page.locator('[data-slot="sheet-body"]').evaluate((body) => {
+        const content = body.firstElementChild!
+        return content.getBoundingClientRect().bottom - content.querySelector('[data-testid="share-card"]')!.getBoundingClientRect().bottom
+      })
+      expect(trailingSpace).toBeCloseTo(0)
       const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
         const bounds = group.getBoundingClientRect()
         const column = group.parentElement!.getBoundingClientRect()
