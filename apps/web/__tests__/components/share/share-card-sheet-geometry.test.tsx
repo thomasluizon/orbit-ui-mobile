@@ -34,6 +34,8 @@ describe('Share progress sheet geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="orbit-sheet-viewport">${dialog.outerHTML}</div>`)
       await loadAppFonts(page)
+      const emptyFeedbackHeights = await page.locator('[data-slot="sheet-body"] p[role="alert"], [data-slot="sheet-body"] p[role="status"]').evaluateAll((messages) => messages.map((message) => message.getBoundingClientRect().height))
+      expect(emptyFeedbackHeights).toEqual([0, 0])
       const trailingSpace = await page.locator('[data-slot="sheet-body"]').evaluate((body) => {
         const content = body.firstElementChild!
         return content.getBoundingClientRect().bottom - content.querySelector('[data-testid="share-card"]')!.getBoundingClientRect().bottom

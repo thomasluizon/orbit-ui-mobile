@@ -28,8 +28,12 @@ function ShareCardFeedback({ hasError, savedFileName, tokens }: Readonly<{
   const { t } = useTranslation()
   return (
     <View style={hasError || savedFileName ? styles.feedbackGroup : undefined}>
-      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.feedback, { color: tokens.statusBadText }]}>{hasError ? t('shareCard.shareError') : ''}</Text>
-      <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: tokens.fg2 }]}>{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</Text>
+      <View accessible accessibilityRole="alert" accessibilityLiveRegion="polite">
+        {hasError ? <Text style={[styles.feedback, { color: tokens.statusBadText }]}>{t('shareCard.shareError')}</Text> : null}
+      </View>
+      <View accessible accessibilityLiveRegion="polite">
+        {!hasError && savedFileName ? <Text style={[styles.feedback, { color: tokens.fg2 }]}>{t('shareCard.saved', { file: savedFileName })}</Text> : null}
+      </View>
     </View>
   )
 }

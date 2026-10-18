@@ -2,6 +2,7 @@ import React from 'react'
 import * as ReactNative from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { PADDING } from '@orbit/shared/theme'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -38,6 +39,12 @@ function openSheet(tree: Tree) {
 function action(tree: Tree, label: string) {
   return tree.root.findAll((node) => node.type === PillButton && node.props.children === label)[0]!
 }
+function feedbackRegions(tree: Tree) {
+  return tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')
+}
+function feedbackTexts(tree: Tree) {
+  return feedbackRegions(tree).flatMap((region) => region.findAll((node) => node.type === 'Text'))
+}
 
 describe('Share progress sheet', () => {
   beforeEach(() => {
@@ -54,8 +61,31 @@ describe('Share progress sheet', () => {
       const content = geometry.boxes.find((box) => box.testID === 'sheet-body-slot')!
       const card = geometry.boxes.find((box) => box.testID === 'share-card')!
       expect(content.bottom - card.bottom).toBeCloseTo(0)
+      expect(feedbackTexts(tree)).toHaveLength(0)
     } finally {
       dimensions.mockRestore()
+    }
+  })
+
+  it.each([412, 840, 1352])('reserves only the active feedback line and clears it at %ipx', (width) => {
+    const tree = renderEntry()
+    openSheet(tree)
+    for (const feedback of [
+      { hasError: true, savedFileName: null },
+      { hasError: false, savedFileName: 'orbit-recap.png' },
+      { hasError: true, savedFileName: 'orbit-recap.png' },
+      { hasError: false, savedFileName: null },
+    ]) {
+      Object.assign(mocks, feedback)
+      TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
+      const geometry = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width, 1)
+      const content = geometry.boxes.find((box) => box.testID === 'sheet-body-slot')!
+      const card = geometry.boxes.find((box) => box.testID === 'share-card')!
+      const active = feedback.hasError || Boolean(feedback.savedFileName)
+      expect(content.bottom - card.bottom).toBeCloseTo(active ? PADDING.sectionGap + 24 : 0)
+      const messages = feedbackTexts(tree)
+      expect(messages).toHaveLength(active ? 1 : 0)
+      if (active) expect(messages[0]!.props.children).toContain(feedback.hasError ? 'shareCard.shareError' : 'shareCard.saved')
     }
   })
 
@@ -116,15 +146,24 @@ describe('Share progress sheet', () => {
   it('announces export errors and save confirmation', () => {
     const tree = renderEntry()
     openSheet(tree)
-    const alerts = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
-    expect(alerts).toHaveLength(1)
-    expect(alerts[0]!.props.children).toBe('')
+    const regions = feedbackRegions(tree)
+    expect(regions).toHaveLength(2)
+    expect(regions[0]!.props.accessibilityRole).toBe('alert')
+    expect(feedbackTexts(tree)).toHaveLength(0)
     mocks.hasError = true
     TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
-    expect(JSON.stringify(tree.toJSON())).toContain('shareCard.shareError')
+    expect(feedbackRegions(tree)).toEqual(regions)
+    const error = regions[0]!.findAll((node) => node.type === 'Text')
+    expect(error).toHaveLength(1)
+    expect(error[0]!.props.children).toBe('shareCard.shareError')
     mocks.hasError = false
     mocks.savedFileName = 'orbit-recap.png'
     TestRenderer.act(() => { tree.update(<ShareCardEntryButton variant="button" />) })
-    expect(JSON.stringify(tree.toJSON())).toContain('shareCard.saved')
+    expect(feedbackRegions(tree)).toEqual(regions)
+    expect(regions[0]!.findAll((node) => node.type === 'Text')).toHaveLength(0)
+    const saved = regions[1]!.findAll((node) => node.type === 'Text')
+    expect(saved).toHaveLength(1)
+    expect(saved[0]!.props.children).toContain('shareCard.saved')
+    expect(saved[0]!.props.children).toContain('orbit-recap.png')
   })
 })

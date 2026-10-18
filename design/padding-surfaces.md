@@ -47,6 +47,13 @@ last loggable day, the read-only past and the future at 320, 412, 840 and 1352 w
 Android renders the real boundary lookup and notice; dates without a boundary prove that no
 notice or extra gap remains.
 
+The sharing sheet renders native feedback text only while an error or save message is active,
+retaining stable polite live-region containers and error priority. Native geometry counts empty Text
+hosts as a line, so inactive feedback cannot pass the zero-trailing-space assertion as an empty
+Yoga leaf. Cases at 412, 840 and 1352 cover inactive, error, saved, overlapping and cleared feedback.
+The web mirror keeps stable alert and status paragraphs; Chromium verifies that both empty
+paragraphs have zero height and add no trailing space.
+
 The spacing rule covers padding and margins in style factories, branches and class aliases. The
 CSS guard scans declarations and `@apply` utilities in every source stylesheet without a
 violation baseline and checks generated aliases.
