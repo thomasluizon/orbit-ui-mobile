@@ -225,6 +225,8 @@ export type {
 export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
+  applyHabitEmojiSuggestion,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,

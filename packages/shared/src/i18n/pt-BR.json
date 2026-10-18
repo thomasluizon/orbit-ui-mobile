@@ -675,6 +675,8 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
+      "emojiSuggest": "Sugerir um emoji",
+      "emojiSuggesting": "Buscando um emoji…",
       "aiSuggest": "Sugerir com IA",
       "aiSuggesting": "Pensando…",
       "aiSuggestApplied": "Sugestão de IA aplicada",
