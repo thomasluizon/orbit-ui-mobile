@@ -1,3 +1,4 @@
+import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars';
 import { CalendarOptions } from './calendar/_components/calendar-options';
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
@@ -27,8 +28,8 @@ import {
   format,
 } from "date-fns";
 import {
-  formatCalendarSpanEnds,
   buildHabitCreateHref,
+  formatCalendarSpanEnds,
   formatCalendarDayTitle,
   orderCalendarDayEntries,
   buildCalendarRangeModel,
@@ -54,7 +55,6 @@ import {
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
@@ -89,8 +89,6 @@ import { useCurrentDate } from "./use-today-date";
 import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
-type CalendarView = "month" | "week" | "range" | "agenda";
-
 
 function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
   const router = useRouter();
@@ -116,18 +114,6 @@ const calendarLayoutStyles = StyleSheet.create({
 function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loading: boolean; selected: boolean; children: ReactNode }>) {
   if (!loading && !selected) return null;
   return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{children}</View>;
-}
-
-function calendarDayLoadingLabel(state: CalendarMonthDisplayState, label: string): string | undefined {
-  return state === 'loading' ? label : undefined
-}
-
-function calendarStatState(
-  state: CalendarMonthDisplayState,
-): 'default' | 'loading' | 'empty' {
-  if (state === 'loading') return 'loading';
-  if (state === 'ready') return 'default';
-  return 'empty';
 }
 
 interface CalendarMonthFeedbackProps {
@@ -172,7 +158,6 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
     return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System);
   return undefined;
 }
-
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
@@ -227,16 +212,7 @@ function calendarMonthFooter(profileReady: boolean, profileError: Error | null, 
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<
-    Profile,
-    | 'weekStartDay'
-    | 'timeZone'
-    | 'hasProAccess'
-    | 'hasGoogleConnection'
-    | 'googleCalendarAutoSyncEnabled'
-    | 'googleCalendarAutoSyncStatus'
-    | 'googleCalendarLastSyncedAt'
-  > | undefined;
+  profile: CalendarProfile | undefined;
   profileError: Error | null;
   onRetryProfile: () => void;
   currentMonth: Date;
@@ -245,20 +221,6 @@ interface CalendarScreenContentProps {
   monthQuery: ReturnType<typeof useCalendarData>;
   view: CalendarView;
   setView: Dispatch<SetStateAction<CalendarView>>;
-}
-
-function resolveProfileSettings(profile: CalendarScreenContentProps['profile']) {
-  return {
-    weekStartsOn: profile?.weekStartDay ?? 1,
-    hasProAccess: profile?.hasProAccess ?? false,
-    timeZone: profile?.timeZone ?? null,
-    autoSyncState: profile ? {
-      enabled: profile.googleCalendarAutoSyncEnabled,
-      status: profile.googleCalendarAutoSyncStatus,
-      lastSyncedAt: profile.googleCalendarLastSyncedAt,
-      hasGoogleConnection: profile.hasGoogleConnection,
-    } : undefined,
-  };
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -284,7 +246,7 @@ function CalendarScreenContent({
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
   const { displayTime } = useTimeFormat();
-  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveProfileSettings(profile);
+  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveCalendarProfileSettings(profile);
   const todayKey = useCurrentDate(profile?.timeZone);
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
   const logHabit = useLogHabit();
@@ -422,8 +384,6 @@ function CalendarScreenContent({
     () => filterRecurringDayMap(rangeDayMap, showRecurring),
     [rangeDayMap, showRecurring],
   );
-
-
 
   const weekLabel = t('calendar.range.label', formatCalendarSpanEnds(weekStart, weekEnd, i18n.language));
 
@@ -657,12 +617,9 @@ function CalendarScreenContent({
       <CalendarHeader
         currentMonth={currentMonth}
         todayKey={todayKey}
-        isTodaySelected={{
-          month: selectedDay === todayKey,
-          week: formatAPIDate(weekStart) === formatAPIDate(startOfWeek(parseAPIDate(todayKey), { weekStartsOn })),
-          range: rangeOffset === 0,
-          agenda: agendaOffset === 0,
-        }[view]}
+        {...buildCalendarHeaderState({ view, selectedDay, todayKey, weekStart, weekStartsOn, rangeOffset, agendaOffset,
+          weekLabel, rangeLabel, agendaStart, agendaEnd, locale: i18n.language, translate: t,
+          prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset })}
         previousMonthLabel={t('common.previousMonth')}
         nextMonthLabel={t('common.nextMonth')}
         onPreviousMonth={prevMonth}
@@ -670,16 +627,6 @@ function CalendarScreenContent({
         onCurrentMonth={goToCurrentMonth}
         onSelectMonth={selectMonth}
         tokens={tokens}
-        period={{ month: undefined, week: {
-          view: 'week' as const, label: weekLabel, previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
-          onPrevious: prevWeek, onNext: nextWeek, onCurrent: goToCurrentWeek,
-        }, range: {
-          view: 'range' as const, label: rangeLabel, previousLabel: t('calendar.range.previous'), nextLabel: t('calendar.range.next'),
-          onPrevious: previousRange, onNext: nextRange, onCurrent: () => setRangeOffset(0), nextDisabled: rangeOffset === 0,
-        }, agenda: {
-          view: 'agenda' as const, label: t('calendar.range.label', formatCalendarSpanEnds(agendaStart, agendaEnd, i18n.language)), previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
-          onPrevious: () => setAgendaOffset((offset) => offset - 1), onNext: () => setAgendaOffset((offset) => offset + 1), onCurrent: () => setAgendaOffset(0),
-        } }[view]}
         viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={(nextView) => {
           listRef.current?.scrollToOffset({ offset: 0, animated: false });
           setView(nextView);

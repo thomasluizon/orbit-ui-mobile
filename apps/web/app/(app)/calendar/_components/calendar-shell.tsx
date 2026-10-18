@@ -1,5 +1,7 @@
 "use client"
 
+import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
+
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
@@ -7,26 +9,7 @@ import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
-interface CalendarHeaderProps {
-  currentMonth: Date
-  todayKey: string
-  isTodaySelected?: boolean
-  previousMonthLabel: string
-  nextMonthLabel: string
-  onPreviousMonth: () => void
-  onNextMonth: () => void
-  onCurrentMonth: () => void
-  onSelectMonth: (month: number, year: number) => void
-  period?: {
-    view: 'week' | 'range' | 'agenda'
-    label: string
-    previousLabel: string
-    nextLabel: string
-    onPrevious: () => void
-    onNext: () => void
-    onCurrent: () => void
-    nextDisabled?: boolean
-  }
+interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
 }
 

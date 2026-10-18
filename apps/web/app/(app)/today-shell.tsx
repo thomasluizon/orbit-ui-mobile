@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { HABIT_FREQUENCY_FILTER_OPTIONS, toggleHabitFrequencyFilter } from '@orbit/shared/utils/habit-frequency-filter'
+import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateControlProps as SharedTodayDateControlProps } from '@orbit/shared/utils/today-header-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
@@ -13,35 +13,8 @@ import { ShellHeader } from '@/components/shell/shell-header'
 const DATE_ICON_BUTTON_CLASS_NAME =
   'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
-export interface TodayDateControlProps {
+export interface TodayDateControlProps extends SharedTodayDateControlProps {
   beforeDate?: ReactNode
-  menuHeading?: string
-  shortDayName?: string
-  headerActive?: boolean
-  dayName: string
-  numericDate: string
-  isTodaySelected: boolean
-  nextDisabled: boolean
-  onGoToPreviousDay: () => void
-  onGoToToday: () => void
-  onGoToNextDay: () => void
-  previousLabel: string
-  goToTodayLabel: string
-  nextLabel: string
-  moreLabel: string
-  selectLabel: string
-  collapseLabel: string
-  allCollapsed: boolean
-  refreshLabel: string
-  completedLabel: string
-  showCompleted: boolean
-  isFetching: boolean
-  onToggleSelect: () => void
-  onToggleCollapse: () => void
-  onRefresh: () => void
-  onToggleCompleted: () => void
-  searchLabel: string
-  onSearch: () => void
 }
 
 function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
@@ -66,23 +39,11 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
     <Menu key={frequencyMenu ? 'frequency' : 'options'} id={menuId} open={menuOpen} anchorRef={menuAnchorRef}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
       shortTitle={frequencyMenu ? t('common.options') : props.menuHeading}
-      items={frequencyMenu ? HABIT_FREQUENCY_FILTER_OPTIONS.map((option) => ({
-        id: option.id, label: t(option.labelKey), checked: frequencyUnit === option.value,
-      })) : [
-        { id: 'select', label: props.selectLabel, icon: 'checkbox' },
-        { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },
-        { id: 'refresh', label: props.refreshLabel, icon: 'refresh', disabled: props.isFetching },
-        { id: 'completed', label: props.completedLabel, icon: props.showCompleted ? 'eye-off' : 'eye' },
-        { id: 'frequency', label: t('habits.frequencyFilter'), icon: 'adjustments-horizontal' },
-      ]}
-      onClose={() => setMenuOpen(false)} onSelect={(id) => {
-        if (frequencyMenu) setFilters({ frequencyUnit: toggleHabitFrequencyFilter(frequencyUnit, id) })
-        else if (id === 'frequency') { setFrequencyMenu(true); setMenuOpen(true) }
-        else if (id === 'select') props.onToggleSelect()
-        else if (id === 'collapse') props.onToggleCollapse()
-        else if (id === 'refresh') props.onRefresh()
-        else if (id === 'completed') props.onToggleCompleted()
-      }} />
+      items={buildTodayHeaderMenuItems(props, frequencyMenu, frequencyUnit, t)}
+      onClose={() => setMenuOpen(false)} onSelect={(id) => selectTodayHeaderMenuItem(id, frequencyMenu, frequencyUnit, {
+        ...props, setFrequencyUnit: (value) => setFilters({ frequencyUnit: value }),
+        openFrequencyMenu: () => { setFrequencyMenu(true); setMenuOpen(true) },
+      })} />
   </DestinationHeaderRow>
 }
 

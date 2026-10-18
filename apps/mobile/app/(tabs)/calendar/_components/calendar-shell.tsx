@@ -1,3 +1,4 @@
+import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
 import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions, type PressableProps } from 'react-native'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -11,26 +12,7 @@ import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/util
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-interface CalendarHeaderProps {
-  currentMonth: Date
-  todayKey: string
-  isTodaySelected?: boolean
-  previousMonthLabel: string
-  nextMonthLabel: string
-  onPreviousMonth: () => void
-  onNextMonth: () => void
-  onCurrentMonth: () => void
-  onSelectMonth: (month: number, year: number) => void
-  period?: {
-    view: 'week' | 'range' | 'agenda'
-    label: string
-    previousLabel: string
-    nextLabel: string
-    onPrevious: () => void
-    onNext: () => void
-    onCurrent: () => void
-    nextDisabled?: boolean
-  }
+interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
   tokens: Tokens
 }
