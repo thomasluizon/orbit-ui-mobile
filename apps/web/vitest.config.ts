@@ -9,12 +9,13 @@ function findChromiumTests(directory: string): string[] {
     if (statSync(filename).isDirectory()) return findChromiumTests(filename)
     if (!/\.test\.tsx?$/.test(name)) return []
     const source = readFileSync(filename, 'utf8')
-    if (!/from\s+['"][^'"]*\/chromium['"]/.test(source)) return []
+    if (!/\bfrom\s+['"][^'"]*\/chromium['"]/.test(source)) return []
     return [path.relative(__dirname, filename).split(path.sep).join('/')]
   })
 }
 
 const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
+  .sort((left, right) => left.localeCompare(right))
 
 export default defineConfig({
   plugins: [react()],
@@ -26,6 +27,7 @@ export default defineConfig({
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
+    // WHY: Chrome owns a process tree per suite, so CPU-based worker percentages do not bound browser contention. https://github.com/thomasluizon/orbit-tickets/issues/1451
     projects: [
       {
         extends: true,
@@ -33,7 +35,7 @@ export default defineConfig({
           name: 'jsdom',
           include: ['__tests__/**/*.test.{ts,tsx}'],
           exclude: chromiumTests,
-          sequence: { groupOrder: 0 },
+          sequence: { groupOrder: 1 },
         },
       },
       {
@@ -43,7 +45,7 @@ export default defineConfig({
           include: chromiumTests,
           maxWorkers: 1,
           fileParallelism: false,
-          sequence: { groupOrder: 1 },
+          sequence: { groupOrder: 2 },
         },
       },
     ],
