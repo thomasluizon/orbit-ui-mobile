@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useUIStore } from '@/stores/ui-store'
+import { useChatStore } from '@/stores/chat-store'
 
 const mocks = vi.hoisted(() => ({
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -50,6 +51,7 @@ beforeEach(() => {
   mocks.refetch.mockReset()
   mocks.useSummary.mockClear()
   mocks.push.mockClear()
+  useChatStore.setState({ messages: [], proactiveEntryId: null })
   useUIStore.setState({ astraConversationOpen: false })
 })
 
@@ -58,29 +60,23 @@ describe('daily summary on Hoje', () => {
     const tree = await renderSummary()
     try {
       expect(hasText(tree, 'A short daily summary.')).toBe(true)
-      expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(true)
+      expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(false)
       expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
-      await press(tree, 'summary.askAstra')
+      await press(tree, 'A short daily summary.')
       expect(useUIStore.getState().astraConversationOpen).toBe(true)
       expect(mocks.push).not.toHaveBeenCalled()
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it('expands and collapses the text without opening Astra', async () => {
+  it('opens the complete long summary through its first sentence without an expand control', async () => {
     mocks.summary = 'Your habits are ready for today. '.repeat(8)
     const tree = await renderSummary()
-    const message = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === mocks.summary)[0]!
     try {
-      expect(action(tree, 'common.seeMore').props.accessibilityState).toEqual({ expanded: false })
-      expect(message().props.numberOfLines).toBe(3)
-      expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(false)
-      await press(tree, 'common.seeMore')
-      expect(action(tree, 'common.seeLess').props.accessibilityState).toEqual({ expanded: true })
-      expect(message().props.numberOfLines).toBeUndefined()
-      expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(true)
-      await press(tree, 'common.seeLess')
-      expect(message().props.numberOfLines).toBe(3)
-      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(action(tree, 'common.seeMore')).toBeUndefined()
+      expect(action(tree, 'Your habits are ready for today.').props.accessibilityHint).toBe('todayAstra.openConversation')
+      await press(tree, 'Your habits are ready for today.')
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: mocks.summary })
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
@@ -90,12 +86,10 @@ describe('daily summary on Hoje', () => {
     mocks.isFetching = true
     const tree = await renderSummary()
     try {
-      expect(hasText(tree, 'summary.loading')).toBe(true)
-      const message = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'summary.loading')[0]!
-      expect(message.props.accessibilityState).toMatchObject({ busy: true })
-      expect(action(tree, 'summary.askAstra').props.disabled).toBe(true)
-      expect(action(tree, 'summary.askAstra').props.accessibilityState).toMatchObject({ disabled: true })
-      await press(tree, 'summary.askAstra')
+      const loading = action(tree, 'summary.loading')
+      expect(loading.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(1)
+      await press(tree, 'summary.loading')
       expect(useUIStore.getState().astraConversationOpen).toBe(false)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
@@ -105,12 +99,12 @@ describe('daily summary on Hoje', () => {
     const tree = await renderSummary()
     try {
       expect(hasText(tree, 'summary.error')).toBe(true)
-      await press(tree, 'summary.retry')
+      await press(tree, 'summary.error')
       expect(mocks.refetch).toHaveBeenCalledTimes(1)
       mocks.isFetching = true
       await TestRenderer.act(() => tree.update(<TodayAISummary date="2026-08-29" />))
-      expect(action(tree, 'summary.retry').props.disabled).toBe(true)
-      await press(tree, 'summary.retry')
+      expect(action(tree, 'summary.error').props.disabled).toBe(true)
+      await press(tree, 'summary.error')
       expect(mocks.refetch).toHaveBeenCalledTimes(1)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
@@ -119,7 +113,7 @@ describe('daily summary on Hoje', () => {
     mocks.profile = createMockProfile({ hasProAccess: false })
     const tree = await renderSummary()
     try {
-      await press(tree, 'summary.upgrade')
+      await press(tree, 'summary.freePrompt')
       expect(mocks.push).toHaveBeenCalledWith('/upgrade')
       expect(mocks.useSummary).not.toHaveBeenCalled()
     } finally { await TestRenderer.act(() => tree.unmount()) }
