@@ -6,40 +6,43 @@ Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standin
 
 `/sleep` is the only entry point. It enters `/orchestrate --sleep` itself. This prompt follows a context relay, so `adoptRelayRun` returns true and the run state (queue, ledger, `openOwnerQuestions`) is inherited: read it back, do not replan. Start the first wakeup with `node tools/run-status.mjs --session <this session id>`.
 
-The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`. Restore it with `$HOME/.orbit-run-carry/carry-from-durable.sh <new session id>`, check that `grep -n "^SP=" *.sh` names the new scratchpad, and open your own `sleep-decisions.md` (the carry renames the old one to `prev-sleep-decisions-8235a283.md`, D404 to D421). Read `relay-inventory.md` there first: it lists every finished, unpushed round with its head and thread ids. Helpers, all in the scratchpad: `facts-all.sh <key> <pr>...` (threads with full bodies and non-green checks into `facts-<pr>.md`), `mk-round.mjs` and `build-rounds-w1.sh` (round texts from facts), `round-order.sh`, `qa.sh <delay> <workspace> <issue> <worktree name> <order> [launch args]` (`REASON=` sets the relaunch reason; `--tier deep` for large tickets and review rounds), `launch-batch6.sh <issue> <slug> [args]`, `lr.sh <order>...` (a launch's outcome, commits and the worker's report), `conflicts-all.sh <base ref> <pr>...`, `resolve-sonar-lines.mjs <file>` (sonar conflict union in the one-entry-per-line format), `sonar-check.sh <pr>...` (the SonarCloud check summary; the SonarCloud API answers 403), `dup-all.sh <pr>...` (jscpd pairs outside the CPD exclusions), `close-merged.sh <issue> <pr> <squash>...` (`REPO=`, `BASE=`), `bar-all.sh`, `merge-gate.sh <key> <pr> [allowed red check]...`, `mc-prep.sh` and `mc-check.sh` (combined local merge-result check), `layout-specs.sh`, `run-spec.sh`, `run-shard.sh <worktree> <label> <shard>` (a layout shard the CI way), `landing-probe/r16-check.sh` (landing build plus every probe, including `stillness.mjs` and `hittest-scroll.mjs`), `audit-run.sh`. Shell cautions: redirect only to literal paths (write helper scripts instead), the Bash tool runs zsh, `ls` is aliased (use `/bin/ls`), `timeout` is not installed, never `git worktree remove --force`, never disable hooks, every background launcher, waiter and check takes the Bash `timeout` 7200000, and never start a launcher with a trailing `&`. `wait-release.mjs` needs the full 40-character `--sha`. Ticket comments and closes go through `tools/comment-ticket.mjs` and `tools/complete-ticket.mjs`. A push already starts a Pullfrog review; post `@pullfrog review` only on a green head with no review at that head and no queued Pullfrog run. After each merge, fast-forward the orchestrating checkout (`git merge --ff-only origin/redesign/main`).
+The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`. Restore it with `$HOME/.orbit-run-carry/carry-from-durable.sh <new session id>`, check that `grep -n "^SP=" *.sh` names the new scratchpad, and open your own `sleep-decisions.md` (the carry renames the old one to `prev-sleep-decisions-0a897c6c.md`, D422 to D432). Read `relay-inventory.md` there first: it lists every finished, unpushed round with its head and thread ids. Helpers, all in the scratchpad: `facts-all.sh <key> <pr>...` (threads with full bodies and non-green checks into `facts-<pr>.md`), `mk-round.mjs` and `build-rounds-w1.sh` (round texts from facts), `round-order.sh`, `qa.sh <delay> <workspace> <issue> <worktree name> <order> [launch args]` (`REASON=` sets the relaunch reason; `--tier deep` for large tickets and review rounds), `launch-batch6.sh <issue> <slug> [args]`, `lr.sh <order>...` (a launch's outcome, commits and the worker's report), `conflicts-all.sh <base ref> <pr>...`, `resolve-sonar-lines.mjs <file>` (sonar conflict union in the one-entry-per-line format), `sonar-check.sh <pr>...` (the SonarCloud check summary; the SonarCloud API answers 403), `dup-all.sh <pr>...` (jscpd pairs outside the CPD exclusions), `close-merged.sh <issue> <pr> <squash>...` (`REPO=`, `BASE=`), `bar-all.sh`, `merge-gate.sh <key> <pr> [allowed red check]...`, `mc-prep.sh` and `mc-check.sh` (combined local merge-result check), `layout-specs.sh`, `run-spec.sh`, `run-shard.sh <worktree> <label> <shard>` (a layout shard the CI way), `landing-probe/r16-check.sh` (landing build plus every probe, including `stillness.mjs` and `hittest-scroll.mjs`), `audit-run.sh`. Shell cautions: redirect only to literal paths (write helper scripts instead), the Bash tool runs zsh, `ls` is aliased (use `/bin/ls`), `timeout` is not installed, never `git worktree remove --force`, never disable hooks, every background launcher, waiter and check takes the Bash `timeout` 7200000, and never start a launcher with a trailing `&`. `wait-release.mjs` needs the full 40-character `--sha`. Ticket comments and closes go through `tools/comment-ticket.mjs` and `tools/complete-ticket.mjs`. A push already starts a Pullfrog review; post `@pullfrog review` only on a green head with no review at that head and no queued Pullfrog run. After each merge, fast-forward the orchestrating checkout (`git merge --ff-only origin/redesign/main`).
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (scratchpad `reconcile.mjs`): 168 open, 168 placed, 0 unplaced, 1 placed twice (`#556`, the recurring sync ticket, listed in two batches; leave it). 18 redesign tickets are open (11 in the `539 Redesign` milestone plus `#1404`, `#1408`, `#1409`, `#1411`, `#1422`, `#1423`, `#1500`). The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (scratchpad `reconcile.mjs`): 168 open, 168 placed, 0 unplaced, 1 placed twice (`#556`, the recurring sync ticket, listed in two batches; leave it). 18 redesign tickets are open (11 in the `539 Redesign` milestone plus `#1404`, `#1408`, `#1409`, `#1411`, `#1422`, `#1423`, `#1500`), and every one has a pull request. The run ends only when the spec is done or for an external cause.
 
 ## In flight
 
-No worker, release watcher or subagent is running. The `ui#1841` CI waiter is stopped by the relay tool.
+No worker, release watcher or subagent is running. The scratchpad `relay-inventory.md` lists every head and order.
 
 | item | disposition |
 |---|---|
-| `ui#1841` (`#1519`, `3e3d7b14f`, base merge pushed) | wait on CI and the review of that head; it is first in the merge order; if Layout shard 1 fails again at `action-rows.spec.ts:167`, download the trace artifact and read the failing page before any fix (local runs pass) |
-| Twelve finished rounds, committed and NOT pushed (`relay-inventory.md`): `ui#1778`, `ui#1789`, `ui#1773`, `ui#1772`, `ui#1826` (threads); `ui#1830` (Unit Tests); `ui#1812`, `ui#1775`, `ui#1779` (duplication); `ui#1786`, `ui#1819`, `ui#1757` (base merges) | read each diff for gate edits, relaxed limits and `DESIGN.md` values; rerun `dup-all.sh` for the duplication rounds; answer each thread on its commit, merge the report into the body, resolve, then push once; `ui#1772` proves `today-date-layout.spec.ts` and `today-scoped-search.spec.ts` on a build before merging |
-| `ui#1790`, `ui#1781` (approved, clean, shared files) | the combined check `check-k14` (scratchpad) was running at the relay: read `check-k14/summary.txt`; when every step exits 0, merge both at their approved heads with `merge-gate.sh`; otherwise rerun `mc-prep.sh k14 7fa57d891 4eeb461e4` and `mc-check.sh` |
-| `ui#1791`, `ui#1809`, `ui#1794`, `ui#1782` (approved, sonar conflict only), `ui#1761`, `ui#1833`, `ui#1831`, `ui#1820`, `ui#1824` (docs conflicts) | after `ui#1841` merges: base-merge each mechanically (sonar with `resolve-sonar-lines.mjs`, registry rows and At a glance from the base), push; `ui#1824` takes the `block-registry.tsx` mirror-pair CPD exclusion; `ui#1791` first, because it fixes the `action-rows.spec.ts:120` red on `ui#1824`, `ui#1820` and `ui#1831` |
-| `ui#1827` (`#1415`, `main`, `f898e3a58`, green, no review) | request a review if none is queued, merge on the bar; then add `Guards` and `Tool and Hook Tests` (app_id 15368) to ui `main`'s required checks and read the protection back; then `#1419` (deep) and `#1418` |
-| `orbit-api#738` (`#101`), `orbit-api#739` (`#1508`) | read the diffs; `#738` must also make logout revoke the token (or show where it already does) and move its Render variables into `infra/configuration.tf`; merge on the bar |
-| Batch 6 orders ready, not launched: `#102`, `#114`, `#115` (deep), `#1502`, `#1503`, `#1505`, `#1506`, `#1507`, `#1509`, `#1515`, plus `#1524` (needs `prep-ticket.sh api 1524 staging-landing-terraform main`) | launch with `launch-batch6.sh <issue> <slug>` (slugs in `prep-batch6.sh`); `#102`, `#115`, `#1505` carry the run's decisions in their orders |
-| `landing#102` (`#1459`, `536350b`, on staging) | the owner reviews rounds 15 and 16 on `orbit-landing-staging.onrender.com`; his findings become round 17 |
+| `ui#1841` (`#1519`, `fb36d09b9`) | review fix pushed (pending reply contract restored, nightly Sonar cache writes removed, parity gate docs renamed), thread resolved; wait on CI and the review of that head, merge first; if Layout shard 1 fails at `action-rows.spec.ts:167`, download the trace artifact and read the failing page before any fix |
+| k14 combined check (`ui#1790` + `ui#1781`, worktree `mc-k14` under the previous `8235a283` scratchpad) | passed through the mobile suite; resume with `bash mc-resume.sh <mc-k14 path> k14` (web suite, build, layout); on pass merge `ui#1790` at `7fa57d891` with `merge-gate.sh`; `ui#1781` waits for `ui#1841` (both edit `CLAUDE.md`), then one base merge |
+| Twelve rounds pushed (`ui#1778`, `1773`, `1789`, `1772`, `1826`, `1830`, `1812`, `1775`, `1779`, `1786`, `1819`, `1757`) | wait on CI and Pullfrog; merge each on the bar; `ui#1772` proves `today-date-layout.spec.ts` and `today-scoped-search.spec.ts` on a build first; each that edits sonar, a registry row or a glance header takes one base merge after `ui#1841` |
+| `ui#1791`, `ui#1809`, `ui#1794`, `ui#1782`, `ui#1761`, `ui#1833`, `ui#1831`, `ui#1820`, `ui#1824` | after `ui#1841` merges: base-merge each mechanically (sonar with `resolve-sonar-lines.mjs`, registry rows and At a glance from the base), push; `ui#1824` takes the `block-registry.tsx` mirror-pair CPD exclusion; `ui#1791` first (it fixes the `action-rows.spec.ts:120` red on `ui#1824`, `ui#1820`, `ui#1831`) |
+| `ui#1827` (`#1415`, `main`, `f898e3a58`) | `@pullfrog review` posted; merge on an exact-head approval, then add `Guards` and `Tool and Hook Tests` (app_id 15368) to ui `main`'s required checks and read them back; then `#1419` (deep) and `#1418` |
+| `ui#1843` (`#1525`, `main`) | read the diff (it also touches web tests), merge on the bar; ship it on the open track with the next Android release; carry it to `redesign/main` with `#556` |
+| `orbit-api#738` (`#101`) | two P1 threads; launch `order-101-rb1.md` (`REASON="Review round 1 for the two Pullfrog threads." bash qa.sh 0 orbit-api 101 ticket-101-token-lifetime 101-rb1`); merge only after `ui#1843`; its production release waits for the Android build carrying `#1525` |
+| `orbit-api#740` to `#750` (`#1509`, `#1506`, `#1524`, `#1502`, `#102`, `#1505`, `#115`, `#1515`, `#1503`, `#114`, `#1507`) | read each diff; answer review threads with rounds; merge on the bar into api `main`; `#742` was applied to staging by target (verify the staging plan is clean, production untouched); `#750`'s IAM Terraform reaches production only with the owner's yes |
+| `#556` carry (`order-556-oct18.md`, worktree `ticket-556-carry-main-oct18`) | launch `bash qa.sh 0 orbit-ui-mobile 556 ticket-556-carry-main-oct18 556-oct18 --tier deep`; add `#1525` once `ui#1843` merges; it must merge before Orbit Staging 1.3.82 |
+| `landing#102` (`#1459`, `536350b`, on staging) | the owner reviews rounds 15 and 16; his findings become round 17 |
 | `#746`, `#1520` part 2 | after `ui#1841` merges, `#1520` part 2 backports it to `main`; carry api `main` into `redesign/main` through `#746` |
 | Uncommitted | `.claude/orchestrator.json` caps edit: keep, never stage or revert |
-| Branches, stashes, detached heads | no stashes; `mc-*` scratch worktrees are safe to prune except `mc-k14` until its check is read; every ticket worktree's unpushed commits are the twelve rounds above |
+| Branches, stashes, detached heads | no stashes; `mc-*` scratch worktrees are safe to prune except `mc-k14`; every ticket worktree's work is pushed |
 | Session chain | open (automatic relay) |
 
 ## Then, in this order
 
 1. Answer the owner first, in the language of his latest message (English).
-2. Drive `ui#1841` to merged; push the twelve finished rounds (threads answered first); merge `ui#1790` and `ui#1781` on `check-k14`.
-3. After `ui#1841`: the mechanical base merges above, `ui#1791` first; merge each on the bar.
-4. Launch the Batch 6 tickets and `#1524` (the Actions queue is empty, 40 concurrent jobs).
-5. The Astra plan as blockers merge (`#1483` after `ui#1824`), Batch L item 3 (`#1418`, `#1419` after `ui#1827`).
-6. When the wave and `#1474` (`ui#1809`) have merged: rerun the measured sweep and fix its findings, release staging web, verify `/api/health`, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`), push-notify and tell the owner.
-7. Idle Codex capacity: rerun one audit pass only after a large merge wave.
+2. Drive `ui#1841` to merged; resume k14 and merge `ui#1790`; merge the twelve pushed rounds as each clears the bar.
+3. Launch the `#556` carry and the `#738` round (the Actions queue holds the twelve rounds' runs; 40 concurrent jobs).
+4. After `ui#1841`: the mechanical base merges above, `ui#1791` first, then `ui#1781`; merge each on the bar.
+5. Merge the Batch 6 api pull requests on the bar; `ui#1843`, then `#738`.
+6. The Astra plan as blockers merge (`#1483` after `ui#1824`), Batch L item 3 (`#1418`, `#1419` after `ui#1827`).
+7. When the wave, `#1474` (`ui#1809`) and the `#556` carry have merged: rerun the measured sweep and fix its findings, release staging web, verify `/api/health`, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`, `#1525`), push-notify and tell the owner.
+8. Idle Codex capacity: rerun one audit pass only after a large merge wave.
 
 ## Sleep
 
@@ -55,23 +58,21 @@ Owner instructions: rush everything, the goal is launch; fix the GitHub Actions 
 
 Open owner questions (in the spec and `openOwnerQuestions`, never asked during a relay): THE REDESIGN GATE approval after the 1.3.82 retest (raise it only once that build is on the internal track).
 
+
 ## Previous prompt, disposition
 
-- Reading list, entry point, sleep rules, authorization, relay rule and owner instructions: carried (owner instructions extended with the rush order).
-- Close `#1437`, `#1402`, `#1512`, `#1490`: done (closed with merge evidence).
-- Landing round 15 push, probes, waitlist check and staging release: done (`0b7c90b`, then round 16 `536350b` on staging; waitlist post 200 against the staging API).
-- `ui#1841`: carried (base merge `3e3d7b14f` pushed; the red did not reproduce).
-- `orbit-api#737`: done (merged `b802f9e4d`, api `main` required checks changed, `#1521` closed by the merge).
-- ui `main` required checks second step: carried (after `ui#1827`).
-- `ui#1827`, `#1419`, `#1418`: carried.
-- Overlapping approved heads: carried, with the twelve rounds above and the mechanical merges after `ui#1841`.
-- `ui#1772`, `ui#1831`, `ui#1833`: carried (`ui#1772` in the finished rounds).
-- `ui#1824`, `ui#1820`, `ui#1826`, `#1483`: carried (`ui#1826` in the finished rounds).
-- `ui#1786`, `ui#1779`: carried (both in the finished rounds).
-- `ui#1778`, `ui#1789`, `ui#1773`: carried (finished rounds).
-- `ui#1830`, `ui#1812`, `ui#1775`: carried (finished rounds).
-- Batch 6 launches: carried (`#101` and `#1508` delivered as `orbit-api#738` and `#739`; the rest prepared).
-- GitHub Pro: done (owner: paid).
-- `#746`, the 1.3.82 steps, idle audits: carried.
+- Reading list, entry point, sleep rules, authorization, relay rule and owner instructions: carried.
+- Drive `ui#1841` to merged: carried (review fix `fb36d09b9` pushed, thread resolved, CI running).
+- Push the twelve finished rounds, threads answered first: done (all twelve pushed, nine threads resolved with red then green evidence, reports in the bodies).
+- Merge `ui#1790` and `ui#1781` on `check-k14`: carried (k14 passed through the mobile suite; `ui#1781` now waits for `ui#1841`).
+- Mechanical base merges after `ui#1841`, `ui#1791` first: carried.
+- `ui#1827` review, required checks, `#1419`, `#1418`: carried (review requested).
+- `orbit-api#738`: carried (review order composed; logout revocation shown from code; Android defect filed as `#1525`).
+- `orbit-api#739`: done (merged `0e3262836`, `#1508` closed).
+- Batch 6 launches and `#1524`: done (eleven pull requests, `orbit-api#740` to `#750`).
+- `landing#102` owner review: carried.
+- `#746`, `#1520` part 2: carried.
+- The 1.3.82 steps and idle audits: carried (test note list gains `#1525`).
+- New: the `#556` carry composed and not launched (the relay threshold came first).
 
 Every identifier here came from a previous session: treat each as a lead to verify.
