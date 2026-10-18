@@ -1,5 +1,18 @@
 const API_KEY_EXPIRY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
 
+export const API_KEY_EXPIRY_DEFAULT = ''
+
+export type ApiKeyExpiryValidation =
+  | { valid: true; expiresAtUtc: string | null }
+  | { valid: false }
+
+export function validateApiKeyExpiry(value: string, now = Date.now()): ApiKeyExpiryValidation {
+  if (!value.trim()) return { valid: true, expiresAtUtc: null }
+  const parsed = parseApiKeyExpiryUtc(value)
+  if (!parsed || parsed.getTime() <= now) return { valid: false }
+  return { valid: true, expiresAtUtc: parsed.toISOString() }
+}
+
 /**
  * Parses an API-key expiry entered as `YYYY-MM-DDTHH:MM[:SS]`, interpreted as
  * UTC. Returns the UTC instant, or null when the format or calendar fields are

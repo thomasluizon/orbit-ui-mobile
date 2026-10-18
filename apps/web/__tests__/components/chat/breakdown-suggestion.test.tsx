@@ -1,5 +1,5 @@
 import { createApiClientError } from '@orbit/shared/utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import type { ConflictWarning } from '@orbit/shared/types/chat'
@@ -39,6 +39,8 @@ beforeEach(() => {
   bulkCreate.mockReset()
   defaultProps.onConfirmed.mockReset()
 })
+
+afterEach(() => vi.restoreAllMocks())
 
 it('confirms removal of a named proposal and submits only the retained row', async () => {
   bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
@@ -316,13 +318,14 @@ it('keeps a rejected batch editable until it fits a persistent capacity constrai
 
 it('stops adding at 100 rows and allows adding again after removal', () => {
   render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 99 }, (_, index) => ({ title: `Habit ${index}` }))} />)
-  const add = screen.getByRole('button', { name: 'habits.breakdown.addHabit' })
+  const actions = within(screen.getByRole('group', { name: '' }))
+  const add = actions.getByRole('button', { name: 'habits.breakdown.addHabit' })
   fireEvent.click(add)
   expect(add).toBeDisabled()
   expect(screen.getByText(/habits\.breakdown\.limit/)).toHaveAttribute('role', 'status')
   fireEvent.click(add)
   expect(screen.getAllByRole('textbox')).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Habit 0/ }))
+  fireEvent.click(screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 0"})'))
   expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   expect(add).toBeEnabled()
@@ -335,16 +338,28 @@ it('never submits an oversized incoming proposal until it is reduced', async () 
     return Promise.resolve(makeBulkCreateResponse(request.habits.map(() => 'Success')))
   })
   render(<BreakdownSuggestion {...defaultProps} subHabits={Array.from({ length: 101 }, (_, index) => ({ title: `Habit ${index}` }))} />)
-  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  const unrelatedRowControl = screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 100"})')
+  const computedStyle = vi.spyOn(window, 'getComputedStyle')
+  const actions = within(screen.getByRole('group', { name: '' }))
+  fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   expect(bulkCreate).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByRole('button', { name: /habits\.breakdown\.removeHabit.*Habit 0/ }))
+  expect(defaultProps.onConfirmed).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByLabelText('habits.breakdown.removeHabit({"name":"Habit 0"})'))
   expect(screen.getByRole('dialog')).toHaveAccessibleName(/chat\.breakdown\.removeBody/)
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
-  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(actions.getByRole('button', { name: 'chat.preview.approve' }))
+  expect(bulkCreate).not.toHaveBeenCalled()
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-breakdown' }))
   await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1))
+  expect(bulkCreate).toHaveBeenCalledTimes(1)
   expect(bulkCreate.mock.calls[0]?.[0].habits).toHaveLength(100)
+  expect(bulkCreate.mock.calls[0]?.[0].habits.map((habit) => habit.title)).toEqual(
+    Array.from({ length: 100 }, (_, index) => `Habit ${index + 1}`),
+  )
+  expect(computedStyle.mock.calls.filter(([element]) => element === unrelatedRowControl),
+    'Large proposal interactions should not compute styles for unrelated row controls',
+  ).toHaveLength(0)
 })
 
 it('keeps an all-failed response editable and rejectable', async () => {

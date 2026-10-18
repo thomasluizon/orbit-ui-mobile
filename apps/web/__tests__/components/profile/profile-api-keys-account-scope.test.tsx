@@ -150,15 +150,27 @@ async function revealAccountAKey() {
   expectSmallSheetActions()
 }
 
-it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+it.each([
+  ['', null],
+  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
+])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
   render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  const expiryField = screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })
+  fireEvent.change(expiryField, { target: { value: expiry } })
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
   expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
   expectSmallSheetActions()
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeDisabled()
   fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeEnabled()
+  expect(expiryField).toHaveValue(expiry)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
+  expect(management.handleCreateKey).toHaveBeenCalledExactlyOnceWith({
+    name: en.profile.apiKeys.newKeyName, scopes: ['habits:read'], isReadOnly: false, expiresAtUtc,
+  }, expect.any(Function))
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+  expect(sheetSlotButtons('sheet-actions')).toEqual([en.orbitMcp.done])
 })
 
 it('takes the revealed API key off the screen when another account replaces the tab', async () => {
@@ -291,14 +303,14 @@ it.each([true, false])('submits read-only permission %s for simple and scoped ke
   if (!readOnly) fireEvent.click(permission)
   expect(permission).toHaveAttribute('aria-checked', String(readOnly))
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create })) })
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: readOnly }, expect.any(Function))
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.done }))
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
   const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
   expect(submit).toBeDisabled()
   fireEvent.change(screen.getByLabelText(en.profile.apiKeys.scopeLabel), { target: { value: '  habits:read  ' } })
   await act(async () => { fireEvent.click(submit) })
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, scopes: ['habits:read'], isReadOnly: readOnly }, expect.any(Function))
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, scopes: ['habits:read'], isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
 })
 
 it('freezes permission and both create entries while a read-only request is pending', async () => {
@@ -359,6 +371,7 @@ it.each([
     return null
   })
   vi.mocked(requestApiKeyCreationChallenge).mockResolvedValue(undefined as never)
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel }), { target: { value: '2099-12-31T23:59' } })
   fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
   if (mode === 'scoped' && grant === 'expired') await submitScopedKey()
   else await act(async () => { fireEvent.click(screen.getByRole('button', { name: mode === 'scoped' ? en.profile.apiKeys.createScoped : en.profile.apiKeys.create })) })
@@ -380,9 +393,10 @@ it.each([
   management.grantAvailable = true
   management.handleCreateKey.mockReset().mockResolvedValue(null)
   const returned = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('2099-12-31T23:59')
   if (mode === 'scoped') await submitScopedKey()
   else await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create })) })
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: true, ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: en.profile.apiKeys.newKeyName, isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
   returned.unmount()
   render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).not.toBeChecked()
@@ -417,7 +431,8 @@ it('preserves no scopes, unused, read/write and no expiry states', () => {
   expect(screen.getByText('No scopes')).toBeInTheDocument()
   expect(screen.getByText('Never')).toBeInTheDocument()
   expect(screen.getByText('Read/write')).toBeInTheDocument()
-  expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
+  expect(screen.queryByText(/^Expires /, { selector: 'p' })).not.toBeInTheDocument()
 })
 
 it('withholds key details while access is locked or the list is loading', () => {

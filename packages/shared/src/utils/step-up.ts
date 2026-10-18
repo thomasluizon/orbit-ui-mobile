@@ -23,6 +23,21 @@ export interface StepUpTimingRecord {
   exhaustedAt?: number
 }
 
+export function createStepUpTimingRecord(
+  operation: StepUpOperation,
+  sentAt: number,
+  previous: StepUpTimingRecord | null,
+): StepUpTimingRecord {
+  const exhaustedAt = previous?.exhaustedAt
+  return {
+    operation,
+    sentAt,
+    ...(exhaustedAt !== undefined && sentAt < exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
+      ? { exhaustedAt }
+      : {}),
+  }
+}
+
 export type StepUpPhase =
   | 'challenge'
   | 'checking'

@@ -1,62 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  STEP_UP_ATTEMPT_WINDOW_MS,
+  createStepUpTimingRecord,
+  createStepUpSessionState,
   getStepUpStorageKey,
   parseStepUpTimingRecord,
   type StepUpOperation,
   type StepUpTimingRecord,
 } from '@orbit/shared/utils'
 
-const visibleManagementOperations = new Set<StepUpOperation>()
-let apiKeyCreationGrantAvailable = false
-let pendingApiKeyReadOnly: boolean | null = null
-let accountId: string | null = null
-
-export function bindStepUpStateToAccount(nextAccountId: string): void {
-  if (accountId === nextAccountId) return
-  clearStepUpState()
-  accountId = nextAccountId
-}
-
-export function clearStepUpState(): void {
-  visibleManagementOperations.clear()
-  clearPendingApiKeyPermission()
-  apiKeyCreationGrantAvailable = false
-  accountId = null
-}
-
-export function markStepUpVerified(operation: StepUpOperation): void {
-  visibleManagementOperations.add(operation)
-  if (operation === 'keys') apiKeyCreationGrantAvailable = true
-}
-
-export function isStepUpVerified(operation: StepUpOperation): boolean {
-  return visibleManagementOperations.has(operation)
-}
-
-export function hasApiKeyCreationGrant(): boolean {
-  return apiKeyCreationGrantAvailable
-}
-
-export function rememberApiKeyCreationPermission(isReadOnly: boolean): void {
-  pendingApiKeyReadOnly = isReadOnly
-}
-
-export function readPendingApiKeyPermission(): boolean {
-  return apiKeyCreationGrantAvailable && pendingApiKeyReadOnly === true
-}
-
-export function clearPendingApiKeyPermission(): void {
-  pendingApiKeyReadOnly = null
-}
-
-export function consumeApiKeyCreationGrant(): void {
-  apiKeyCreationGrantAvailable = false
-}
-
-export function clearApiKeyCreationGrant(): void {
-  apiKeyCreationGrantAvailable = false
-}
+export const {
+  bindStepUpStateToAccount,
+  clearStepUpState,
+  readApiKeyExpiryDraft,
+  retainApiKeyExpiryDraft,
+  rememberApiKeyCreationPermission,
+  readPendingApiKeyPermission,
+  clearPendingApiKeyPermission,
+  markStepUpVerified,
+  isStepUpVerified,
+  hasApiKeyCreationGrant,
+  consumeApiKeyCreationGrant,
+  clearApiKeyCreationGrant,
+} = createStepUpSessionState()
 
 /**
  * Persists a timing record under the account that owns it. `AsyncStorage` survives a sign
@@ -92,16 +57,7 @@ export async function beginStepUpChallenge(
   sentAt = Date.now(),
 ): Promise<StepUpTimingRecord> {
   const previous = await readStepUpTiming(operation, accountId)
-  const exhaustedAt =
-    previous?.exhaustedAt !== undefined &&
-    sentAt < previous.exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
-      ? previous.exhaustedAt
-      : undefined
-  const record: StepUpTimingRecord = {
-    operation,
-    sentAt,
-    ...(exhaustedAt !== undefined ? { exhaustedAt } : {}),
-  }
+  const record = createStepUpTimingRecord(operation, sentAt, previous)
   return persistStepUpTiming(record, accountId)
 }
 

@@ -86,17 +86,32 @@ it.each([0, 1, 3])('shows the count before key step-up for %i active keys', (cou
     : `profile.apiKeys.activeCount:{"count":${count}}`)
 })
 
-it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+it.each([
+  ['', null],
+  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
+])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
+  mocks.create.mockClear()
+  mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const expiryField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')!
+  TestRenderer.act(() => expiryField.props.onChange(expiry))
   const scoped = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.createScoped')!
   TestRenderer.act(() => scoped.props.onClick())
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.apiKeys.scopeAction'])
   expectSmallSheetActions(tree.root)
   const createAction = () => tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
   expect(createAction().props.disabled).toBe(true)
-  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('habits:read'))
+  const scopeField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'profile.apiKeys.scopeLabel')!
+  TestRenderer.act(() => scopeField.props.onChange('habits:read'))
   expect(createAction().props.disabled).toBe(false)
+  expect(expiryField.props.value).toBe(expiry)
+  await TestRenderer.act(async () => { createAction().props.onClick(); await Promise.resolve() })
+  expect(mocks.create).toHaveBeenCalledExactlyOnceWith({
+    name: 'profile.apiKeys.newKeyName', scopes: ['habits:read'], isReadOnly: false, expiresAtUtc,
+  }, expect.any(Function))
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
+  TestRenderer.act(() => tree.unmount())
 })
 
 it('uses a small intrinsic acknowledgement for the revealed key', async () => {
@@ -178,13 +193,12 @@ it.each([true, false])('submits read-only permission %s for simple and scoped ke
   if (!readOnly) TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   expect(permissionSwitch(tree).props.accessibilityState.checked).toBe(readOnly)
   await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.create').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: readOnly }, expect.any(Function))
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
   TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.createScoped').props.onClick())
   expect(buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.disabled).toBe(true)
-  const { Input } = await import('@/components/ui/input')
-  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('  habits:read  '))
+  TestRenderer.act(() => tree.root.findByProps({ label: 'profile.apiKeys.scopeLabel' }).props.onChange('  habits:read  '))
   await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', scopes: ['habits:read'], isReadOnly: readOnly }, expect.any(Function))
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', scopes: ['habits:read'], isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
   TestRenderer.act(() => tree.unmount())
 })
 
@@ -225,7 +239,7 @@ it('hides permission at key capacity', () => {
 
 async function submitScopedKey(tree: ReturnType<typeof TestRenderer.create>) {
   TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.createScoped').props.onClick())
-  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('habits:read'))
+  TestRenderer.act(() => tree.root.findByProps({ label: 'profile.apiKeys.scopeLabel' }).props.onChange('habits:read'))
   await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
 }
 
@@ -241,6 +255,7 @@ it.each([
     return null
   })
   const tree = renderUnlockedKeys()
+  TestRenderer.act(() => tree.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.onChange('2099-12-31T23:59'))
   TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   if (mode === 'scoped' && grant === 'expired') await submitScopedKey(tree)
   else await TestRenderer.act(async () => { await buttonByLabel(tree, mode === 'scoped' ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick() })
@@ -260,9 +275,10 @@ it.each([
   mocks.grantAvailable = true
   mocks.create.mockReset().mockResolvedValue(null)
   const returned = renderUnlockedKeys()
+  expect(returned.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
   if (mode === 'scoped') await submitScopedKey(returned)
   else await TestRenderer.act(async () => { await buttonByLabel(returned, 'profile.apiKeys.create').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: true, ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
   TestRenderer.act(() => returned.unmount())
   const fresh = renderUnlockedKeys()
   expect(permissionSwitch(fresh).props.accessibilityState.checked).toBe(false)

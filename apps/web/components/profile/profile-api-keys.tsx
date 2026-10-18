@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { openApiKeyScopeOrStartStepUp, submitApiKeyCreation } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
+import { validateApiKeyExpiry } from '@orbit/shared/validation'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
@@ -26,7 +28,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
@@ -118,8 +120,10 @@ interface ScopeSheetProps {
   onCreate: (
     scope: string,
     onCreateGrantRequired: () => Promise<void>,
+    onInvalidExpiry: () => void,
   ) => Promise<ApiKeyCreateResponse | null>
   onCreateGrantRequired: () => void
+  onInvalidExpiry: () => void
   onCreated: (createdKey: ApiKeyCreateResponse) => void
 }
 
@@ -129,6 +133,7 @@ function ScopeSheet({
   onClose,
   onCreate,
   onCreateGrantRequired,
+  onInvalidExpiry,
   onCreated,
 }: Readonly<ScopeSheetProps>) {
   const t = useTranslations()
@@ -136,10 +141,11 @@ function ScopeSheet({
   const [scope, setScope] = useAccountScopedState('')
   async function submit() {
     const trimmedScope = scope.trim()
-    if (!trimmedScope) return
+    if (busy || !trimmedScope) return
     const result = await onCreate(
       trimmedScope,
       () => Promise.resolve(closeSheet(onCreateGrantRequired)),
+      () => closeSheet(onInvalidExpiry),
     )
     if (result) closeSheet(() => onCreated(result))
   }
@@ -151,13 +157,14 @@ function ScopeSheet({
       onClose={onClose}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
         </ActionRow>
       )}
     >
       <Input
         label={t('profile.apiKeys.scopeLabel')}
+        disabled={busy}
         value={scope}
         onChange={setScope}
         error={error ?? undefined}
@@ -333,7 +340,7 @@ function ApiKeyCreateControls({
       />
       <ActionRow>
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating} onClick={onCreateScoped}>
+        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating || stepUpBusy} onClick={onCreateScoped}>
           {t('profile.apiKeys.createScoped')}
         </PillButton>
         <PillButton
@@ -350,7 +357,7 @@ function ApiKeyCreateControls({
   )
 }
 
-function useApiKeyStepUp(isReadOnly: boolean) {
+function useApiKeyStepUp(isReadOnly: boolean, expiresAt: string) {
   const router = useRouter()
   const t = useTranslations()
   const accountId = useHeldAccountId()
@@ -373,6 +380,7 @@ function useApiKeyStepUp(isReadOnly: boolean) {
       }
       beginStepUpChallenge('keys', accountId)
       rememberApiKeyCreationPermission(isReadOnly)
+      retainApiKeyExpiryDraft(expiresAt)
       router.push('/step-up?operation=keys')
     } catch (error) {
       setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
@@ -384,20 +392,6 @@ function useApiKeyStepUp(isReadOnly: boolean) {
   return { busy, error, start, accountReady: accountId !== null }
 }
 
-function openScopeOrStartStepUp(
-  createGrantAvailable: boolean,
-  clearCreateKeyError: () => void,
-  openScope: () => void,
-  startStepUp: () => Promise<void>,
-): void {
-  clearCreateKeyError()
-  if (!createGrantAvailable) {
-    void startStepUp()
-    return
-  }
-  openScope()
-}
-
 export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
   const t = useTranslations()
   const router = useRouter()
@@ -405,9 +399,12 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
+  const [expiresAt, setExpiresAt] = useAccountScopedState(readApiKeyExpiryDraft)
+  const [expiryError, setExpiryError] = useAccountScopedState(false)
+  const [expiryFocusRequest, setExpiryFocusRequest] = useAccountScopedState(0)
   const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
   const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp(isReadOnly)
+  const stepUp = useApiKeyStepUp(isReadOnly, expiresAt)
 
   useEffect(clearPendingApiKeyPermission, [])
 
@@ -417,18 +414,31 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     t,
   })
 
+  function validateExpiry(focusInvalid = true) {
+    const expiry = validateApiKeyExpiry(expiresAt)
+    const invalid = !expiry.valid
+    setExpiryError(invalid)
+    if (invalid && focusInvalid) setExpiryFocusRequest((current) => current + 1)
+    return expiry
+  }
+
   async function createKey(
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void> = stepUp.start,
+    onInvalidExpiry?: () => void,
   ) {
-    const creationAccount = getAccountGeneration()
-    setCreating(true)
-    try {
-      const result = await management.handleCreateKey(request, onCreateGrantRequired)
-      return getAccountGeneration() === creationAccount ? result : null
-    } finally {
-      if (getAccountGeneration() === creationAccount) setCreating(false)
+    if (creating) return null
+    const expiry = validateExpiry(onInvalidExpiry === undefined)
+    if (!expiry.valid) {
+      onInvalidExpiry?.()
+      return null
     }
+    return submitApiKeyCreation({ ...request, expiresAtUtc: expiry.expiresAtUtc }, {
+      getAccountGeneration,
+      setCreating,
+      createKey: (request) => management.handleCreateKey(request, onCreateGrantRequired),
+      retainExpiryDraft: retainApiKeyExpiryDraft,
+    })
   }
 
   async function createSimpleKey() {
@@ -473,18 +483,37 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             onRevoke={management.setRevokingKeyId}
             onRetry={() => void management.apiKeysQuery.refetch()}
           />
+          {management.canCreateKey ? (
+            <Input
+              label={t('orbitMcp.expiresAtLabel')}
+              name="api-key-expiry"
+              value={expiresAt}
+              onChange={(value) => { setExpiresAt(value); setExpiryError(false) }}
+              placeholder={t('common.never')}
+              hint={t('orbitMcp.expiryFormatExample')}
+              error={expiryError ? t('orbitMcp.invalidExpiry') : undefined}
+              focusRequest={expiryFocusRequest}
+              autoComplete="off"
+              mono
+              disabled={creating || stepUp.busy}
+              onSubmit={() => void createSimpleKey()}
+            />
+          ) : null}
           <ApiKeyCreateControls
             canCreate={management.canCreateKey}
             creating={creating}
             isReadOnly={isReadOnly}
             onReadOnlyChange={setIsReadOnly}
             onCreate={() => void createSimpleKey()}
-            onCreateScoped={() => openScopeOrStartStepUp(
-              management.createGrantAvailable,
-              management.clearCreateKeyError,
-              () => setScopeOpen(true),
-              stepUp.start,
-            )}
+            onCreateScoped={() => {
+              if (!validateExpiry().valid) return
+              openApiKeyScopeOrStartStepUp(
+                management.createGrantAvailable,
+                management.clearCreateKeyError,
+                () => setScopeOpen(true),
+                stepUp.start,
+              )
+            }}
             scopeOpen={scopeOpen}
             stepUpBusy={stepUp.busy}
           />
@@ -504,10 +533,15 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           busy={creating}
           error={management.createKeyError}
           onClose={() => setScopeOpen(false)}
-          onCreate={(scope, onCreateGrantRequired) => createKey(
+          onCreate={(scope, onCreateGrantRequired, onInvalidExpiry) => createKey(
             { name: t('profile.apiKeys.newKeyName'), scopes: [scope], isReadOnly },
             onCreateGrantRequired,
+            onInvalidExpiry,
           )}
+          onInvalidExpiry={() => {
+            setScopeOpen(false)
+            setExpiryFocusRequest((current) => current + 1)
+          }}
           onCreateGrantRequired={() => {
             setScopeOpen(false)
             void stepUp.start()
