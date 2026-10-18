@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -8,7 +10,7 @@ import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/s
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
-let uses24HourClock = true
+let uses24HourClock: boolean | undefined = true
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -16,7 +18,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { uses24HourClock } }),
+  useProfile: () => ({ profile: uses24HourClock === undefined ? undefined : { uses24HourClock } }),
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -31,6 +33,16 @@ function openPicker() {
 function pickOption(columnLabel: string, label: string) {
   const column = screen.getByRole('radiogroup', { name: columnLabel })
   fireEvent.click(within(column).getByRole('radio', { name: label }))
+}
+
+function ProfileTimeFields() {
+  const [value, setValue] = useState<Time24 | ''>('')
+  return (
+    <>
+      <TimeField label="Start" value={value} onChange={setValue} onClear={() => setValue('')} />
+      <TimeField label="End" value="" onChange={vi.fn()} disabled={!value} />
+    </>
+  )
 }
 
 describe('TimeField', () => {
@@ -49,6 +61,59 @@ describe('TimeField', () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   })
   afterEach(() => vi.unstubAllGlobals())
+  it.each([
+    { typed: '08:00', expected: '08:00', enabled: true },
+    { typed: '8:13 pm', expected: '20:13', enabled: true },
+    { typed: '12:00 am', expected: '00:00', enabled: true },
+    { typed: '08:', expected: '', enabled: false },
+    { typed: '25:00', expected: '', enabled: false },
+    { typed: '', expected: '', enabled: false },
+  ])('reconciles "$typed" when the profile resolves its hour cycle', ({ typed, expected, enabled }) => {
+    uses24HourClock = undefined
+    const { rerender } = render(<ProfileTimeFields />)
+    const start = screen.getByRole('textbox', { name: 'Start' })
+    const end = screen.getByRole('textbox', { name: 'End' })
+    expect(start).toHaveAttribute('data-hour-cycle', 'h12')
+    fireEvent.focus(start)
+    fireEvent.change(start, { target: { value: typed } })
+    uses24HourClock = true
+    rerender(<ProfileTimeFields />)
+    expect(start).toHaveAttribute('data-hour-cycle', 'h23')
+    expect(start).toHaveValue(enabled ? expected : typed)
+    if (enabled) expect(end).toBeEnabled()
+    else expect(end).toBeDisabled()
+    fireEvent.blur(start)
+    expect(start).toHaveValue(expected)
+  })
+
+  it('does not commit a draft after the field becomes disabled while the profile resolves', () => {
+    uses24HourClock = undefined
+    const onChange = vi.fn()
+    const { rerender } = render(<TimeField label="Time" value="" onChange={onChange} />)
+    const input = screen.getByRole('textbox', { name: 'Time' })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '08:00' } })
+    expect(onChange).not.toHaveBeenCalled()
+    uses24HourClock = true
+    rerender(<TimeField label="Time" value="" onChange={onChange} disabled />)
+    expect(input).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('presents a committed time in 12-hour format when the preference changes while typing', () => {
+    uses24HourClock = true
+    const { rerender } = render(<ProfileTimeFields />)
+    const start = screen.getByRole('textbox', { name: 'Start' })
+    fireEvent.focus(start)
+    fireEvent.change(start, { target: { value: '20:13' } })
+    uses24HourClock = false
+    rerender(<ProfileTimeFields />)
+    expect(start).toHaveValue('8:13 pm')
+    fireEvent.blur(start)
+    expect(start).toHaveValue('8:13 pm')
+    expect(screen.getByRole('textbox', { name: 'End' })).toBeEnabled()
+  })
+
   it.each([
     { mode: 'dark', hourCycle: 'h23' },
     { mode: 'light', hourCycle: 'h23' },
