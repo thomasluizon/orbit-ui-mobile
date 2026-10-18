@@ -34,18 +34,16 @@ test("relocated guards retain the main branch commands and label conditions", ()
     ["root-allowlist__3", "node tools/check-docker-registries.mjs"],
     ["dashes__2", "node tools/check-dashes.mjs --check-baseline"],
     ["copy__1", "node tools/check-copy.mjs --check"],
-    ["ratchet__1", "node tools/check-suppressions-ratchet.mjs"],
     ["expo-pin__2", "CI=1 npx expo install --check"],
-    ["review-harness__1", "node tools/check-review-harness.mjs"],
     ["dependency-audit__1", "npm audit --omit=dev --audit-level=critical"],
     ["contract-drift__1", "orval@8.37.0"],
     ["design-guard__1", "Design token guard passed."],
     ["architecture-map__1", "node tools/arch-map.mjs"],
   ]
   for (const [id, command] of expected) assert.ok(stepById(id)?.run.includes(command), `${id} retains ${command}`)
-  assert.match(stepById("ratchet__1").if, /ratchet:reseed/)
-  assert.match(stepById("parity__1").if, /parity:exempt/)
-  assert.match(stepById("parity__1").if, /dependabot\[bot\]/)
+  assert.equal(stepById("ratchet__1"), undefined)
+  assert.equal(stepById("parity__1"), undefined)
+  assert.equal(stepById("review-harness__1"), undefined)
   assert.match(stepById("expo-pin__2").if, /steps\.mobile-pkg\.outputs\.changed == 'true'/)
   assert.equal(stepById("expo-pin__2")["working-directory"], "apps/mobile")
 })
@@ -67,7 +65,7 @@ test("PR tests delegate guards once and run both complete harnesses", () => {
   const job = testWorkflow.jobs["tool-hook-tests"]
   assert.equal(job.needs, undefined)
   assert.equal(testWorkflow.on.pull_request.paths, undefined)
-  for (const command of ["node tools/test-tools.mjs", "node .claude/hooks/test-hooks.mjs", "node --test tools/__tests__/guards-consolidation.test.mjs"]) {
+  for (const command of ["node tools/test-tools.mjs", "node .claude/hooks/test-hooks.mjs", "node --test tools/__tests__/guards-consolidation.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs"]) {
     assert.ok(job.steps.some((step) => step.run === command), command)
   }
   assert.equal(stepById("performance-workflow__1").if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")

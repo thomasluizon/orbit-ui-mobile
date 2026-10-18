@@ -37,7 +37,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Web Playwright e2e / post-deploy smoke | `apps/web/e2e` | `npm --workspace @orbit/web run test:smoke` (`playwright test`, needs `SMOKE_BASE_URL`) | the real core flows (auth, create habit, log habit, Astra create-habit, paywall) against the live deployment |
 | Web perf budget (authed Today Lighthouse) | `apps/web` (`perf.yml`) | build web, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` (`lhci autorun`) | that the signed-in Today surface (`/`) stays within its LCP / TBT / script-bundle-size budgets, measured over 5 median runs against the local mock orbit-api |
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
-| Guard workflow behavior | `.github/workflows` | `node --test tools/__tests__/guards-consolidation.test.mjs` | shared setup, independent guard failure conditions, preserved commands, labels, artifacts and removed duplicate owners |
+| CI workflow behavior | `.github/workflows` | `node --test tools/__tests__/guards-consolidation.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs` | guard failure conditions, retained checks, metadata edits and parity labels, local and CI worker allocation, and nightly analysis |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (no deps) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 
@@ -54,9 +54,12 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 
 ## CI mapping
 
-- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`.
+- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test --concurrency=1 -- --coverage`), `Tool and Hook Tests`, type-check, lint and SonarCloud analysis, on PRs to `main` and `redesign/main`. Locally each unit suite uses 25% of the host; CI runs workspace suites sequentially so each suite can use all available cores.
+- **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan.
+- **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification, the suppressions ratchet with its current reseed label, and UI review evidence without installing dependencies. Its check name is separate from `Guards`.
+- **`.github/workflows/sonarcloud.yml`** - nightly and manually dispatched coverage analysis for `main` and `redesign/main`, one branch at a time. PR analysis continues to consume `Unit Tests` coverage. Scheduled workflows activate from the default branch.
 - **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. Run both locally after touching `tools/**` or `.claude/**`.
-- **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
+- **`.github/workflows/mutation.yml`** - nightly and manually dispatched full Stryker runs on `main`, with `--force` and a report artifact. Mutation thresholds remain report-only.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse budget gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `lhci autorun` with a `puppeteerScript` fake-JWT injection to assert LCP / TBT / script-bundle-size budgets on the signed-in `/` (Today) surface. Uploads the `.lighthouseci/` reports.
 

@@ -33,8 +33,8 @@ Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.
 
 ### 4. Never re-flag what a gate already enforces
 
-If ESLint `local/*`, a `guards.yml` step (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK
-Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
+If ESLint `local/*`, a `guards.yml` step (Dash Ban, Copy Register, Expo SDK
+Pin), the `PR Metadata` parity and suppressions checks, or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
 
 ### 5. Load-bearing strings need approval before they change
 

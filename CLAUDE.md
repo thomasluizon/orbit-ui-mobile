@@ -12,7 +12,7 @@ Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository
 
 ## Cross-platform parity (MANDATORY)
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next) and a layout-shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity step in the `Guards` job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next) and a layout-shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The `PR Metadata` job in `pr-metadata.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
 
 ## Code standards
 
@@ -49,14 +49,14 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Docs registry
 
-Grep a doc's `At a glance` header before loading it; update this table when a doc changes.
+Grep a doc's `At a glance` header before loading it. Registry rows and glance headers describe stable purposes; update them only when a purpose changes. Record amendments in the document body.
 
 | Doc | Purpose |
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
-| `DESIGN.md` | UI spec; read before frontend work. |
+| `DESIGN.md` | UI specification, authority order, information architecture and bans; read before frontend work. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
-| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render releases with redesign Worker route verification. |
+| `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
