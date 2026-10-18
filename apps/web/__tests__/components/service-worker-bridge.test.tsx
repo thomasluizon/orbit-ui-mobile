@@ -100,16 +100,16 @@ describe('ServiceWorkerBridge', () => {
     await vi.waitFor(() => expect(mockCaptureException).toHaveBeenCalledWith(failure))
   })
 
-  it('routes a notification click through the shared destination rule', async () => {
+  it('routes a notification click through the shared destination rule', () => {
     const container = installServiceWorkerContainer()
     renderBridge()
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/'], ['/progress']])
-    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
-    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
+    expect(mockPush.mock.calls).toEqual([['/?astra=proactive'], ['/progress']])
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
   })
 
   it.each([
@@ -133,9 +133,9 @@ describe('ServiceWorkerBridge', () => {
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
-    expect(mockPush).toHaveBeenCalledWith('/')
-    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
-    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
 
@@ -206,21 +206,22 @@ describe('ServiceWorkerBridge', () => {
     expect(window.location.search).toBe('?date=2026-09-29')
   })
 
-  it('opens Astra for a conversation notification in a newly launched window', async () => {
+  it('routes a conversation notification through the authenticated Astra entry', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/')
-    await vi.waitFor(() => expect(useUIStore.getState().astraConversationOpen).toBe(true))
-    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: createMockProactiveItem().text })
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
   })
 
   it('keeps the Astra launch intent in the route through anonymous onboarding and sign-in', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/')
-    expect(window.location.search).toBe('')
+    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useChatStore.getState().messages).toEqual([])
   })
 
   it('stays on the origin for a crafted launch link and still clears it', () => {

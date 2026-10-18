@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { onlineManager, type QueryClient } from '@tanstack/react-query'
 import { proactiveKeys } from '@orbit/shared/query'
 import type { ProactiveItem } from '@orbit/shared/types'
 import { useChatStore } from '@/stores/chat-store'
@@ -30,7 +30,9 @@ export async function openCurrentProactiveItem(queryClient: QueryClient) {
   const epoch = getSessionEpoch()
   let item: ProactiveItem | null
   try {
-    item = await queryClient.fetchQuery({ ...currentProactiveOptions, staleTime: 0 })
+    item = onlineManager.isOnline()
+      ? await queryClient.fetchQuery({ ...currentProactiveOptions, staleTime: 0 })
+      : queryClient.getQueryData<ProactiveItem | null>(proactiveKeys.current()) ?? null
   } catch {
     item = queryClient.getQueryData<ProactiveItem | null>(proactiveKeys.current()) ?? null
   }

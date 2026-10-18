@@ -5,18 +5,15 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
-import type { QueryClient } from '@tanstack/react-query'
 import { proactiveKeys } from '@orbit/shared/query'
-import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 
 type AppRouter = ReturnType<typeof useRouter>
 
-function openNotificationUrl(router: AppRouter, queryClient: QueryClient, url: unknown) {
+function openNotificationUrl(router: AppRouter, url: unknown) {
   const destination = typeof url === 'string' ? getNotificationDestination(url) : null
   if (!destination) return
-  router.push(destination.url)
-  if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+  router.push(destination.opensAstra ? '/?astra=proactive' : destination.url)
 }
 
 /** Reads the url `public/sw.js` opened a new window with, then drops it from the address bar. */
@@ -41,8 +38,8 @@ export function ServiceWorkerBridge(): null {
 
   useEffect(() => {
     const launchUrl = takeLaunchNotificationUrl()
-    if (launchUrl !== null) openNotificationUrl(router, queryClient, launchUrl)
-  }, [queryClient, router])
+    if (launchUrl !== null) openNotificationUrl(router, launchUrl)
+  }, [router])
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
@@ -61,7 +58,7 @@ export function ServiceWorkerBridge(): null {
       }
       if (message.type === 'orbit:notification-click' && 'url' in message) {
         event.ports[0]?.postMessage({ type: 'orbit:notification-click-received' })
-        openNotificationUrl(router, queryClient, message.url)
+        openNotificationUrl(router, message.url)
       }
     }
 

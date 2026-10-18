@@ -691,6 +691,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     })
 
     const routeNotificationResponse = (response: ExpoNotificationResponse) => {
+      if (!useAuthStore.getState().isAuthenticated) return
       const maybeUrl = response.notification.request.content?.data?.url
       if (typeof maybeUrl !== 'string') return
       const destination = getNotificationDestination(maybeUrl)
@@ -719,7 +720,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       responseSubscription.remove()
       receivedSubscription.remove()
     }
-  }, [isSupported, router, syncGrantedPermission])
+  }, [isAuthenticated, isSupported, router, syncGrantedPermission])
 
   return {
     expoPushToken,

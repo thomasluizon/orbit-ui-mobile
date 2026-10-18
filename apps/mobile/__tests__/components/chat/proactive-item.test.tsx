@@ -1,7 +1,7 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestRenderer as NativeTestRenderer } from 'react-test-renderer'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { proactiveKeys } from '@orbit/shared/query'
 import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
@@ -44,6 +44,8 @@ async function press(tree: ReactTestRenderer, label: string) {
   await TestRenderer.act(() => { (button(tree, label).props.onPress as () => void)() })
   await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
 }
+
+afterEach(() => onlineManager.setOnline(true))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -142,6 +144,22 @@ describe('proactive conversation', () => {
     await openCurrentProactiveItem(client)
     expect(useChatStore.getState().messages[0]?.content).toBe(item.text)
     expect(mocks.api.mock.calls.filter(([path]) => path === API.proactive.opened(item.id))).toHaveLength(1)
+  })
+
+  it.each([true, false])('opens immediately offline with cached content: %s', async (cached) => {
+    const { client } = setup()
+    if (cached) client.setQueryData(proactiveKeys.current(), item)
+    onlineManager.setOnline(false)
+    try {
+      void openCurrentProactiveItem(client)
+      await Promise.resolve()
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useChatStore.getState().messages).toEqual(cached
+        ? [expect.objectContaining({ role: 'ai', content: item.text })]
+        : [])
+    } finally {
+      client.clear()
+    }
   })
 
   it('opens an empty conversation for no item and ignores a replaced account response', async () => {

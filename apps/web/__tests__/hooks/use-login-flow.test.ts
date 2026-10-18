@@ -1,4 +1,8 @@
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { NextRequest } from 'next/server'
+import { proxy } from '@/proxy'
+import { ServiceWorkerBridge } from '@/components/service-worker-bridge'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, fireEvent, renderHook, waitFor } from '@testing-library/react'
@@ -7,6 +11,7 @@ import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
 
 const mocks = vi.hoisted(() => ({
   search: '',
+  currentProactive: vi.fn(),
   language: 'en',
   translate: (key: string) => key,
   isOnline: true,
@@ -19,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   recoverSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
   assign: vi.fn(),
 }))
+
+vi.mock('@/app/actions/chat', () => ({ getCurrentProactiveItem: mocks.currentProactive, reportProactiveOpened: vi.fn() }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => mocks.translate,
@@ -46,6 +53,7 @@ vi.mock('@/stores/auth-store', () => ({
       recoverSessionRefreshFailure: mocks.recoverSessionRefreshFailure,
     }),
   }),
+  getHeldAccountId: () => null,
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 
@@ -167,13 +175,37 @@ it.each(['/profile', '/chat'])('carries the destination of a notification clicke
 
   act(() => { result.current.signInWithGoogle() })
 
-  expect(sessionStorage.getItem('auth_return_url')).toBe(url === '/chat' ? '/?astra=open' : url)
+  expect(sessionStorage.getItem('auth_return_url')).toBe(url === '/chat' ? '/?astra=proactive' : url)
 })
 
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
+})
+
+it('carries an anonymous onboarding push through the proxy and code login return', async () => {
+  window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const bridge = render(React.createElement(QueryClientProvider, { client }, React.createElement(ServiceWorkerBridge)))
+  expect(mocks.push).toHaveBeenCalledWith('/?astra=proactive')
+  expect(mocks.currentProactive).not.toHaveBeenCalled()
+  const destination = mocks.push.mock.calls[0]![0] as string
+  const response = await proxy(new NextRequest(new URL(destination, 'https://app.useorbit.org')))
+  const login = new URL(response.headers.get('location')!)
+  expect(login.pathname).toBe('/login')
+  expect(login.searchParams.get('astra')).toBe('proactive')
+  bridge.unmount()
+  mocks.push.mockClear()
+  mocks.search = login.searchParams.toString()
+  const { result } = renderHook(() => useLoginFlow())
+  await advanceToCodeStep(result)
+  await act(async () => { await result.current.verifyCode('123456') })
+  expect(mocks.setAuth).toHaveBeenCalledWith(loginResponse)
+  expect(mocks.push).toHaveBeenCalledWith('/?astra=proactive')
+  expect(mocks.currentProactive).not.toHaveBeenCalled()
+  client.clear()
+  window.history.replaceState(null, '', '/')
 })
 
 it('uses a fresh token for web send, resend, and verify requests', async () => {

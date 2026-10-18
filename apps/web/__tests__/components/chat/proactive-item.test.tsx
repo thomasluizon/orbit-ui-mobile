@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { proactiveKeys } from '@orbit/shared/query'
@@ -33,6 +33,8 @@ function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return { client, wrapper: ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> }
 }
+
+afterEach(() => onlineManager.setOnline(true))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -137,6 +139,22 @@ describe('proactive conversation', () => {
     fireEvent.click(button)
     await waitFor(() => expect(send).toHaveBeenCalledWith(item.actionPrompt))
     expect(mocks.acted).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([true, false])('opens immediately offline with cached content: %s', async (cached) => {
+    const { client } = setup()
+    if (cached) client.setQueryData(proactiveKeys.current(), item)
+    onlineManager.setOnline(false)
+    try {
+      void openCurrentProactiveItem(client)
+      await Promise.resolve()
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useChatStore.getState().messages).toEqual(cached
+        ? [expect.objectContaining({ role: 'ai', content: item.text })]
+        : [])
+    } finally {
+      client.clear()
+    }
   })
 
   it('opens an ordinary empty conversation on no item and rejects a response from a replaced account', async () => {
