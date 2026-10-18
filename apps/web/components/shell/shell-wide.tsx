@@ -156,6 +156,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
           <button
             type="button"
             onClick={onPalette}
+            aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
             className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
           >

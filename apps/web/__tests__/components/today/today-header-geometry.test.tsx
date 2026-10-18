@@ -25,6 +25,8 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { Menu } from '@/components/ui/menu'
+import { useUIStore } from '@/stores/ui-store'
+import { useShellStore } from '@/stores/shell-store'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
@@ -161,6 +163,45 @@ describe('Hoje header geometry', () => {
       if (width >= 1024) expect(await page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.nav.search }).isVisible()).toBe(true)
     } finally { await page.close() }
   })
+
+  it.each([1024, 1280].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+    'retains the exact sidebar search name across habit views in $locale at $width', async ({ width, locale }) => {
+      const words = locale === 'en' ? en : ptBr
+      function HabitViewHeader() {
+        const activeView = useUIStore((state) => state.activeView)
+        const setActiveView = useUIStore((state) => state.setActiveView)
+        return <TodayDateControl {...props} showDate={activeView === 'today'}
+          beforeDate={<HabitViewSwitch value={activeView} onChange={setActiveView} />} />
+      }
+      useUIStore.setState({ activeView: 'today' })
+      const rendered = render(<NextIntlClientProvider locale={locale} messages={words}>
+        <DestinationShell onCreate={noop}><HabitViewHeader /></DestinationShell>
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        for (const label of [words.habits.viewToday, words.habits.viewAll, words.habits.viewGeneral]) {
+          fireEvent.click(within(rendered.container).getByRole('radio', { name: label }))
+          expect(within(rendered.container).getByRole('radio', { name: label })).toBeChecked()
+          await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
+          const search = page.locator('[data-shell-sidebar]').getByRole('button', { name: words.nav.search, exact: true })
+          expect(await search.count()).toBe(1)
+          expect(await search.isVisible()).toBe(true)
+          const bounds = await search.boundingBox()
+          expect(bounds?.width).toBeGreaterThanOrEqual(48)
+          expect(bounds?.height).toBeGreaterThanOrEqual(48)
+          useShellStore.setState({ paletteOpen: false })
+          const sidebar = rendered.container.querySelector<HTMLElement>('[data-shell-sidebar]')!
+          fireEvent.click(within(sidebar).getByRole('button', { name: words.nav.search }))
+          expect(useShellStore.getState().paletteOpen).toBe(true)
+        }
+      } finally {
+        rendered.unmount()
+        useUIStore.setState({ activeView: 'today' })
+        useShellStore.setState({ paletteOpen: false })
+        await page.close()
+      }
+    },
+  )
 
   it.each([320, 360, 384, 412, 600, 768, 840, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))(
     'keeps all three habit views on one line in $locale at $width', async ({ width, locale }) => {

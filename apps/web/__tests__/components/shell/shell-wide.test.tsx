@@ -221,8 +221,9 @@ describe('ShellWide', () => {
       />,
     )
 
-    const search = screen.getByRole('button', { name: /^Buscar/ })
+    const search = screen.getByRole('button', { name: 'Buscar' })
     expect(search).toHaveTextContent('Buscar')
+    expect(within(search).getByText('Ctrl K')).toBeVisible()
     fireEvent.click(search)
     expect(onPalette).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Criar hábito' })).toHaveTextContent('Criar hábito')
