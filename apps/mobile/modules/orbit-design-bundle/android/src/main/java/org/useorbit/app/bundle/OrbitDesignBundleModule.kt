@@ -11,11 +11,13 @@ class OrbitDesignBundleModule : Module() {
     private val launchClaimed = AtomicBoolean(false)
 
     fun prepareEmbeddedLaunch(context: Context) {
-      UpdatesController.initializeWithoutStarting(context, false)
-      UpdatesController.instance.setUpdateRequestHeadersOverride(
-        mapOf("expo-channel-name" to "legacy", "orbit-design-launch" to "embedded")
-      )
-      UpdatesController.instance.start()
+      // WHY #1419: Expo captures startup headers before its public setter can reset them.
+      // The installed UpdatesConfigurationOverride source and a compatibility test pin these keys.
+      context.getSharedPreferences("dev.expo.updates.prefs", Context.MODE_PRIVATE)
+        .edit()
+        .remove("updatesConfigOverride")
+        .apply()
+      UpdatesController.initialize(context, false)
     }
   }
 

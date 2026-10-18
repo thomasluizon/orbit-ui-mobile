@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { AndroidConfig, ExportedConfig, ExportedConfigWithProps } from '@expo/config-plugins'
 import withDesignBundleLaunch from '../../plugins/with-design-bundle-launch'
@@ -24,6 +26,17 @@ async function apply(contents: string): Promise<string> {
 }
 
 describe('embedded design startup', () => {
+  it('clears the verified persisted Expo override before constructing its startup procedure', () => {
+    const native = readFileSync(resolve(import.meta.dirname, '../../modules/orbit-design-bundle/android/src/main/java/org/useorbit/app/bundle/OrbitDesignBundleModule.kt'), 'utf8')
+    const expoRoot = resolve(require.resolve('expo-updates/package.json'), '..')
+    const override = readFileSync(resolve(expoRoot, 'android/src/main/java/expo/modules/updates/UpdatesConfigurationOverride.kt'), 'utf8')
+    expect(override).toContain('UPDATES_PREFS_FILE = "dev.expo.updates.prefs"')
+    expect(override).toContain('UPDATES_PREFS_KEY_UPDATES_CONFIGURATION_OVERRIDE = "updatesConfigOverride"')
+    expect(native).toContain('getSharedPreferences("dev.expo.updates.prefs", Context.MODE_PRIVATE)')
+    expect(native).toContain('.remove("updatesConfigOverride")')
+    expect(native.indexOf('.remove("updatesConfigOverride")')).toBeLessThan(native.indexOf('UpdatesController.initialize('))
+  })
+
   it('prepares the embedded bundle before React Native loads in the installed Expo template', async () => {
     const contents = await apply(template)
     expect(contents.indexOf('prepareEmbeddedLaunch(this)')).toBeGreaterThan(contents.indexOf('super.onCreate()'))

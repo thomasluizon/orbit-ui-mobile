@@ -54,8 +54,12 @@ change, advance the runtime in both branches and build another binary before tar
 Keep `expo-linear-gradient` in the union even when the redesign does not call it. Keep the widget
 bridge backward compatible with one-argument and two-argument `syncWidgetData` and both theme maps.
 
-Each cold process starts on the embedded legacy bundle. The startup plugin restores the `embedded`
-value of the declared `orbit-design-launch` header before Expo starts; fetched updates use `selected`.
+Each cold process starts on the embedded legacy bundle. The startup plugin clears Expo's persisted
+request override before constructing the controller, restoring the declared `orbit-design-launch`
+header's `embedded` value; fetched updates use `selected`. Expo captures startup configuration during
+construction, so its public header setter cannot perform this initial reset. The native adapter uses
+the installed `UpdatesConfigurationOverride` preference keys, and a compatibility test checks them
+against the installed Expo source. Recheck that dependency when upgrading Expo.
 Expo selects cached updates by their full request headers, so an offline cold start stays on the
 embedded bundle. The native process guard permits one design reload, including across JavaScript
 reloads. The launch reads the saved account flag from SecureStore; sign-in and foreground refreshes
