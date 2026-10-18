@@ -3,12 +3,19 @@
     "name": "Orbit",
     "slug": "orbit",
     "version": "1.1.4",
+    "runtimeVersion": "orbit-android-designs-1",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "orbit",
     "updates": {
-      "enabled": false,
-      "checkAutomatically": "NEVER"
+      "enabled": true,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734",
+      "requestHeaders": {
+        "expo-channel-name": "legacy",
+        "orbit-design-launch": "embedded"
+      }
     },
     "splash": {
       "image": "./assets/splash-icon.png",

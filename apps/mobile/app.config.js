@@ -5,6 +5,7 @@ function withLocalPlugins(plugins) {
   const pluginPaths = [
     './plugins/with-android-release-build-fixes',
     './plugins/with-react-native-imperative-focus',
+    './plugins/with-design-bundle-launch',
   ]
 
   for (const pluginPath of pluginPaths) {
@@ -31,6 +32,7 @@ module.exports = () => {
 
   return {
     ...productionConfig,
+    runtimeVersion: `${productionConfig.runtimeVersion}-staging`,
     name: 'Orbit Staging',
     scheme: 'orbit-staging',
     android: {
