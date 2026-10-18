@@ -6,8 +6,7 @@ import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
 import { MenuAnchorHost } from '@/components/ui/menu'
-import { ParentRing } from '@/components/ui/parent-ring'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from './habit-check'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
@@ -35,18 +34,6 @@ interface HabitRowTrailingProps {
   completionStatusUnavailable: boolean
 }
 
-function resolveParentRingColors(
-  habit: NormalizedHabit,
-  tokens: ReturnType<typeof createTokensV2>,
-) {
-  if (habit.isBadHabit) {
-    return { stroke: tokens.statusBad }
-  }
-  return {
-    stroke: undefined,
-  }
-}
-
 function completionRingLabel(unavailable: boolean, status: string, action: string, title: string): string {
   return unavailable ? `${action}: ${title}` : `${status}, ${action}: ${title}`
 }
@@ -56,7 +43,7 @@ function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable
 }
 
 function SelectionStatusGlyph({
-  habit, depth, hasChildren, childrenDone, childrenTotal, dotState, isDoneForRange, tokens,
+  hasChildren, childrenDone, childrenTotal, dotState, isDoneForRange,
   completionReadOnly, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
@@ -65,20 +52,19 @@ function SelectionStatusGlyph({
     return (
       <View accessibilityRole="image" accessibilityLabel={`${statusName}, ${childrenDone}/${childrenTotal}`}
         style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-        <ParentRing done={childrenDone} total={childrenTotal} size={depth === 1 ? 24 : 30}
-          {...resolveParentRingColors(habit, tokens)} />
+        <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
       </View>
     )
   }
   return (
     <View style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
-      <StatusRing status={dotState} size={depth === 1 ? 24 : 30} label={statusName} />
+      <HabitCheck status={dotState} label={statusName} unavailable={completionStatusUnavailable} />
     </View>
   )
 }
 
 function InteractiveParentRing({
-  habit, depth, childrenDone, childrenTotal, isDoneForRange, dotState, actions, tokens,
+  habit, childrenDone, childrenTotal, isDoneForRange, dotState, actions, tokens,
   completionReadOnly, completionReason, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
@@ -86,7 +72,7 @@ function InteractiveParentRing({
   const toggleLabel = isDoneForRange ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionLabel = completionRingLabel(completionStatusUnavailable, statusName, toggleLabel, habit.title)
   return (
-    <Pressable onPress={() => {
+    <Pressable focusOffset={-10} onPress={() => {
       if (completionReadOnly) return
       const parentAction = isDoneForRange ? actions.onUnlog : actions.onLog
       parentAction?.()
@@ -100,8 +86,7 @@ function InteractiveParentRing({
         pressed && !completionReadOnly
           ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
       ]}>
-      <ParentRing done={childrenDone} total={childrenTotal} size={depth === 1 ? 24 : 30}
-        {...resolveParentRingColors(habit, tokens)} />
+      <HabitCheck status={dotState} progress={{ done: childrenDone, total: childrenTotal }} />
     </Pressable>
   )
 }
@@ -120,7 +105,7 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
     disabled={props.completionReadOnly || (!props.canLog && !props.isDoneForRange)}
     accessibilityLabel={completionLabel}
     accessibilityHint={props.completionReadOnly ? props.completionReason : undefined}
-    tokens={props.tokens} size={props.depth === 1 ? 24 : 30} />
+    tokens={props.tokens} />
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243

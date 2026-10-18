@@ -108,3 +108,13 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, en.privacy.dataResidency.body)).toBe(true)
   })
 })
+
+it.each([['en', en], ['pt-BR', ptBR]] as const)('renders Notion access and retention disclosures in %s', (_locale, messages) => {
+  translations.messages = messages
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<PrivacyScreen />) })
+  expect(rendersText(tree.root, messages.privacy.thirdParty.notion)).toBe(true)
+  expect(rendersText(tree.root, messages.privacy.retention.notion)).toBe(true)
+  TestRenderer.act(() => tree.unmount())
+  translations.messages = en
+})

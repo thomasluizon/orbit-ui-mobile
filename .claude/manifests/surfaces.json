@@ -1827,6 +1827,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback-notion",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/notion/page.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/web/app/(auth)/auth-callback/notion/notion-callback-content.tsx",
+        "apps/web/app/(auth)/auth-callback/notion/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-auth-callback",
       "platform": "web",
       "kind": "route",
@@ -7067,6 +7123,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-notion-connection-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-profile-profile-api-keys",
       "platform": "web",
       "kind": "overlay",
@@ -8685,6 +8793,58 @@
       "ownedFiles": [
         "apps/mobile/app/auth-callback.tsx",
         "apps/mobile/lib/capture-mode.ts"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-auth-callback-notion",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/auth-callback/notion.tsx",
+      "href": "/auth-callback/notion",
+      "ownedFiles": [
+        "apps/mobile/app/auth-callback/notion.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -14477,6 +14637,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/advanced-sections.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-notion-connection-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/notion-connection-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/notion-connection-sheet.tsx"
       ],
       "state": "default",
       "theme": "dark",
