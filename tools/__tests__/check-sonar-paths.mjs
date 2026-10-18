@@ -22,6 +22,12 @@ export const cases = () => {
   writeFileSync(properties, "sonar.test.inclusions=**/*.test.ts\n")
   run("removed glob directory passes", { status: 0 })
 
+  writeFileSync(join(repository, "present.ts"), "export {}\n")
+  writeFileSync(properties, "sonar.coverage.exclusions=\\\n  present.ts,\\\n  present.ts\n")
+  run("continued exclusions validate every physical line", { status: 0 })
+  writeFileSync(properties, "sonar.coverage.exclusions=\\\n  present.ts,\\\n  missing.ts\n")
+  run("continued missing exclusion is named", { status: 1, stderr: /sonar\.coverage\.exclusions: missing\.ts/ })
+
   writeFileSync(properties, "sonar.exclusions=.next/**\n")
   run("generated output glob may have no directory yet", { status: 0 })
 }

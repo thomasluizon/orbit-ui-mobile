@@ -66,3 +66,27 @@ test("branch analysis runs nightly for both branches and PR coverage analysis st
   assert.deepEqual(nightly.jobs.sonarcloud.strategy.matrix.branch, ["main", "redesign/main"])
   assert.ok(workflow("test").jobs.sonarcloud.steps.some((step) => step.uses?.startsWith("SonarSource/sonarqube-scan-action@")))
 })
+
+test("mutation reporting stays off PRs and executes the full nightly set", () => {
+  const mutation = workflow("mutation")
+  assert.equal(mutation.on.pull_request, undefined)
+  assert.ok(mutation.on.schedule.length)
+  assert.ok(Object.hasOwn(mutation.on, "workflow_dispatch"))
+  assert.ok(mutation.jobs.nightly.steps.some((step) => step.run === "npm run mutation -- --force"))
+  assert.ok(mutation.jobs.nightly.steps.some((step) => step.with?.name === "mutation-report-nightly"))
+})
+
+test("parallel layout keeps journal cases together and leaves local scheduling unchanged", () => {
+  assert.match(read("apps/web/e2e/layout/today-row-semantics.spec.ts"), /test\.describe\.configure\(\{ mode: 'default' \}\)/)
+  for (const ci of [false, true]) {
+    const env = { ...process.env, LAYOUT: "1" }
+    if (ci) env.CI = "true"
+    else delete env.CI
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e",
+      "import config from './apps/web/playwright.config.ts'; const layout = config.default ?? config; console.log(JSON.stringify({workers:layout.workers, fullyParallel:layout.fullyParallel}))"], {
+      cwd: root, env, encoding: "utf8",
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(JSON.parse(result.stdout), { workers: ci ? 2 : 1, fullyParallel: ci })
+  }
+})

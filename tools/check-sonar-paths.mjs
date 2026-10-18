@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-sonar-paths.mjs
 
-  Fails when sonar-project.properties names a missing literal path.
+  Fails when sonar-project.properties names a missing literal path, including continued lists.
 
   --help, -h  print this usage and exit 0
 
@@ -25,7 +25,7 @@ const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
 const properties = readFileSync(join(repositoryRoot, "sonar-project.properties"), "utf8")
 const generatedRoots = new Set([".next", ".expo", ".turbo", "dist"])
 const missing = []
-for (const line of properties.split(/\r?\n/)) {
+for (const line of properties.replace(/\\\r?\n[ \t\f]*/g, "").split(/\r?\n/)) {
   const separator = line.indexOf("=")
   if (separator === -1) continue
   const setting = line.slice(0, separator).trim()
