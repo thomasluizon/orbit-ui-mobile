@@ -61,7 +61,7 @@ function expectGoalInvalidated(queryClient: QueryClient, goalId: string, invalid
 describe('linked goal cache after habit logging', () => {
   it.each([
     { operation: 'log', logId: 'log-1', newProgress: 12, progressPercentage: 100 },
-    { operation: 'unlog', logId: '', newProgress: 2, progressPercentage: 16.7 },
+    { operation: 'unlog', logId: 'log-1', newProgress: 2, progressPercentage: 16.7 },
   ])('invalidates affected detail and metrics after $operation while keeping the list patch', async ({ logId, newProgress, progressPercentage }) => {
     respond({
       logId,
