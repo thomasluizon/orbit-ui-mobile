@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { AppState, ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
@@ -8,7 +8,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
 
-type RefreshState = 'ready' | 'refreshing' | 'network-error' | 'rejected'
+type RefreshState = 'ready' | 'refreshing' | 'retrying' | 'network-error' | 'rejected'
 
 function stripTrailingPeriod(text: string): string {
   const trimmed = text.trimEnd()
@@ -58,6 +58,7 @@ export function ExpiryWarning() {
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
   const [refreshState, setRefreshState] = useState<RefreshState>('ready')
+  const refreshInFlight = useRef(false)
 
   const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
   if (expiresAt !== prevExpiresAt) {
@@ -100,6 +101,7 @@ export function ExpiryWarning() {
   }, [expiresAt])
 
   const isTerminal = refreshState === 'rejected'
+  const isRefreshing = refreshState === 'refreshing' || refreshState === 'retrying'
 
   const handleAction = useCallback(async () => {
     if (isTerminal) {
@@ -107,16 +109,27 @@ export function ExpiryWarning() {
       return
     }
 
-    if (refreshState === 'refreshing') return
+    if (refreshInFlight.current) return
+    refreshInFlight.current = true
 
     const attemptGeneration = getSessionGeneration()
-    setRefreshState('refreshing')
+    setRefreshState((state) => state === 'network-error' ? 'retrying' : 'refreshing')
     let outcome: Awaited<ReturnType<typeof refreshSession>>
     try {
       outcome = await refreshSession()
     } catch {
-      setRefreshState('network-error')
-      return
+      outcome = { status: 'network-error' }
+    } finally {
+      refreshInFlight.current = false
+    }
+
+    if (outcome.status !== 'refreshed') {
+      const currentGeneration = getSessionGeneration()
+      if (currentGeneration.epoch !== attemptGeneration.epoch
+        || currentGeneration.credentialVersion !== attemptGeneration.credentialVersion) {
+        setRefreshState('ready')
+        return
+      }
     }
 
     switch (outcome.status) {
@@ -127,20 +140,42 @@ export function ExpiryWarning() {
         setRefreshState('network-error')
         return
       case 'superseded':
+        setRefreshState('ready')
         return
       case 'unauthorized':
-        const currentGeneration = getSessionGeneration()
-        if (currentGeneration.epoch !== attemptGeneration.epoch
-          || currentGeneration.credentialVersion !== attemptGeneration.credentialVersion) {
-          setRefreshState('ready')
-          return
-        }
         setRefreshState('rejected')
         await handleLogout()
     }
-  }, [handleLogout, isTerminal, refreshState])
+  }, [handleLogout, isTerminal])
 
-  if (minutesLeft === null && !isExpired && !isTerminal) return null
+  useEffect(() => {
+    if (!expiresAt || isTerminal) return
+    const refreshAt = expiresAt - WARN_AT_MINUTES * 60_000
+    let cancelled = false
+    let running = false
+    let timer: ReturnType<typeof setTimeout>
+    const attemptRefresh = async () => {
+      if (running) return
+      running = true
+      if (AppState.currentState === 'active') await handleAction()
+      running = false
+      if (!cancelled) timer = setTimeout(() => void attemptRefresh(), 30_000)
+    }
+    timer = setTimeout(() => void attemptRefresh(), Math.max(0, refreshAt - Date.now()))
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && Date.now() >= refreshAt) {
+        clearTimeout(timer)
+        void attemptRefresh()
+      }
+    })
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      subscription.remove()
+    }
+  }, [expiresAt, handleAction, isTerminal])
+
+  if (refreshState !== 'network-error' && refreshState !== 'retrying' && !isTerminal) return null
 
   const expiredMessage = isTerminal
     ? t('auth.sessionSignedOut')
@@ -165,16 +200,16 @@ export function ExpiryWarning() {
         </Text>
         <Pressable
           onPress={() => void handleAction()}
-          disabled={refreshState === 'refreshing'}
+          disabled={isRefreshing}
           hitSlop={6}
           style={styles.actionPress}
           accessibilityRole="button"
           accessibilityState={{
-            busy: refreshState === 'refreshing',
-            disabled: refreshState === 'refreshing',
+            busy: isRefreshing,
+            disabled: isRefreshing,
           }}
         >
-          {refreshState === 'refreshing' ? (
+          {isRefreshing ? (
             <ActivityIndicator size={14} color={tokens.fg1} />
           ) : null}
           <Text style={styles.actionText}>
