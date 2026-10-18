@@ -41,6 +41,7 @@ jobs:
       EXPO_PUBLIC_CAPTURE_MODE: "true"
       EXPO_NO_TELEMETRY: "1"
       EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+      GRADLE_OPTS: -Dorg.gradle.caching=true
 
     steps:
       - uses: actions/checkout@v7
@@ -57,6 +58,8 @@ jobs:
 
       - name: Set up Gradle caching
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-read-only: false
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --fund=false
