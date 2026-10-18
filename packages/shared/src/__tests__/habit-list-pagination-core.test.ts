@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { habitListQueryFilters, shouldFetchAllHabitPages } from '../utils/habit-list-pagination-core'
+import { habitListQueryFilters, habitViewQueryOptions, shouldFetchAllHabitPages } from '../utils/habit-list-pagination-core'
 
 const day = { dateFrom: '2026-08-28', dateTo: '2026-08-28' }
 
 describe('habit list pagination for detail', () => {
+  it.each([
+    { view: 'today', completeDay: true, scheduleDate: undefined },
+    { view: 'all', completeDay: false, scheduleDate: day.dateFrom },
+    { view: 'general', completeDay: false, scheduleDate: undefined },
+  ] as const)('keeps the $view query in its own cache with the right schedule enrichment', ({ view, completeDay, scheduleDate }) => {
+    const options = habitViewQueryOptions(view, day.dateFrom)
+    expect(options).toEqual({ completeDay, scheduleDate })
+    expect(habitListQueryFilters({}, options.completeDay, options.scheduleDate)).toEqual(
+      view === 'today' ? { completeDay: true } : view === 'all' ? { scheduleDate: day.dateFrom } : {},
+    )
+  })
+
   it('keeps a complete detail day in a separate cache and fetches later pages', () => {
     expect(habitListQueryFilters(day, true)).toEqual({ ...day, completeDay: true })
     expect(habitListQueryFilters(day, false)).toEqual(day)

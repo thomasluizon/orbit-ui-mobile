@@ -9,6 +9,13 @@ import { canLogHabitOnDate } from '../utils/habit-card-helpers'
 const TODAY = '2026-09-12'
 
 describe('Todos schedule facts', () => {
+  it('leaves an empty view or a view without a schedule date unchanged without reading a schedule', async () => {
+    const fetchPage = async () => { throw new Error('Unexpected schedule request') }
+    expect(await loadHabitListSchedule([], TODAY, fetchPage)).toEqual([])
+    const items = createHabitViewItems(TODAY, 'general')
+    expect(await loadHabitListSchedule(items, undefined, fetchPage)).toEqual(items)
+  })
+
   it('preserves undated membership, metadata and nested order while enriching every matched row', () => {
     const items = createHabitViewItems(TODAY, 'all')
     const schedule = createHabitViewScheduleItems(TODAY)

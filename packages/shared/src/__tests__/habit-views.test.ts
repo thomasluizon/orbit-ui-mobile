@@ -1,14 +1,66 @@
 import { describe, expect, it } from 'vitest'
-import { createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from './habit-view-fixtures'
+import { createHabitViewFixture, createHabitViewItems, createHabitViewScheduleItems, HABIT_VIEW_ROW_ORDER } from './habit-view-fixtures'
 import { createHabitVisibilityHelpers, filterHabitViewRoots } from '../utils/habit-visibility'
 import { buildHabitDateBuckets, computeHabitDayProgress, computeParentPromptProgress } from '../utils/habit-list-progress'
 import { getPersistedUIState, migratePersistedUIState, type UIStoreState } from '../stores/ui-store'
 
 import { canLogHabitOnDate } from '../utils/habit-card-helpers'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
+import { normalizeHabitQueryData } from '../utils/habit-normalization'
+import type { HabitVisibilityView } from '../utils/habit-visibility'
+import type { HabitScheduleItem } from '../types/habit'
+import { mergeHabitListSchedule } from '../utils/habit-list-schedule'
 
 const TODAY = '2026-09-12'
 
+function visibleView(items: HabitScheduleItem[], view: HabitVisibilityView, showCompleted = false, recentlyCompletedIds = new Set<string>()) {
+  const fixture = normalizeHabitQueryData(items)
+  const visibility = createHabitVisibilityHelpers({ ...fixture, selectedDate: TODAY, searchQuery: '', showCompleted, recentlyCompletedIds })
+  const roots = filterHabitViewRoots(fixture.topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility)
+  const ordered = view === 'all' ? buildHabitDateBuckets(roots, TODAY).flatMap((bucket) => bucket.habits) : roots
+  const rows = ordered.flatMap((habit) => [habit, ...visibility.getVisibleChildren(habit.id, view)])
+  return { ids: rows.map((habit) => habit.id), progress: computeHabitDayProgress(rows, visibility.isDueOnSelectedDate, view) }
+}
+
 describe('production habit views', () => {
+  it.each([
+    { view: 'today', done: 0, total: 3 },
+    { view: 'all', done: 1, total: 6 },
+    { view: 'general', done: 0, total: 2 },
+  ] as const)('lists the expected roots and children with matching counts in $view', ({ view, done, total }) => {
+    const items = createHabitViewItems(TODAY, view)
+    const enriched = view === 'all' ? mergeHabitListSchedule(items, createHabitViewScheduleItems(TODAY)) : items
+    expect(visibleView(enriched, view)).toEqual({ ids: HABIT_VIEW_ROW_ORDER[view], progress: { done, total } })
+  })
+
+  it.each(['today', 'all', 'general'] as const)('shows an empty list and zero progress with no habits in %s', (view) => {
+    expect(visibleView([], view)).toEqual({ ids: [], progress: { done: 0, total: 0 } })
+  })
+
+  it.each(['all', 'general'] as const)('hides a finished one-time parent and its subtree until completed habits are shown in %s', (view) => {
+    const items = [createMockHabitScheduleItem({
+      id: 'finished', isGeneral: view === 'general', frequencyUnit: null, isCompleted: true,
+      dueDate: '', scheduledDates: [], hasSubHabits: true,
+      children: [createMockHabitScheduleChild({ id: 'open-child', isGeneral: view === 'general', dueDate: '', scheduledDates: [] })],
+    })]
+    expect(visibleView(items, view)).toEqual({ ids: [], progress: { done: 0, total: 0 } })
+    expect(visibleView(items, view, true)).toEqual({ ids: ['finished', 'open-child'], progress: { done: 1, total: 2 } })
+  })
+
+  it.each(['all', 'general'] as const)('shows all-done counts only after revealing completed one-time habits in %s', (view) => {
+    const items = ['first', 'second'].map((id, position) => createMockHabitScheduleItem({
+      id, position, isGeneral: view === 'general', frequencyUnit: null, isCompleted: true, dueDate: '', scheduledDates: [],
+    }))
+    expect(visibleView(items, view)).toEqual({ ids: [], progress: { done: 0, total: 0 } })
+    expect(visibleView(items, view, true)).toEqual({ ids: ['first', 'second'], progress: { done: 2, total: 2 } })
+  })
+
+  it('keeps a just-completed Geral habit visible until its completion feedback ends', () => {
+    const items = [createMockHabitScheduleItem({ id: 'done', isGeneral: true, isCompleted: true, dueDate: '', scheduledDates: [] })]
+    expect(visibleView(items, 'general', false, new Set(['done']))).toEqual({ ids: ['done'], progress: { done: 1, total: 1 } })
+    expect(visibleView(items, 'general')).toEqual({ ids: [], progress: { done: 0, total: 0 } })
+  })
+
   it.each(['today', 'all', 'general'] as const)('keeps the saved %s view through persistence and migration', (activeView) => {
     const persisted = getPersistedUIState({ activeView, activeFilters: {}, calendarShowRecurring: true } as UIStoreState)
     expect(migratePersistedUIState(JSON.parse(JSON.stringify(persisted))).activeView).toBe(activeView)
