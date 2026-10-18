@@ -1,6 +1,6 @@
 # Habit row surfaces
 
-The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` and `7:84`, is “esse e o novo padrao dos habitos”. A habit row owns its radius 20 body, current card surface fill and 1px hairline border. Its 28px check has radius 12 and retains a separate 48px target.
+The owner standard in landing Figma file `aLwwyaY3Dtw1NVesAWsNO7`, rows `7:72` and `7:84`, is “esse e o novo padrao dos habitos”. A habit row owns its radius 20 body, current card surface fill and an inset 1px hairline outline that consumes no layout space. Web uses an inset box shadow; Android uses a noninteractive absolute outline over the body. Its 28px check has radius 12 and retains a separate 48px target.
 
 | Surface | Web owner | Android owner | Coverage |
 |---|---|---|---|
@@ -16,4 +16,4 @@ Both platforms retain row minimum heights, typography, emoji wells, disclosure, 
 
 `StatusRing`, `ParentRing` and `ProgressRing` remain circular outside the habit row. Calendar event and time-grid status glyphs, the habit detail header, goals, Progresso, Astra blocks and onboarding previews retain their separate components.
 
-Web Vitest measures the production row with compiled CSS at 320 and 1352, in both themes, at normal and 200% text. It checks the visible check, border token, row fill, partial progress and focus. Android Vitest mounts the row across the same width, theme and text-scale axes and checks native styles, state colours and focus. Habit detail composition tests cover the wrapper and native fill override. Device rendering and whole-screen visual inspection remain outside these component tests.
+Web Vitest measures the production row with compiled CSS at 320 and 1352, in both themes, at normal and 200% text. It checks the visible check, inset outline token, zero layout borders, row fill, zero and partial parent progress and focus. Android Vitest mounts the row across the same width, theme and text-scale axes and checks the noninteractive absolute outline, zero body border width, accessible parent counts, state colours and focus. Habit detail composition tests cover the wrapper and native fill override. Device rendering and whole-screen visual inspection remain outside these component tests.

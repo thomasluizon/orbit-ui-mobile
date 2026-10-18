@@ -443,7 +443,9 @@ describe('HabitRow status control names (mobile)', () => {
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
     expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
-    expect(pressedCard.borderColor).toBe('rgba(255,255,255,0.16)')
+    expect(pressedCard.borderWidth ?? 0).toBe(0)
+    const outline = renderer!.root.findByProps({ testID: 'habit-row-outline' })
+    expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' })
     expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
       backgroundColor: 'rgba(250,250,250,0.13)',
       borderRadius: 20,

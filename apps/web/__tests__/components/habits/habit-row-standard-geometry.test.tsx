@@ -30,6 +30,7 @@ describe('habit row standard in Chromium', () => {
       {(['empty', 'done', 'overdue', 'bad'] as const).map((state) => <HabitRow key={state}
         habit={createMockHabit({ title: `Habit ${state}`, isBadHabit: state === 'bad' })} state={state} />)}
       <HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />
+      <HabitRow habit={createMockHabit({ title: 'Empty parent' })} hasChildren childProgress={{ done: 0, total: 2 }} />
       <HabitRow habit={createMockHabit({ title: 'Partial parent' })} hasChildren childProgress={{ done: 1, total: 3 }} />
       <HabitRow habit={createMockHabit({ title: 'Complete parent' })} hasChildren childProgress={{ done: 3, total: 3 }} state="done" />
       <HabitRow habit={createMockHabit({ title: 'Selected' })} selectMode />
@@ -48,7 +49,9 @@ describe('habit row standard in Chromium', () => {
         reference.style.boxShadow = 'inset 0 0 0 1px var(--hairline)'
         document.body.append(reference)
         const paint = getComputedStyle(reference)
-        const result = { fill: paint.backgroundColor, border: paint.boxShadow }
+        const result = { fill: paint.backgroundColor, border: paint.boxShadow, track: '' }
+        reference.style.boxShadow = 'inset 0 0 0 1px var(--track-empty)'
+        result.track = getComputedStyle(reference).boxShadow
         reference.remove()
         return result
       })
@@ -57,18 +60,23 @@ describe('habit row standard in Chromium', () => {
         const paint = check && getComputedStyle(check)
         const body = getComputedStyle(row)
         const bounds = row.getBoundingClientRect()
-        return { check: check && { width: check.getBoundingClientRect().width, height: check.getBoundingClientRect().height, radius: paint!.borderTopLeftRadius, border: paint!.boxShadow, background: paint!.backgroundColor }, radius: body.borderTopLeftRadius, border: body.boxShadow, background: body.backgroundColor, left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
+        return { check: check && { width: check.getBoundingClientRect().width, height: check.getBoundingClientRect().height, radius: paint!.borderTopLeftRadius, border: paint!.boxShadow, background: paint!.backgroundColor }, radius: body.borderTopLeftRadius, layoutBorders: [body.borderTopWidth, body.borderRightWidth, body.borderBottomWidth, body.borderLeftWidth], border: body.boxShadow, background: body.backgroundColor, left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
       }))
-      expect(rows).toHaveLength(9)
+      expect(rows).toHaveLength(10)
       for (const row of rows) {
         expect(row.check).toMatchObject({ width: 28, height: 28, radius: '12px' })
         expect(row.radius).toBe('20px')
+        expect(row.layoutBorders).toEqual(['0px', '0px', '0px', '0px'])
         expect(row.border).toContain(expectedPaint.border)
         expect(row.background).toBe(expectedPaint.fill)
         expect(row.left).toBeGreaterThanOrEqual(16)
         expect(row.right).toBeLessThanOrEqual(width - 16)
       }
-      expect(rows.slice(1).map((row, index) => row.top - rows[index]!.bottom)).toEqual(Array.from({ length: 8 }, () => 4))
+      expect(rows.slice(1).map((row, index) => row.top - rows[index]!.bottom)).toEqual(Array.from({ length: 9 }, () => 4))
+      const emptyParent = page.locator('[data-habit-title="Empty parent"] [data-habit-row-control="check"]')
+      expect(await emptyParent.getAttribute('aria-label')).toContain('0/2')
+      expect(await emptyParent.locator('[data-habit-check] path').count()).toBe(0)
+      expect(await emptyParent.locator('[data-habit-check]').evaluate((element) => getComputedStyle(element).boxShadow)).toBe(expectedPaint.track)
       const partial = await page.locator('[data-habit-title="Partial parent"] [data-habit-check] path').evaluate((element) => {
         const path = element as SVGPathElement
         return { perimeter: path.getTotalLength(), progress: Number.parseFloat(path.getAttribute('stroke-dasharray')!) }

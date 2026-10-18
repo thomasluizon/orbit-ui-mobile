@@ -14,6 +14,14 @@ vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
 
 afterEach(() => { __resetTestHostConfig(); theme.mode = 'dark' })
 
+function assertParentProgressLabel(root: import('react-test-renderer').ReactTestInstance, selecting: boolean, done: number, total: number) {
+  if (total === 0) return
+  const label = `${done}/${total}`
+  const role = selecting ? 'image' : 'button'
+  const indicators = root.findAll((node) => node.props.accessibilityRole === role && String(node.props.accessibilityLabel).includes(label))
+  expect(indicators.length).toBeGreaterThan(0)
+}
+
 describe('habit row standard on Android', () => {
   it.each((['light', 'dark'] as const).flatMap((mode) => [320, 1352].flatMap((width) =>
     [1, 2].flatMap((fontScale) => [0, 1].map((depth) => ({ mode, width, fontScale, depth: depth as 0 | 1 }))),
@@ -25,7 +33,11 @@ describe('habit row standard on Android', () => {
       depth={depth} panelEnd={false} />) })
     const tokens = createTokensV2('orange', mode)
     const row = tree!.root.findByProps({ testID: 'habit-row' })
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, borderWidth: 1, borderColor: tokens.hairline, backgroundColor: tokens.bgCard })
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 20, backgroundColor: tokens.bgCard })
+    expect(StyleSheet.flatten(row.props.style).borderWidth ?? 0).toBe(0)
+    const outline = tree!.root.findByProps({ testID: 'habit-row-outline' })
+    expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1, borderColor: tokens.hairline })
+    expect(outline.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
     const spacing = tree!.root.findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten<ViewStyle | undefined>(node.props.style)?.paddingBottom === 4)
     expect(spacing).toHaveLength(1)
     const check = tree!.root.findByProps({ testID: 'habit-check' })
@@ -43,6 +55,7 @@ describe('habit row standard on Android', () => {
       { flags: { isCompleted: true }, border: tokens.fg1, fill: tokens.fg1, done: 0, total: 0 },
       { flags: { isOverdue: true }, border: tokens.statusOverdue, fill: 'transparent', done: 0, total: 0 },
       { flags: { isBadHabit: true }, border: tokens.statusBad, fill: 'transparent', done: 0, total: 0 },
+      { flags: {}, border: tokens.trackEmpty, fill: 'transparent', done: 0, total: 2 },
       { flags: {}, border: tokens.trackEmpty, fill: 'transparent', done: 1, total: 3 },
       { flags: {}, border: tokens.trackEmpty, fill: tokens.fg1, done: 3, total: 3 },
     ]
@@ -53,6 +66,7 @@ describe('habit row standard on Android', () => {
           today="2025-01-01" selectedDate={new Date(2025, 0, 1)}
           hasChildren={scenario.total > 0} childrenDone={scenario.done} childrenTotal={scenario.total} isSelectMode={isSelectMode} />) })
         const check = tree!.root.findByProps({ testID: 'habit-check' })
+        assertParentProgressLabel(tree!.root, isSelectMode, scenario.done, scenario.total)
         expect(StyleSheet.flatten(check.props.style)).toMatchObject({ width: 28, height: 28, borderRadius: 12, borderColor: scenario.border, backgroundColor: scenario.fill })
         const paths = tree!.root.findAllByType('Path').filter((node: { props: Record<string, unknown> }) => node.props.strokeDasharray)
         expect(paths).toHaveLength(scenario.done === 1 ? 1 : 0)

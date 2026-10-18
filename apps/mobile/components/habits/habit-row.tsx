@@ -188,10 +188,7 @@ function useBodyPressFeedback(
   const [pressed, setPressed] = useState(false)
   return {
     metaColor: pressed ? tokens.fg2 : tokens.fg3,
-    feedbackStyle:
-      pressed
-        ? { borderColor: tokens.hairlineStrong }
-        : null,
+    outlineColor: pressed ? tokens.hairlineStrong : tokens.hairline,
     onPressIn: () => setPressed(true),
     onPressOut: () => setPressed(false),
   }
@@ -209,8 +206,6 @@ function buildRowStyle({
   return {
     minHeight: child ? 52 : 68,
     backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
-    borderColor: tokens.hairline,
-    borderWidth: 1,
     borderRadius: 20,
   }
 }
@@ -423,7 +418,7 @@ export const HabitRow = memo(function HabitRow({
   return (
     <View style={habitRowSpacing(panelEnd)}>
       <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
-        rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
+        rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
@@ -447,11 +442,12 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
   largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   rowStyle: StyleProp<ViewStyle>
+  outlineColor: string
   primaryButton: ReactNode
   primaryContent: ReactNode
   metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
@@ -482,6 +478,8 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryB
           </View>
         </View>
       ) : null}
+      <View testID="habit-row-outline" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 1, borderRadius: 20, borderColor: outlineColor }} />
     </View>
   )
 }
