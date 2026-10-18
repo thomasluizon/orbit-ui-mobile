@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import {
@@ -21,6 +22,7 @@ function buildHeaders(
   return {
     'Content-Type': 'application/json',
     ...forwardedClientHeaders,
+    ...API_VERSION_HEADERS,
     Authorization: `Bearer ${token}`,
   }
 }

@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { getServerRequestLanguage } from '@/lib/request-language'
 import { NextResponse } from 'next/server'
 import { getRefreshToken, clearSessionCookies } from '@/lib/auth-api'
@@ -16,7 +17,7 @@ export async function POST() {
     try {
       await fetch(`${apiBase}/api/auth/logout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept-Language': await getServerRequestLanguage() },
+        headers: { ...API_VERSION_HEADERS, 'Content-Type': 'application/json', 'Accept-Language': await getServerRequestLanguage() },
         body: JSON.stringify({ refreshToken }),
         signal: AbortSignal.timeout(5000),
       })

@@ -414,7 +414,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (teardownEpoch === null || teardownEpoch !== getSessionEpoch()) return
 
-
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }

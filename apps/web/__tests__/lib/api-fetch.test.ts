@@ -50,6 +50,19 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 const toastError = vi.fn()
 
 describe('apiFetch', () => {
+  it.each(['/api/habits', 'https://api.example.test/api/events?ticket=stream-ticket'])(
+    'pins API v2 for %s and preserves request headers', async (url) => {
+      mockFetch.mockResolvedValue(Response.json({ accepted: true }))
+      const response = await fetchWithUpgradeGuidance(url, {
+        headers: { 'api-version': '1.0', 'Last-Event-ID': 'epoch.1' },
+      })
+      expect(await response.json()).toEqual({ accepted: true })
+      const headers = new Headers(mockFetch.mock.calls[0]?.[1]?.headers)
+      expect(headers.get('api-version')).toBe('2.0')
+      expect(headers.get('Last-Event-ID')).toBe('epoch.1')
+    },
+  )
+
   it('wakes the public API once per minute for starting refusals without publishing an error', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(0)

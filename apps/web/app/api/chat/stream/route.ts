@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { type NextRequest } from 'next/server'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
@@ -26,6 +27,7 @@ async function forwardStream(
       Authorization: `Bearer ${token}`,
       ...(eventOrigin && eventOrigin.length <= 128 ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
       ...buildForwardedClientHeaders(request),
+      ...API_VERSION_HEADERS,
     },
     body: formData,
     cache: 'no-store',

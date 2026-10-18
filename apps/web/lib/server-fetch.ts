@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { getServerRequestLanguage } from './request-language'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
@@ -93,8 +94,9 @@ async function fetchWithSession<T>(
     'Content-Type': 'application/json',
     ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
     ...(accountIntent.eventOrigin ? { 'X-Orbit-Event-Origin': accountIntent.eventOrigin } : {}),
-    ...(init.headers as Record<string, string> | undefined),
+    ...Object.fromEntries(new Headers(init.headers)),
     'Accept-Language': language,
+    ...API_VERSION_HEADERS,
   })
 
   let session = renderToken ? { token: renderToken, refreshFailed: false } : await resolveServerSession()
@@ -193,8 +195,9 @@ export async function serverPublicFetch<T = unknown>(
     headers: {
       'Content-Type': 'application/json',
       ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
-      ...(init.headers as Record<string, string> | undefined),
+      ...Object.fromEntries(new Headers(init.headers)),
       'Accept-Language': language,
+      ...API_VERSION_HEADERS,
     },
   })
 

@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/chat/stream/route'
@@ -206,3 +207,5 @@ describe('chat stream route', () => {
   })
 
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

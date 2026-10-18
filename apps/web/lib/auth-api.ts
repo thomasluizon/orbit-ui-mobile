@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { getServerRequestLanguage } from './request-language'
 import { cookies } from 'next/headers'
 import { API } from '@orbit/shared/api'
@@ -198,7 +199,7 @@ export async function refreshSessionTokens(
     try {
       const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept-Language': language ?? await getServerRequestLanguage() },
+        headers: { ...API_VERSION_HEADERS, 'Content-Type': 'application/json', 'Accept-Language': language ?? await getServerRequestLanguage() },
         body: JSON.stringify({ refreshToken }),
       })
 

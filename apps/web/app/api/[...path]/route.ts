@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
@@ -105,7 +106,7 @@ async function proxyRequest(
     : `${apiBase}/api/${apiPath}`
 
   const method = request.method
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...API_VERSION_HEADERS }
   const eventOrigin = request.headers.get('x-orbit-event-origin')
   if (eventOrigin && eventOrigin.length <= 128 && method !== 'GET' && method !== 'HEAD') {
     headers['X-Orbit-Event-Origin'] = eventOrigin

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getAccountIdFromToken } from '@/lib/auth-api'
 
 const { mockCookies, mockCookieStore } = vi.hoisted(() => {
@@ -561,3 +562,5 @@ describe('auth-api session helpers', () => {
     }
   }, 20_000)
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

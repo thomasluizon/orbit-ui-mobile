@@ -1,5 +1,7 @@
 'use client'
 
+import { API_VERSION_HEADERS } from '@/lib/api-version'
+
 import { resolveRequestLanguage } from './resolve-request-language'
 
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -104,6 +106,7 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
 export async function fetchWithUpgradeGuidance(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers)
   const selected = typeof document === 'undefined' ? undefined : /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)?.[1]
+  for (const [name, value] of Object.entries(API_VERSION_HEADERS)) headers.set(name, value)
   headers.set('Accept-Language', resolveRequestLanguage(selected, headers.get('Accept-Language') ?? (typeof navigator === 'undefined' ? null : navigator.language)))
   const response = await fetch(input, { ...init, headers })
   if (response.status === 503) {

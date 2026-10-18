@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/subscriptions/plans/route'
@@ -56,6 +57,7 @@ describe('subscriptions plans route', () => {
         method: 'GET',
         cache: 'no-store',
         headers: {
+          'api-version': '2.0',
           Authorization: 'Bearer token',
           'X-Orbit-Country-Code': 'BR',
           'X-Forwarded-For': '177.10.20.30',
@@ -128,3 +130,5 @@ describe('subscriptions plans route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))
