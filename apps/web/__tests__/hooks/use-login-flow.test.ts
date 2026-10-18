@@ -10,6 +10,8 @@ import { proxy } from '@/proxy'
 import { resolveSessionTokens } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
+  ACCOUNT_ID_HEADER: 'x-account-id',
+  getAccountIdFromToken: vi.fn(() => null),
   AUTH_COOKIE: 'auth_token',
   REFRESH_COOKIE: 'refresh_token',
   resolveSessionTokens: vi.fn(),
