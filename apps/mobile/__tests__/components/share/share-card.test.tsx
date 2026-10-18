@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   createMockRecap,
@@ -28,7 +29,7 @@ function collectText(node: unknown): string {
   return ''
 }
 
-function render(props: { recap: Recap }) {
+function render(props: { recap: Recap; variant?: 'progress' | 'wrapped' }) {
   let tree: {
     toJSON: () => unknown
     root: {
@@ -44,6 +45,30 @@ function render(props: { recap: Recap }) {
 }
 
 describe('ShareCard (mobile)', () => {
+  it('reads the shared card inset for progress sharing', () => {
+    const originalInset = PADDING.cardInset
+    try {
+      PADDING.cardInset = SPACING.s48
+      const tree = render({ recap: createMockRecap(), variant: 'progress' })
+      const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
+        props: { style: unknown }
+      }
+      expect(StyleSheet.flatten(card.props.style)).toMatchObject({ padding: PADDING.cardInset })
+    } finally {
+      PADDING.cardInset = originalInset
+    }
+  })
+
+  it('restores active days and completion rate on the progress image', () => {
+    const text = collectText(render({
+      recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) }),
+      variant: 'progress',
+    }).toJSON())
+    expect(text).toContain('shareCard.stats.activeDays')
+    expect(text).toContain('shareCard.stats.completionRate')
+    expect(text).toContain('74%')
+  })
+
   it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const tree = render({ recap: createMockRecap() })
     const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {

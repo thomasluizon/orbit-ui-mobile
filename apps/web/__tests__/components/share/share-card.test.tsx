@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -16,6 +17,26 @@ vi.mock('@/components/share/share-card-qr', () => ({
 import { ShareCard } from '@/components/share/share-card'
 
 describe('ShareCard', () => {
+  it('reads the shared card inset for progress sharing', () => {
+    const originalInset = PADDING.cardInset
+    try {
+      PADDING.cardInset = SPACING.s48
+      render(<ShareCard recap={createMockRecap()} variant="progress" />)
+      expect(screen.getByTestId('share-card')).toHaveStyle({ padding: `${PADDING.cardInset}px` })
+    } finally {
+      PADDING.cardInset = originalInset
+    }
+  })
+
+  it('restores the progress figures while retaining the Wrapped figures', () => {
+    const recap = createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) })
+    render(<ShareCard recap={recap} variant="progress" />)
+    expect(screen.getByText('shareCard.stats.activeDays')).toBeInTheDocument()
+    expect(screen.getByText('shareCard.stats.completionRate')).toBeInTheDocument()
+    expect(screen.getByText('74%')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+
   it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const { container } = render(<ShareCard recap={createMockRecap()} />)
     expect(screen.getByTestId('share-card')).toHaveStyle({ width: '360px', height: '640px' })
