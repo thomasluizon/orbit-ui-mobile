@@ -21,20 +21,20 @@
         android:id="@+id/widget_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="@dimen/widget_inset_card">
 
         <!-- Header: a fixed two-line day summary with the streak on the right. -->
         <RelativeLayout
             android:id="@+id/widget_header_container"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="0dp">
+            android:layout_height="@dimen/widget_touch_target"
+            android:padding="0dp">
 
             <ImageView
                 android:id="@+id/widget_progress_ring"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="@dimen/widget_ring_size"
+                android:layout_height="@dimen/widget_ring_size"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
                 android:src="@drawable/widget_progress_track"
@@ -47,9 +47,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
-                android:layout_marginStart="32dp"
                 android:layout_centerVertical="true"
                 android:layout_toStartOf="@id/widget_header_right"
+                android:layout_marginEnd="@dimen/widget_inline_gap"
                 android:orientation="vertical">
 
                 <TextView
@@ -62,7 +62,7 @@
                     android:text="@string/widget_today"
                     android:textAllCaps="false"
                     android:textColor="@color/widget_fg_3"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/widget_day_text_size" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -77,10 +77,10 @@
                         android:fontFamily="sans-serif"
                         android:maxLines="1"
                         android:textColor="@color/widget_fg_3"
-                        android:textSize="12sp" />
+                        android:textSize="@dimen/widget_label_text_size" />
                     <LinearLayout
                         android:id="@+id/widget_streak_group"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
@@ -94,17 +94,16 @@
                             android:fontFamily="sans-serif-medium"
                             android:fontFeatureSettings="tnum"
                             android:textColor="@color/widget_streak_text"
-                            android:textSize="15sp" />
+                            android:textSize="@dimen/widget_title_text_size" />
 
                         <TextView
                             android:id="@+id/widget_streak_unit"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="3dp"
+                            android:layout_marginStart="@dimen/widget_unit_gap"
                             android:fontFamily="sans-serif"
-                            android:text="@string/widget_streak_unit"
                             android:textColor="@color/widget_fg_3"
-                            android:textSize="12sp" />
+                            android:textSize="@dimen/widget_label_text_size" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -121,10 +120,10 @@
                 <!-- Refresh button -->
                 <ImageView
                     android:id="@+id/widget_refresh"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="@dimen/widget_touch_target"
+                    android:layout_height="@dimen/widget_touch_target"
                     android:src="@drawable/widget_refresh_icon"
-                    android:padding="12dp"
+                    android:padding="@dimen/widget_refresh_inset"
                     android:accessibilityLiveRegion="polite"
                     android:contentDescription="@string/widget_refresh" />
 
@@ -132,8 +131,8 @@
                 <ProgressBar
                     android:id="@+id/widget_refresh_loading"
                     style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="@dimen/widget_touch_target"
+                    android:layout_height="@dimen/widget_touch_target"
                     android:indeterminateTint="@color/widget_fg_3"
                     android:accessibilityLiveRegion="polite"
                     android:visibility="gone" />
@@ -143,19 +142,31 @@
         <!-- Content area: list, empty message, and loading skeleton overlap so the
              skeleton can cover the area during the cold/first-load window instead of
              leaving the widget blank. -->
-        <FrameLayout
+        <RelativeLayout
             android:id="@+id/widget_content"
+            android:visibility="gone"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="48dp">
+            android:layout_marginTop="@dimen/widget_header_list_gap"
+            android:minHeight="@dimen/widget_touch_target">
+
+            <TextView
+                android:id="@+id/widget_content_height"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:importantForAccessibility="no"
+                android:visibility="invisible" />
 
             <!-- Habit list -->
             <ListView
                 android:id="@+id/widget_list"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:divider="@null"
-                android:dividerHeight="0dp"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="@dimen/widget_row_gap"
                 android:scrollbars="vertical"
                 android:fadeScrollbars="true"
                 android:scrollbarThumbVertical="@drawable/widget_scrollbar_thumb"
@@ -165,6 +176,8 @@
             <!-- Empty state (genuinely no habits / signed out) -->
             <LinearLayout
                 android:id="@+id/widget_empty"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
@@ -177,7 +190,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/widget_all_clear"
                     android:textColor="@color/widget_fg_1"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/widget_title_text_size"
                     android:fontFamily="sans-serif" />
             </LinearLayout>
 
@@ -185,6 +198,8 @@
                  so a freshly added widget never renders as an empty card) -->
             <LinearLayout
                 android:id="@+id/widget_loading"
+                android:layout_alignTop="@id/widget_content_height"
+                android:layout_alignBottom="@id/widget_content_height"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="@string/widget_loading"
@@ -193,29 +208,32 @@
 
                 <LinearLayout
                     android:id="@+id/widget_skeleton_1"
+                    android:layout_marginBottom="@dimen/widget_row_gap"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="@dimen/widget_row_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp">
+                    android:paddingStart="@dimen/widget_row_inset_inline"
+                    android:paddingEnd="@dimen/widget_row_inset_inline"
+                    android:paddingTop="@dimen/widget_row_inset_block"
+                    android:paddingBottom="@dimen/widget_row_inset_block">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="@dimen/widget_status_size"
+                        android:layout_height="@dimen/widget_status_size"
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="10dp"
+                        android:layout_height="@dimen/widget_skeleton_height"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_1"
-                            android:layout_width="150dp"
-                            android:layout_height="12dp"
+                            android:layout_width="@dimen/widget_skeleton_width_1"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -223,29 +241,32 @@
 
                 <LinearLayout
                     android:id="@+id/widget_skeleton_2"
+                    android:layout_marginBottom="@dimen/widget_row_gap"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="@dimen/widget_row_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp">
+                    android:paddingStart="@dimen/widget_row_inset_inline"
+                    android:paddingEnd="@dimen/widget_row_inset_inline"
+                    android:paddingTop="@dimen/widget_row_inset_block"
+                    android:paddingBottom="@dimen/widget_row_inset_block">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="@dimen/widget_status_size"
+                        android:layout_height="@dimen/widget_status_size"
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="10dp"
+                        android:layout_height="@dimen/widget_skeleton_height"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_2"
-                            android:layout_width="126dp"
-                            android:layout_height="12dp"
+                            android:layout_width="@dimen/widget_skeleton_width_2"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -253,29 +274,32 @@
 
                 <LinearLayout
                     android:id="@+id/widget_skeleton_3"
+                    android:layout_marginBottom="@dimen/widget_row_gap"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="@dimen/widget_row_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp">
+                    android:paddingStart="@dimen/widget_row_inset_inline"
+                    android:paddingEnd="@dimen/widget_row_inset_inline"
+                    android:paddingTop="@dimen/widget_row_inset_block"
+                    android:paddingBottom="@dimen/widget_row_inset_block">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="@dimen/widget_status_size"
+                        android:layout_height="@dimen/widget_status_size"
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="10dp"
+                        android:layout_height="@dimen/widget_skeleton_height"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_3"
-                            android:layout_width="102dp"
-                            android:layout_height="12dp"
+                            android:layout_width="@dimen/widget_skeleton_width_3"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -283,29 +307,32 @@
 
                 <LinearLayout
                     android:id="@+id/widget_skeleton_4"
+                    android:layout_marginBottom="@dimen/widget_row_gap"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="@dimen/widget_row_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp">
+                    android:paddingStart="@dimen/widget_row_inset_inline"
+                    android:paddingEnd="@dimen/widget_row_inset_inline"
+                    android:paddingTop="@dimen/widget_row_inset_block"
+                    android:paddingBottom="@dimen/widget_row_inset_block">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="@dimen/widget_status_size"
+                        android:layout_height="@dimen/widget_status_size"
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="10dp"
+                        android:layout_height="@dimen/widget_skeleton_height"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_4"
-                            android:layout_width="78dp"
-                            android:layout_height="12dp"
+                            android:layout_width="@dimen/widget_skeleton_width_4"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
@@ -314,35 +341,37 @@
                 <LinearLayout
                     android:id="@+id/widget_skeleton_5"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="@dimen/widget_row_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp">
+                    android:paddingStart="@dimen/widget_row_inset_inline"
+                    android:paddingEnd="@dimen/widget_row_inset_inline"
+                    android:paddingTop="@dimen/widget_row_inset_block"
+                    android:paddingBottom="@dimen/widget_row_inset_block">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="@dimen/widget_status_size"
+                        android:layout_height="@dimen/widget_status_size"
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
                     <FrameLayout
                         android:layout_width="0dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="10dp"
+                        android:layout_height="@dimen/widget_skeleton_height"
+                        android:layout_marginStart="@dimen/widget_inline_gap"
                         android:layout_weight="1">
 
                         <ImageView
                             android:id="@+id/widget_skeleton_bar_5"
-                            android:layout_width="54dp"
-                            android:layout_height="12dp"
+                            android:layout_width="@dimen/widget_skeleton_width_5"
+                            android:layout_height="@dimen/widget_skeleton_height"
                             android:background="@drawable/widget_skeleton_bar"
                             android:contentDescription="@null" />
                     </FrameLayout>
                 </LinearLayout>
             </LinearLayout>
 
-        </FrameLayout>
+        </RelativeLayout>
 
     </LinearLayout>
 </FrameLayout>
