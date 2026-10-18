@@ -9,9 +9,6 @@ name: Guards
       - opened
       - synchronize
       - reopened
-      - edited
-      - labeled
-      - unlabeled
   push:
     branches:
       - main
@@ -134,18 +131,6 @@ jobs:
         name: "Dash Ban: Baseline only shrinks"
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
-      - id: dashes__3
-        name: "Dash Ban: PR title and body carry no dashes"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot') }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
-          PR_NUMBER="${BASH_REMATCH[1]}"
-          PR_TITLE=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.title')
-          PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
-          node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
       - id: sonar-paths__1
         name: "Sonar Paths: Sonar paths exist"
         run: node tools/check-sonar-paths.mjs
@@ -222,21 +207,6 @@ jobs:
             echo "Expo pin skipped: no dependency manifest changed."
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - id: review-harness__1
-        name: "Redesign Review Harness: A UI pull request on redesign/main records what the review skills found"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
-          PR_NUMBER="${BASH_REMATCH[1]}"
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
-          cp "$RUNNER_TEMP/changed-paths.txt" "$RUNNER_TEMP/changed.txt"
-          node tools/check-review-harness.mjs \
-            --base '${{ github.base_ref }}' \
-            --body-file "$RUNNER_TEMP/pr-body.md" \
-            --changed-files-file "$RUNNER_TEMP/changed.txt"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') }}
       - id: performance-workflow__1
         name: "Performance Workflow Drift: Check generated workflow on branch pushes"
         if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
@@ -256,7 +226,7 @@ jobs:
         name: "Gate Charter: Changed gates obey the charter"
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
+             grep -Eq '^\.github/workflows/(guards|test|pr-metadata)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
             node tools/check-gate-charter.mjs
           else
             echo "Gate charter skipped: no registered gate changed."

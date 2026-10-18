@@ -169,11 +169,6 @@
     "snapshot": "none",
     "constants": "none"
   },
-  ".github/workflows/guards.yml#review-harness": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
   ".github/workflows/guards.yml#root-allowlist": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -190,6 +185,11 @@
     "constants": "none"
   },
   ".github/workflows/guards.yml#timeless": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/pr-metadata.yml#metadata": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"

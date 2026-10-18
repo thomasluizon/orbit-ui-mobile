@@ -100,7 +100,7 @@ jobs:
       - run: npm ci
 
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs
 
       # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
       # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.

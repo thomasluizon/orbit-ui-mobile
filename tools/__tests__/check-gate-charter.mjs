@@ -272,25 +272,22 @@ export const cases = () => {
       workflow.concurrency?.["cancel-in-progress"] === true,
       JSON.stringify(workflow.concurrency))
   }
-  for (const [jobId, stepName] of [
-    ["dashes", "PR title and body carry no dashes"],
-    ["review-harness", "A UI pull request on redesign/main records what the review skills found"],
-  ]) {
-    const step = guardGroups(guards)[jobId].steps.find((candidate) => candidate.name === stepName)
-    writeFileSync(join(root, "changed-paths.txt"), "")
-    const script = `gh() { [[ "$2" == "repos/example/repo/pulls/1050" ]] || return 88; printf 'text'; }\nnode() { :; }\ngit() { :; }\n${step.run.replaceAll("${{ github.base_ref }}", "redesign/main")}`
-    const result = spawnSync(BASH, ["-c", script], {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        GITHUB_REF: "refs/pull/1050/merge",
-        GITHUB_REPOSITORY: "example/repo",
-        RUNNER_TEMP: root,
-      },
-    })
-    T(`check-gate-charter.mjs: ${jobId} derives the PR number from a fork-safe merge ref`, result.status === 0,
-      `status=${result.status} stderr=${result.stderr}`)
-  }
+
+  const metadataWorkflow = readFileSync(join(REPO_ROOT, ".github/workflows/pr-metadata.yml"), "utf8")
+  const metadataCharter = { ...completeCharter(), ".github/workflows/pr-metadata.yml#metadata": entry() }
+  const metadataRepository = stageRepository("metadata", metadataCharter)
+  writeFileSync(join(metadataRepository, ".github/workflows/pr-metadata.yml"), metadataWorkflow)
+  check("check-gate-charter.mjs", "accepts the independent metadata gate", ["--root", metadataRepository], { status: 0 })
+  writeFileSync(join(metadataRepository, ".github/workflows/pr-metadata.yml"),
+    metadataWorkflow.replaceAll('--changed-files-file "$RUNNER_TEMP/changed-paths.txt"', "--all"))
+  check("check-gate-charter.mjs", "rejects metadata without the changed-path input", ["--root", metadataRepository], {
+    status: 1, stderr: /pr-metadata\.yml#metadata: changed-files job/,
+  })
+  writeFileSync(join(metadataRepository, ".github/workflows/pr-metadata.yml"),
+    metadataWorkflow.replace('          CHECK_DASHES:', '          FROZEN_BODY: ${{ github.event.pull_request.body }}\n          CHECK_DASHES:'))
+  check("check-gate-charter.mjs", "rejects frozen metadata text", ["--root", metadataRepository], {
+    status: 1, stderr: /pr-metadata\.yml#metadata: frozen pull request body/,
+  })
 
   const blockingAdvisory = completeCharter()
   blockingAdvisory[".github/workflows/guards.yml#existing"] = entry({ scope: "whole-tree-advisory" })
