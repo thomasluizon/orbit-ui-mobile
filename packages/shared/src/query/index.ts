@@ -1,5 +1,6 @@
 export {
   aiKeys,
+  connectionKeys,
   habitKeys,
   goalKeys,
   profileKeys,

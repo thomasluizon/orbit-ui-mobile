@@ -1869,6 +1869,25 @@
     }
   },
   "profile": {
+    "connections": {
+      "title": "Connections",
+      "googleCalendar": "Google Calendar",
+      "notion": "Notion",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "renew": "Reconnect required",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "choosePages": "Choose pages",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect Notion?",
+      "description": "Astra reads only the pages you choose in Notion.",
+      "disconnectBody": "Astra stops reading your pages and Orbit deletes everything it stored from Notion.",
+      "error": "The connection did not work. Try again.",
+      "offline": "You are offline. Connect to the internet to manage Notion.",
+      "lastSync": "Last sync: {time}",
+      "awaitingSync": "Waiting for the first sync."
+    },
     "submenus": {
       "accountLabel": "{name}, {email}, account",
       "account": "Account",
@@ -2240,7 +2259,7 @@
     "close": "Close privacy policy",
     "title": "Privacy policy",
     "headerTitle": "Privacy",
-    "lastUpdated": "Last updated: September 2026",
+    "lastUpdated": "Last updated: October 2026",
     "intro": {
       "title": "Introduction",
       "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
@@ -2264,6 +2283,7 @@
       "notifications": "To send push notifications and habit reminders you have configured"
     },
     "thirdParty": {
+      "notion": "Notion: read-only access to titles, dates and status of the pages you share, so Astra can suggest tasks and habits. Orbit stores these records in its database hosted by Render in Ohio, United States. Disconnecting deletes the connection and all stored Notion records.",
       "title": "Third-Party Services",
       "intro": "We use the following services to operate Orbit:",
       "google": "Google OAuth: for sign-in directly with Google",
@@ -2288,6 +2308,7 @@
       "body": "All connections to Orbit use HTTPS encryption. Authentication uses rotating refresh sessions. Payment information is handled entirely by Stripe and never touches our servers."
     },
     "retention": {
+      "notion": "Notion: shared page records and encrypted connection credentials are kept while connected. Disconnecting deletes everything Orbit stored from Notion.",
       "title": "How Long We Keep Your Data",
       "intro": "We retain your data only as long as needed to provide the service:",
       "account": "Account data: kept for as long as your account is active.",
