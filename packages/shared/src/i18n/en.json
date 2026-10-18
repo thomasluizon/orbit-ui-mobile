@@ -2146,6 +2146,11 @@
     }
   },
   "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
     "share": "Share",
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
@@ -3412,6 +3417,7 @@
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
     "expiresAtLabel": "Expires At (UTC, optional)",
+    "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Enter a valid future expiry date."
   },
   "preferences": {

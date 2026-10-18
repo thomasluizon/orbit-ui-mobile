@@ -1,8 +1,9 @@
 name: Mutation Testing
 
 on:
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: mutation-${{ github.workflow }}-${{ github.ref }}
@@ -12,12 +13,14 @@ permissions:
   contents: read
 
 jobs:
-  incremental:
-    name: Incremental (per-PR, report-only)
+  nightly:
+    name: Nightly mutation report
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
 
       - uses: actions/setup-node@v7
         with:
@@ -26,20 +29,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Restore Stryker incremental report
-        uses: actions/cache@v6
-        with:
-          path: packages/shared/reports/stryker-incremental.json
-          key: stryker-incremental-${{ github.run_id }}
-          restore-keys: stryker-incremental-
-
-      - name: Run mutation testing (incremental)
+      - name: Run all mutation cases
         working-directory: packages/shared
-        run: npm run mutation
+        run: npm run mutation -- --force
 
       - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mutation-report-pr
+          name: mutation-report-nightly
           path: packages/shared/reports/mutation/
