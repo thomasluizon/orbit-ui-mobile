@@ -20,7 +20,10 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('@/hooks/use-stripe-checkout-return', () => ({ useStripeCheckoutReturn: () => ({ hasReturnError: false, isSettling: false }) }))
 vi.mock('@/hooks/use-session-reset', () => ({ useAccountScopedState: () => [false] }))
 vi.mock('@/hooks/use-account-scoped-mutation', () => ({ useAccountScopedMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQueryClient: () => ({}),
+}))
 vi.mock('@/components/profile/profile-api-keys', () => ({ ProfileApiKeys: () => null }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ isTrialActive: false }) }) }))
 

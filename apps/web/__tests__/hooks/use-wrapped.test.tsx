@@ -13,7 +13,10 @@ const mocks = vi.hoisted(() => ({
   fetchJson: vi.fn(),
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQuery: mocks.useQuery,
+}))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: mocks.fetchJson }))
 vi.mock('@/hooks/use-gamification', () => ({
   useReportEvent: () => ({ mutate: mocks.reportEvent }),
