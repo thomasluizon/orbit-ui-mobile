@@ -1,4 +1,5 @@
 import React from 'react'
+import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
@@ -131,8 +132,10 @@ vi.mock('react-native', async (importOriginal) => {
     FlatList: React.forwardRef<unknown, {
       data: ChatMessage[]
       renderItem: (entry: { item: ChatMessage; index: number }) => React.ReactNode
+      ListFooterComponent?: React.ReactElement | null
     }>((props, _ref) => React.createElement('FlatList', props,
       props.data.map((item, index) => <React.Fragment key={item.id}>{props.renderItem({ item, index })}</React.Fragment>),
+      props.ListFooterComponent,
     )),
   }
 })
@@ -331,6 +334,7 @@ function controlledSseStreamResponse() {
     },
     enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
     close: () => streamController.close(),
+    fail: (error: Error) => streamController.error(error),
   }
 }
 
@@ -386,6 +390,54 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 }
 
 describe('mobile useChatComposer', () => {
+  it('keeps the pending reply indicator static under reduced motion', async () => {
+    const listeners = new Set<(enabled: boolean) => void>()
+    const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+      if (event === 'reduceMotionChanged') listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    onTestFinished(() => subscription.mockRestore())
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    onTestFinished(() => stream.close())
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    TestRenderer.act(() => { for (const listener of listeners) listener(true) })
+    const pending = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'astra-pending')
+    expect(pending).toHaveLength(1)
+    expect(pending[0].findAll((node: { type: unknown }) => node.type === Animated.View)).toHaveLength(0)
+    expect(pending[0].props.importantForAccessibility).toBe('no-hide-descendants')
+  })
+
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
+    const pending = () => tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'astra-pending')
+    expect(pending()).toHaveLength(1)
+    expect(tree.root.findByType('FlatList').props.accessibilityState).toEqual({ busy: true })
+    await TestRenderer.act(async () => {
+      if (arrival === 'limit-notice') {
+        mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 5, aiMessagesLimit: 5 })
+        tree.update(<ComposerConversationHarness />)
+      }
+      if (arrival === 'text') stream.enqueue(frame('{"type":"delta","text":"Start with water"}'))
+      if (arrival === 'tool') stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}'))
+      if (arrival === 'error') stream.enqueue(frame('{"type":"error","error":"Could not reply","status":500}'))
+      if (arrival === 'limit') stream.enqueue(frame('{"type":"error","error":"Limit reached","status":403}'))
+      if (arrival === 'block') stream.enqueue(finalFrame(makeChatResponse({ aiMessage: '', habitList: { scope: 'today', items: [] } })))
+      if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
+      await Promise.resolve()
+    })
+    expect(pending()).toHaveLength(0)
+    if (arrival === 'text') expect(visibleMessageTexts(tree)).toContain('Start with water')
+    if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
+  })
+
   it('opens the conversation for a shell typed send with the message and streaming answer in its list', async () => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValue(stream.response)

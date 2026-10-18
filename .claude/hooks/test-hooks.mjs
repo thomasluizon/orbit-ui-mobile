@@ -68,12 +68,27 @@ T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
 const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
 T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
 
-const guardsWorkflow = readFileSync(join(repoRoot, ".github", "workflows", "guards.yml"), "utf8")
-const parityGuidance = "a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
-T("parity guidance: both one-sided failures name the complete narrow exception", guardsWorkflow.split(parityGuidance).length - 1, 2)
-T("parity guidance: obsolete platform-adapters-only help is gone", guardsWorkflow.includes("(platform adapters only)"), false)
-T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]') }}"), true)
-T("parity gate: both one-sided file-count failures remain enforced", (guardsWorkflow.match(/if \[ \"\$(?:web|mobile)\" -gt 0 \] && \[ \"\$(?:mobile|web)\" -eq 0 \]; then/g) ?? []).length, 2)
+const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
+T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
+T("parity gate: edits and label changes refresh their own check", metadataWorkflow.includes("types: [opened, synchronize, reopened, edited, labeled, unlabeled]"), true)
+const parityFixture = join(root, "parity")
+mkdirSync(parityFixture)
+const runParity = (paths, labels, body) => {
+  const metadata = join(parityFixture, "metadata.json")
+  const changed = join(parityFixture, "paths.txt")
+  writeFileSync(metadata, JSON.stringify({ title: "Parity fixture", body, labels }))
+  writeFileSync(changed, paths.join("\n"))
+  return spawnSync(process.execPath, [join(repoRoot, ".github/scripts/check-pr-metadata.mjs"), metadata,
+    join(parityFixture, "body.md"), "--changed-files-file", changed], { encoding: "utf8" }).status
+}
+const webParityPath = "apps/web/components/control.tsx"
+const mobileParityPath = "apps/mobile/components/control.tsx"
+T("parity gate: web alone fails", runParity([webParityPath], [], ""), 1)
+T("parity gate: mobile alone fails", runParity([mobileParityPath], [], ""), 1)
+T("parity gate: mirrored changes pass", runParity([webParityPath, mobileParityPath], [], ""), 0)
+T("parity gate: an ordinary label cannot exempt a one-sided change", runParity([webParityPath], ["feature"], ""), 1)
+T("parity gate: parity:exempt needs a specific justification", runParity([webParityPath], ["parity:exempt"], ""), 1)
+T("parity gate: a named platform adapter passes", runParity([webParityPath], ["parity:exempt"], "## Parity\n\nBFF cookie adapter."), 0)
 
 // ---------------------------------------------------------------------------
 // 2. Rule units
