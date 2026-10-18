@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including the daily streak moment, the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -359,8 +359,12 @@ Designing any of these is the defect, not the omission.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
-  completing, a level up, and everything due today being done. **Never an individual habit
-  completion**, which the motion frequency gate already rules out at that frequency.
+  completing, a level up, and everything due today being done. Individual habit completions never
+  receive a celebration. The first confirmed completion that extends today's account streak by one
+  earns a daily streak moment in the same non-blocking shell notice slot. It counts from the previous
+  streak to the new number beside a day ring, then dismisses itself after 2500ms. It appears at most
+  once per local day, including across reloads, and never for a past-day log, an undo, a slip on a
+  habit to avoid, or an unchanged streak. A milestone uses the existing milestone panel instead.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
 - **A create-goal entry in navigation.** A goal is created from a habit, or by asking.
 - **The desktop stats rail.** Progresso owns the question it was answering.
@@ -1210,6 +1214,14 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
 
+**Daily streak feedback is state indication, once per day.** The daily streak moment uses the
+280ms movement token and ease-out curve for a 12px number change and a single day-ring sweep.
+It stays neutral, leaves the screen and composer interactive, and dismisses after 2500ms.
+Reduced motion shows the final number and completed ring immediately, with no movement.
+There is no glow, gradient, confetti, looping or exclamation. Logging has no additional Android
+haptic unless its logging interaction already uses one. Milestone days show only the milestone
+panel for the streak; other earned facts retain their queue order.
+
 **Every animation must name its purpose from this closed list:** feedback · spatial consistency · state indication · preventing a jarring change · explanation · delight (rare/first-run tier only). **If you cannot name it, delete it.**
 
 **Never animate data the user is trying to read or act on.**
@@ -1359,7 +1371,7 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 - **Render the live region empty and stable before updating its text.** A region inserted together with its content is announced inconsistently.
 - **Default to polite.** Overusing `assertive` interrupts whatever the reader was on.
-- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus.
+- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus. The daily streak moment has its own 2500ms dwell.
 - **Anything moving, blinking or updating automatically for more than 5 seconds needs a visible pause control.**
 - **Under reduced motion**, replace slides, scales and parallax with opacity cross-fades, kill autoplay, and start carousels paused. Keep spinners, progress, instant state changes and brief press feedback. Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in; where a global kill switch is the only option, use `0.01ms` rather than `none` so `transitionend` still fires.
 - **The `.sr-only` pattern uses 1px boxes, not zero**, with `clip-path: inset(50%)` and `white-space: nowrap`. Never `display: none`.
