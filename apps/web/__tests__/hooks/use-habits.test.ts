@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { renderHook, waitFor, act, render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
@@ -9,6 +9,9 @@ import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys }
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+
+import { DailyStreakMoment } from '@/components/gamification/daily-streak-moment'
+import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -110,6 +113,8 @@ vi.mock('@/stores/ui-store', async () => {
   return { useUIStore: Object.assign(
     () => ({
       activeFilters: {},
+      showStreakMoment: actual.useUIStore.getState().showStreakMoment,
+      completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
       setStreakCelebration: mockSetStreakCelebration,
       checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
       setLastCreatedHabitId: vi.fn(),
@@ -117,6 +122,8 @@ vi.mock('@/stores/ui-store', async () => {
     {
       getState: () => ({
         activeFilters: {},
+        showStreakMoment: actual.useUIStore.getState().showStreakMoment,
+        completeActiveCelebration: actual.useUIStore.getState().completeActiveCelebration,
         setStreakCelebration: mockSetStreakCelebration,
         checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
         setLastCreatedHabitId: vi.fn(),
@@ -2486,4 +2493,273 @@ it('loads only the requested search page and preserves its totals', async () => 
   expect(result.current.data?.topLevelHabits.map((habit) => habit.id)).toEqual(['last'])
   expect(mockFetch).toHaveBeenCalledTimes(1)
   expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=walk&page=2&pageSize=20')
+})
+
+
+describe('daily streak moment after confirmed logging', () => {
+  it.each([
+    { name: 'second completion', first: false, streak: 5 },
+    { name: 'repeated first response', first: true, streak: 6 },
+    { name: 'past-day log', first: true, streak: 6, date: '2000-01-01' },
+    { name: 'slip', first: true, streak: 6, bad: true },
+    { name: 'unchanged streak', first: true, streak: 5 },
+    { name: 'unlog', first: true, streak: 6, intent: 'unlog' as const },
+    { name: 'milestone', first: true, streak: 7 },
+  ])('shows the first extension once and excludes $name', async (scenario) => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    mockSetStreakCelebration.mockClear()
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    store.getState().completeActiveCelebration()
+    if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ isBadHabit: scenario.bad ?? false })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: scenario.intent ?? 'log' }))
+    expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
+    expect(store.getState().queuedCelebrations).toEqual([])
+    expect(mockSetStreakCelebration.mock.calls).toEqual(scenario.name === 'milestone' ? [[{ streak: 7 }]] : [])
+    unmount()
+    queryClient.clear()
+  })
+})
+
+
+describe('daily streak moment after bulk logging', () => {
+  it('uses the refreshed profile after a confirmed bulk completion', async () => {
+    const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const store = actual.useUIStore
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5 })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
+    unmount()
+    queryClient.clear()
+  })
+})
+
+
+it('keeps a bulk completion confirmed across midnight out of the next day receipt', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  vi.setSystemTime(new Date(2026, 5, 15, 23, 59))
+  const { bulkLogHabits } = await import('@/lib/actions/habits')
+  const response = { results: [{ index: 0, status: 'Success' as const, habitId: 'h-1', logId: 'confirmed-log', error: null }] }
+  vi.mocked(bulkLogHabits).mockImplementation(async () => {
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
+    return response
+  })
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  let refreshedStreak = 5
+  vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+    if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: refreshedStreak })
+  })
+  const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+  try {
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+    refreshedStreak = 6
+    await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+    expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
+  } finally {
+    unmount()
+    queryClient.clear()
+    vi.useRealTimers()
+  }
+})
+
+
+it.each([5, 7])('shows the streak extension to %i after an earlier slip', async (streak) => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  const store = actual.useUIStore
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  const { logHabit } = await import('@/lib/actions/habits')
+  const queryClient = createQueryClient()
+  queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ id: 'avoid', isBadHabit: true }), makeScheduleItem({ id: 'build' })])
+  queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+  const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+  vi.mocked(logHabit).mockResolvedValue({ logId: 'slip-log', isFirstCompletionToday: false, currentStreak: streak - 1 })
+  await act(() => result.current.mutateAsync({ habitId: 'avoid', intent: 'log' }))
+  expect(store.getState().activeCelebration).toBeNull()
+  vi.mocked(logHabit).mockResolvedValue({ logId: 'positive-log', isFirstCompletionToday: false, currentStreak: streak })
+  await act(() => result.current.mutateAsync({ habitId: 'build', intent: 'log' }))
+  expect(store.getState().activeCelebration).toMatchObject({ kind: streak === 7 ? 'streak' : 'daily-streak', payload: { streak } })
+  expect(store.getState().queuedCelebrations).toEqual([])
+  unmount()
+  queryClient.clear()
+})
+
+
+describe('account calendar streak regressions', () => {
+  const scenarios = [
+    { name: 'explicit account day', date: '2026-06-15', expected: true },
+    { name: 'implicit account day', expected: true },
+    { name: 'past account day', date: '2026-06-14', expected: false },
+    { name: 'account midnight', after: '2026-06-16T03:01:00Z', expected: false },
+    { name: 'device midnight within the account day', before: '2026-06-15T23:59:00Z', after: '2026-06-16T00:01:00Z', expected: true },
+  ]
+  it.each(scenarios.flatMap((scenario) => [5, 7].map((streak) => ({ ...scenario, streak }))))('uses the account calendar for single logging: $name, streak $streak', async (scenario) => {
+    mockSetStreakCelebration.mockClear()
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockImplementation(async () => {
+      if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+      return { logId: 'confirmed-log', currentStreak: scenario.streak, isFirstCompletionToday: true }
+    })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.streak - 1, timeZone: 'America/Sao_Paulo' })
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', date: scenario.date, intent: 'log' }))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? (scenario.streak === 7 ? 'streak' : 'daily-streak') : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+      expect(mockSetStreakCelebration).toHaveBeenCalledTimes(scenario.expected && scenario.streak === 7 ? 1 : 0)
+    } finally {
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(scenarios)('uses the account calendar for bulk logging: $name', async (scenario) => {
+    vi.setSystemTime(new Date(scenario.before ?? '2026-06-16T01:00:00Z'))
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4, timeZone: 'America/Sao_Paulo' })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) !== JSON.stringify(profileKeys.all)) return
+      await Promise.resolve()
+      if (scenario.after) vi.setSystemTime(new Date(scenario.after))
+      queryClient.setQueryData(profileKeys.detail(), { currentStreak: 5, timeZone: 'America/Sao_Paulo' })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1', date: scenario.date }]))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
+    } finally {
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk streak and all-done ordering regressions', () => {
+  it.each([
+    { streak: 5, existing: false },
+    { streak: 7, existing: false },
+    { streak: 5, existing: true },
+  ])('orders streak $streak before all-done and preserves existing=$existing', async ({ streak, existing }) => {
+    vi.setSystemTime(new Date('2026-06-16T01:00:00Z'))
+    const today = '2026-06-16'
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+    if (existing) store.getState().enqueueCelebration('goal-completed', { name: 'Distance', count: 5, unit: 'km' })
+    const previousActive = store.getState().activeCelebration
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'confirmed-log', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [makeScheduleItem({ dueDate: today, scheduledDates: [today] })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1, timeZone: 'UTC' })
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
+      if (JSON.stringify(filters?.queryKey) === JSON.stringify(profileKeys.all)) queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak, timeZone: 'UTC' })
+    })
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    let moment: ReturnType<typeof render> | undefined
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+      if (existing) {
+        expect(store.getState().activeCelebration).toEqual(previousActive)
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['daily-streak', 'all-done'])
+        store.getState().completeActiveCelebration()
+      }
+      const active = store.getState().activeCelebration!
+      expect(active.kind).toBe(streak === 7 ? 'streak' : 'daily-streak')
+      expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
+      if (active.kind === 'daily-streak') {
+        vi.useFakeTimers()
+        moment = render(React.createElement(DailyStreakMoment, { id: active.id, streak, reducedMotion: true, closeRef: null, onDismiss: () => store.getState().completeActiveCelebration(active.id) }))
+        await act(() => vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1))
+        expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
+        await act(() => vi.advanceTimersByTime(1))
+      } else {
+        store.getState().completeActiveCelebration(active.id)
+      }
+      expect(store.getState().activeCelebration?.kind).toBe('all-done')
+    } finally {
+      moment?.unmount()
+      unmount()
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+})
+
+
+describe('bulk no-op streak eligibility', () => {
+  it.each([5, 7].flatMap((streak) => [false, true].map((created) => ({ streak, created }))))(
+    'keeps streak $streak feedback and its receipt tied to a created log: $created',
+    async ({ streak, created }) => {
+      const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+      store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '', allDoneCelebratedDate: '' })
+      const today = formatAPIDate(new Date())
+      const { bulkLogHabits } = await import('@/lib/actions/habits')
+      vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{
+        index: 0, status: 'Success', habitId: 'h-1', logId: created ? 'confirmed-log' : null,
+        error: null,
+      }] })
+      const queryClient = createQueryClient()
+      const todayKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+      queryClient.setQueryData(todayKey, [makeScheduleItem({ dueDate: today, scheduledDates: [today] })])
+      queryClient.setQueryData(profileKeys.detail(), { currentStreak: streak - 1 })
+      const observer = new QueryObserver(queryClient, {
+        queryKey: profileKeys.detail(), staleTime: Infinity,
+        queryFn: () => Promise.resolve({ currentStreak: streak }),
+      })
+      const unsubscribe = observer.subscribe(() => {})
+      const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+      try {
+        await act(() => result.current.mutateAsync([{ habitId: 'h-1' }]))
+        expect(queryClient.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
+        expect(queryClient.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
+        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
+        expect(store.getState().allDoneCelebratedDate).toBe(today)
+      } finally {
+        unmount()
+        unsubscribe()
+        queryClient.clear()
+      }
+    },
+  )
 })

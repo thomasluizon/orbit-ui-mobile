@@ -125,6 +125,10 @@ export const cases = async () => {
   T(`${NAME}: removing the off vector is the config kill switch`,
     JSON.stringify(resolveWorkerInvocation("codex", killSwitch).args) === JSON.stringify([...killSwitch.args, ...(killSwitch.models.default.args ?? []), "--model", killSwitch.models.default.model]))
   const shipped = readOrchestratorConfig()
+  T(`${NAME}: the shipped parallel ticket cap is 40`, real.caps.parallelTickets === 40)
+  for (const name of ["parallelTickets", "maxOpenPullRequests", "maxQueuedRuns"]) {
+    T(`${NAME}: the reader preserves the shipped ${name} cap`, shipped.caps[name] === real.caps[name])
+  }
   T(`${NAME}: shipped standing ticket numbers are read`, JSON.stringify(shipped.tickets.standing) === JSON.stringify([556, 746]))
   const repeatedStanding = structuredClone(real)
   repeatedStanding.tickets.standing = [556, 556]
@@ -444,7 +448,7 @@ export const cases = async () => {
       real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks === 8 &&
-      real.caps.parallelTickets === 10 &&
+      real.caps.parallelTickets === 40 &&
       real.caps.workerLaunchesPerBranch === 2 &&
       real.caps.workerLogMegabytes === 512,
     JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),

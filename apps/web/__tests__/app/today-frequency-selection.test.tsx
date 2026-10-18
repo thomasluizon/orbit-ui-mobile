@@ -42,7 +42,7 @@ function TodayHarness({ recovery = false }: Readonly<{ recovery?: boolean }>) {
   return <>
     <output>{visible.map((habit) => habit.id).join(',')}</output>
     <TodayDateControl dayName={en.dates.today} numericDate="12/09" isTodaySelected nextDisabled={false}
-      previousLabel={en.dates.previousDay} todayLabel={en.dates.today} goToTodayLabel={en.dates.goToToday}
+      previousLabel={en.dates.previousDay} goToTodayLabel={en.dates.goToToday}
       nextLabel={en.dates.nextDay} moreLabel={en.habits.listOptions} menuHeading={en.common.options}
       selectLabel={en.common.select} collapseLabel={en.habits.collapseAll} allCollapsed={false}
       refreshLabel={en.habits.refresh} completedLabel={en.habits.showCompleted} showCompleted={false}
