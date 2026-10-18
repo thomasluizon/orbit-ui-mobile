@@ -3396,6 +3396,7 @@
     "expiresOn": "Expira em {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
     "expiresAtLabel": "Expira em (UTC, opcional)",
+    "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },
   "preferences": {
