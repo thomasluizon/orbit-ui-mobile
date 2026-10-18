@@ -309,7 +309,8 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mockApiClient,
 }))
 
-vi.mock('@/lib/step-up-storage', () => ({
+vi.mock('@/lib/step-up-storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/step-up-storage')>()),
   beginStepUpChallenge: vi.fn(),
   isStepUpVerified: () => mockStepUpVerified.current,
   hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
@@ -1369,6 +1370,7 @@ describe('ProfileScreen', () => {
       .mockRejectedValueOnce(new Error('failed'))
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
@@ -1398,6 +1400,10 @@ describe('ProfileScreen', () => {
       findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
       await Promise.resolve()
       await Promise.resolve()
+    })
+    expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, {
+      method: 'POST',
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', scopes: ['fresh:scope'], isReadOnly: true }),
     })
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())

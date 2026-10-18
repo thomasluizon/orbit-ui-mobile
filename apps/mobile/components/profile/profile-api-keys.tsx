@@ -1,6 +1,6 @@
 
 import { ActionRow } from '@/components/ui/action-row'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useRouter } from 'expo-router'
@@ -23,14 +23,16 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
+import { Switch } from '@/components/ui/switch'
 import { useOffline } from '@/hooks/use-offline'
 import { apiClient } from '@/lib/api-client'
 import { API_BASE } from '@/lib/api-base'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission } from '@/lib/step-up-storage'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface ProfileApiKeysProps {
@@ -305,6 +307,8 @@ function ApiKeyAccessContent({
 interface ApiKeyCreateControlsProps {
   canCreate: boolean
   creating: boolean
+  isReadOnly: boolean
+  onReadOnlyChange: (checked: boolean) => void
   onCreate: () => void
   onCreateScoped: () => void
   scopeOpen: boolean
@@ -314,6 +318,8 @@ interface ApiKeyCreateControlsProps {
 function ApiKeyCreateControls({
   canCreate,
   creating,
+  isReadOnly,
+  onReadOnlyChange,
   onCreate,
   onCreateScoped,
   scopeOpen,
@@ -325,24 +331,33 @@ function ApiKeyCreateControls({
     return <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.maxKeysReached')}</Text>
   }
   return (
-    <View style={styles.actions}><ActionRow>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
-        {t('profile.apiKeys.createScoped')}
-      </PillButton>
-      <PillButton
-        variant="secondary"
-        size="sm"
-        loading={creating && !scopeOpen}
-        onClick={onCreate}
-      >
-        {t('profile.apiKeys.create')}
-      </PillButton>
-    </ActionRow></View>
+    <View style={styles.createControls}>
+      <Switch
+        label={t('orbitMcp.readOnlyKeyLabel')}
+        checked={isReadOnly}
+        disabled={creating || stepUpBusy}
+        onChange={onReadOnlyChange}
+      />
+      <ActionRow>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating} onClick={onCreateScoped}>
+          {t('profile.apiKeys.createScoped')}
+        </PillButton>
+        <PillButton
+          variant="secondary"
+          size="sm"
+          loading={creating && !scopeOpen}
+          disabled={creating || stepUpBusy}
+          onClick={onCreate}
+        >
+          {t('profile.apiKeys.create')}
+        </PillButton>
+      </ActionRow>
+    </View>
   )
 }
 
-function useApiKeyStepUp() {
+function useApiKeyStepUp(isReadOnly: boolean) {
   const router = useRouter()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const [busy, setBusy] = useState(false)
@@ -363,6 +378,7 @@ function useApiKeyStepUp() {
       if (!ownsAccount()) return
       await beginStepUpChallenge('keys', accountId)
       if (!ownsAccount()) return
+      rememberApiKeyCreationPermission(isReadOnly)
       router.push('/step-up?operation=keys')
     } catch {
       if (!ownsAccount()) return
@@ -397,8 +413,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp()
+  const stepUp = useApiKeyStepUp(isReadOnly)
+
+  useEffect(clearPendingApiKeyPermission, [])
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
@@ -420,7 +439,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   }
 
   async function createSimpleKey() {
-    const result = await createKey({ name: t('profile.apiKeys.newKeyName') })
+    const result = await createKey({ name: t('profile.apiKeys.newKeyName'), isReadOnly })
     if (result) setCreatedKey(result)
   }
 
@@ -460,6 +479,8 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           <ApiKeyCreateControls
             canCreate={management.canCreateKey}
             creating={creating}
+            isReadOnly={isReadOnly}
+            onReadOnlyChange={setIsReadOnly}
             onCreate={() => void createSimpleKey()}
             onCreateScoped={() => openScopeOrStartStepUp(
               management.createGrantAvailable,
@@ -484,7 +505,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           error={management.createKeyError}
           onClose={() => setScopeOpen(false)}
           onCreate={(scope, onCreateGrantRequired) => createKey(
-            { name: t('profile.apiKeys.newKeyName'), scopes: [scope] },
+            { name: t('profile.apiKeys.newKeyName'), scopes: [scope], isReadOnly },
             onCreateGrantRequired,
           )}
           onCreateGrantRequired={() => {
@@ -530,7 +551,7 @@ const styles = StyleSheet.create({
   heading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   message: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  createControls: { gap: 8 },
   errorState: { alignItems: 'flex-start', gap: 8 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },

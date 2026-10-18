@@ -2,7 +2,7 @@
 
 import { ActionRow } from '@/components/ui/action-row'
 
-import { type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -21,11 +21,12 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
+import { Switch } from '@/components/ui/switch'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, clearPendingApiKeyPermission, readPendingApiKeyPermission, rememberApiKeyCreationPermission } from '@/lib/step-up-storage'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
@@ -300,6 +301,8 @@ function ApiKeyAccessContent({
 interface ApiKeyCreateControlsProps {
   canCreate: boolean
   creating: boolean
+  isReadOnly: boolean
+  onReadOnlyChange: (checked: boolean) => void
   onCreate: () => void
   onCreateScoped: () => void
   scopeOpen: boolean
@@ -309,6 +312,8 @@ interface ApiKeyCreateControlsProps {
 function ApiKeyCreateControls({
   canCreate,
   creating,
+  isReadOnly,
+  onReadOnlyChange,
   onCreate,
   onCreateScoped,
   scopeOpen,
@@ -319,24 +324,33 @@ function ApiKeyCreateControls({
     return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.maxKeysReached')}</p>
   }
   return (
-    <div className="flex flex-wrap" style={{ gap: 8 }}><ActionRow>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
-        {t('profile.apiKeys.createScoped')}
-      </PillButton>
-      <PillButton
-        variant="secondary"
-        size="sm"
-        loading={creating && !scopeOpen}
-        onClick={onCreate}
-      >
-        {t('profile.apiKeys.create')}
-      </PillButton>
-    </ActionRow></div>
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      <Switch
+        label={t('orbitMcp.readOnlyKeyLabel')}
+        checked={isReadOnly}
+        disabled={creating || stepUpBusy}
+        onChange={onReadOnlyChange}
+      />
+      <ActionRow>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+        <PillButton variant="ghost" size="sm" loading={stepUpBusy} disabled={creating} onClick={onCreateScoped}>
+          {t('profile.apiKeys.createScoped')}
+        </PillButton>
+        <PillButton
+          variant="secondary"
+          size="sm"
+          loading={creating && !scopeOpen}
+          disabled={creating || stepUpBusy}
+          onClick={onCreate}
+        >
+          {t('profile.apiKeys.create')}
+        </PillButton>
+      </ActionRow>
+    </div>
   )
 }
 
-function useApiKeyStepUp() {
+function useApiKeyStepUp(isReadOnly: boolean) {
   const router = useRouter()
   const t = useTranslations()
   const accountId = useHeldAccountId()
@@ -358,6 +372,7 @@ function useApiKeyStepUp() {
         return
       }
       beginStepUpChallenge('keys', accountId)
+      rememberApiKeyCreationPermission(isReadOnly)
       router.push('/step-up?operation=keys')
     } catch (error) {
       setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
@@ -390,8 +405,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const hasProAccess = profile?.hasProAccess ?? false
   const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
   const [creating, setCreating] = useAccountScopedState(false)
+  const [isReadOnly, setIsReadOnly] = useAccountScopedState(readPendingApiKeyPermission)
   const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
-  const stepUp = useApiKeyStepUp()
+  const stepUp = useApiKeyStepUp(isReadOnly)
+
+  useEffect(clearPendingApiKeyPermission, [])
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
@@ -414,7 +432,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   }
 
   async function createSimpleKey() {
-    const result = await createKey({ name: t('profile.apiKeys.newKeyName') })
+    const result = await createKey({ name: t('profile.apiKeys.newKeyName'), isReadOnly })
     if (result) setCreatedKey(result)
   }
 
@@ -458,6 +476,8 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           <ApiKeyCreateControls
             canCreate={management.canCreateKey}
             creating={creating}
+            isReadOnly={isReadOnly}
+            onReadOnlyChange={setIsReadOnly}
             onCreate={() => void createSimpleKey()}
             onCreateScoped={() => openScopeOrStartStepUp(
               management.createGrantAvailable,
@@ -485,7 +505,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           error={management.createKeyError}
           onClose={() => setScopeOpen(false)}
           onCreate={(scope, onCreateGrantRequired) => createKey(
-            { name: t('profile.apiKeys.newKeyName'), scopes: [scope] },
+            { name: t('profile.apiKeys.newKeyName'), scopes: [scope], isReadOnly },
             onCreateGrantRequired,
           )}
           onCreateGrantRequired={() => {

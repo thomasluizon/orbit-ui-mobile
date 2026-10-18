@@ -113,7 +113,8 @@ vi.mock('@/lib/actions/api-keys', () => ({
   requestApiKeyCreationChallenge: mockRequestApiKeyCreationChallenge,
 }))
 
-vi.mock('@/lib/step-up-storage', () => ({
+vi.mock('@/lib/step-up-storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/step-up-storage')>()),
   beginStepUpChallenge: vi.fn(),
   isStepUpVerified: () => mockStepUpVerified.current,
   hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
@@ -1116,6 +1117,7 @@ describe('ProfilePage', () => {
       expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).not.toBeInTheDocument()
     })
 
+    fireEvent.click(apiKeys.getByRole('switch', { name: 'orbitMcp.readOnlyKeyLabel' }))
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
       target: { value: 'habits:read' },
@@ -1126,6 +1128,7 @@ describe('ProfilePage', () => {
       expect(mockCreateApiKey).toHaveBeenCalledWith({
         name: 'profile.apiKeys.newKeyName',
         scopes: ['habits:read'],
+        isReadOnly: true,
       }, 'account-a')
     })
   })
