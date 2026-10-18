@@ -17,7 +17,9 @@ function computeGoalProgressPercentage(currentValue: number, targetValue: number
 }
 
 function resolveDefinedValue<T>(value: T | undefined, fallback: T): T {
-  return value === undefined ? fallback : value
+  // WHY: null is an explicit clear that must survive, so `??` would restore the old value. https://github.com/thomasluizon/orbit-tickets/issues/1516
+  if (value === undefined) return fallback
+  return value
 }
 
 export function buildTempGoal(
