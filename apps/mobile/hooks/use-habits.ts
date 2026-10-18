@@ -9,7 +9,7 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
-  applyCachedHabitSkip,
+  applyCachedHabitSkip, rollbackDatedHabitLists,
   checkTodayAllDoneOrDefer,
   clearCachedOptimisticSkip,
   restoreCachedHabitSkip,
@@ -235,44 +235,6 @@ function checkTodayCompletionAfterLog(
   return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch, checkAllDoneCelebration)
     ? today
     : null
-}
-
-function rollbackDatedHabitLists(
-  queryClient: ReturnType<typeof useQueryClient>,
-  previousLists: HabitListSnapshots,
-  habitId: string,
-  date: string,
-  optimisticLogId: string,
-): void {
-  for (const [key, previousItems] of previousLists) {
-    const previousHabit = previousItems && findHabitInList(previousItems, habitId)
-    if (!previousHabit) continue
-    const previousOccurrence = previousHabit.instances.find((instance) => instance.date === date)
-
-    queryClient.setQueryData<HabitScheduleItem[]>(key, (currentItems) => {
-      if (!currentItems) return currentItems
-      const currentHabit = findHabitInList(currentItems, habitId)
-      const currentOccurrence = currentHabit?.instances.find((instance) => instance.date === date)
-      const previousCompleted = previousOccurrence?.status === 'Completed'
-      const patchStillApplied = previousCompleted
-        ? currentOccurrence?.status !== 'Completed'
-        : currentOccurrence?.logId === optimisticLogId
-      if (!patchStillApplied) return currentItems
-
-      const restoredItems = optimisticSetDatedCompletion(
-        currentItems,
-        habitId,
-        date,
-        previousCompleted,
-        previousOccurrence?.logId ?? '',
-      )
-      const restoredHabit = findHabitInList(restoredItems, habitId)
-      if (restoredHabit && previousHabit.isLoggedInRange === undefined) {
-        delete restoredHabit.isLoggedInRange
-      }
-      return restoredItems
-    })
-  }
 }
 
 export function useLogHabit() {

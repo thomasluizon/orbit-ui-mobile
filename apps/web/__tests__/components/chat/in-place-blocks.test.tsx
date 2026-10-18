@@ -24,7 +24,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
-vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ ...state.query, refetch: state.refetch }) }))
+vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ ...state.query, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ ...state.query, data: state.disconnected ? { status: 'not-connected', events: [] } : undefined, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [{ id: 'one' }, { id: 'two' }] }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({
@@ -145,4 +145,16 @@ it('puts a payload sync error in the calendar actions area', () => {
   const view = render(<CalendarCard calendarCard={{ ...inPlaceCalendarFixture, sync: { enabled: true, status: 'TransientError', lastSyncedAt: null } }} />)
   expect(screen.getByRole('alert')).toHaveTextContent('chat.calendarCard.syncState.TransientError')
   expect(view.container.querySelector('[data-action-row]')).toContainElement(screen.getByRole('alert'))
+})
+
+
+it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent completion total', (kind) => {
+  const parent = inPlaceDayFixture.rows![0]!
+  const extra = { ...parent, id: 'extra', title: 'Extra', depth: kind === 'child' ? 1 : 0, isBadHabit: kind === 'bad' }
+  const snapshot = { ...inPlaceDayFixture, due: 1, done: 0, rows: [parent, extra] }
+  state.habits.set(extra.id, createMockHabit({ id: extra.id, title: extra.title, isBadHabit: extra.isBadHabit, isLoggedInRange: true }))
+  const view = render(<DaySummaryCard daySummary={snapshot} />)
+  expect(screen.getByText('chat.daySummary.doneOfDue:{"done":0,"due":1}')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+  view.unmount()
 })

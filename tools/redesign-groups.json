@@ -5,6 +5,7 @@
     "Orbit Astra Conversation": [
       "block-chat-account-rows-card",
       "block-chat-action-chips",
+      "block-chat-block-registry",
       "block-chat-breakdown-suggestion",
       "block-chat-calendar-card",
       "block-chat-chat-empty-state",
@@ -25,6 +26,7 @@
       "block-chat-streak-card",
       "m-block-chat-account-rows-card",
       "m-block-chat-action-chips",
+      "m-block-chat-block-registry",
       "m-block-chat-breakdown-suggestion",
       "m-block-chat-calendar-card",
       "m-block-chat-chat-empty-state",
@@ -40,6 +42,7 @@
       "m-block-chat-metrics-card",
       "m-block-chat-operation-outcomes",
       "m-block-chat-pending-operation-card",
+      "m-block-chat-pending-reply",
       "m-block-chat-period-insight-card",
       "m-block-chat-record-list-card",
       "m-block-chat-streak-card",

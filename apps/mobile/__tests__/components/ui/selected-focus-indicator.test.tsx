@@ -6,7 +6,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { RadioRow } from '@/components/ui/select-check'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { buildHabitUnderstandingLabels, formatLocaleDate } from '@orbit/shared/utils'
+import { buildHabitUnderstandingLabels, formatLocaleDate, HOURS_24, MINUTES, padTimePart } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
 import { DateField } from '@/components/ui/date-field'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
@@ -27,6 +27,8 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true, weekStartDay: 1 } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: 'en', currentTheme: 'dark', currentScheme: 'orange', activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
+
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 
 const TestRenderer = require('react-test-renderer')
 const tokens = createTokensV2('orange', 'dark')
@@ -82,11 +84,13 @@ function verify(element: React.ReactNode, selected: boolean) {
   TestRenderer.act(() => tree!.unmount())
 }
 
-function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
-  const choices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
+function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, { stableChoices = false } = {}) {
+  const findChoices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
     const state = node.props.accessibilityState
     return state?.selected !== undefined || state?.checked !== undefined
   })
+  const initialChoices = findChoices()
+  const choices = stableChoices ? () => initialChoices : findChoices
   expect(choices().length).toBeGreaterThan(1)
   for (let index = 0; index < choices().length; index += 1) {
     let choice = choices()[index]
@@ -104,11 +108,24 @@ function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
   }
 }
 
-it('TimeField options use one indicator with and without selection', () => {
+it.each([
+  ...HOURS_24.map((hour) => ['common.hours', padTimePart(hour), hour === 9] as const),
+  ...MINUTES.map((minute) => ['common.minutes', padTimePart(minute), minute === 0] as const),
+])('TimeField %s option %s uses one indicator, selected %s', (columnLabel, optionLabel, selected) => {
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" onChange={vi.fn()} />) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" hourCycle="h23" onChange={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
-  verifyAllChoices(tree)
+  const choice = () => tree!.root.findAllByType('View')
+    .find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === columnLabel)
+    .findAllByType('Pressable')
+    .find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === optionLabel)
+  expect(ringCount(choice())).toBe(selected ? 1 : 0)
+  const target = {}
+  const event = { target, currentTarget: target }
+  TestRenderer.act(() => choice().props.onFocus(event))
+  expect(ringCount(choice())).toBe(1)
+  TestRenderer.act(() => choice().props.onBlur(event))
+  expect(ringCount(choice())).toBe(choice().props.accessibilityState.checked ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
 })
 
@@ -120,7 +137,7 @@ it.each([false, true])('emoji options and category chips share the focus rule, c
     const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
     TestRenderer.act(() => category.props.onPress())
   }
-  verifyAllChoices(tree)
+  verifyAllChoices(tree, { stableChoices: true })
   TestRenderer.act(() => tree!.unmount())
 })
 

@@ -29,6 +29,7 @@ export {
   updateCachedHabitLists,
   clearCachedOptimisticSkip,
   restoreCachedHabitLists,
+  rollbackDatedHabitLists,
   restoreCachedHabitSkip,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,

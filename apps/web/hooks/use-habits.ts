@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
-  applyCachedHabitSkip,
+  applyCachedHabitSkip, rollbackDatedHabitLists,
   updateHabitListsForDate, invalidateHabitDependents,
   clearCachedOptimisticSkip,
   restoreCachedHabitSkip,
@@ -26,7 +26,7 @@ import {
   buildChildrenIndex,
   plural,
   optimisticRemoveHabits,
-  optimisticSetCalendarHabitLog,
+  optimisticSetCalendarHabitLog, optimisticSetDatedCompletion,
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
   getFriendlyErrorMessage,
@@ -183,9 +183,7 @@ export function useLogHabit() {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 
-      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousLists = snapshotHabitLists(queryClient)
       const previousCalendars = date
         ? queryClient.getQueriesData<CalendarMonthResponse>({
             queryKey: habitKeys.calendarPrefix(),
@@ -196,6 +194,7 @@ export function useLogHabit() {
         const completed = intent === 'log'
         const optimisticLogId = `optimistic-log:${habitId}:${date}`
         const createdAtUtc = new Date().toISOString()
+        updateHabitListsForDate(queryClient, date, (items) => optimisticSetDatedCompletion(items, habitId, date, completed, optimisticLogId), { includeUnfiltered: false })
         queryClient.setQueriesData<CalendarMonthResponse>(
           { queryKey: habitKeys.calendarPrefix() },
           (old) => old
@@ -228,6 +227,7 @@ export function useLogHabit() {
       if (variables.date) {
         const date = variables.date
         const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+        rollbackDatedHabitLists(queryClient, context?.previousLists ?? [], variables.habitId, date, optimisticLogId)
         for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
           if (!previousCalendar) continue
           queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
@@ -404,6 +404,7 @@ export function useCreateHabit() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
     },
   })
 }
@@ -452,6 +453,7 @@ function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryCli
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
   void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 }
@@ -572,6 +574,7 @@ export function useDuplicateHabit() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
     },
   })
 }
@@ -637,6 +640,7 @@ export function useUpdateChecklist() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
@@ -675,6 +679,7 @@ export function useCreateSubHabit() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(parentId) })
     },
   })
@@ -697,6 +702,7 @@ export function useMoveHabitParent() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
     },
   })
 }
@@ -714,6 +720,7 @@ export function useBulkCreateHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
     },
   })
 }
@@ -796,6 +803,7 @@ export function useBulkDeleteHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
@@ -882,6 +890,7 @@ export function useBulkLogHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
@@ -937,6 +946,7 @@ export function useBulkSkipHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
       void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })

@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
 import { z } from 'zod'
 import { useHabitMetrics } from '@/hooks/use-habits'
-import { useProgressRetrospective } from '@/hooks/use-retrospective'
+import { useProgressRecap } from '@/hooks/use-recap'
 import { liveMetricsCard, metricsFigureLabelKey } from '@orbit/shared/chat/metrics-card-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import { StatTile } from '@/components/ui/stat-tile'
@@ -26,12 +26,12 @@ export function MetricsCard({ metricsCard: snapshot }: Readonly<{ metricsCard: M
   const t = useTranslations()
   const locale = useLocale()
   const period = z.enum(['week', 'month', 'quarter', 'semester', 'year']).safeParse(snapshot.period)
-  const retrospective = useProgressRetrospective(period.success ? period.data : 'month', period.success && !snapshot.habitId)
+  const recap = useProgressRecap(period.success ? period.data : 'month', period.success && !snapshot.habitId)
   const habit = useHabitMetrics(snapshot.habitId ?? null)
-  const query = snapshot.habitId ? habit : retrospective
+  const query = snapshot.habitId ? habit : recap
   const queryState = snapshot.habitId || period.success ? query : { isPending: false, isError: false, isRefetchError: false }
   const frameState = liveBlockState(queryState, { staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void query.refetch() } })
-  const metricsCard = liveMetricsCard(snapshot, habit.data, period.success ? retrospective.data : undefined)
+  const metricsCard = liveMetricsCard(snapshot, habit.data, period.success ? recap.data : undefined)
   const habitId = metricsCard.habitId
   const habitTitle = metricsCard.habitTitle?.trim()
   const points = metricsCard.series ? mapCompletionSeries(metricsCard.series, locale) : []

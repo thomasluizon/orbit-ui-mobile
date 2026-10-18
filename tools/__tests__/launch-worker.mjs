@@ -3,7 +3,8 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
-import { readWakeSourceStates, writeRunState } from "../lib/run-state.mjs"
+import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
+import { cases as lifecycleCases } from "./launch-worker-lifecycle.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -168,15 +169,87 @@ const launchAsync = (path, argv, env) => {
     env: { ...process.env, ...env },
     windowsHide: true,
   })
+  let stdout = ""
+  let stderr = ""
   const result = new Promise((resolve, reject) => {
-    let stdout = ""
-    let stderr = ""
     child.stdout.on("data", (chunk) => { stdout += chunk })
     child.stderr.on("data", (chunk) => { stderr += chunk })
     child.on("error", reject)
     child.on("close", (status) => resolve({ status, stdout, stderr }))
   })
-  return { child, result }
+  return { child, result, output: () => ({ stdout, stderr }) }
+}
+
+const checkOccupiedWorktree = async () => {
+  const config = launchConfig(stubEngine(IMMEDIATE))
+  const occupiedLaunch = launch("occupied-worktree", config)
+  const occupiedArgv = ["--issue", "ORB-201", "--worktree", occupiedLaunch.worktree, "--prompt", occupiedLaunch.prompt]
+  // IPC owns this fixture's lifetime, including cleanup if the runner is killed without a signal handler.
+  const worker = stage("launch-worker/occupied-worker.cjs", `
+const { spawn, spawnSync } = require("node:child_process")
+process.on("disconnect", () => {
+  if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(process.pid)])
+  else process.kill(-process.pid, "SIGKILL")
+})
+const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" })
+descendant.on("error", (error) => { throw error })
+descendant.once("spawn", () => process.send(descendant.pid))
+`)
+  const child = spawn(process.execPath, [worker], {
+    stdio: ["ignore", "ignore", "ignore", "ipc"],
+    detached: process.platform !== "win32",
+    windowsHide: true,
+  })
+  const closed = new Promise((resolve) => child.once("close", resolve))
+  const cleanup = () => {
+    if (Number.isInteger(child.pid)) {
+      if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
+      else {
+        try { process.kill(-child.pid, "SIGKILL") } catch (error) { if (error.code !== "ESRCH") throw error }
+      }
+    }
+    clearWorkerLaunchReservation(process.pid, occupiedLaunch.worktree)
+  }
+  const interrupt = () => process.exit(1)
+  process.once("exit", cleanup)
+  process.once("SIGINT", interrupt)
+  process.once("SIGTERM", interrupt)
+  let descendantPid
+  try {
+    descendantPid = await new Promise((resolve, reject) => {
+      child.once("message", resolve)
+      child.once("error", reject)
+      child.once("exit", () => reject(new Error("occupied worker exited before readiness")))
+    })
+    const reservation = reserveWorkerLaunch({
+      launcherPid: process.pid, issue: "ORB-201", runDirectory: occupiedLaunch.worktree,
+      repositoryKey: config.cloud.repositoryKey, branch: "main", tier: "default",
+      headSha: occupiedLaunch.git(["rev-parse", "HEAD"]).stdout.trim(),
+      timestamp: new Date().toISOString(), relaunchReason: null,
+    }, config.caps.workerLaunchesPerBranch, occupiedLaunch.worktree)
+    if (!reservation.allowed || !recordReservedWorkerPid(process.pid, child.pid, occupiedLaunch.worktree)) {
+      throw new Error("could not reserve the occupied fixture worker")
+    }
+    // Exercise a scheduling delay longer than 1.8 seconds before the refusal check starts.
+    await new Promise((resolve) => setTimeout(resolve, 2200))
+    const refused = run(TOOL, occupiedArgv, { path: occupiedLaunch.path, env: githubAuthEnv() })
+    discardLog(refused.stdout)
+    T(`${TOOL}: a second launch into a live worker's worktree is refused with its pid`,
+      processIsRunning(child.pid) && processIsRunning(descendantPid) && refused.status === 2 && refused.stderr.includes(`live worker pid ${child.pid}`),
+      JSON.stringify({ runningWorkerPid: child.pid, status: refused.status, stderr: refused.stderr }))
+  } finally {
+    cleanup()
+    await closed
+    const cleanupDeadline = Date.now() + 5000
+    while (processIsRunning(descendantPid) && Date.now() < cleanupDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    process.removeListener("exit", cleanup)
+    process.removeListener("SIGINT", interrupt)
+    process.removeListener("SIGTERM", interrupt)
+  }
+  T(`${TOOL}: the occupied fixture cleans up its worker process tree`,
+    !processIsRunning(child.pid) && !processIsRunning(descendantPid))
 }
 
 export const cases = async () => {
@@ -382,21 +455,10 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
 
   const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
-  const occupiedLaunch = launch("occupied-worktree", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.03, noProgressMinutes: 5, pollSeconds: 0.2 } }))
-  const occupiedArgv = ["--issue", "ORB-201", "--worktree", occupiedLaunch.worktree, "--prompt", occupiedLaunch.prompt]
-  const firstOccupied = launchAsync(occupiedLaunch.path, occupiedArgv, githubAuthEnv())
-  const occupiedRecord = join(occupiedLaunch.base, ".git", "orbit-wake-sources", `${firstOccupied.child.pid}.json`)
-  let runningWorkerPid = null
-  const occupiedDeadline = Date.now() + 5000
-  while (!runningWorkerPid && Date.now() < occupiedDeadline) {
-    if (existsSync(occupiedRecord)) runningWorkerPid = JSON.parse(readFileSync(occupiedRecord, "utf8")).workerPid
-    if (!runningWorkerPid) await new Promise((resolve) => setTimeout(resolve, 20))
-  }
-  const refusedOccupied = run(TOOL, occupiedArgv, { path: occupiedLaunch.path, env: githubAuthEnv() })
-  T(`${TOOL}: a second launch into a live worker's worktree is refused with its pid`,
-    Number.isInteger(runningWorkerPid) && refusedOccupied.status === 2 && refusedOccupied.stderr.includes(`live worker pid ${runningWorkerPid}`),
-    JSON.stringify({ runningWorkerPid, status: refusedOccupied.status, stderr: refusedOccupied.stderr }))
-  discardLog((await firstOccupied.result).stdout)
+  await checkOccupiedWorktree()
+  await lifecycleCases({
+    launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
+  })
   const gateWorkerPidFile = stage("launch-worker/gate-worker.pid", "")
   rmSync(gateWorkerPidFile)
   const gateWorker = stage("launch-worker/gate-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(gateWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
@@ -445,26 +507,6 @@ syncBuiltinESMExports()
     if (processIsRunning(pid)) process.kill(pid)
   }
   if (firstGateWorkerPid && processIsRunning(firstGateWorkerPid)) process.kill(firstGateWorkerPid)
-  const orphanWorkerPidFile = stage("launch-worker/orphan-worker.pid", "")
-  rmSync(orphanWorkerPidFile)
-  const orphanWorker = stage("launch-worker/orphan-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(orphanWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
-  const orphanLaunch = launch("published-orphan", launchConfig({ ...stubEngine(orphanWorker), timeouts: { hardCeilingMinutes: 1, noProgressMinutes: 5, pollSeconds: 0.2 } }))
-  const orphanArgv = ["--issue", "ORB-201", "--worktree", orphanLaunch.worktree, "--prompt", orphanLaunch.prompt]
-  const releasedLaunch = launchAsync(orphanLaunch.path, orphanArgv, githubAuthEnv())
-  const orphanDeadline = Date.now() + 5000
-  while (!existsSync(orphanWorkerPidFile) && Date.now() < orphanDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
-  releasedLaunch.child.kill("SIGKILL")
-  await releasedLaunch.result
-  const orphanStates = readWakeSourceStates(orphanLaunch.base)
-  const orphanGatePid = orphanStates.orphaned[0]?.workerPid
-  const refusedOrphan = run(TOOL, orphanArgv, { path: orphanLaunch.path, env: githubAuthEnv() })
-  T(`${TOOL}: after publication a killed launcher leaves a named orphan and blocks another worker`,
-    Number.isInteger(orphanGatePid) && refusedOrphan.status === 2 && refusedOrphan.stderr.includes(`live worker pid ${orphanGatePid}`),
-    JSON.stringify({ orphanGatePid, status: refusedOrphan.status, stderr: refusedOrphan.stderr }))
-  if (orphanGatePid) {
-    if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(orphanGatePid)])
-    else try { process.kill(-orphanGatePid) } catch { /* the gate already exited */ }
-  }
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
   const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })

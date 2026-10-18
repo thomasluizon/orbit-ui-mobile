@@ -13,8 +13,6 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 226,
-  "cellCount": 1068,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -144,9 +142,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "default",
@@ -177,9 +173,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "default",
@@ -210,9 +204,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "default",
@@ -243,9 +235,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "default",
@@ -276,9 +266,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "empty",
@@ -309,9 +297,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "empty",
@@ -342,9 +328,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "empty",
@@ -375,9 +359,7 @@
         "apps/web/hooks/use-calendar-auto-sync.ts",
         "apps/web/hooks/use-calendar-data.ts",
         "apps/web/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/web/hooks/use-calendar-events.ts",
         "apps/web/hooks/use-calendar-navigation.ts",
-        "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
       "state": "empty",
@@ -653,6 +635,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -670,6 +653,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -687,6 +671,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -704,6 +689,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -721,6 +707,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -738,6 +725,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -755,6 +743,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -772,6 +761,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -2683,6 +2673,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/action-chips.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7418,8 +7464,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7449,8 +7493,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7480,8 +7522,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7511,8 +7551,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7542,8 +7580,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7573,8 +7609,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7604,8 +7638,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7635,8 +7667,6 @@
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
-        "apps/mobile/hooks/use-calendar-events.ts",
-        "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
@@ -7661,6 +7691,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7691,6 +7722,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7721,6 +7753,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7751,6 +7784,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7781,6 +7815,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7811,6 +7846,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7841,6 +7877,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7871,6 +7908,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -9765,6 +9803,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-breakdown-suggestion",
       "platform": "mobile",
       "kind": "block",
@@ -10639,6 +10733,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
       ],
       "state": "default",
       "theme": "dark",

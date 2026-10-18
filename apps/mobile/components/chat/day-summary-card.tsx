@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { daySummaryLogControl } from '@orbit/shared/chat/day-summary-core'
 import { liveBlockState } from '@orbit/shared/chat/live-block-state'
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
-import { formatAPIDate, isHabitDoneForRange } from '@orbit/shared/utils'
+import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -15,6 +16,19 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+function DaySummaryControl({ readOnly, disabled, label, onToggle, children }: Readonly<{
+  readOnly: boolean
+  disabled: boolean
+  label: string
+  onToggle: () => void
+  children: ReactNode
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  if (readOnly) return <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>{children}</View>
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} accessibilityState={{ disabled: disabled }} onPress={onToggle} style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{children}</InsetFocusPressable>
+}
 
 export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummaryCardData }>) {
   const { t } = useTranslation()
@@ -32,17 +46,19 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const missing = occurrences.data != null && visibleRows.some((item) => !occurrences.data.habitsById.has(item.id))
   const unavailable = missing
   const frameState = liveBlockState(occurrences, { acting: pendingId !== null, failed: failedId !== null, stale: missing, staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void occurrences.refetch() } })
-  const toggle = (habitId: string, logged: boolean) => {
-    if (pending.current || unavailable) return
+  const toggle = (habitId: string) => {
+    const control = daySummaryLogControl(occurrences.data?.habitsById.get(habitId))
+    if (pending.current || unavailable || control.undoUnavailable) return
     pending.current = true
     setPendingId(habitId)
     setFailedId(null)
-    logHabit.mutate({ habitId, intent: logged ? 'unlog' : 'log', ...(daySummary.date !== formatAPIDate(new Date()) ? { date: daySummary.date } : {}) }, {
+    logHabit.mutate({ habitId, intent: control.logged ? 'unlog' : 'log', date: daySummary.date }, {
       onError: () => setFailedId(habitId),
       onSettled: () => { pending.current = false; setPendingId(null) },
     })
   }
   const done = Math.max(0, Math.min(daySummary.due, daySummary.done + payloadRows.reduce((delta, item) => {
+    if (item.depth !== 0 || item.isBadHabit) return delta
     const occurrence = occurrences.data?.habitsById.get(item.id)
     return delta + (occurrence ? Number(isHabitDoneForRange(occurrence)) - Number(item.status === 'done') : 0)
   }, 0)))
@@ -50,11 +66,12 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
   const rows = visibleRows.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const title = occurrence?.title ?? item.title
-    const logged = occurrence ? isHabitDoneForRange(occurrence) : false
+    const control = daySummaryLogControl(occurrence, item.status === 'overdue')
+    const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
     return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{occurrence?.emoji ?? item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
-      meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
+      meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: title })} disabled={pendingId !== null || unavailable} accessibilityState={{ disabled: pendingId !== null || unavailable }} onPress={() => toggle(item.id, logged)} style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} /></InsetFocusPressable> : undefined,
+      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><StatusRing status={control.status} size={24} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>

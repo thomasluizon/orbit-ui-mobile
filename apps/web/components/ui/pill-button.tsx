@@ -74,6 +74,8 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
 export function Button({
   minimumHeight,
   expanded,
+  controlsId,
+  hasPopup,
   elevated = false,
   variant = 'primary',
   size: requestedSize = 'sm',
@@ -95,7 +97,7 @@ export function Button({
   descriptionId,
   buttonRef,
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean; controlsId?: string; hasPopup?: 'menu' | 'dialog'; onFocus?: () => void; onBlur?: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }>) {
   const withinRow = useContext(ActionRowContext)
   const size = withinRow ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
@@ -114,7 +116,8 @@ export function Button({
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
       aria-describedby={descriptionId}
-      aria-haspopup={expanded === undefined ? undefined : 'dialog'}
+      aria-haspopup={hasPopup ?? (expanded === undefined ? undefined : 'dialog')}
+      aria-controls={controlsId}
       aria-expanded={expanded}
       data-variant={variant}
       data-size={size}

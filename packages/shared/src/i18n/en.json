@@ -47,7 +47,7 @@
     "homeScreen": {
       "title": "Home Screen",
       "showGeneral": "Anytime habits",
-      "showGeneralDesc": "Habits with no schedule show in the Today list."
+      "showGeneralDesc": "Show in Today"
     },
     "clock": {
       "title": "Clock",
@@ -1203,6 +1203,8 @@
   },
   "charts": {
     "bar": {
+      "selectedDay": "{date} · {rate}% · {done} of {scheduled}",
+      "unscheduledDay": "{date} · Nothing scheduled",
       "date": "Date",
       "rate": "Rate",
       "completed": "Completed",
@@ -1665,6 +1667,10 @@
       "rejected": "{name} was rejected. Nothing was saved."
     },
     "breakdown": {
+      "unnamedHabit": "Untitled habit",
+      "removeTitle": "Remove habit?",
+      "removeBody": "Remove “{name}” from this proposal? It will not be created when you approve.",
+      "empty": "No proposed habits remain.",
       "title": "Split {name}",
       "frequency": "Change the frequency of {name}",
       "conflict": "A habit called {name} already exists.",
@@ -3397,6 +3403,7 @@
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
     "expiresAtLabel": "Expires At (UTC, optional)",
+    "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Enter a valid future expiry date."
   },
   "preferences": {
@@ -3460,7 +3467,8 @@
       },
       "progress": "{done} of {total} done",
       "complete": "You're all set.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "dismissError": "Could not dismiss the checklist. Try again."
     }
   },
   "terms": {

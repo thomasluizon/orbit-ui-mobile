@@ -17,7 +17,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: true } }) }))
-vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
+vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 afterEach(__resetTestHostConfig)

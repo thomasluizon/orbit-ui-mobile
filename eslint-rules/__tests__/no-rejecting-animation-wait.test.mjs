@@ -2,7 +2,7 @@ import { RuleTester, ESLint } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 RuleTester.describe = describe
@@ -40,9 +40,21 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
   ]),
 })
 
-// Loading the real web config needs a bounded startup budget during concurrent verification (#1421).
-it('enforces the web e2e scope through the installed ESLint config', async () => {
-  const eslint = new ESLint({ cwd: webRoot })
-  const config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
-  expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
-}, 15000)
+describe('installed web ESLint configuration', () => {
+  let configLoading
+  let config
+
+  beforeAll(async () => {
+    const eslint = new ESLint({ cwd: webRoot })
+    configLoading = eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+    config = await configLoading
+  }, 15000)
+
+  afterAll(async () => {
+    await configLoading
+  }, 15000)
+
+  it('enforces the web e2e scope through the installed ESLint config', () => {
+    expect(config.rules['local/no-rejecting-animation-wait'][0]).toBe(2)
+  })
+})

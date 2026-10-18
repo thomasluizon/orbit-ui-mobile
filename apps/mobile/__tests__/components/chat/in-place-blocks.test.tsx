@@ -28,7 +28,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
-vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => ({ ...state.query, refetch: state.refetch }) }))
+vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ ...state.query, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ ...state.query, data: state.disconnected ? { status: 'not-connected', events: [] } : undefined, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [{ id: 'one' }, { id: 'two' }] }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({
@@ -152,5 +152,17 @@ it('puts a payload sync error in the calendar actions area', () => {
   const actions = tree.root.findAll(node => node.type === View && node.props.testID === 'block-frame-action-row')[0]!
   expect(actions.findAll(node => node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
   expect(renderedText(actions.props.children)).toContain('chat.calendarCard.syncState.TransientError')
+  void act(() => tree.unmount())
+})
+
+
+it.each(['child', 'bad'] as const)('keeps a completed %s row outside the parent completion total', (kind) => {
+  const parent = inPlaceDayFixture.rows![0]!
+  const extra = { ...parent, id: 'extra', title: 'Extra', depth: kind === 'child' ? 1 : 0, isBadHabit: kind === 'bad' }
+  const snapshot = { ...inPlaceDayFixture, due: 1, done: 0, rows: [parent, extra] }
+  state.habits.set(extra.id, createMockHabit({ id: extra.id, title: extra.title, isBadHabit: extra.isBadHabit, isLoggedInRange: true }))
+  const tree = render(<DaySummaryCard daySummary={snapshot} />)
+  expect(renderedText(tree.toJSON())).toContain('chat.daySummary.doneOfDue:{"done":0,"due":1}')
+  expect(tree.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]!.props.accessibilityValue).toEqual(expect.objectContaining({ now: 0 }))
   void act(() => tree.unmount())
 })
