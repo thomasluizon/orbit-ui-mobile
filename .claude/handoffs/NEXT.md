@@ -1,6 +1,6 @@
 /sleep
 
-Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standing rules` (including the landing rule and the Codex capacity rule: spend the banked reset, then the 62,500 credits), `### Batch L` (the owner's order; item 1 carries the landing, whose round 14 order is written and waits to launch; item 2 carries `#1500`, the Astra plan, the sweep findings and the harness items; item 3 carries the flag wave), `### Batch R`, `### Batch 0b`, `### Batch 6` (the security tickets plus `#1508`, `#1509`, `#1515`), `### Batch 0c` (`#1514` first), `## Decision pointers`, `## Current state` (its first paragraph is the latest relay) and `## Open questions` first. Then, through the Obsidian MCP, the brain ADRs under `2 Areas/20-29 Orbit Engineering/Decisions/` that `## Decision pointers` lists, including D145 (feature flags) and D146 (Codex plan, amended by the owner's credits order). Then `DESIGN.md` in full, `BRAND.md` and `design/canvas/README.md` before the first diff read or sweep. The owner's test list for the next build is the brain note `0 Inbox/Orbit staging test.md`.
+Read `.claude/specs/orbit-prod-release.md` before anything else: its `## Standing rules` (including the landing rule and the Codex capacity rule: spend the banked reset, then the 62,500 credits), `### Batch L` (the owner's order; item 0 is the CI fix `#1519` to `#1522`, first; item 1 carries the landing, whose round 14 is pushed and waits on its staging release; item 2 carries `#1500`, the Astra plan, the sweep findings and the harness items; item 3 carries the flag wave), `### Batch R`, `### Batch 0b`, `### Batch 6` (the security tickets plus `#1508`, `#1509`, `#1515`), `### Batch 0c` (`#1514` is `orbit-api#736`; `#1518` new), `## Decision pointers`, `## Current state` (its first paragraph is the latest relay) and `## Open questions` first. Then, through the Obsidian MCP, the brain ADRs under `2 Areas/20-29 Orbit Engineering/Decisions/` that `## Decision pointers` lists, including D145 (feature flags) and D146 (Codex plan, amended by the owner's credits order). Then `DESIGN.md` in full, `BRAND.md` and `design/canvas/README.md` before the first diff read or sweep. The owner's test list for the next build is the brain note `0 Inbox/Orbit staging test.md`.
 
 ## Entry point
 
@@ -10,37 +10,39 @@ The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (scratchpad `reconcile.mjs` plus a list-item duplicate count): 180 open, 180 placed, 0 unplaced, 1 placed twice (`#556`, the recurring sync ticket, listed in two batches; leave it). 21 redesign tickets are open (13 in the `539 Redesign` milestone, `#1512` new, plus the open Batch R tickets `#1402`, `#1404`, `#1408`, `#1409`, `#1411`, `#1422`, `#1423`, `#1500`). The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Work order reconciliation (scratchpad `reconcile.mjs` plus a list-item duplicate count): 182 open, 182 placed, 0 unplaced, 1 placed twice (`#556`, the recurring sync ticket, listed in two batches; leave it). 21 redesign tickets are open (13 in the `539 Redesign` milestone, `#1512` new, plus the open Batch R tickets `#1402`, `#1404`, `#1408`, `#1409`, `#1411`, `#1422`, `#1423`, `#1500`). The run ends only when the spec is done or for an external cause.
 
 ## In flight
 
-No worker or subagent is running. The relay stops this session's CI waiters (they watched `ui#1832` `1818` `1807` `1805` `1801`; `ui#1827`; `ui#1824` `1833` `1819`). A landing probe run (`r14a`) may still be finishing in the background; its logs are `landing-probe/<probe>-r14a.log`.
+No worker, waiter, release watcher or subagent is running.
 
 | item | disposition |
 |---|---|
-| GitHub Actions queue | about 87 queued runs on the shared runners. Restart at most three waiters (`--ceiling-minutes 90`) and merge each pull request the moment `merge-gate.sh` passes |
-| Landing round 14 (`#1459`, `landing#102`, worktree `ticket-1459-pierre-landing`, local head `f13c509`, origin `15d4777`) | built and copy-approved, NOT pushed. `npm run build` in the worktree, then `bash landing-probe/serve.sh bash landing-probe/r14-probes.sh r14b`; read every probe (phonefit is new: pinned phone fits at 16 viewports, first view, aspect). A red goes to a round order on the deep tier (workers commit without pushing). When green: carry `landing-r14/worker-report.md` evidence and the copy verdict (`so-r14-copy4.json`) into `landing#102`, push, release the staging landing from the branch through `/release` (the Render staging variables are already set), verify the staging page links to `app-staging.useorbit.org` and the staging Play listing, tell the owner with screenshots. Never merge to landing `main` |
-| `ui#1832` (`#1501`, approved) | staging web release from its branch (run `39088421496`) was still queued. When it finishes, run the curl in the pull request body against `orbit-web-staging-eakn.onrender.com/login`: 200 proves Render passes `X-Forwarded-Host`, then merge on the bar and release `redesign/main` to staging; a 308 means `#1417` needs another design (file it) |
-| `ui#1812` (`#1478`, `c80ed3126`) | CI-fix pushed (empty-thread specs expect exactly the "Browse ideas" button); needs CI and a fresh review, then merge on the bar |
-| `ui#1834` (`#1510`, `main`) | opened by its worker; needs CI and review, then merge to `main` and ship with the next Android open-track release (ask the owner before a production Android release) |
-| `ui#1827` (`#1415`, `main`) | wait on CI and a fresh review, merge; then launch `#1419` (deep tier) and `#1418` |
-| `ui#1833`, `ui#1819`, `ui#1824`, `ui#1830`, `ui#1831`, `ui#1775` and the approved base merges `ui#1818` `1817` `1809` `1807` `1805` `1804` `1801` `1794` `1791` `1790` `1789` `1786` `1782` `1781` `1779` `1778` `1773` `1772` `1764` `1761` `1757` `1756` | merge each at its approved head once green and reviewed at that head (most approvals predate their base merge, so they need the re-review their push started); `1791`, `1786`, `1794` share `sonar-project.properties` (`bm-docs.sh` after the first merges); a red caused by the branch goes to a CI-fix round. After `ui#1824` merges: base-merge `ui#1826` (product conflict in `chat-thread-scroll-core`, 4 threads need a review round) and launch `#1483`. `ui#1820` base-merges after `ui#1791` |
-| New tickets from verified audits | `#1514` (api `main`, Batch 0c first: free accounts get `403` on every habit edit) launch first, on the default tier; `#1511`, `#1516`, `#1517` (ui `main`, Batch 0c), `#1512` (Batch R, `redesign/main`) launch next; `#1508`, `#1509`, `#1515` (api, Batch 6) and `#1513` (Batch 2b) wait for their batches. Not filed, on purpose: the performance audit's low-value findings 1, 2, 5 and the duplicate of `#218`; the code-quality duplicate of `#395` |
-| Security tickets `#1502`, `#1503`, `#1505`, `#1506`, `#1507` (Batch 6, `orbit-api` `main`) | launch when the Actions queue drains (api pull requests add about 26 jobs each) |
-| Release | staging API serves `5d9ff03e`; staging web was mid-release from `ui#1832`'s branch; the staging landing redeployed `15d4777` with the new link variables; production web, landing, API and Android stay unreleased until the owner asks; `#1417`'s and `#1507`'s production Terraform apply waits on his yes |
+| CI fix `#1519` to `#1522` (Batch L item 0, owner order "NOW") | launch first, all four, deep tier: `prep-ticket.sh ui 1519 ci-minutes redesign/main`, `prep-ticket.sh ui 1520 ci-main-trim main`, `prep-ticket.sh api 1521 ci-minutes main`, `prep-ticket.sh landing 1522 ci-reds main`, then `qa.sh ... --tier deep`. Read each diff for relaxed gates before merge; apply the required check name changes on `main` that each body's Manual steps lists, right after its merge |
+| Staging landing release run `39095405753` (round 14, `f13c509`) | queued in Actions; its watcher was stopped for the drain. Re-attach `node tools/wait-release.mjs --repo landing --run 39095405753 --sha 16888ed509ecc01dd05e74c4df78574b371f75b0`; when green, verify `orbit-landing-staging.onrender.com` serves `f13c509` (`orbit-build` meta) and links to `app-staging.useorbit.org` and the staging Play listing, then send the owner the staging landing link (owner request) with screenshots |
+| `orbit-api#736` (`#1514`), `ui#1835` (`#1516`), `ui#1836` (`#1517`), `ui#1837` (`#1511`), `ui#1838` (`#1512`) | new, diffs read and accepted; wait on CI and review, merge on the bar (`main` ones to `main`; ask the owner before any production release) |
+| `ui#1772` (`#1423`) | pushed `dbf1bec86` after two CI-fix rounds; prove `today-date-layout.spec.ts` and `today-scoped-search.spec.ts` on a build of the head, then merge on the bar |
+| `ui#1832` (`#1501`) | approved; staging web release from its branch (run `39088421496`) still queued; then the `X-Forwarded-Host` curl in its body, merge, release `redesign/main` to staging |
+| `ui#1827` (`#1415`), `ui#1834` (`#1510`) | `main`; wait on CI and review, merge; then `#1419` (deep) and `#1418` |
+| approved `redesign/main` pull requests `ui#1833` `1824` `1820` `1819` `1817` `1812` `1809` `1805` `1804` `1794` `1791` `1790` `1789` `1786` `1782` `1781` `1779` `1778` `1775` `1773` `1764` `1761` `1757` `1756`; `ui#1831`, `ui#1830` (no fresh review), `ui#1826` (`#1482`, base merge after `ui#1824`, 4 threads) | merge each at its approved head once green and reviewed at that head; base-merge only on a conflict or a needed base fix (new standing rule). After `ui#1824`: `ui#1826` and `#1483` |
+| `#1518` (Batch 0c) | launch after the CI tickets |
+| Batch 6 security tickets, `#1508`, `#1509`, `#1515` | when the Actions queue drains |
+| Release | unchanged: staging API `5d9ff03e`; production stays unreleased until the owner asks |
 | Uncommitted | `.claude/orchestrator.json` caps edit: keep, never stage or revert |
-| Branches, stashes, detached heads | no stashes in any repository; the landing branch holds six unpushed commits (row above); the detached heads are scratch combined-check worktrees (`mc-*`), safe to prune |
+| Branches, stashes, detached heads | no stashes in any repository; `mc-*` detached scratch worktrees are safe to prune |
 | Session chain | open (automatic relay) |
 
 ## Then, in this order
 
-1. Answer the owner first, in the language of his latest message (his latest was English).
-2. Landing round 14 (above): probes, push, staging release, tell the owner.
-3. Launch `#1514`, then start CI waiters and merge in the order above.
-4. The Astra plan as blockers merge (`#1483` after `ui#1824`), Batch L item 3 (`#1418`, `#1419` after `ui#1827`), then `#1512`, `#1511`, `#1516`, `#1517`.
+1. Answer the owner first, in the language of his latest message (English).
+2. Launch the CI fix `#1519` to `#1522` (above), then re-attach the landing release watcher and send the owner the staging landing link when it is live.
+3. Start at most three CI waiters (`--ceiling-minutes 90`) and merge in the order above; launch `#1518`.
+4. The Astra plan as blockers merge (`#1483` after `ui#1824`), Batch L item 3 (`#1418`, `#1419` after `ui#1827`).
 5. When the Actions queue drains: the Batch 6 tickets.
 6. When the wave and `#1474` (`ui#1809`) have merged: rerun the measured sweep and fix its findings, release staging web, verify `/api/health`, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`), push-notify and tell the owner.
-7. Idle Codex capacity: audit passes are done for tests, performance, code quality and security; rerun one only after a large merge wave.
+7. Idle Codex capacity: audit passes are done; rerun one only after a large merge wave.
+
+Work order reconciliation (scratchpad `reconcile.mjs`): 182 open, 182 placed, 0 unplaced, 1 placed twice (`#556`, the recurring sync ticket; leave it).
 
 ## Sleep
 
@@ -52,20 +54,17 @@ The owner's written authorization stands: merge to `main` what belongs there and
 
 The context relay is live: at the threshold, launch nothing, drain, run `carry-out.sh`, then `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 
-Owner instructions: every redesign ticket done at maximum capacity; the landing follows his round 13 review (round 14 order), is simple, has nothing repeated and one sentence per slot, and Figma is no longer used for it; his habit row is the new habit standard in the app too; the same exact measured sweep on the Orbit staging app, and continue until he can run his whole test note; Layout Guard and the parity gate must stop failing on pull requests that did not cause the red; delete CI that does not earn its run; maximum workers without breaking the machine; stop removing features; no literal pt-BR translation; no option row that wraps; one padding standard; THE REDESIGN GATE holds until the owner approves after his retest; no CircleCI token rotation.
+Owner instructions: fix the GitHub Actions clog on the three repositories now (`#1519` to `#1522`), deleting what does not earn its run and approving the plan with `/second-opinion`; send him the staging landing link once it is live; every redesign ticket done at maximum capacity; the landing follows his round 13 review (round 14 order), is simple, has nothing repeated and one sentence per slot, and Figma is no longer used for it; his habit row is the new habit standard in the app too; the same exact measured sweep on the Orbit staging app, and continue until he can run his whole test note; Layout Guard and the parity gate must stop failing on pull requests that did not cause the red; delete CI that does not earn its run; maximum workers without breaking the machine; stop removing features; no literal pt-BR translation; no option row that wraps; one padding standard; THE REDESIGN GATE holds until the owner approves after his retest; no CircleCI token rotation.
 
 Open owner questions (in the spec and `openOwnerQuestions`, never asked during a relay): THE REDESIGN GATE approval after the 1.3.82 retest (raise it only once that build is on the internal track). The Figma question is answered (dropped).
 
 ## Previous prompt, disposition
 
 - Reading list, entry point, sleep rules, authorization, relay rule, owner instructions and open owner questions: carried.
-- Landing round 14 launch: done (worker `85cb138` to `c1c0a71`, review fix `f13c509`, Render staging variables set); probes, push, staging release and telling the owner: carried.
-- `ui#1832` live proof and merge: carried (release run still queued).
-- `ui#1827` merge, then `#1419` and `#1418`: carried.
-- `#1499` close: done (`complete-ticket.mjs`, board Done).
-- Merges of `ui#1833`, `1819`, `1824`, `1830`, `1831`, `1775`, the base merges, `ui#1804`, `ui#1820`, `ui#1826` and `#1483`: carried (CI did not settle; about 87 runs still queued).
-- Batch 6 security tickets: carried, with `#1508`, `#1509`, `#1515` added.
-- Release and 1.3.82 steps: carried, `#1512` added to the test note list.
-- Idle capacity audits: done (tests, performance, code quality; ten tickets filed after skeptic verification).
+- Landing round 14 probes and push: done (`f13c509`, every probe green). Staging release and telling the owner: carried (run queued in Actions).
+- Launch `#1514`: done (`orbit-api#736`). `#1512`, `#1511`, `#1516`, `#1517`: done as pull requests `ui#1838`, `ui#1837`, `ui#1835`, `ui#1836`.
+- Merges: `ui#1807` and `ui#1801` done; `ui#1818` superseded by `ui#1807`; the rest carried (CI never settled).
+- `ui#1832` live proof, `ui#1827` then `#1419` and `#1418`, `ui#1826` and `#1483`, Batch 6, the 1.3.82 steps: carried.
+- Restart at most three waiters: done; all three hit the 90 minute ceiling with CI still queued.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
