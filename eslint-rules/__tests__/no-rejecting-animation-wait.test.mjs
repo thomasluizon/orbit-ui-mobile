@@ -41,11 +41,17 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
 })
 
 describe('installed web ESLint configuration', () => {
+  let configLoading
   let config
 
   beforeAll(async () => {
     const eslint = new ESLint({ cwd: webRoot })
-    config = await eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+    configLoading = eslint.calculateConfigForFile('e2e/layout/animation-settlement.spec.ts')
+    config = await configLoading
+  }, 15000)
+
+  afterAll(async () => {
+    await configLoading
   }, 15000)
 
   it('enforces the web e2e scope through the installed ESLint config', () => {

@@ -141,15 +141,27 @@ async function revealAccountAKey() {
   expectSmallSheetActions()
 }
 
-it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+it.each([
+  ['', null],
+  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
+])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
   render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  const expiryField = screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })
+  fireEvent.change(expiryField, { target: { value: expiry } })
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
   expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
   expectSmallSheetActions()
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeDisabled()
   fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeEnabled()
+  expect(expiryField).toHaveValue(expiry)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
+  expect(management.handleCreateKey).toHaveBeenCalledExactlyOnceWith({
+    name: en.profile.apiKeys.newKeyName, scopes: ['habits:read'], expiresAtUtc,
+  }, expect.any(Function))
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+  expect(sheetSlotButtons('sheet-actions')).toEqual([en.orbitMcp.done])
 })
 
 it('takes the revealed API key off the screen when another account replaces the tab', async () => {
@@ -298,7 +310,8 @@ it('preserves no scopes, unused, read/write and no expiry states', () => {
   expect(screen.getByText('No scopes')).toBeInTheDocument()
   expect(screen.getByText('Never')).toBeInTheDocument()
   expect(screen.getByText('Read/write')).toBeInTheDocument()
-  expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
+  expect(screen.queryByText(/^Expires /, { selector: 'p' })).not.toBeInTheDocument()
 })
 
 it('withholds key details while access is locked or the list is loading', () => {
