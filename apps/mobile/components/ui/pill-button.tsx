@@ -15,6 +15,16 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
+function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: boolean): Record<ButtonVariant, string> {
+  return {
+    primary: tokens.fgOnPrimary,
+    secondary: tokens.bg,
+    ghost: quiet ? tokens.fg2 : tokens.fg1,
+    destructive: tokens.fgOnBad,
+    caution: tokens.fgOnOverdue,
+  }
+}
+
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
@@ -29,6 +39,7 @@ export function Button({
   onHoverOut,
   disabled = false,
   loading = false,
+  focusableWhenLoading = false,
   children,
   accessibleName,
   iconOnly,
@@ -45,16 +56,11 @@ export function Button({
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()
+  const nativelyDisabled = disabled || (loading && !focusableWhenLoading)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const textColorByVariant: Record<ButtonVariant, string> = {
-    primary: tokens.fgOnPrimary,
-    secondary: tokens.bg,
-    ghost: quiet ? tokens.fg2 : tokens.fg1,
-    destructive: tokens.fgOnBad,
-    caution: tokens.fgOnOverdue,
-  }
+  const textColorByVariant = buttonTextColors(tokens, quiet)
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
@@ -93,11 +99,11 @@ export function Button({
       onBlur={() => { setFocused(false); onBlur?.() }}
       onHoverIn={() => { setHovered(true); onHoverIn?.() }}
       onHoverOut={() => { setHovered(false); onHoverOut?.() }}
-      disabled={disabled || loading}
+      disabled={nativelyDisabled}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
-      accessibilityState={{ disabled: disabled || loading, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
+      accessibilityState={{ disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,

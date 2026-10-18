@@ -33,11 +33,8 @@ export default defineConfig({
         },
       },
     ],
-    /**
-     * Workspace suites share the host. Bound the general pool and run the native focus
-     * traversal after it drains so repeated render updates do not compete with that pool.
-     */
-    maxWorkers: '25%',
+    /** CI runs workspace suites one at a time; local suites share the host. */
+    maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
     coverage: {

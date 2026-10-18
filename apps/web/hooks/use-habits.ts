@@ -21,7 +21,7 @@ import {
   buildUnresolvedBulkFailures,
   buildSuccessfulLogPatch,
   findHabitInList,
-  formatAPIDate,
+  getAccountDay,
   normalizeHabits,
   buildChildrenIndex,
   plural,
@@ -101,15 +101,17 @@ function checkTodayCompletionAfterLog(
   queryClient: ReturnType<typeof useQueryClient>,
   variables: { habitId: string; date?: string; intent: 'log' | 'unlog' },
   hadPendingListRefetch: boolean,
-  checkAllDoneCelebration: Parameters<typeof checkTodayAllDoneOrDefer>[4],
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
 ): string | null {
-  const today = formatAPIDate(new Date())
+  const timeZone = queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone
+  const today = getAccountDay(new Date(), timeZone)
   if (variables.intent === 'unlog' || (variables.date && variables.date !== today)) return null
   updateHabitListsForDate(queryClient, today, (habits) => {
     const habit = findHabitInList(habits, variables.habitId)
     return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
   })
-  return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch, checkAllDoneCelebration)
+  return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch,
+    (...args) => checkAllDoneCelebration(...args, timeZone))
     ? today
     : null
 }
@@ -165,7 +167,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const { showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
+  const { setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: ({
@@ -178,6 +180,8 @@ export function useLogHabit() {
     }, intendedAccountId) => logHabitAction(habitId, date ? { date } : undefined, intendedAccountId),
 
     onMutate: ({ habitId, date, intent }) => {
+      const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const previousStreak = queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -210,11 +214,11 @@ export function useLogHabit() {
             : old,
         )
       } else {
-        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+        updateHabitListsForDate(queryClient, occurrenceDate,
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
+      return { occurrenceDate, previousStreak, previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
     },
 
     onError: (error, variables, context) => {
@@ -245,7 +249,7 @@ export function useLogHabit() {
       showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
     },
 
-    onSuccess: (response, variables, context: { hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
+    onSuccess: (response, variables, context: { occurrenceDate: string; previousStreak?: number; hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
       captureHabitLogged()
       const loggedHabit = findHabitInList(
         queryClient
@@ -260,10 +264,17 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
+      showStreakMoment(
+        response.currentStreak,
+        context?.previousStreak,
+        { ...variables, date: context?.occurrenceDate ?? variables.date, timeZone: queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, countsTowardStreak },
+      )
       const startsStreak = countsTowardStreak
         && response.isFirstCompletionToday
         && response.currentStreak > 0
-      if (startsStreak && isStreakCelebrationMilestone(response.currentStreak)) {
+      const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const isTodayLog = (context?.occurrenceDate ?? variables.date ?? today) === today
+      if (startsStreak && isTodayLog && isStreakCelebrationMilestone(response.currentStreak)) {
         setStreakCelebration({ streak: response.currentStreak })
       }
       if (startsStreak) {
@@ -282,6 +293,10 @@ export function useLogHabit() {
           (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
         void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+        response.linkedGoalUpdates.forEach(({ goalId }) => {
+          void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+          void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+        })
       }
 
       /**
@@ -302,7 +317,7 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const retryAllDoneDate = checkTodayCompletionAfterLog(queryClient, variables,
+      const retryAllDoneDate = checkTodayCompletionAfterLog(queryClient, { ...variables, date: context?.occurrenceDate ?? variables.date },
         context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)
       if (context) context.retryAllDoneDate = retryAllDoneDate
     },
@@ -318,7 +333,7 @@ export function useLogHabit() {
       return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
         if (!habitsData) return
         const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       })
     },
   })
@@ -360,7 +375,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)
-      const skippedDate = date ?? formatAPIDate(new Date())
+      const skippedDate = date ?? getAccountDay(new Date())
       applyCachedHabitSkip(queryClient, habitId, skippedDate)
       return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null }
     },
@@ -812,7 +827,7 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
-  const { checkAllDoneCelebration } = useUIStore.getState()
+  const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: async (items: BulkLogItemRequest[], intendedAccountId): Promise<BulkLogResult> => {
@@ -845,6 +860,10 @@ export function useBulkLogHabits() {
     },
 
     onMutate: async (items) => {
+      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const previousStreak = queryClient.getQueryData<Profile>(profileKeys.detail())?.currentStreak
+      const account = captureAccountIntent()
+
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       const previousLists = snapshotHabitLists(queryClient)
       const completedIds = items.map((item) => item.habitId)
@@ -854,7 +873,7 @@ export function useBulkLogHabits() {
           currentItems,
         ),
       )
-      return { previousLists }
+      return { previousLists, previousStreak, account, occurrenceDate }
     },
 
     onError: (_error, _items, context) => {
@@ -863,26 +882,36 @@ export function useBulkLogHabits() {
 
     onSuccess: (result, items, context) => {
       restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
-      if (result.results.some((item) => item.status === 'Success')) {
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-      }
-      const today = formatAPIDate(new Date())
-      const successfulIds = result.results.flatMap((entry) => {
+      const profileRefresh = result.results.some((item) => item.status === 'Success')
+        ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
+      const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const successfulEntries = result.results.filter((entry) => {
         const item = items[entry.index]
         return entry.status === 'Success' && item?.habitId === entry.habitId &&
-          (!item.date || item.date === today) ? [item.habitId] : []
+          (item.date ?? context.occurrenceDate) === today
       })
+      const successfulIds = successfulEntries.map((entry) => entry.habitId)
       if (successfulIds.length === 0) return
       updateHabitListsForDate(queryClient, today, (habits) =>
         successfulIds.reduce((current, id) => {
           const habit = findHabitInList(current, id)
           return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
         }, habits))
-      const habitsData = getTodayHabitList(queryClient, today)
-      if (habitsData) {
-        const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
-      }
+      const countsTowardStreak = successfulEntries.some((entry) => {
+        if (entry.logId === null) return false
+        const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
+        return habit !== null && !habit.isBadHabit
+      })
+      return profileRefresh?.then(() => {
+        const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
+        if (!context.account.stillCurrent() || today !== getAccountDay(new Date(), profile?.timeZone)) return
+        if (profile) showStreakMoment(profile.currentStreak, context.previousStreak, { date: today, timeZone: profile.timeZone, intent: 'log', countsTowardStreak })
+        const habitsData = getTodayHabitList(queryClient, today)
+        if (habitsData) {
+          const normalized = normalizeHabits(habitsData)
+          checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, profile?.timeZone)
+        }
+      })
     },
 
     onSettled: () => {
