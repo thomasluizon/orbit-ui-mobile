@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { getSetupChecklist } from '@orbit/shared/utils'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProfile } from '@/hooks/use-profile'
 import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
@@ -57,7 +58,7 @@ export function SetupChecklistCard() {
           </View>
         })}
       </View>
-      <View style={{ gap: failed ? 12 : 0 }}>
+      <View style={{ gap: failed ? SPACING.s12 : SPACING.s0 }}>
         <Text accessibilityLiveRegion="polite" style={[styles.progress, { color: tokens.fg3 }]}>{t('today.setupChecklist.progress', { done: checklist.done, total: checklist.items.length })}</Text>
         <View accessibilityLiveRegion="polite">{failed ? <Text style={[styles.label, { color: tokens.statusBadText }]}>{t('today.setupChecklist.dismissError')}</Text> : null}</View>
       </View>
@@ -66,13 +67,13 @@ export function SetupChecklistCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 24, borderRadius: radius.xl, padding: 24 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 },
-  headerText: { flex: 1, gap: 8 },
+  card: { gap: SPACING.s24, borderRadius: radius.xl, padding: PADDING.cardInset },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACING.s24 },
+  headerText: { flex: 1, gap: SPACING.s8 },
   title: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 26 },
-  items: { gap: 12 },
+  items: { gap: SPACING.s12 },
   indicator: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  item: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s12 },
   label: { flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   progress: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
 })

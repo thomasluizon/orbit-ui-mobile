@@ -37,8 +37,8 @@ export function SetupChecklistCard() {
   if (!preferencesReady || !checklist || (dismissed && !pending)) return null
 
   return (
-    <div className="px-4">
-      <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6">
+    <div className="px-screen-gutter">
+      <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-card-inset">
         <div className="flex items-start justify-between gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <h2 id={titleId} className="min-w-0 text-balance text-[20px] font-medium leading-[1.3] text-[var(--fg-1)]">{t('today.setupChecklist.title')}</h2>
