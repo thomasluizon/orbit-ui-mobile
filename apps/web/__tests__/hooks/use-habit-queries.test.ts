@@ -1,3 +1,5 @@
+import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { buildHabitDateBuckets, canLogHabitOnDate } from '@orbit/shared/utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -44,6 +46,10 @@ const invalidMetricsBodies = [
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ confirmSessionRefreshFailure: vi.fn(), recoverSessionRefreshFailure: vi.fn() }) },
+}))
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -108,6 +114,22 @@ function createWrapper() {
 describe('useHabits (query hook)', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
+    const today = '2026-09-12'
+    mockFetch.mockImplementation(async (url: string) => Response.json(makePaginatedResponse(
+      url.includes('dateFrom=') ? createHabitViewScheduleItems(today) : createHabitViewItems(today, 'all'),
+    )))
+    const { result } = renderHook(() => useHabits({}, undefined, { scheduleDate: today }), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const habits = result.current.data!
+    expect(habits.habitsById.has('future')).toBe(true)
+    expect(result.current.getChildren('parent').map((habit) => habit.id)).toEqual(['today-child', 'future-child'])
+    const overdue = habits.habitsById.get('overdue')!
+    expect(buildHabitDateBuckets([overdue], today)[0]?.key).toBe('__overdue__')
+    expect(canLogHabitOnDate(overdue, today, today)).toBe(true)
+    expect(canLogHabitOnDate(habits.habitsById.get('parent')!, today, today)).toBe(true)
   })
 
   it('fetches habits and provides getChildren helper', async () => {

@@ -17,11 +17,41 @@ async function expectCompleteTabIndicator(page: Page, control: Locator, surface:
   await control.focus()
   await page.keyboard.press(enterWith === 'Tab' ? 'Shift+Tab' : 'Tab')
   await page.keyboard.press(enterWith)
+  await expectCompleteFocusedIndicator(page, control, surface)
+}
+
+async function expectCompleteFocusedIndicator(page: Page, control: Locator, surface: string) {
   await expect(control, surface).toBeFocused()
   const ring = await inspectFocusedRing(page)
   expect(ring?.focusVisible, surface).toBe(true)
   expect(ring?.indicators, surface).toHaveLength(1)
   expect(await readOutlineVisibility(control), surface).toMatchObject({ visible: true, clippedBy: [] })
+}
+
+async function expectCompleteTodayIndicators(page: Page, controls: Locator, surface: string) {
+  const count = await controls.count()
+  let radioCount = 0
+  for (let index = 0; index < count; index += 1) {
+    const control = controls.nth(index)
+    if (await control.getAttribute('role') === 'radio') radioCount += 1
+    else await expectCompleteTabIndicator(page, control, `${surface} ${index}`)
+  }
+  const radios = page.getByRole('radiogroup', { name: messages.habits.viewsLabel }).getByRole('radio')
+  await expect(radios).toHaveCount(radioCount)
+  expect(radioCount).toBe(3)
+  const selectedIndex = await radios.evaluateAll((elements) => elements.findIndex((element) => element.getAttribute('aria-checked') === 'true'))
+  expect(selectedIndex).toBeGreaterThanOrEqual(0)
+  const selected = radios.nth(selectedIndex)
+  await expectCompleteTabIndicator(page, selected, `${surface} radio ${selectedIndex}`)
+  for (let offset = 1; offset < radioCount; offset += 1) {
+    const index = (selectedIndex + offset) % radioCount
+    await page.keyboard.press('ArrowRight')
+    await expect(radios.nth(index)).toHaveAttribute('aria-checked', 'true')
+    await expectCompleteFocusedIndicator(page, radios.nth(index), `${surface} radio ${index}`)
+  }
+  await page.keyboard.press('ArrowRight')
+  await expect(selected).toBeFocused()
+  await expect(selected).toHaveAttribute('aria-checked', 'true')
 }
 
 async function refreshTodayHabits(page: Page) {
@@ -82,16 +112,12 @@ for (const width of [412, 1352] as const) {
         const controls = main.locator('button:visible:not(:disabled), a[href]:visible, [tabindex="0"]:visible')
         const count = await controls.count()
         expect(count).toBeGreaterThan(24)
-        for (let index = 0; index < count; index += 1) {
-          await expectCompleteTabIndicator(page, controls.nth(index), `Hoje control ${index}`)
-        }
+        await expectCompleteTodayIndicators(page, controls, 'Hoje control')
         await main.locator('[data-habit-row-control="menu"]').first().click()
         await page.getByRole('menuitem', { name: messages.common.select, exact: true }).click()
         await expect(main.locator('[data-habit-row-control="selection"]').first()).toBeVisible()
         const selectionControls = main.locator('button:visible:not(:disabled), [tabindex="0"]:visible')
-        for (let index = 0; index < await selectionControls.count(); index += 1) {
-          await expectCompleteTabIndicator(page, selectionControls.nth(index), `Hoje selection control ${index}`)
-        }
+        await expectCompleteTodayIndicators(page, selectionControls, 'Hoje selection control')
       })
 
       test('pinned and conversation composers expose complete chip and control rings', async ({ page }) => {

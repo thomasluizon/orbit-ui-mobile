@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the centred Hoje date pager, the persisted Hoje, Todos and Geral view switch, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -181,6 +181,22 @@ for, and building that instead is the defect.
 | **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
+
+### Hoje habit views
+
+Hoje keeps one full-width SegmentedControl at the top of its content, below the shell header
+actions and above the date pager, on web and Android at every width. Its labels are Hoje, Todos
+and Geral in pt-BR, each one word on one line at the default text size. The chosen view persists
+in `activeView`. Only Hoje shows the date pager and its date-bound notices and proactive line.
+
+Hoje lists the selected day's habits and overdue work when viewing today. Todos keeps scheduled
+habits across dates, grouped with overdue work first and then by due date; completed one-time
+habits appear through Show completed. Geral lists habits with no set day, with completed habits
+behind the same control. Showing general habits on Hoje is a separate preference. Every view
+retains sub-habits, row actions, search, selection and creation. At every width, the header search control expands
+an Input above the view switch and filters the current view in place, preserving its date and frequency scope.
+Wide web keeps the global command palette in the sidebar separately. Todos and Geral act on the current
+account day regardless of the day last visited in Hoje; creation in Geral defaults to no set day.
 
 ### Perfil settings navigation
 

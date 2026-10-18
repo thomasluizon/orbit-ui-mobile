@@ -86,12 +86,16 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
-  it('opens search from the header row', () => {
+  it.each([412, 1024, 1280])('opens search from the native header at %i dp', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    props.onSearch.mockClear()
     const renderer = renderControl()
     const search = button(renderer, 'Search')
     if (!search) throw new Error('Search control did not render')
     TestRenderer.act(() => search.props.onPress())
     expect(props.onSearch).toHaveBeenCalledOnce()
+    TestRenderer.act(() => renderer.unmount())
+    __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
   })
   it('keeps the full date accessible without truncating its labels', () => {
     const renderer = renderControl()

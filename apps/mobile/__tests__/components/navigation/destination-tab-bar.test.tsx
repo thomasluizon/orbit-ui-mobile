@@ -89,3 +89,13 @@ it('closes Astra when reselecting the current destination', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   } finally { tree.unmount() }
 })
+
+
+it.each(['all', 'general'] as const)('retains the saved %s view when returning to Hoje', (view) => {
+  useUIStore.getState().setActiveView(view)
+  const tree = renderNavigation(<DestinationTabBar pathname="/calendar" />)
+  try {
+    press(tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === 'nav.today')!)
+    expect(useUIStore.getState().activeView).toBe(view)
+  } finally { tree.unmount() }
+})

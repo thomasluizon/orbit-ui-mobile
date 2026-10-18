@@ -10,6 +10,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { HabitListEmptyState, HabitListSkeleton } from '@/components/habits/habit-list/empty-state'
 import { LazyMotion, domAnimation } from 'motion/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -32,6 +33,7 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
+  activeView: 'today', search: useHabitViewSearch('today'), changeView: vi.fn(),
   nav: useTodayNavigation('2026-09-04'),
   data: { hasFetched: state.surface !== 'loading', isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
   habitListRef: { current: null }, selectedHabitIds: new Set(), selection: {},
@@ -86,14 +88,16 @@ describe('Hoje group spacing', () => {
       state.date = '2026-09-04'
       await load()
       const spacing = await page.evaluate((summaryTitle) => {
+        const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
         const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
         const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)!.getBoundingClientRect()
-        return { lineToDate: date.top - line.bottom, dateToSummary: summary.top - date.bottom, summaryToList: list.top - summary.bottom,
+        return { viewsToLine: line.top - views.bottom, lineToDate: date.top - line.bottom, dateToSummary: summary.top - date.bottom, summaryToList: list.top - summary.bottom,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
       }, messages.summary.title)
+      expect.soft(spacing.viewsToLine).toBeCloseTo(24, 1)
       expect.soft(spacing.lineToDate).toBeCloseTo(24, 1)
       expect(spacing.dateToSummary).toBeCloseTo(24, 1)
       expect(spacing.summaryToList).toBeCloseTo(24, 1)
@@ -103,14 +107,14 @@ describe('Hoje group spacing', () => {
         state.surface = surface
         await load()
         const spacing = await page.evaluate((summaryTitle) => {
-          const owner = document.querySelector('[data-today-day-transition]')!.getBoundingClientRect()
+          const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
           const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)?.getBoundingClientRect()
-          return { dateInset: date.top - owner.top, dateToNext: (summary ?? list).top - date.bottom,
+          return { viewsToDate: date.top - views.bottom, dateToNext: (summary ?? list).top - date.bottom,
             summaryToList: summary ? list.top - summary.bottom : null, hasLine: Boolean(document.querySelector('.today-astra-line')) }
         }, messages.summary.title)
-        expect(spacing).toMatchObject({ dateInset: 0, dateToNext: 24, summaryToList: surface === 'loading' ? null : 24, hasLine: false })
+        expect(spacing).toMatchObject({ viewsToDate: 24, dateToNext: 24, summaryToList: surface === 'loading' ? null : 24, hasLine: false })
       }
       state.date = '2026-09-03'
       await load()

@@ -1,20 +1,86 @@
 import type { NormalizedHabit } from '../types/habit'
 import { hasHabitScheduleOnDate } from './habits'
+import type { HabitVisibilityView } from './habit-visibility'
+import { formatLocaleDate } from './locale-format'
+import { formatAPIDate } from './dates'
+
+export interface HabitDateBucket {
+  key: string
+  isOverdue: boolean
+  habits: NormalizedHabit[]
+}
+
+export function formatHabitDateBucketLabel(key: string, today: string, locale: string, t: (key: string) => string): string {
+  if (key === '__overdue__') return t('habits.overdue')
+  if (!key) return t('common.unknown')
+  if (key === today) return t('dates.today')
+  const tomorrow = new Date(`${today}T12:00:00`)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (key === formatAPIDate(tomorrow)) return t('dates.tomorrow')
+  return formatLocaleDate(new Date(`${key}T12:00:00`), locale, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export function buildHabitDateBuckets(
+  habits: NormalizedHabit[],
+  today: string,
+): HabitDateBucket[] {
+  const overdue: NormalizedHabit[] = []
+  const groups = new Map<string, NormalizedHabit[]>()
+
+  for (const habit of habits) {
+    if (!habit.isCompleted && habit.isOverdue) {
+      overdue.push(habit)
+      continue
+    }
+
+    const due = habit.dueDate
+    if (!due) {
+      const group = groups.get('') ?? []
+      group.push(habit)
+      groups.set('', group)
+      continue
+    }
+
+    const key = due < today ? today : due
+    const group = groups.get(key) ?? []
+    group.push(habit)
+    groups.set(key, group)
+  }
+
+  const result: HabitDateBucket[] = []
+
+  if (overdue.length > 0) {
+    result.push({
+      key: '__overdue__',
+      isOverdue: true,
+      habits: [...overdue].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    })
+  }
+
+  for (const [key, groupHabits] of Array.from(groups.entries()).sort(
+    ([a], [b]) => a.localeCompare(b),
+  )) {
+    result.push({ key, isOverdue: false, habits: groupHabits })
+  }
+
+  return result
+}
 
 export function computeHabitDayProgress(
   habits: readonly NormalizedHabit[],
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean,
+  view: HabitVisibilityView = 'today',
 ): { done: number; total: number } {
   let done = 0
   let total = 0
   for (const habit of habits) {
-    const countsForDay = habit.isGeneral
+    const countsForDay = view !== 'today' || habit.isGeneral
       || isDueOnSelectedDate(habit)
       || habit.isOverdue
       || habit.isLoggedInRange
     if (!countsForDay) continue
     total += 1
-    if (habit.isGeneral ? habit.isCompleted : habit.isCompleted || habit.isLoggedInRange) {
+    if (view !== 'today' || habit.isGeneral ? habit.isCompleted : habit.isCompleted || habit.isLoggedInRange) {
       done += 1
     }
   }
@@ -39,6 +105,7 @@ export interface ParentPromptProgressOptions {
   getChildren: (parentId: string) => NormalizedHabit[]
   isRelevantToday: (habit: NormalizedHabit) => boolean
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean
+  isListView?: boolean
   skippedIds: ReadonlySet<string>
   resolvedModes?: ReadonlyMap<string, HabitResolutionMode>
 }
@@ -93,6 +160,7 @@ export function computeParentPromptProgress(
     isRelevantToday,
     isDueOnSelectedDate,
     skippedIds,
+    isListView = false,
     resolvedModes,
   } = options
 
@@ -118,6 +186,7 @@ export function computeParentPromptProgress(
       isAssumedCompleted ||
       isSkipped
     const countsForDay =
+      isListView ||
       child.isGeneral ||
       isDueOnSelectedDate(child) ||
       child.isOverdue ||
@@ -126,6 +195,7 @@ export function computeParentPromptProgress(
       isSkipped
 
     if (
+      !isListView &&
       !child.isGeneral &&
       !isRelevantToday(child) &&
       !child.isOverdue &&

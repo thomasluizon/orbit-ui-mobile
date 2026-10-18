@@ -1,10 +1,15 @@
 'use client'
 
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
+
 import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
+  buildHabitDateBuckets,
+  filterHabitViewRoots,
+  formatHabitDateBucketLabel,
   canLogHabitOnDate,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
@@ -34,6 +39,7 @@ import {
   HabitListSkeleton,
 } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
+import { SearchEmpty } from '@/components/search/search-results'
 import type { MoveParentOption } from './habit-list/move-parent-overlay'
 import {
   buildDragItemsFlat,
@@ -41,6 +47,7 @@ import {
   groupDragItemsByPanel,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
+  type HabitView,
 } from './habit-list/tree-helpers'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import {
@@ -134,13 +141,14 @@ function DeferredMoveParentOverlay(
 
 interface HabitListProps {
   ref?: Ref<HabitListHandle>
-  view?: 'today'
+  view?: HabitView
   selectedDate?: Date
   showCompleted?: boolean
   onShowCompleted?: () => void
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
   searchQuery?: string
+  onClearSearch?: () => void
   filters: HabitsFilter
   onToggleSelection?: (habitId: string) => void
   onEnterSelectMode?: (habitId: string) => void
@@ -149,11 +157,18 @@ interface HabitListProps {
   onSeeUpcoming?: () => void
   /** Notified whenever the all-collapsed status changes. Used by parent
    * components that need to surface this in render (e.g., a controls menu). */
+  onAllLoadedIdsChange?: (ids: Set<string>) => void
   onAllCollapsedChange?: (allCollapsed: boolean) => void
   onSurfaceOpenChange?: (open: boolean) => void
 }
 
 const HABIT_PANEL_CLASS_NAME = 'habit-panel'
+
+function getListViewPanelStyle(view: HabitView, rootCount: number, isDragging: boolean) {
+  return view !== 'today' && rootCount >= 21 && !isDragging
+    ? { contentVisibility: 'auto', containIntrinsicSize: 'auto 96px' } as const
+    : undefined
+}
 
 export interface HabitListHandle {
   collapseAll: () => void
@@ -170,6 +185,7 @@ interface ParentSettlementData {
   visibility: ReturnType<typeof useHabitVisibility>
   habitsById: Map<string, NormalizedHabit>
   selectedDateStr: string
+  isListView: boolean
 }
 
 interface ParentSettlementOperation {
@@ -238,6 +254,7 @@ function getParentPromptProgress(
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
     skippedIds: confirmedResolutions.skippedIds,
+    isListView: settlementData.isListView,
     resolvedModes: confirmedResolutions.modes,
   })
 }
@@ -306,21 +323,24 @@ function getDeleteConfirmation(
 export function HabitList({
   ref,
   view = 'today',
-  selectedDate,
+  selectedDate: requestedDate,
   showCompleted = false,
   onShowCompleted,
   isSelectMode = false,
   selectedHabitIds,
   searchQuery = '',
+  onClearSearch,
   filters,
   onToggleSelection,
   onEnterSelectMode,
   onCreate,
   createRefusal,
   onSeeUpcoming,
+  onAllLoadedIdsChange,
   onAllCollapsedChange,
   onSurfaceOpenChange,
 }: Readonly<HabitListProps>) {
+  const selectedDate = view === 'today' ? requestedDate : undefined
   const accountGeneration = useAccountGeneration()
   const t = useTranslations()
   const { isOnline } = useOffline()
@@ -331,7 +351,7 @@ export function HabitList({
   const { displayTime } = useTimeFormat()
   const dndContextId = useId()
 
-  const habitsQuery = useHabits(filters, undefined, { completeDay: true })
+  const habitsQuery = useHabits(filters, undefined, habitViewQueryOptions(view, todayStr))
   const accountHabitCount = useHabitCountLoaded()
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
@@ -483,13 +503,15 @@ export function HabitList({
   }, [setCollapsedIds])
 
   const habits = useMemo(() => {
-    return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
+    return filterHabitViewRoots(topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility)
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is destructured from the query data every render and already listed; the memo keys off the resolved array, not data.topLevelHabits https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [topLevelHabits, visibility])
+  }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
   const allLoadedIds = useMemo(() => {
     return collectVisibleHabitTreeIds(habits, getVisibleChildren)
   }, [getVisibleChildren, habits])
+
+  useEffect(() => { onAllLoadedIdsChange?.(allLoadedIds) }, [allLoadedIds, onAllLoadedIdsChange])
 
   useEffect(() => {
     promptDataRef.current = {
@@ -497,9 +519,10 @@ export function HabitList({
       visibility,
       habitsById,
       selectedDateStr,
+      isListView: view !== 'today',
     }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren and habitsById are aliased from the query result every render and already listed; the effect only mirrors the current render values into a ref, so no staleness is possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [promptDataRef, getChildren, visibility, habitsById, selectedDateStr])
+  }, [promptDataRef, getChildren, visibility, habitsById, selectedDateStr, view])
 
   const childrenProgressMap = useMemo(() => {
     const map = new Map<string, { done: number; total: number }>()
@@ -508,7 +531,7 @@ export function HabitList({
       child: NormalizedHabit,
       computeFn: (id: string) => { done: number; total: number },
     ): { done: number; total: number } {
-      const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate)
+      const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate, view)
       const nested = computeFn(child.id)
       return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
     }
@@ -545,7 +568,7 @@ export function HabitList({
 
     return map
     // react-doctor-disable-next-line exhaustive-deps -- getChildren is aliased from habitsQuery.getChildren every render and already listed; the memo keys off the resolved function, not habitsQuery.getChildren https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [habitsById, getChildren, visibility])
+  }, [habitsById, getChildren, visibility, view])
 
   const getChildrenProgress = useCallback(
     (habitId: string) => {
@@ -578,8 +601,9 @@ export function HabitList({
   ])
 
   const dragItems = useMemo<DragItem[]>(() => {
-    return buildDragItemsFlat(habits, collapsedIds, visibility.getVisibleChildren, view)
-  }, [habits, collapsedIds, visibility, view])
+    const ordered = view === 'all' ? buildHabitDateBuckets(habits, todayStr).flatMap((bucket) => bucket.habits) : habits
+    return buildDragItemsFlat(ordered, collapsedIds, visibility.getVisibleChildren, view)
+  }, [habits, collapsedIds, visibility, view, todayStr])
 
   const [isDragging, setIsDragging] = useAccountScopedState(false)
   const autoCollapsedOnDragRef = useReactRef<string | null>(null)
@@ -605,7 +629,8 @@ export function HabitList({
   })
   const sensors = useSensors(pointerSensor, touchSensor)
 
-  const isDndEnabled = !isSelectMode
+  const isDndEnabled = view !== 'all' && !isSelectMode
+  const listViewPanelStyle = getListViewPanelStyle(view, habits.length, isDragging)
 
   const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
   const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
@@ -698,7 +723,7 @@ export function HabitList({
     }
   }
 
-  const cardSelectedDate = selectedDate ?? new Date()
+  const cardSelectedDate = view === 'today' ? selectedDate : undefined
 
   const [showEditModal, setShowEditModal] = useAccountScopedState(false)
   const [habitToEdit, setHabitToEdit] = useAccountScopedState<NormalizedHabit | null>(null)
@@ -1338,7 +1363,7 @@ export function HabitList({
     )
   }
 
-  const showAllDone = !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+  const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
@@ -1368,6 +1393,35 @@ export function HabitList({
     )
   }
 
+  function renderAllHabitGroups(): React.ReactNode {
+    return <div className="flex min-w-0 flex-col gap-6">
+      {buildHabitDateBuckets(habits, todayStr).map((bucket) => <section key={bucket.key} className="flex min-w-0 flex-col gap-3" aria-label={formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}>
+        <h2 className="font-mono text-xs font-medium text-[var(--fg-3)]">{formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}</h2>
+        {dragPanels.filter((panel) => bucket.habits.some((habit) => habit.id === panel[0]?.id)).map((panel) => <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+          {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
+        </div>)}
+      </section>)}
+    </div>
+  }
+
+  function renderEmptyList(): React.ReactNode {
+    if (searchQuery.trim()) return <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreate} />
+    if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
+    if (view !== 'today') return <HabitListEmptyState title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')} description="" askAstraLabel={t('habits.askAstra')} onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)} actionLabel={t('habits.createManually')} onAction={onCreate} createRefusal={createRefusal} />
+    if (showAllDone) return null
+    return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
+      <HabitListEmptyState
+        title={t('habits.emptyState')}
+        description={t('habits.noHabitsBody')}
+        askAstraLabel={t('habits.askAstra')}
+        onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
+        actionLabel={t('habits.createManually')}
+        onAction={onCreate}
+        createRefusal={createRefusal}
+      />
+    ) : <HabitListNothingOpen />
+  }
+
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
@@ -1383,21 +1437,9 @@ export function HabitList({
       )
     }
 
-    if (habits.length === 0) {
-      if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
-      if (showAllDone) return null
-      return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
-        <HabitListEmptyState
-          title={t('habits.emptyState')}
-          description={t('habits.noHabitsBody')}
-          askAstraLabel={t('habits.askAstra')}
-          onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
-          actionLabel={t('habits.createManually')}
-          onAction={onCreate}
-          createRefusal={createRefusal}
-        />
-      ) : <HabitListNothingOpen />
-    }
+    if (habits.length === 0) return renderEmptyList()
+
+    if (view === 'all') return renderAllHabitGroups()
 
     if (isDndEnabled) {
       return (
@@ -1415,7 +1457,7 @@ export function HabitList({
           >
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
               {activeDragPanels.map((panel) => (
-                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
+                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
                   {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, true))}
                 </div>
               ))}
@@ -1428,7 +1470,7 @@ export function HabitList({
     return (
       <div className="flex flex-col" style={{ gap: 12 }}>
         {dragPanels.map((panel) => (
-          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
+          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
             {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
           </div>
         ))}

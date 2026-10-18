@@ -1,3 +1,4 @@
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -12,6 +13,12 @@ import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import type { ActiveView } from '@orbit/shared/stores'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
+import { useOverlayBack } from '@/hooks/use-overlay-back'
+import { Input } from '@/components/ui/input'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
+import { buildTodayFilters } from './today-model'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import { TodayModals } from '@/components/today/today-modals'
@@ -35,11 +42,43 @@ import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
+  view: ActiveView,
 ): 'habits.todayBoundary.lastLoggable' | 'habits.todayBoundary.readOnly' | 'habits.todayBoundary.future' | null {
+  if (view !== 'today') return null
   if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
   if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
   if (boundary === 'future') return 'habits.todayBoundary.future'
   return null
+}
+
+function getSeeUpcomingAction(view: ActiveView, nextDisabled: boolean, goToNextDay: () => void) {
+  return view === 'today' && !nextDisabled ? goToNextDay : undefined
+}
+
+function getSearchLabelKey(open: boolean) {
+  return open ? 'habits.closeSearch' : 'habits.search.title'
+}
+
+function TodaySearchInput({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
+  const { t } = useTranslation()
+  if (!search.open) return null
+  return <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} focusRequest={1} />
+}
+
+function TodayViewHeader({ search, activeView, onChangeView, today, focused, isTodaySelected, suppressed }: Readonly<{
+  search: ReturnType<typeof useHabitViewSearch>
+  activeView: ActiveView
+  onChangeView: (view: ActiveView) => void
+  today: string
+  focused: boolean
+  isTodaySelected: boolean
+  suppressed: boolean
+}>) {
+  return <View style={styles.viewHeader}>
+    <TodaySearchInput search={search} />
+    <HabitViewSwitch value={activeView} onChange={onChangeView} />
+    {focused && activeView === 'today' ? <TodayAstra today={today} isTodaySelected={isTodaySelected} suppressed={suppressed} /> : null}
+  </View>
 }
 
 export default function TodayScreen() {
@@ -77,7 +116,14 @@ function TodayScreenContent() {
     [currentScheme, currentTheme],
   )
   const date = useTodayDate()
+  const activeView = useUIStore((state) => state.activeView)
+  const setActiveView = useUIStore((state) => state.setActiveView)
+  useEffect(() => { if (date.pinnedDateStr) setActiveView('today') }, [date.pinnedDateStr, setActiveView])
   const accountId = useAccountId()
+  const search = useHabitViewSearch(JSON.stringify([accountId, activeView, activeView === 'today' ? date.dateStr : null]))
+  const closeSearch = search.close
+  useOverlayBack(search.open, search.close)
+  const actionDate = activeView === 'today' ? date.dateStr : date.today
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
@@ -115,28 +161,30 @@ function TodayScreenContent() {
   useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
-  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
+  const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit ?? null)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
 
-  const filters = useMemo<HabitsFilter>(() => ({
-    dateFrom: date.dateStr,
-    dateTo: date.dateStr,
-    includeOverdue: date.dateStr === date.today,
-    includeGeneral: showGeneralOnToday || undefined,
-    frequencyUnit,
-  }), [date.dateStr, date.today, frequencyUnit, showGeneralOnToday])
-  const habitsQuery = useHabits(filters, { completeDay: true })
+  const filters = useMemo<HabitsFilter>(() => buildTodayFilters({
+    view: activeView,
+    dateStr: date.dateStr,
+    isTodayDate: date.dateStr === date.today,
+    searchQuery: search.query,
+    selectedFrequency: frequencyUnit,
+    selectedTagIds: [],
+    showGeneralOnToday,
+  }), [activeView, date.dateStr, date.today, frequencyUnit, showGeneralOnToday, search.query])
+  const habitsQuery = useHabits(filters, habitViewQueryOptions(activeView, date.today))
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,
-    isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching),
+    isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching && !search.open),
   })
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
-    selectedDateStr: date.dateStr,
+    selectedDateStr: actionDate,
     today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
@@ -144,7 +192,13 @@ function TodayScreenContent() {
     closeControlsMenu,
   })
   const clearSelection = selection.clearSelection
-  const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+  const changeView = useCallback((nextView: ActiveView) => {
+    if (nextView !== 'today' && date.pinnedDateStr) router.replace('/(tabs)')
+    clearSelection()
+    closeSearch()
+    setActiveView(nextView)
+  }, [clearSelection, closeSearch, date.pinnedDateStr, router, setActiveView])
+  const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today), activeView)
 
   useFocusEffect(
     useCallback(() => {
@@ -212,18 +266,16 @@ function TodayScreenContent() {
 
   const listHeader = (
     <View style={styles.header}>
-      {todayFocused ? (
-        <TodayAstra
-          today={date.today}
-          isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data}
-        />
-      ) : null}
       <TodayDateControl
+        showDate={activeView === 'today'}
+        beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
+          today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
         headerActive={todayFocused}
         shortDayName={date.shortDayName}
-        searchLabel={t('habits.search.title')}
-        onSearch={() => router.push('/search')}
+        searchLabel={t(getSearchLabelKey(search.open))}
+        searchOpen={search.open}
+        onSearch={search.toggle}
         dayName={date.dayName}
         numericDate={date.numericDate}
         isTodaySelected={date.dateStr === date.today}
@@ -253,7 +305,7 @@ function TodayScreenContent() {
         onGoToNextDay={date.goToNextDay}
       />
       <SetupChecklistCard />
-      {todayFocused && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
+      {todayFocused && activeView === 'today' && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
         ? <TodayAISummary date={date.dateStr} /> : null}
       {boundaryKey ? (
         <View style={styles.notice}>
@@ -270,19 +322,21 @@ function TodayScreenContent() {
         <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
           <HabitList
             ref={habitListRef}
-            view="today"
+            view={activeView}
+            searchQuery={search.query}
+            onClearSearch={search.close}
             filters={filters}
-            selectedDate={date.selectedDate}
+            selectedDate={activeView === 'today' ? date.selectedDate : undefined}
             showCompleted={showCompleted}
             onShowCompleted={() => setShowCompleted(true)}
             isSelectMode={isSelectMode}
             selectedHabitIds={selectedHabitIds}
             listHeader={listHeader}
             onCreatePress={() => setShowCreateModal(true)}
-            onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
+            onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
             onDetailHabit={(habit) => router.push({
               pathname: '/habits/[id]',
-              params: { id: habit.id, date: date.dateStr, from: 'today' },
+              params: { id: habit.id, date: actionDate, from: 'today' },
             })}
             onEditHabit={(habit, onSaved) => {
               setEditHabit(habit)
@@ -299,7 +353,7 @@ function TodayScreenContent() {
       <TodayModals
         showCreateModal={showCreateModal}
         onCloseCreateModal={() => setShowCreateModal(false)}
-        createInitialDate={date.dateStr}
+        createInitialDate={activeView === 'today' ? date.dateStr : null}
         editHabit={editHabit}
         editHabitParentIsGeneral={editHabit?.parentId ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null) : null}
         onCloseEdit={() => {
@@ -323,6 +377,7 @@ const styles = StyleSheet.create({
   profileLoading: { gap: 24, padding: 16 },
   profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
+  viewHeader: { gap: 24 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
   selectionTray: { paddingHorizontal: 16, paddingVertical: 12 },

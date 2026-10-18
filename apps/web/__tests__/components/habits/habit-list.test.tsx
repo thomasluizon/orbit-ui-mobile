@@ -1,3 +1,4 @@
+import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
@@ -40,6 +41,7 @@ const setFrequencyFilters = vi.hoisted(() => vi.fn())
 const skipFlow = vi.hoisted(() => ({
   active: false,
   retryRead: false,
+  scheduleItems: null as HabitScheduleItem[] | null,
   items: [] as HabitScheduleItem[],
   original: [] as HabitScheduleItem[],
   mutate: vi.fn(),
@@ -52,7 +54,7 @@ vi.mock('@/lib/api-fetch', async (importOriginal) => {
     ...actual,
     fetchJson: async (...args: Parameters<typeof actual.fetchJson>) => skipFlow.retryRead
       ? actual.fetchJson(...args)
-      : ({ items: skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
+      : ({ items: String(args[0]).includes('dateFrom=') && skipFlow.scheduleItems ? skipFlow.scheduleItems : skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
   }
 })
 
@@ -262,6 +264,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       onDuplicate?: () => void
       onDetail?: () => void
       onAddSubHabit?: () => void
+      onReschedule?: () => void
       onToggleSelection?: () => void
     }
   }) => (
@@ -274,6 +277,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       data-can-log={canLog ? 'yes' : 'no'}
       data-read-only={completionReadOnly ? 'yes' : 'no'}
       data-has-skip={actions?.onSkip ? 'yes' : 'no'}
+      data-has-reschedule={actions?.onReschedule ? 'yes' : 'no'}
     >
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
@@ -443,6 +447,98 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
+    dragLocale.english = true
+    const clearSearch = vi.fn()
+    renderWithProviders(<HabitList view={view} filters={{}} searchQuery="missing routine" onClearSearch={clearSearch} />)
+    expect(screen.getByText('Nothing found for', { exact: false })).toHaveTextContent('missing routine')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(clearSearch).toHaveBeenCalledOnce()
+    expect(screen.queryByText('No habits yet')).not.toBeInTheDocument()
+  })
+
+  it('loads producer-shaped Todos rows with overdue logging and rescheduling available', async () => {
+    skipFlow.active = true
+    skipFlow.items = createHabitViewItems(TODAY, 'all')
+    skipFlow.scheduleItems = createHabitViewScheduleItems(TODAY)
+    useActualHabitVisibility = true
+    renderWithProviders(<HabitList view="all" filters={{}} />)
+    const overdue = await screen.findByTestId('habit-card-overdue')
+    expect(overdue).toHaveAttribute('data-state', 'overdue')
+    expect(overdue).toHaveAttribute('data-can-log', 'yes')
+    expect(overdue).toHaveAttribute('data-has-reschedule', 'yes')
+    expect(screen.getByTestId('habit-card-future')).toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByTestId('log-overdue')) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue', intent: 'log' })
+  })
+
+  it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    const id = view === 'all' ? 'overdue' : 'general'
+    const select = vi.fn()
+    renderWithProviders(<HabitList view={view} filters={{}} selectedDate={new Date('2000-01-01T12:00:00')} showCompleted isSelectMode onToggleSelection={select} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`log-${id}`)) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'log' })
+    await act(async () => { fireEvent.click(screen.getByTestId(`unlog-${id}`)) })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'unlog' })
+    fireEvent.click(screen.getByTestId(`select-${id}`))
+    expect(select).toHaveBeenCalledWith(id)
+    fireEvent.click(screen.getByTestId(`detail-${id}`))
+    expect(routerPush).toHaveBeenCalledWith(`/habits/${id}?date=${TODAY}&from=today`)
+    fireEvent.click(screen.getByTestId(`edit-${id}`))
+    expect(await screen.findByTestId('edit-habit-modal-title')).toHaveTextContent(view === 'all' ? 'Overdue' : 'Any day')
+    fireEvent.click(screen.getByTestId(`duplicate-${id}`))
+    await confirmVisibleSheet('habits.duplicateConfirmTitle', 'habits.duplicateConfirm')
+    expect(duplicateHabitMutateAsync).toHaveBeenCalledWith(id)
+    if (view === 'all') {
+      await act(async () => { fireEvent.click(screen.getByTestId(`skip-${id}`)) })
+      expect(skipHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: id }))
+    }
+    fireEvent.click(screen.getByTestId(`add-sub-${id}`))
+    expect(await screen.findByRole('dialog', { name: 'Create habit' })).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId(`delete-${id}`))
+    await confirmVisibleSheet('habits.deleteConfirmTitle', 'habits.deleteHabit')
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith(id)
+  })
+
+  it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    render(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+    expect(screen.getAllByTestId(/^habit-card-/).map((row) => row.getAttribute('data-testid')?.replace('habit-card-', ''))).toEqual(HABIT_VIEW_ROW_ORDER[view])
+  })
+
+  it.each(['all', 'general'] as const)('skips offscreen family rendering in a large %s list while keeping keyboard access', async (view) => {
+    useActualHabitVisibility = true
+    rowImplementation.actual = true
+    dragLocale.english = true
+    const items = Array.from({ length: 40 }, (_, index) => createMockHabitScheduleItem({
+      id: `root-${index}`, title: `Routine ${index}`, position: index, dueDate: TODAY,
+      scheduledDates: [TODAY], isGeneral: view === 'general', hasSubHabits: index === 0,
+      children: index === 0 ? ['first-child', 'second-child'].map((id) => createMockHabitScheduleChild({ id, title: id, dueDate: TODAY, scheduledDates: [TODAY], isGeneral: view === 'general' })) : [],
+    }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items))
+    const { container } = renderWithProviders(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} />)
+    const cssPath = resolve('app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      const page = await browser.newPage({ viewport: { width: 412, height: 600 } })
+      await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
+      await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
+      expect(await page.locator('.habit-panel').count()).toBe(40)
+      expect(await page.locator('.habit-panel').first().getByTestId('habit-row').count()).toBe(3)
+      const lastTitle = page.locator('[data-habit-title="Routine 39"] [data-habit-row-body]')
+      const lastRow = page.locator('[data-habit-title="Routine 39"]')
+      expect(await lastRow.evaluate((element) => element.checkVisibility({ contentVisibilityAuto: true }))).toBe(false)
+      await lastTitle.focus()
+      expect(await lastRow.evaluate((element) => element.checkVisibility({ contentVisibilityAuto: true }))).toBe(true)
+      expect(await lastTitle.evaluate((element) => element === document.activeElement)).toBe(true)
+    } finally { await closeChrome(launch) }
+  }, 45_000)
+
   it.each([
     { code: 'RATE_LIMITED', status: 429, failures: 1, retryAfter: '60', deadline: 60_000 },
     { code: 'UPSTREAM_STARTING', status: 503, failures: 2, retryAfter: '5', deadline: 15_000 },
@@ -969,6 +1065,7 @@ describe('HabitList', () => {
     dragLocale.english = false
     skipFlow.active = false
     skipFlow.retryRead = false
+    skipFlow.scheduleItems = null
     useAppToastStore.setState({ currentToast: null, queue: [] })
     rowImplementation.actual = false
     accountDate.timeZone = undefined

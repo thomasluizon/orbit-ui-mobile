@@ -334,7 +334,7 @@ export {
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
-export { habitListQueryFilters, shouldFetchAllHabitPages } from './habit-list-pagination-core'
+export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
   buildHabitQueryString,
   buildUrlWithQuery,
@@ -789,5 +789,15 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
+
+export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
+
+export { filterHabitViewRoots } from './habit-visibility'
+
+export { formatHabitDateBucketLabel } from './habit-list-progress'
+
+export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'
 
 export { getSetupChecklist } from './setup-checklist'

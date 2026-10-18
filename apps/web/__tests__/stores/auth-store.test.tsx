@@ -5,6 +5,9 @@ import { profileKeys } from '@orbit/shared/query'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { render } from '@testing-library/react'
+import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
+import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 import { resetAuthStore } from '@/__tests__/support/account-change'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
@@ -230,6 +233,22 @@ describe('auth store', () => {
       },
     })
     expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1')
+  })
+
+  it.each(['all', 'general'] as const)('restores the saved %s view through the rendered account seed', (activeView) => {
+    const accountId = 'saved-view-account'
+    const storageKey = `orbit-ui-store:${accountId}`
+    setUIAccountScope(accountId)
+    useUIStore.getState().setActiveView(activeView)
+    const saved = localStorage.getItem(storageKey)
+    setUIAccountScope(null)
+    expect(useUIStore.getState().activeView).toBe('today')
+
+    render(<RenderedAccountSeed accountId={accountId}>{null}</RenderedAccountSeed>)
+
+    expect(useUIStore.getState().activeView).toBe(activeView)
+    expect(localStorage.getItem(storageKey)).toBe(saved)
+    localStorage.removeItem(storageKey)
   })
 
   it('resets analytics before identifying a replacement account', () => {

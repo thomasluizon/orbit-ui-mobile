@@ -42,9 +42,8 @@ export function useTodaySelection({
   const selectAllHabits = useUIStore((s) => s.selectAllHabits);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
-  const previousActiveViewRef = useRef(activeView);
   const completionReadOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
-  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit });
+  const previousScopeRef = useRef({ selectedDateStr, frequencyUnit, activeView });
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
@@ -69,34 +68,21 @@ export function useTodaySelection({
 
   useEffect(() => {
     const scopeChanged = previousScopeRef.current.selectedDateStr !== selectedDateStr ||
-      previousScopeRef.current.frequencyUnit !== frequencyUnit;
-    previousScopeRef.current = { selectedDateStr, frequencyUnit };
+      previousScopeRef.current.frequencyUnit !== frequencyUnit ||
+      shouldResetSelectionForViewChange(previousScopeRef.current.activeView, activeView);
+    previousScopeRef.current = { selectedDateStr, frequencyUnit, activeView };
     if (!scopeChanged) return;
     closeControlsMenu();
     setShowBulkDeleteConfirm(false);
     clearSelection();
   }, [
+    activeView,
     clearSelection,
     closeControlsMenu,
     frequencyUnit,
     selectedDateStr,
     setShowBulkDeleteConfirm,
   ]);
-
-  useEffect(() => {
-    if (
-      !shouldResetSelectionForViewChange(
-        previousActiveViewRef.current,
-        activeView,
-      )
-    ) {
-      return;
-    }
-
-    previousActiveViewRef.current = activeView;
-    closeControlsMenu();
-    if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
 
   useEffect(() => {
     if (!isSelectMode) return;

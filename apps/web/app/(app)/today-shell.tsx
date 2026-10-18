@@ -15,6 +15,7 @@ const DATE_ICON_BUTTON_CLASS_NAME =
   'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
 export interface TodayDateControlProps {
+  showDate?: boolean
   beforeDate?: ReactNode
   menuHeading?: string
   shortDayName?: string
@@ -43,6 +44,8 @@ export interface TodayDateControlProps {
   onRefresh: () => void
   onToggleCompleted: () => void
   searchLabel: string
+  searchOpen?: boolean
+  searchControlsId?: string
   onSearch: () => void
 }
 
@@ -55,12 +58,12 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
-    {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
+    {props.showDate !== false && !props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
-      <button type="button" aria-label={props.searchLabel} onClick={props.onSearch}
-        className={`${DATE_ICON_BUTTON_CLASS_NAME} lg:hidden`}><Search size={20} aria-hidden="true" /></button>
+      <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
+        className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => { setFrequencyMenu(false); setMenuOpen((open) => !open) }}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -95,7 +98,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
     <ShellHeader><TodayHeaderActions {...props} /></ShellHeader>
     <div className="flex min-w-0 flex-col gap-6">
       {props.beforeDate}
-      <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
+      {props.showDate !== false ? <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
           <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
@@ -112,7 +115,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
-      </div>
+      </div> : null}
     </div>
   </div>
 }
