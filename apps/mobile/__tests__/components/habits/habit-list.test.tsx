@@ -1,4 +1,4 @@
-import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { createAppendedGeneralSearchItems, createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
@@ -6,7 +6,7 @@ import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geom
 import { FlatList, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, createApiClientError } from '@orbit/shared/utils'
+import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -16,6 +16,7 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
+import { SearchEmpty } from '@/components/search/search-results'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -295,9 +296,11 @@ const mockDrillState = {
 }
 let capturedDrillOptions: HabitVisibilityOptions | undefined
 
-vi.mock('react-i18next', async () => {
+vi.mock('react-i18next', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-i18next')>()
   const { default: messages } = await import('@orbit/shared/i18n/en.json')
   return {
+  ...actual,
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => key === 'habits.deleteListConfirmMessage'
       ? messages.habits.deleteListConfirmMessage
@@ -600,6 +603,28 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant)))
+    const query = matchesDescendant ? 'Needle child' : 'zzzz-no-match'
+    const onClearSearch = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeGeneral: true, search: query }}
+        searchQuery={query} showCompleted={false} onCreatePress={vi.fn()} onClearSearch={onClearSearch} />)
+    })
+    const ids = tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+    expect(ids).toEqual(matchesDescendant ? ['general-parent', 'general-match'] : [])
+    if (matchesDescendant) expect(tree!.root.findAllByType(SearchEmpty)).toHaveLength(0)
+    else {
+      expect(tree!.root.findByType(SearchEmpty).props.query).toBe(query)
+      const clear = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'Pressable' && flattenText(node.props.children).includes('common.clear'))[0]!
+      TestRenderer.act(() => clear.props.onPress())
+      expect(onClearSearch).toHaveBeenCalledOnce()
+    }
+  })
+
   it('loads producer-shaped Todos rows with overdue logging and rescheduling available', async () => {
     skipFlow.active = true
     useActualHabitVisibility = true

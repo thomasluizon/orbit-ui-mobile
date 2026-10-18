@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHabitViewFixture, createHabitViewItems, createHabitViewScheduleItems, HABIT_VIEW_ROW_ORDER } from './habit-view-fixtures'
+import { createAppendedGeneralSearchItems, createHabitViewFixture, createHabitViewItems, createHabitViewScheduleItems, HABIT_VIEW_ROW_ORDER } from './habit-view-fixtures'
 import { createHabitVisibilityHelpers, filterHabitViewRoots } from '../utils/habit-visibility'
 import { buildHabitDateBuckets, computeHabitDayProgress, computeParentPromptProgress } from '../utils/habit-list-progress'
 import { getPersistedUIState, migratePersistedUIState, type UIStoreState } from '../stores/ui-store'
@@ -23,6 +23,17 @@ function visibleView(items: HabitScheduleItem[], view: HabitVisibilityView, show
 }
 
 describe('production habit views', () => {
+  it.each([
+    { query: 'zzzz-no-match', matchesDescendant: false, roots: [], children: [] },
+    { query: 'Needle child', matchesDescendant: true, roots: ['general-parent'], children: ['general-match'] },
+    { query: '   ', matchesDescendant: false, roots: ['general-unmatched', 'general-parent'], children: ['general-match', 'general-sibling'] },
+  ])('filters appended general roots and preserves ancestor context for Hoje query "$query"', ({ query, matchesDescendant, roots, children }) => {
+    const fixture = normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant))
+    const visibility = createHabitVisibilityHelpers({ ...fixture, selectedDate: TODAY, searchQuery: query, showCompleted: false, recentlyCompletedIds: new Set() })
+    expect(filterHabitViewRoots(fixture.topLevelHabits, 'today', false, new Set(), visibility).map((habit) => habit.id)).toEqual(roots)
+    expect(visibility.getVisibleChildren('general-parent', 'today').map((habit) => habit.id)).toEqual(children)
+  })
+
   it.each([
     { view: 'today', done: 0, total: 3 },
     { view: 'all', done: 1, total: 6 },

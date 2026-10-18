@@ -45,6 +45,21 @@ export function createHabitViewFixture(today: string, view: HabitVisibilityView)
   return normalizeHabitQueryData(view === 'all' ? mergeHabitListSchedule(items, createHabitViewScheduleItems(today)) : items)
 }
 
+export function createAppendedGeneralSearchItems(matchesDescendant: boolean): HabitScheduleItem[] {
+  const general = { isGeneral: true, frequencyUnit: null, dueDate: '0001-01-01', scheduledDates: [], instances: [], searchMatches: null }
+  return [
+    createMockHabitScheduleItem({ ...general, id: 'general-unmatched', title: 'Any day', position: 0 }),
+    createMockHabitScheduleItem({ ...general, id: 'general-parent', title: 'Someday', position: 1, hasSubHabits: true,
+      searchMatches: matchesDescendant ? [{ field: 'child', value: 'Needle child' }] : null,
+      children: [
+        createMockHabitScheduleChild({ ...general, id: 'general-match', title: 'Needle child', position: 0,
+          searchMatches: matchesDescendant ? [{ field: 'title', value: null }] : null }),
+        createMockHabitScheduleChild({ ...general, id: 'general-sibling', title: 'Other child', position: 1 }),
+      ],
+    }),
+  ].map((item) => habitScheduleItemSchema.parse(item))
+}
+
 export const HABIT_VIEW_ROW_ORDER = {
   today: ['parent', 'today-child', 'overdue'],
   all: ['overdue', 'parent', 'today-child', 'future-child', 'future', 'recurring-done'],

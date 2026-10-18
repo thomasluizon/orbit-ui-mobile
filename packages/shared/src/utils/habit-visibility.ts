@@ -39,7 +39,7 @@ export function filterHabitViewRoots(
   if (view === 'all') return habits.filter((habit) => isHabitVisibleInAllView(habit, showCompleted))
   if (view === 'general') return habits.filter((habit) => habit.isGeneral &&
     (showCompleted || !habit.isCompleted || recentlyCompletedIds.has(habit.id)))
-  return habits.filter((habit) => visibility.hasVisibleContent(habit))
+  return habits.filter((habit) => visibility.hasSearchMatch(habit) && visibility.hasVisibleContent(habit))
 }
 
 /** A completed non-recurring (one-time) habit: it is done and has no future
@@ -177,6 +177,7 @@ export function createHabitVisibilityHelpers({
   }
 
   const hasSearchMatch = (habit: NormalizedHabit): boolean => {
+    if (!searchQuery.trim()) return true
     if (habit.searchMatches && habit.searchMatches.length > 0) return true
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
     return children.some((child) => hasSearchMatch(child))
