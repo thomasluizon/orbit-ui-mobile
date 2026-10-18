@@ -247,4 +247,5 @@ export function invalidateHabitDependents(queryClient: QueryClient, habitId: str
   void queryClient.invalidateQueries({ queryKey: habitKeys.metrics(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
 }
