@@ -161,14 +161,14 @@ class OrbitWidgetModule : Module() {
         if (authorizingToken != null) {
           val session = sessionKey(authorizingToken)
           if (getToken(context)?.let { sessionKey(it) } == session) {
-        context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
-          .edit()
-          .putString("habits_json", json)
-          .putString("habits_session", session)
-          .putLong("habits_updated_at", System.currentTimeMillis())
-          .putBoolean("refresh_loading", false)
-          .putBoolean("loading_skeleton", false)
-          .apply()
+            context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
+              .edit()
+              .putString("habits_json", json)
+              .putString("habits_session", session)
+              .putLong("habits_updated_at", System.currentTimeMillis())
+              .putBoolean("refresh_loading", false)
+              .putBoolean("loading_skeleton", false)
+              .apply()
           }
         }
       }

@@ -26,7 +26,8 @@ describe('native union accepts both widget callers', () => {
       function visit(node: ts.Node) {
         if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
           const method = node.expression.name.text
-          if (['saveToken', 'clearToken', 'syncWidgetData', 'syncTheme'].includes(method)) {
+          const receiver = node.expression.expression.getText(caller)
+          if (receiver === 'widgetModule' || receiver === 'getOrbitWidgetModule()') {
             const range = nativeArgumentRange(method)
             expect(node.arguments.length, method).toBeGreaterThanOrEqual(range.required)
             expect(node.arguments.length, method).toBeLessThanOrEqual(range.maximum)
@@ -37,6 +38,30 @@ describe('native union accepts both widget callers', () => {
       }
       visit(caller)
       expect(calls.sort()).toEqual(['clearToken', 'saveToken', 'syncTheme', 'syncWidgetData'])
+    })
+  }
+
+  for (const path of [
+    'modules/orbit-widget/src/OrbitWidget.types.ts',
+    '__tests__/fixtures/native-designs/redesign-widget-contract.fixture',
+  ]) {
+    it(`accepts the parameter types declared by ${path}`, () => {
+      const contract = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true)
+      const declaration = contract.statements.find(statement =>
+        ts.isInterfaceDeclaration(statement) && statement.name.text === 'OrbitWidgetModuleType',
+      )
+      if (!declaration || !ts.isInterfaceDeclaration(declaration)) throw new Error('Missing widget interface')
+      for (const method of declaration.members) {
+        if (!ts.isMethodSignature(method)) continue
+        const name = method.name.getText(contract)
+        nativeArgumentRange(name)
+        const native = new RegExp(`AsyncFunction\\("${name}"\\) \\{([^\\n]*?)(?:->|\\n)`).exec(widgetNative)?.[1] ?? ''
+        const nativeTypes = [...native.matchAll(/\w+:\s*(String\??|Map<String, String>)/g)]
+        for (const [index, parameter] of method.parameters.entries()) {
+          const expected = parameter.type?.kind === ts.SyntaxKind.StringKeyword ? 'String' : 'Map<String, String>'
+          expect(nativeTypes[index]?.[1]?.replace('?', ''), `${name} argument ${index}`).toBe(expected)
+        }
+      }
     })
   }
 

@@ -8,11 +8,16 @@ const createConfig = require('../app.config.js') as () => typeof appJson.expo
 describe('Android app variant', () => {
   afterEach(() => { delete process.env.ORBIT_APP_VARIANT })
 
-  it('keeps the default production config byte identical', () => {
+  it('keeps the production config with every union plugin registered', () => {
     delete process.env.ORBIT_APP_VARIANT
     const expected = {
       ...appJson.expo,
-      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes'],
+      plugins: [
+        ...appJson.expo.plugins,
+        './plugins/with-android-release-build-fixes',
+        './plugins/with-react-native-imperative-focus',
+        './plugins/with-design-bundle-launch',
+      ],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })
@@ -27,7 +32,19 @@ describe('Android app variant', () => {
     expect(config.android.intentFilters.flatMap((filter) => filter.data.map((entry) => entry.host)))
       .toEqual(['app-staging.useorbit.org', 'app-staging.useorbit.org'])
     expect(config.extra.router.origin).toBe('https://app-staging.useorbit.org')
+    expect(config.runtimeVersion).toBe(`${appJson.expo.runtimeVersion}-staging`)
     expect(appJson.expo.android.package).toBe('org.useorbit.app')
+  })
+
+  it('keeps startup offline and declares every header the launch adapter overrides', () => {
+    const config = createConfig()
+    expect(config.updates.enabled).toBe(true)
+    expect(config.updates.checkAutomatically).toBe('NEVER')
+    expect(config.updates.requestHeaders).toEqual({
+      'expo-channel-name': 'legacy',
+      'orbit-design-launch': 'embedded',
+    })
+    expect(config.updates).not.toHaveProperty('disableAntiBrickingMeasures', true)
   })
 
   it('rejects an unknown variant', () => {
