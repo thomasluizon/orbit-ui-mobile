@@ -21,24 +21,30 @@ for (const width of [600, 1352]) {
       }))
     })
 
-    test('brings all clarification preview actions above the composer', async ({ page }) => {
-      await page.goto('/?astra=open')
-      const conversation = page.locator('[data-shell-conversation="overlay"]')
-      await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
-      await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
-      const answer = conversation.getByRole('button', { name: pt.habits.clarification.quickAction.daily, exact: true })
-      await expect(answer).toBeVisible()
-      await answer.click()
-      for (const label of [pt.chat.operation.reject, pt.chat.operation.edit, pt.chat.operation.source.createHabit]) {
-        const action = conversation.getByRole('button', { name: label, exact: true })
-        await expect(action).toBeVisible()
-        await expect.poll(async () => {
-          const bounds = await action.boundingBox()
-          const composer = await conversation.locator('[data-composer-root]').boundingBox()
-          return bounds && composer && bounds.y >= 0 && bounds.y + bounds.height <= composer.y
-        }).toBe(true)
-      }
-    })
+    for (const sameTask of [false, true]) {
+      test(sameTask ? 'brings all clarification preview actions above the composer after a same-task scroll and answer' : 'brings all clarification preview actions above the composer', async ({ page }) => {
+        await page.goto('/?astra=open')
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
+        await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
+        await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
+        const answer = conversation.getByRole('button', { name: pt.habits.clarification.quickAction.daily, exact: true })
+        await expect(answer).toBeVisible()
+        if (sameTask) await answer.evaluate(element => {
+          element.scrollIntoView({ block: 'end', inline: 'end' })
+          ;(element as HTMLElement).click()
+        })
+        else await answer.click()
+        for (const label of [pt.chat.operation.reject, pt.chat.operation.edit, pt.chat.operation.source.createHabit]) {
+          const action = conversation.getByRole('button', { name: label, exact: true })
+          await expect(action).toBeVisible()
+          await expect.poll(async () => {
+            const bounds = await action.boundingBox()
+            const composer = await conversation.locator('[data-composer-root]').boundingBox()
+            return bounds && composer && bounds.y >= 0 && bounds.y + bounds.height <= composer.y
+          }).toBe(true)
+        }
+      })
+    }
 
     test('reopens a long retained conversation at the newest content', async ({ page }) => {
       await page.goto('/?astra=open')

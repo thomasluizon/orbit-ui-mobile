@@ -230,11 +230,12 @@ describe("shared ui store", () => {
     expect(migrated).not.toHaveProperty("selectedFrequency");
     expect(migrated).not.toHaveProperty("selectedTagIds");
     expect(migrated).not.toHaveProperty("showCompleted");
-    expect(migrated).not.toHaveProperty("setupChecklistDismissed");
+    expect(migrated.setupChecklistDismissed).toBe(false);
     expect(migrated).toEqual({
       activeFilters: {},
       activeView: "all",
       calendarShowRecurring: true,
+      setupChecklistDismissed: false,
     });
   });
 
@@ -247,6 +248,11 @@ describe("shared ui store", () => {
     expect(migratePersistedUIState({ calendarShowRecurring: true }).calendarShowRecurring).toBe(true);
     expect(migratePersistedUIState({ calendarShowRecurring: "false" }).calendarShowRecurring).toBe(true);
     expect(migratePersistedUIState({}).calendarShowRecurring).toBe(true);
+  });
+
+  it("preserves a production setup checklist dismissal through migration", () => {
+    expect(migratePersistedUIState({ setupChecklistDismissed: true }).setupChecklistDismissed).toBe(true);
+    expect(migratePersistedUIState({ setupChecklistDismissed: "true" }).setupChecklistDismissed).toBe(false);
   });
 
   it("maps every retired active view to today", () => {

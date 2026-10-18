@@ -19,6 +19,9 @@ const ALLOWED_SCOPES = new Set(["changed-files", "whole-tree-advisory", "whole-t
 const BLOCKING_INVENTORIES = new Set([
   ".github/workflows/guards.yml#dashes",
   ".github/workflows/guards.yml#sonar-paths",
+  ".github/workflows/guards.yml#architecture-map",
+  ".github/workflows/guards.yml#contract-drift",
+  ".github/workflows/guards.yml#dependency-audit",
   "tools/check-dashes.mjs",
   "tools/check-sonar-paths.mjs",
 ])
@@ -57,7 +60,30 @@ function workflowJobs(repositoryRoot, path) {
       workflow.jobs === null || Array.isArray(workflow.jobs) || typeof workflow.jobs !== "object") {
     throw new Error(`${path} has no jobs mapping`)
   }
-  return workflow.jobs
+  if (path !== ".github/workflows/guards.yml" || !workflow.jobs.guards) return workflow.jobs
+  if (Object.keys(workflow.jobs).length !== 1) throw new Error(`${path}: script guards must share one job`)
+  const steps = workflow.jobs.guards.steps
+  const preparation = steps.filter((step) => step.name === "Resolve pull request changed paths")
+  const groups = {}
+  for (const step of steps) {
+    const group = step.id?.match(/^([a-zA-Z0-9_-]+)__\d+$/)?.[1]
+    if (!group) {
+      const prerequisite = step.uses?.startsWith("actions/checkout@") || step.uses?.startsWith("actions/setup-node@") ||
+        step.run === "npm ci --no-audit" ||
+        step.run === "npm install --global \"$(node -p \"require('./package.json').packageManager\")\" --no-audit --no-fund" ||
+        (step.name === "Resolve pull request changed paths" &&
+          step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"')
+      if (!prerequisite) throw new Error(`${path}: each guard step must have a registered group id`)
+      continue
+    }
+    if (!step.name || !step.if?.includes("!cancelled()") || step.if.includes("success()")) {
+      throw new Error(`${path}#${step.id}: each guard needs a name and an independent !cancelled() condition`)
+    }
+    groups[group] ??= { steps: [...preparation] }
+    groups[group].steps.push(step)
+  }
+  if (Object.keys(groups).length === 0) throw new Error(`${path}: no guard steps found`)
+  return groups
 }
 
 function guardJobIds(repositoryRoot) {
@@ -171,6 +197,7 @@ function isPrerequisiteRun(script) {
 function blockingRunUsesChangedFiles(script) {
   const commands = commandOffsets(script)
   if (commands.length === 0) return isPrerequisiteRun(script)
+  if (script.trim() === "npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes") return true
   const variables = derivedVariables(script)
   return commands.every((command) =>
     /tools\/check-dashes\.mjs\s+--text\b/.test(command.line) ||
@@ -180,17 +207,24 @@ function blockingRunUsesChangedFiles(script) {
   )
 }
 
+function isPullRequestCondition(condition) {
+  return condition === "github.event_name == 'pull_request'" ||
+    condition === "${{ !cancelled() && (github.event_name == 'pull_request') }}"
+}
+
 function guardJobUsesChangedFiles(job) {
-  const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true)
-  const timeless = blockingRuns.at(-1)?.run.trim()
+  const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true &&
+    step.if !== "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  const gateRuns = blockingRuns.filter((step) => step.name !== "Resolve pull request changed paths")
+  const timeless = gateRuns.at(-1)?.run.trim()
   if (timeless === `if [ "\${{ github.event_name }}" = "pull_request" ]; then
   node tools/check-timeless.mjs --base origin/\${{ github.base_ref }}
 else
   node tools/check-timeless.mjs --all
-fi` && blockingRuns.slice(0, -1).every((step) => isPrerequisiteRun(step.run))) return true
+fi` && gateRuns.slice(0, -1).every((step) => isPrerequisiteRun(step.run))) return true
   const preparation = blockingRuns.findIndex((step) =>
     step.name === "Resolve pull request changed paths" &&
-    step.if === "github.event_name == 'pull_request'" &&
+    isPullRequestCondition(step.if) &&
     step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' &&
     step.env?.BASE_REF === "${{ github.base_ref }}")
   if (preparation < 0 && blockingRuns.some((step) => step.run.includes("$RUNNER_TEMP/changed-paths"))) return false
@@ -201,14 +235,15 @@ fi` && blockingRuns.slice(0, -1).every((step) => isPrerequisiteRun(step.run))) r
 
 function guardJobIsAdvisory(job) {
   const runs = runSteps(job)
-  return runs.length > 0 && runs.every((step) => isPrerequisiteRun(step.run) || step["continue-on-error"] === true)
+  return runs.length > 0 && runs.every((step) => step.name === "Resolve pull request changed paths" ||
+    isPrerequisiteRun(step.run) || step["continue-on-error"] === true)
 }
 
 function preparesChangedPaths(job) {
   const runs = runSteps(job)
   const preparation = runs.findIndex((step) =>
     step.name === "Resolve pull request changed paths" &&
-    step.if === "github.event_name == 'pull_request'" &&
+    isPullRequestCondition(step.if) &&
     step["continue-on-error"] !== true &&
     step.env?.BASE_REF === "${{ github.base_ref }}" &&
     step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"')
@@ -236,11 +271,12 @@ function lintCallerUsesChangedFiles(repositoryRoot) {
 }
 
 function designGuardUsesChangedFiles(repositoryRoot) {
-  const designJob = workflowJobs(repositoryRoot, ".github/workflows/test.yml")["design-guard"]
+  const designJob = workflowJobs(repositoryRoot, ".github/workflows/test.yml")["design-guard"] ??
+    workflowJobs(repositoryRoot, ".github/workflows/guards.yml")["design-guard"]
   if (!preparesChangedPaths(designJob)) return false
   const runs = runSteps(designJob)
-  const tokenStep = runs.find((step) => step.name === "Ban raw --slate-*, transition-all, h-screen in app code")
-  const gradientStep = runs.find((step) => step.name === "Ban decorative gradients in app code")
+  const tokenStep = runs.find((step) => step.name?.endsWith("Ban raw --slate-*, transition-all, h-screen in app code"))
+  const gradientStep = runs.find((step) => step.name?.endsWith("Ban decorative gradients in app code"))
   if (!tokenStep || !gradientStep || tokenStep["continue-on-error"] === true || gradientStep["continue-on-error"] === true) return false
   if ([tokenStep.run, gradientStep.run].some((script) => /\bgit\s+diff\s+--name-only\b/.test(script))) return false
   return /\bgrep\s+-zE\b[^\n]*"\$RUNNER_TEMP\/changed-paths-present\.nul"/.test(tokenStep.run) &&
@@ -293,7 +329,7 @@ function validateEntry(id, entry) {
     problems.push(`${id}: scope must be changed-files, whole-tree-advisory, or whole-tree-blocking`)
   }
   if (entry.scope === "whole-tree-blocking" && !BLOCKING_INVENTORIES.has(id)) {
-    problems.push(`${id}: whole-tree-blocking is reserved for path inventories`)
+    problems.push(`${id}: whole-tree-blocking is reserved for registered inventories and dependency audit`)
   }
   if (entry.snapshot !== "none" && (typeof entry.snapshot !== "string" || entry.snapshot.trim() === "")) {
     problems.push(`${id}: snapshot must be none or a regeneration command`)
@@ -324,6 +360,18 @@ function validateEntry(id, entry) {
   return problems
 }
 
+function blockingInventoryRuns(group, job) {
+  const scripts = runSteps(job).filter((step) => step["continue-on-error"] !== true).map((step) => step.run)
+  const required = {
+    dashes: ["node tools/check-dashes.mjs --check-baseline"],
+    "sonar-paths": ["node tools/check-sonar-paths.mjs"],
+    "architecture-map": ["node tools/arch-map.mjs", 'if ! cmp -s "$artifact" "$RUNNER_TEMP/first-$artifact"; then', "exit 1"],
+    "contract-drift": ["npx --yes orval@8.37.0 --config ./orval.config.ts", "if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then", "exit 1"],
+    "dependency-audit": ["node --test .github/scripts/check-critical-production-cves.test.mjs", "node .github/scripts/check-critical-production-cves.mjs"],
+  }[group]
+  return required?.every((command) => scripts.some((script) => script.includes(command))) ?? false
+}
+
 function stringValues(value) {
   if (typeof value === "string") return [value]
   if (Array.isArray(value)) return value.flatMap(stringValues)
@@ -352,7 +400,7 @@ function run(repositoryRoot) {
       problems.push(...validateEntry(id, charter[id]))
       const guardJob = id.match(/^\.github\/workflows\/guards\.yml#(.+)$/)?.[1]
       if (guardJob && charter[id]?.scope === "changed-files" &&
-          !guardJobUsesChangedFiles(guardJobs[guardJob])) {
+          (guardJob === "design-guard" ? !designGuardUsesChangedFiles(repositoryRoot) : !guardJobUsesChangedFiles(guardJobs[guardJob]))) {
         problems.push(`${id}: changed-files job has a blocking run that is not scoped to the pull request diff`)
       }
       if (guardJob && charter[id]?.scope === "whole-tree-advisory" &&
@@ -360,8 +408,7 @@ function run(repositoryRoot) {
         problems.push(`${id}: whole-tree-advisory job must make its reporting step continue-on-error`)
       }
       if (guardJob && charter[id]?.scope === "whole-tree-blocking" &&
-          !runSteps(guardJobs[guardJob]).some((step) => step["continue-on-error"] !== true &&
-            step.run.includes(`node tools/check-${guardJob === "dashes" ? "dashes.mjs --check-baseline" : "sonar-paths.mjs"}`))) {
+          !blockingInventoryRuns(guardJob, guardJobs[guardJob])) {
         problems.push(`${id}: whole-tree-blocking job must run its path inventory as a blocking step`)
       }
     }
