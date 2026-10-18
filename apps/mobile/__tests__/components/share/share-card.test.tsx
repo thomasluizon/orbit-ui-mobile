@@ -28,7 +28,7 @@ function collectText(node: unknown): string {
   return ''
 }
 
-function render(props: { recap: Recap }) {
+function render(props: { recap: Recap; variant?: 'progress' | 'wrapped' }) {
   let tree: {
     toJSON: () => unknown
     root: {
@@ -44,6 +44,16 @@ function render(props: { recap: Recap }) {
 }
 
 describe('ShareCard (mobile)', () => {
+  it('restores active days and completion rate on the progress image', () => {
+    const text = collectText(render({
+      recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) }),
+      variant: 'progress',
+    }).toJSON())
+    expect(text).toContain('shareCard.stats.activeDays')
+    expect(text).toContain('shareCard.stats.completionRate')
+    expect(text).toContain('74%')
+  })
+
   it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const tree = render({ recap: createMockRecap() })
     const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
