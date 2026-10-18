@@ -27,7 +27,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: vi.fn(), showInfo: vi.fn() }),
 }))
 
-async function mountMutation(queryClient: QueryClient) {
+async function mountMutation(queryClient: QueryClient, intent: 'log' | 'unlog' = 'log') {
   let mutation: ReturnType<typeof useLogHabit>
   function Consumer() {
     mutation = useLogHabit()
@@ -40,7 +40,7 @@ async function mountMutation(queryClient: QueryClient) {
     )
   })
   return {
-    run: () => TestRenderer.act(async () => { await mutation.mutateAsync({ habitId: 'habit-1' }) }),
+    run: () => TestRenderer.act(async () => { await mutation.mutateAsync({ habitId: 'habit-1', intent }) }),
     unmount: async () => { await TestRenderer.act(() => renderer.unmount()) },
   }
 }
@@ -79,7 +79,7 @@ describe('linked goal cache after habit logging', () => {
   it.each([
     { operation: 'log', logId: 'log-1', newProgress: 12, progressPercentage: 100 },
     { operation: 'unlog', logId: 'log-1', newProgress: 2, progressPercentage: 16.7 },
-  ])('invalidates affected detail and metrics after $operation while keeping the list patch', async ({ logId, newProgress, progressPercentage }) => {
+  ] as const)('invalidates affected detail and metrics after $operation while keeping the list patch', async ({ operation, logId, newProgress, progressPercentage }) => {
     respond({
       logId,
       isFirstCompletionToday: false,
@@ -93,7 +93,7 @@ describe('linked goal cache after habit logging', () => {
     })
     seedGoals(queryClient)
     expectGoalInvalidated(queryClient, 'goal-1', false)
-    const mutation = await mountMutation(queryClient)
+    const mutation = await mountMutation(queryClient, operation)
     try {
       await mutation.run()
       expectGoalInvalidated(queryClient, 'goal-1', true)
