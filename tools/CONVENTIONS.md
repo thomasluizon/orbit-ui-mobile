@@ -6,6 +6,7 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Large payloads come in on stdin, never argv; secrets never appear in argv.
 > - A tool that GATES on work being done derives its verdict from artifacts on disk, never from a status field (see "Gate tools" below).
+> - Pull requests execute the complete tool and hook harnesses in `Tool and Hook Tests`.
 > - This contract is EXECUTED, not trusted: `test-tools.mjs` runs every script here and fails on a missing `--help`, a swallowed bad argument, or an uncovered new tool.
 
 A tool here is something an agent invokes without reading its source. That only works if every tool obeys the same contract.
