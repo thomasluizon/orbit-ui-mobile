@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
+import { buildQueuedMutation, cancelScheduledFlush, flushQueuedMutations, queueOrExecute } from '@/lib/offline-mutations'
 
 import {
   clear,
@@ -13,6 +14,31 @@ import {
   subscribeQueueCount,
   update,
 } from '@/lib/offline-queue'
+
+const replayMocks = vi.hoisted(() => ({
+  apiClient: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  getCurrentConnectivity: vi.fn(() => Promise.resolve(true)),
+}))
+
+vi.mock('@/lib/api-client', () => ({ apiClient: replayMocks.apiClient }))
+vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
+vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: replayMocks.getCurrentConnectivity }))
+vi.mock('@/lib/offline-state', () => ({
+  getResolvedEntityId: (_entityType: string, id: string) => Promise.resolve(id),
+  upsertOfflineEntity: vi.fn(),
+  setOfflineEntityStatus: vi.fn(),
+  resolveOfflineEntity: vi.fn(),
+  clearOfflineEntity: vi.fn(),
+  markOfflineTombstone: vi.fn(),
+}))
+vi.mock('@/lib/query-client', () => ({
+  persistQueryCache: vi.fn(),
+  queryClient: { invalidateQueries: vi.fn(), getQueriesData: () => [] },
+}))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ addDrop: vi.fn() }) },
+}))
 
 interface StoredRow {
   id: string
@@ -135,6 +161,9 @@ describe('mobile offline queue', () => {
   beforeEach(() => {
     clear()
     withTransactionSyncMock.mockClear()
+    cancelScheduledFlush()
+    replayMocks.apiClient.mockReset()
+    replayMocks.getCurrentConnectivity.mockResolvedValue(true)
   })
 
   it('preserves a retired persisted operation without assigning current metadata', () => {
@@ -192,6 +221,66 @@ describe('mobile offline queue', () => {
       title: 'Read',
       description: 'Before bed',
     })
+  })
+
+  it.each([
+    { status: 'syncing', retries: 0 },
+    { status: 'failed', retries: 0 },
+    { status: 'failed', retries: 1 },
+    { status: 'pending', retries: 1 },
+  ] as const)('keeps an edit separate from a $status create with $retries retries', ({ status, retries }) => {
+    const create = makeMutation({
+      id: 'create-1', clientEntityId: 'offline-habit-1', status, retries,
+      payload: { title: 'Read' },
+    })
+    const edit = makeMutation({
+      id: 'update-1', type: 'updateHabit', method: 'PUT',
+      endpoint: '/api/habits/offline-habit-1', targetEntityId: 'offline-habit-1',
+      payload: { title: 'Read before bed' },
+    })
+    enqueue(create)
+    enqueue(edit)
+
+    expect(getAll()).toEqual([create, edit])
+  })
+
+  it('replays an edit queued while its create request is in flight against the resolved entity', async () => {
+    const create = buildQueuedMutation({
+      type: 'createHabit', scope: 'habits', entityType: 'habit',
+      endpoint: '/api/habits', method: 'POST', payload: { title: 'Read' },
+      clientEntityId: 'offline-habit-1',
+    })
+    enqueue(create)
+    let finishCreate!: (response: { id: string }) => void
+    const requestStarted = new Promise<void>((resolveStarted) => {
+      replayMocks.apiClient.mockImplementationOnce(() => {
+        resolveStarted()
+        return new Promise((resolve) => { finishCreate = resolve })
+      })
+    })
+    replayMocks.apiClient.mockResolvedValueOnce(null)
+    const flushing = flushQueuedMutations()
+    await requestStarted
+
+    const edit = buildQueuedMutation({
+      type: 'updateHabit', scope: 'habits', entityType: 'habit',
+      endpoint: '/api/habits/offline-habit-1', method: 'PUT',
+      targetEntityId: 'offline-habit-1', payload: { title: 'Read before bed' },
+    })
+    await queueOrExecute({ mutation: edit, execute: replayMocks.apiClient, queuedResult: null })
+    finishCreate({ id: 'habit-1' })
+    const firstPass = await flushing
+    const secondPass = await flushQueuedMutations()
+
+    expect(firstPass).toMatchObject({ succeeded: 1, remaining: 1 })
+    expect(secondPass).toMatchObject({ succeeded: 1, remaining: 0 })
+    expect(replayMocks.apiClient).toHaveBeenNthCalledWith(1, '/api/habits', {
+      method: 'POST', body: JSON.stringify({ title: 'Read' }), idempotencyKey: create.id,
+    }, undefined)
+    expect(replayMocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1', {
+      method: 'PUT', body: JSON.stringify({ title: 'Read before bed' }), idempotencyKey: edit.id,
+    }, undefined)
+    expect(getAll()).toEqual([])
   })
 
   it('drops a pending create when the same temp entity is deleted before sync', () => {
