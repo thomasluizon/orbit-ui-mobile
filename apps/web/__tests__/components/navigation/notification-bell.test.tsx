@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -46,7 +47,10 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 
 function showInbox() {
-  return render(<><NotificationInbox /><NotificationDeleteNotice /></>)
+  const queryClient = new QueryClient()
+  return render(<><NotificationInbox /><NotificationDeleteNotice /></>, {
+    wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+  })
 }
 function deleteFromSheet(title: string) {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${title}\\.`) }))
@@ -234,7 +238,7 @@ describe('alerts', () => {
     state.pathname = '/notifications'
     seed(2)
     const messages = locale === 'en' ? en : pt
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation" notifications={<NotificationBell />}><NotificationInbox /></ShellWide>)
+    const { container } = render(<QueryClientProvider client={new QueryClient()}><ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation" notifications={<NotificationBell />}><NotificationInbox /></ShellWide></QueryClientProvider>)
     const indicators = screen.getAllByRole('img', { name: messages.notifications.bellWithCount.replace('{count}', '2') })
     expect(indicators).toHaveLength(1)
     expect(container.querySelector('[data-shell-sidebar]')).toContainElement(indicators[0]!)

@@ -7,7 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 import { HabitListEmptyState, HabitListSkeleton } from '@/components/habits/habit-list/empty-state'
@@ -26,9 +26,8 @@ vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-profile')>(),
   useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null }) : undefined }),
 }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: state.lineVisible ? [createMockNotification({ url: '/chat', body: 'Você pode beber um copo de água agora mesmo.', createdAtUtc: '2026-09-04T12:00:00Z' })] : [] }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: state.lineVisible ? createMockProactiveItem({ text: 'Você pode beber um copo de água agora mesmo.', localDate: '2026-09-04' }) : null, openItem: vi.fn() }),
 }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({

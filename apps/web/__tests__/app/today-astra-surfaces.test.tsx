@@ -1,4 +1,5 @@
-import { createMockNotification, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockNotification, createMockProactiveItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import type { ProactiveItem } from '@orbit/shared/types'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: true,
   timeZone: 'UTC',
   notifications: [] as NotificationItem[],
+  proactiveItem: null as ProactiveItem | null,
   view: {
     isSelectMode: false,
     showCreateModal: false,
@@ -76,6 +78,9 @@ vi.mock('@/hooks/use-profile', async (importOriginal) => ({
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
@@ -139,7 +144,7 @@ describe('web Today Astra owned surfaces', () => {
 
   it('offers the daily summary upgrade from Hoje alongside the proactive line', () => {
     mocks.hasProAccess = false
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     expect(screen.getByRole('link', { name: 'summary.upgrade' })).toHaveAttribute('href', '/upgrade')
     expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
@@ -160,6 +165,7 @@ describe('web Today Astra owned surfaces', () => {
     mocks.checklistProfile = null
     mocks.timeZone = 'UTC'
     mocks.notifications = []
+    mocks.proactiveItem = null
     mocks.view.nav.today = '2026-08-29'
     mocks.view.nav.dateStr = '2026-08-29'
     mocks.animate.mockClear()
@@ -181,14 +187,16 @@ describe('web Today Astra owned surfaces', () => {
     expect(screen.queryByRole('button', { name: 'today.setupChecklist.dismiss' })).not.toBeInTheDocument()
   })
 
-  it('removes an unread previous-day check-in when the owning Today date rolls over', () => {
+  it('clears the line when current returns no item after the owning Today date rolls over', () => {
     mocks.timeZone = 'America/Sao_Paulo'
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in', localDate: '2026-08-29' })
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
 
     mocks.view.nav.today = '2026-08-30'
     mocks.view.nav.dateStr = '2026-08-30'
+    mocks.proactiveItem = null
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
@@ -248,7 +256,7 @@ describe('web Today Astra owned surfaces', () => {
   })
 
   it('keeps the same proactive line mounted throughout a habits refetch', () => {
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     const line = screen.getByRole('button', { name: 'Check in' })
 
@@ -267,7 +275,7 @@ describe('web Today Astra owned surfaces', () => {
 
   it.each(['first load', 'load error', 'select mode', 'list surface'])(
     'withholds the proactive line during %s', (state) => {
-      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
       mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
       mocks.view.data.isFetching = state === 'first load'
       mocks.view.data.showLoadError = state === 'load error'

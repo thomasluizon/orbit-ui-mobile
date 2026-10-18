@@ -11,7 +11,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -29,9 +29,8 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 25 }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: new Date().toISOString() })] }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: createMockProactiveItem({ text: 'Sua rotina mudou. Vamos conversar?' }), openItem: vi.fn() }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
