@@ -53,17 +53,18 @@ afterEach(async () => {
 })
 
 describe('design routing through Providers and the account config query', () => {
-  it('sets a host-only secure cookie with a long expiry after sign-in before reloading once', async () => {
-    respond(true)
+  it('clears the host-only secure cookie after sign-in before reloading once', async () => {
+    respond(false)
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
     const cookieWrites = vi.spyOn(document, 'cookie', 'set')
-    mocks.reload.mockImplementation(() => expect(document.cookie).toContain('orbit_design=redesign'))
+    mocks.reload.mockImplementation(() => expect(document.cookie).not.toContain('orbit_design='))
     const { useAuthStore } = await mount()
     expect(mocks.fetch).not.toHaveBeenCalled()
 
     signIn(useAuthStore)
 
     await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(cookieWrites).toHaveBeenCalledWith('orbit_design=redesign; Max-Age=31536000; Path=/; Secure; SameSite=Lax')
+    expect(cookieWrites).toHaveBeenCalledWith('orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax')
   })
 
   it('keeps the current design when the flag is off', async () => {
@@ -88,38 +89,7 @@ describe('design routing through Providers and the account config query', () => 
     expect(mocks.reload).not.toHaveBeenCalled()
   })
 
-  it('switches designs when a flag refresh enables redesign', async () => {
-    respond(false)
-    const { useAuthStore, queryClient } = await mount()
-    signIn(useAuthStore)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.reload).not.toHaveBeenCalled()
-
-    respond(true)
-    await act(async () => { await queryClient.refetchQueries() })
-
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(document.cookie).toContain('orbit_design=redesign')
-  })
-
-  it('bounds reloads across refreshes, flag toggles and provider remounts in one page load', async () => {
-    respond(true)
-    const { useAuthStore, queryClient, unmount, Providers } = await mount()
-    signIn(useAuthStore)
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    respond(false)
-    await act(async () => { await queryClient.refetchQueries() })
-    document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
-    respond(true)
-    await act(async () => { await queryClient.refetchQueries() })
-    unmount()
-    document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
-    render(<StrictMode><Providers><div>Remounted</div></Providers></StrictMode>)
-    await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.reload).toHaveBeenCalledOnce()
-  })
-
-  it('rechecks a missing cookie on a refresh even when the enabled flag has not changed', async () => {
+  it('switches designs when a flag refresh disables redesign', async () => {
     respond(true)
     document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
     const { useAuthStore, queryClient } = await mount()
@@ -127,20 +97,56 @@ describe('design routing through Providers and the account config query', () => 
     await act(async () => { await queryClient.refetchQueries() })
     expect(mocks.reload).not.toHaveBeenCalled()
 
-    document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
+    respond(false)
     await act(async () => { await queryClient.refetchQueries() })
 
     await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
-    expect(document.cookie).toContain('orbit_design=redesign')
+    expect(document.cookie).not.toContain('orbit_design=')
   })
 
-  it('does not enable redesign without a resolved account flag', async () => {
-    mocks.fetch.mockRejectedValue(new Error('offline'))
+  it('bounds reloads across refreshes, flag toggles and provider remounts in one page load', async () => {
+    respond(false)
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    const { useAuthStore, queryClient, unmount, Providers } = await mount()
+    signIn(useAuthStore)
+    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
+    respond(true)
+    await act(async () => { await queryClient.refetchQueries() })
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    respond(false)
+    await act(async () => { await queryClient.refetchQueries() })
+    unmount()
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    render(<StrictMode><Providers><div>Remounted</div></Providers></StrictMode>)
+    await act(async () => { await queryClient.refetchQueries() })
+    expect(document.cookie).not.toContain('orbit_design=')
+    expect(mocks.reload).toHaveBeenCalledOnce()
+  })
+
+  it('rechecks a stale cookie on refresh even when the disabled flag has not changed', async () => {
+    respond(false)
     const { useAuthStore, queryClient } = await mount()
     signIn(useAuthStore)
     await act(async () => { await queryClient.refetchQueries() })
-    expect(mocks.fetch).toHaveBeenCalled()
+    expect(mocks.reload).not.toHaveBeenCalled()
+
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    await act(async () => { await queryClient.refetchQueries() })
+
+    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
     expect(document.cookie).not.toContain('orbit_design=')
+  })
+
+  it.each(['pending', 'offline'])('leaves the cookie untouched while account flags are %s', async (state) => {
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    if (state === 'pending') mocks.fetch.mockImplementation(() => new Promise<Response>(() => {}))
+    else mocks.fetch.mockRejectedValue(new Error('offline'))
+    const cookieWrites = vi.spyOn(document, 'cookie', 'set')
+    const { useAuthStore } = await mount()
+    signIn(useAuthStore)
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalled())
+    expect(cookieWrites).not.toHaveBeenCalled()
+    expect(document.cookie).toContain('orbit_design=redesign')
     expect(mocks.reload).not.toHaveBeenCalled()
   })
 
@@ -149,15 +155,17 @@ describe('design routing through Providers and the account config query', () => 
     vi.stubGlobal('fetch', outcome === 'success'
       ? vi.fn(async () => new Response(null, { status: 204 }))
       : vi.fn(async () => { throw new TypeError('offline') }))
-    const { useAuthStore } = await mount()
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    const { useAuthStore, queryClient } = await mount()
     signIn(useAuthStore)
-    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
+    await act(async () => { await queryClient.refetchQueries() })
+    expect(document.cookie).toContain('orbit_design=redesign')
 
     await act(async () => { await useAuthStore.getState().logout() })
 
     expect(document.cookie).not.toContain('orbit_design=')
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
-    expect(mocks.reload).toHaveBeenCalledOnce()
+    expect(mocks.reload).not.toHaveBeenCalled()
     expect(globalThis.location.href).toBe('/login')
   })
 })
