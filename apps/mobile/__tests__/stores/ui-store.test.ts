@@ -4,6 +4,7 @@ import {
   getPersistedUIState,
 } from "@orbit/shared/stores";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setUIAccountScope, useUIStore } from "@/stores/ui-store";
 
 
@@ -43,6 +44,7 @@ describe("mobile ui store", () => {
     vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));
     asyncStorageState.data.clear();
     useUIStore.setState({
+      setupChecklistDismissed: false,
       activeFilters: {},
       activeView: "today",
       streakCelebration: null,
@@ -296,4 +298,32 @@ describe("mobile ui store", () => {
       includeOverdue: true,
     });
   });
+  it("keeps a replacement account dismissal when an earlier save rejects", async () => {
+    await setUIAccountScope("saving-account");
+    let rejectSave!: (error: Error) => void;
+    vi.mocked(AsyncStorage.setItem).mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSave = reject; }));
+    const pending = useUIStore.getState().setSetupChecklistDismissed(true);
+    const outcome = expect(pending).rejects.toThrow("Save failed");
+    asyncStorageState.data.set("orbit-ui-store:replacement-checklist-account", JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }));
+    await setUIAccountScope("replacement-checklist-account");
+    rejectSave(new Error("Save failed"));
+    await outcome;
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+  it("retains production checklist dismissals within their account", async () => {
+    asyncStorageState.data.set("orbit-ui-store:checklist-account", JSON.stringify({ state: { setupChecklistDismissed: true }, version: 3 }));
+    await setUIAccountScope("checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    await setUIAccountScope("another-checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(false);
+    await setUIAccountScope("checklist-account");
+    expect(useUIStore.getState().setupChecklistDismissed).toBe(true);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
+  });
+
+
 });

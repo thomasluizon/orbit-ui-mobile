@@ -368,6 +368,7 @@ export {
   formatTimeFieldInput,
   initialTimeFieldPickerDraft,
   presentTimeFieldValue,
+  reconcileTimeFieldInput,
   parseTypedTimeFieldValue,
   selectTimeFieldHour,
   selectTimeFieldMinute,
@@ -589,6 +590,7 @@ export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
   getBreakdownCadenceKey,
+  isBreakdownNoWriteRejection,
   nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
@@ -797,3 +799,5 @@ export { filterHabitViewRoots } from './habit-visibility'
 export { formatHabitDateBucketLabel } from './habit-list-progress'
 
 export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'
+
+export { getSetupChecklist } from './setup-checklist'

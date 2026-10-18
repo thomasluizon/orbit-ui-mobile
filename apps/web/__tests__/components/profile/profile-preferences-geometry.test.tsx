@@ -46,7 +46,7 @@ describe('Profile preferences label geometry', () => {
   }, 30_000)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale })))))('keeps every label whole in $locale at $width and scale $scale', async ({ locale, width, scale }) => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 384, 412, 480].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale })))))('keeps every label whole in $locale at $width and scale $scale', async ({ locale, width, scale }) => {
     preferences.locale = locale as 'en' | 'pt-BR'
     const page = await browser.newPage({ viewport: { width, height: 2000 } })
     try {
@@ -69,7 +69,7 @@ describe('Profile preferences label geometry', () => {
         return wrapped === title.hasAttribute('data-row-multiline')
       }))
       const measured = await page.evaluate(() => {
-        const labels = [...document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-value"], [data-testid="profile-value-row"] > span:first-child, button:not([role="switch"]):not(.orbit-list-row-body), p')].filter((element) => element.tagName !== 'P' || !element.classList.contains('text-sm'))
+        const labels = [...document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-description"], [data-slot="list-row-value"], [data-testid="profile-value-row"] > span:first-child, button:not([role="switch"]):not(.orbit-list-row-body), p')]
         return labels.map((element) => {
           const range = document.createRange(); range.selectNodeContents(element)
           const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
@@ -77,7 +77,7 @@ describe('Profile preferences label geometry', () => {
           return { label: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size, clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1), outside: bounds.left < 0 || bounds.right > window.innerWidth, ellipsis: getComputedStyle(element).textOverflow === 'ellipsis' || Number.parseInt(getComputedStyle(element).webkitLineClamp) > 0 }
         })
       })
-      expect(measured).toHaveLength(12)
+      expect(measured).toHaveLength(13)
       for (const label of measured) {
         expect.soft(label, JSON.stringify(label)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
         if (scale === 1) expect.soft(label.lines, label.label!).toBe(1)
