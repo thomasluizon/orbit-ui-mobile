@@ -109,25 +109,25 @@ describe('chatStreamEventSchema discriminatedUnion', () => {
     const parsed = chatStreamEventSchema.parse({ type: 'final', response: {
       actions: [],
       daySummary: { date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' },
-      streakCard: { currentStreak: 4, longestStreak: 8, level: 2, totalXp: 120, xpForNextLevel: 200, lastActiveDate: '2026-09-26', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: [{ id: 'first_orbit', iconKey: 'satellite', earnedAt: null }], surfaceId: 'progress' },
-      calendarCard: { events: [{ title: 'Walk', start: '2026-09-26', end: null, isAllDay: true }], sync: null, surfaceId: 'calendar' },
+      streak: { currentStreak: 4, longestStreak: 8, level: 2, totalXp: 120, xpForNextLevel: 200, lastActiveDate: '2026-09-26', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: [{ id: 'first_orbit', iconKey: 'satellite', earnedAt: null }], surfaceId: 'progress' },
+      calendar: { events: [{ title: 'Walk', start: '2026-09-26', end: null, isAllDay: true }], sync: null, surfaceId: 'calendar' },
     } })
     expect(parsed.type).toBe('final')
     if (parsed.type !== 'final') return
     expect(parsed.response).toHaveProperty('daySummary.done', 1)
-    expect(parsed.response).toHaveProperty('streakCard.achievementDiscs.0.earnedAt', null)
-    expect(parsed.response).toHaveProperty('calendarCard.events.0.title', 'Walk')
+    expect(parsed.response).toHaveProperty('streak.achievementDiscs.0.earnedAt', null)
+    expect(parsed.response).toHaveProperty('calendar.events.0.title', 'Walk')
   })
 
   it('keeps record list cursor, key state, and unread state', () => {
-    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], recordList: {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], recordLists: [{
       kind: 'notifications', totalCount: 37, nextCursor: 'cursor', surfaceId: 'notifications',
       items: [{ id: 'n1', title: 'Reminder', isRead: false, state: 'active' }],
-    } } })
+    }] } })
     expect(parsed.type).toBe('final')
     if (parsed.type !== 'final') return
-    expect(parsed.response).toHaveProperty('recordList.nextCursor', 'cursor')
-    expect(parsed.response).toHaveProperty('recordList.items.0.isRead', false)
+    expect(parsed.response).toHaveProperty('recordLists.0.nextCursor', 'cursor')
+    expect(parsed.response).toHaveProperty('recordLists.0.items.0.isRead', false)
   })
 
   it('keeps account rows and the referral code', () => {
