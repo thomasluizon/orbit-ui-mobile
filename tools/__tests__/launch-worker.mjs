@@ -4,6 +4,7 @@ import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
+import { cases as lifecycleCases } from "./launch-worker-lifecycle.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -168,15 +169,15 @@ const launchAsync = (path, argv, env) => {
     env: { ...process.env, ...env },
     windowsHide: true,
   })
+  let stdout = ""
+  let stderr = ""
   const result = new Promise((resolve, reject) => {
-    let stdout = ""
-    let stderr = ""
     child.stdout.on("data", (chunk) => { stdout += chunk })
     child.stderr.on("data", (chunk) => { stderr += chunk })
     child.on("error", reject)
     child.on("close", (status) => resolve({ status, stdout, stderr }))
   })
-  return { child, result }
+  return { child, result, output: () => ({ stdout, stderr }) }
 }
 
 const checkOccupiedWorktree = async () => {
@@ -455,6 +456,9 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
 
   const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
   await checkOccupiedWorktree()
+  await lifecycleCases({
+    launch, launchConfig, stubEngine, githubAuthEnv, discardLog, readFileContents, launchAsync, IMMEDIATE, SLEEPER,
+  })
   const gateWorkerPidFile = stage("launch-worker/gate-worker.pid", "")
   rmSync(gateWorkerPidFile)
   const gateWorker = stage("launch-worker/gate-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(gateWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
@@ -503,26 +507,6 @@ syncBuiltinESMExports()
     if (processIsRunning(pid)) process.kill(pid)
   }
   if (firstGateWorkerPid && processIsRunning(firstGateWorkerPid)) process.kill(firstGateWorkerPid)
-  const orphanWorkerPidFile = stage("launch-worker/orphan-worker.pid", "")
-  rmSync(orphanWorkerPidFile)
-  const orphanWorker = stage("launch-worker/orphan-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(orphanWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
-  const orphanLaunch = launch("published-orphan", launchConfig({ ...stubEngine(orphanWorker), timeouts: { hardCeilingMinutes: 1, noProgressMinutes: 5, pollSeconds: 0.2 } }))
-  const orphanArgv = ["--issue", "ORB-201", "--worktree", orphanLaunch.worktree, "--prompt", orphanLaunch.prompt]
-  const releasedLaunch = launchAsync(orphanLaunch.path, orphanArgv, githubAuthEnv())
-  const orphanDeadline = Date.now() + 5000
-  while (!existsSync(orphanWorkerPidFile) && Date.now() < orphanDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
-  releasedLaunch.child.kill("SIGKILL")
-  await releasedLaunch.result
-  const orphanStates = readWakeSourceStates(orphanLaunch.base)
-  const orphanGatePid = orphanStates.orphaned[0]?.workerPid
-  const refusedOrphan = run(TOOL, orphanArgv, { path: orphanLaunch.path, env: githubAuthEnv() })
-  T(`${TOOL}: after publication a killed launcher leaves a named orphan and blocks another worker`,
-    Number.isInteger(orphanGatePid) && refusedOrphan.status === 2 && refusedOrphan.stderr.includes(`live worker pid ${orphanGatePid}`),
-    JSON.stringify({ orphanGatePid, status: refusedOrphan.status, stderr: refusedOrphan.stderr }))
-  if (orphanGatePid) {
-    if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(orphanGatePid)])
-    else try { process.kill(-orphanGatePid) } catch { /* the gate already exited */ }
-  }
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
   const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })
