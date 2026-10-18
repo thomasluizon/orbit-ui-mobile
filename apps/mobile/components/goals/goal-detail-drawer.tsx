@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { EditGoalModal } from './edit-goal-modal'
+import { GoalForecast } from './goal-detail-drawer/goal-forecast'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
 import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
@@ -108,6 +109,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     <View style={layout.body}>
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
+        <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
         <ListRow placement="column" icon={<AstraGlyph size={24} color={tokens.fg1} />} title={t('nav.astra')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
