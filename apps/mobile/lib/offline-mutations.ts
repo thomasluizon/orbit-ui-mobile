@@ -414,7 +414,7 @@ async function recoverInstalledQueue(): Promise<void> {
     return
   }
   for (const mutation of getAll()) {
-    if (mutation.status === 'syncing') update(mutation.id, { status: 'pending' })
+    if (mutation.status === 'syncing') update(mutation.id, { status: 'failed' })
   }
   installedQueueRecovered = true
   try {
@@ -605,10 +605,10 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
       entityType: mutation.entityType,
       tempId: mutation.clientEntityId,
       serverId: null,
-      status: 'pending',
+      status: mutation.status ?? 'pending',
       tombstone: false,
       updatedAt: Date.now(),
-      lastError: null,
+      lastError: mutation.lastError ?? null,
     })
   }
 
@@ -647,7 +647,11 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
       throw error
     }
 
-    await markQueuedMutation(resolvedMutation)
+    await markQueuedMutation({
+      ...resolvedMutation,
+      status: 'failed',
+      lastError: getErrorMessage(error),
+    })
     return queuedResult
   } finally {
     setPendingIdempotencyKey(null)

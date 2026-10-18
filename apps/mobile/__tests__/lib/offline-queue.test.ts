@@ -18,8 +18,12 @@ import {
 const replayMocks = vi.hoisted(() => ({
   apiClient: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   getCurrentConnectivity: vi.fn(() => Promise.resolve(true)),
+  persistRecovery: vi.fn(() => Promise.resolve()),
 }))
 
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { getItem: () => Promise.resolve(null), setItem: replayMocks.persistRecovery },
+}))
 vi.mock('@/lib/api-client', () => ({ apiClient: replayMocks.apiClient }))
 vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: replayMocks.getCurrentConnectivity }))
@@ -164,6 +168,8 @@ describe('mobile offline queue', () => {
     cancelScheduledFlush()
     replayMocks.apiClient.mockReset()
     replayMocks.getCurrentConnectivity.mockResolvedValue(true)
+    replayMocks.persistRecovery.mockReset()
+    replayMocks.persistRecovery.mockResolvedValue(undefined)
   })
 
   it('preserves a retired persisted operation without assigning current metadata', () => {
@@ -242,6 +248,52 @@ describe('mobile offline queue', () => {
     enqueue(edit)
 
     expect(getAll()).toEqual([create, edit])
+  })
+
+  it('keeps a recovered create payload unchanged when an edit arrives during recovery', async () => {
+    enqueue(makeMutation({
+      id: 'create-1', status: 'syncing', clientEntityId: 'offline-habit-1',
+      payload: { title: 'Read' },
+    }))
+    const edit = makeMutation({
+      id: 'update-1', type: 'updateHabit', method: 'PUT',
+      endpoint: '/api/habits/offline-habit-1', targetEntityId: 'offline-habit-1',
+      payload: { title: 'Read before bed' },
+    })
+    replayMocks.persistRecovery.mockImplementationOnce(() => {
+      enqueue(edit)
+      return Promise.resolve()
+    })
+    replayMocks.apiClient.mockResolvedValueOnce({ id: 'habit-1' }).mockResolvedValueOnce(null)
+
+    const result = await flushQueuedMutations()
+
+    expect(replayMocks.persistRecovery).toHaveBeenCalled()
+    expect(result).toMatchObject({ succeeded: 2, remaining: 0 })
+    expect(replayMocks.apiClient).toHaveBeenNthCalledWith(1, '/api/habits', {
+      method: 'POST', body: JSON.stringify({ title: 'Read' }), idempotencyKey: 'create-1',
+    }, undefined)
+    expect(replayMocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1', {
+      method: 'PUT', body: JSON.stringify(edit.payload), idempotencyKey: edit.id,
+    }, undefined)
+  })
+
+  it('keeps an edit separate after an online create loses its response', async () => {
+    const create = makeMutation({ id: 'create-1', clientEntityId: 'offline-habit-1' })
+    await queueOrExecute({
+      mutation: create,
+      execute: () => Promise.reject(new Error('Network request failed')),
+      queuedResult: null,
+    })
+    const edit = makeMutation({
+      id: 'update-1', type: 'updateHabit', method: 'PUT',
+      endpoint: '/api/habits/offline-habit-1', targetEntityId: 'offline-habit-1',
+      payload: { title: 'Read before bed' },
+    })
+    enqueue(edit)
+
+    expect(getAll().map((mutation) => mutation.id)).toEqual(['create-1', 'update-1'])
+    expect(getAll()[0]?.payload).toEqual(create.payload)
   })
 
   it('replays an edit queued while its create request is in flight against the resolved entity', async () => {
