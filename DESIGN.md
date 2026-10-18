@@ -163,8 +163,9 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
-a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds the Hoje jump pill
-only on another day, then search, options (`dots-vertical`) and the bell. Calendário holds options
+a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds search, options
+(`dots-vertical`) and the bell. No date navigator carries a separate Hoje jump control; its centred
+date or period label returns to today. Calendário holds options
 and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
 same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
 repeat the bell. Screen options always use `dots-vertical`.
@@ -884,6 +885,13 @@ price response does not shift the layout.
 - **A sidebar uses the same background as the canvas.** A hairline is the only separation it earns. Web only.
 
 ### Hoje date pager
+
+The centred label is the return-to-today control on Hoje, Calendário and any other date navigator
+that offers a jump to today. Away from today, tap, Enter or Space returns to today; on today it does
+nothing.
+Its accessible name includes the displayed date and the localized return action when available.
+It keeps the shared 48px touch floor, padded interaction feedback and exactly one focus indicator.
+There is no separate Hoje jump pill.
 
 The previous-day target starts at the leading content edge and the next-day target ends at the
 trailing content edge. Each target remains 48px wide and at least 48px high. The day title and

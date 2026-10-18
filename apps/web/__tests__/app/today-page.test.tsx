@@ -158,7 +158,6 @@ const baseProps = {
   onGoToToday: vi.fn(),
   onGoToNextDay: vi.fn(),
   previousLabel: 'Previous day',
-  todayLabel: 'Today',
   goToTodayLabel: 'Go to today',
   nextLabel: 'Next day',
   moreLabel: 'List options',
@@ -332,26 +331,15 @@ describe('Hoje date control', () => {
     expect(onSearch).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the jump only away from today', () => {
-    const onGoToToday = vi.fn()
-    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isTodaySelected={false} onGoToToday={onGoToToday} /></NextIntlClientProvider>)
-    const jump = screen.getByRole('button', { name: 'Go to today' })
-    expect(jump.parentElement).not.toBe(screen.getByRole('button', { name: 'Next day' }).parentElement)
-    expect(jump).toHaveAttribute('data-variant', 'ghost')
-    expect(jump).toHaveAttribute('data-size', 'sm')
-    fireEvent.click(jump)
-    expect(onGoToToday).toHaveBeenCalledOnce()
-  })
-
   it('keeps an off-today date grouped separately from the header actions', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} /></NextIntlClientProvider>)
     const date = screen.getByText('Quarta-feira').parentElement
     const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
     expect(screen.getByRole('button', { name: 'Next day' }).parentElement).toBe(row)
-    expect(screen.getByRole('button', { name: 'Go to today' }).parentElement).not.toBe(row)
+    expect(screen.getByRole('button', { name: 'Quarta-feira, 08/04/2026, Go to today' }).parentElement).toBe(row)
     expect(screen.getByRole('button', { name: 'Previous day' }).nextElementSibling).toBe(date)
     expect(date?.nextElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
-    expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quarta-feira, 08/04/2026, Go to today' })).toBeInTheDocument()
   })
 
   it('disables the forward step at the instance horizon', () => {
@@ -661,6 +649,6 @@ it('separates the header actions from the grouped date arrows', () => {
   render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isTodaySelected={false} /></NextIntlClientProvider>)
   const row = screen.getByRole('button', { name: 'Previous day' }).parentElement!
   expect(row).not.toContainElement(screen.getByRole('button', { name: 'Search' }))
-  expect(within(row).getAllByRole('button')).toHaveLength(2)
+  expect(within(row).getAllByRole('button')).toHaveLength(3)
   expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument()
 })

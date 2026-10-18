@@ -409,7 +409,7 @@
     },
     "today": "Today",
     "todayWithDate": "Today, {date}",
-    "goToToday": "Go to today",
+    "goToToday": "Back to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
@@ -1081,7 +1081,7 @@
       "agenda": "Agenda"
     },
     "period": {
-      "goToCurrent": "{period}, go to today"
+      "goToCurrent": "{period}, back to today"
     },
     "range": {
       "label": "{start} to {end}",
@@ -1117,7 +1117,6 @@
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",
     "monthPicker": "Month and year",
-    "thisMonth": "This month",
     "legendTitle": "Legend",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",

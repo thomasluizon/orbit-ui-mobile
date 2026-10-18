@@ -84,7 +84,7 @@ function TodayHarness() {
       selectedDate: new Date('2026-09-06T00:00:00'),
       dateNav: {
         dayName: 'Sunday', numericDate: '06/09/2026', isTodaySelected: true,
-        nextDisabled: false, previousLabel: 'Previous day', todayLabel: 'Today',
+        nextDisabled: false, previousLabel: 'Previous day',
         nextLabel: 'Next day',
       },
     },

@@ -43,7 +43,7 @@ const noop = () => {}
 const props = {
   menuHeading: ptBr.common.options,
   dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.', isTodaySelected: false, nextDisabled: false,
-  previousLabel: ptBr.dates.previousDay, nextLabel: ptBr.dates.nextDay, todayLabel: ptBr.dates.today,
+  previousLabel: ptBr.dates.previousDay, nextLabel: ptBr.dates.nextDay,
   goToTodayLabel: ptBr.dates.goToToday, moreLabel: ptBr.habits.listOptions, searchLabel: ptBr.habits.search.title,
   selectLabel: ptBr.common.select, collapseLabel: ptBr.habits.collapseAll, allCollapsed: false,
   refreshLabel: ptBr.habits.refresh, completedLabel: ptBr.habits.showCompleted, showCompleted: false, isFetching: false,
@@ -51,7 +51,7 @@ const props = {
   onToggleSelect: noop, onToggleCollapse: noop, onRefresh: noop, onToggleCompleted: noop,
 }
 
-function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number, leadingAction = false) {
+function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
   for (const [index, control] of controls.entries()) {
     expect(control.left).toBeGreaterThanOrEqual(16)
     expect(control.right).toBeLessThanOrEqual(width - 16)
@@ -63,8 +63,7 @@ function assertHeaderControls(controls: { left: number; right: number; top: numb
       else expect(control.left - previous.right).toBeGreaterThanOrEqual(4)
     }
   }
-  const aligned = leadingAction ? controls.slice(1) : controls
-  const centers = aligned.map((control) => (control.top + control.bottom) / 2)
+  const centers = controls.map((control) => (control.top + control.bottom) / 2)
   expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1)
   if (scale === 1) expect(controls[0]!.top + controls[0]!.height / 2).toBeCloseTo(centers[0]!, 0)
 }
@@ -481,7 +480,7 @@ describe('Hoje header geometry', () => {
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
             overflow: document.documentElement.scrollWidth,
             rowHeights: rows.map((row) => row.getBoundingClientRect().height),
-            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
+            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button:not([title])')).map((button) => {
               const bounds = button.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })),
@@ -616,6 +615,52 @@ describe('Hoje header geometry', () => {
     } finally { await page.close() }
   })
 
+  it.each((['light', 'dark'] as const).flatMap((mode) => [false, true].map((isTodaySelected) => ({ mode, isTodaySelected }))))(
+    'keeps one padded date target and one focus indicator in $mode, today=$isTodaySelected', async ({ mode, isTodaySelected }) => {
+      const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+        <TodayDateControl {...props} isTodaySelected={isTodaySelected} />
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(({ mode, variables }) => {
+          document.documentElement.dataset.mode = mode
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        }, { mode, variables: resolveWebThemeVariables('orange', mode) })
+        const label = page.locator('[data-today-date-row] button[title]')
+        await label.hover()
+        const hovered = await label.evaluate((button) => {
+          const bounds = button.getBoundingClientRect()
+          const style = getComputedStyle(button)
+          const numeric = getComputedStyle(button.querySelector('p:last-child')!)
+          return { width: bounds.width, height: bounds.height, padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
+            background: style.backgroundColor, numeric: numeric.color,
+            expectedInk: style.getPropertyValue(button.getAttribute('aria-disabled') === 'true' ? '--fg-3' : '--fg-2').trim() }
+        })
+        expect(hovered.width).toBeGreaterThanOrEqual(48)
+        expect(hovered.height).toBeGreaterThanOrEqual(48)
+        expect(hovered.padding).toEqual(['4px', '8px', '4px', '8px'])
+        expect(hovered.background === 'rgba(0, 0, 0, 0)').toBe(isTodaySelected)
+        const expectedInk = await page.evaluate((color) => {
+          const probe = document.createElement('span')
+          probe.style.color = color
+          document.body.append(probe)
+          const resolved = getComputedStyle(probe).color
+          probe.remove()
+          return resolved
+        }, hovered.expectedInk)
+        expect(hovered.numeric).toBe(expectedInk)
+        await page.keyboard.press('Tab')
+        await label.focus()
+        const focus = await label.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return { outlineWidth: style.outlineWidth, outlineStyle: style.outlineStyle, shadow: style.boxShadow }
+        })
+        expect(focus).toEqual({ outlineWidth: '2px', outlineStyle: 'solid', shadow: 'none' })
+      } finally { await page.close() }
+    },
+  )
+
   const headerCases = (['en', 'pt-BR'] as const).flatMap((locale) => [
     ...[320, 400, 412].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale, labelResize: false }))),
     ...[1, 2].map((scale) => ({ locale, width: 400, scale, labelResize: true })),
@@ -625,7 +670,7 @@ describe('Hoje header geometry', () => {
     const dayName = locale === 'en' ? 'Tuesday' : 'Terça-feira'
     const shortDayName = locale === 'en' ? 'Tue' : 'Ter.'
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
-      dayName={dayName} shortDayName={shortDayName} todayLabel={messages.dates.today} /></NextIntlClientProvider>)
+      dayName={dayName} shortDayName={shortDayName} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -635,7 +680,6 @@ describe('Hoje header geometry', () => {
           const labels = document.querySelectorAll<HTMLElement>('[data-today-date-row] p')
           labels[0]!.style.fontSize = `${22 * textScale}px`
           labels[1]!.style.fontSize = `${12 * textScale}px`
-          document.querySelector<HTMLElement>('[data-today-header-actions] .orbit-pill-action span')!.style.fontSize = `${14 * textScale}px`
         } else document.documentElement.style.fontSize = `${16 * textScale}px`
       }, { textScale: scale, labelsOnly: labelResize })
       const geometry = await page.evaluate(() => {
@@ -651,7 +695,7 @@ describe('Hoje header geometry', () => {
         range.selectNodeContents(day)
         return {
           date: box(date), header: box(header), dateBlock: box(dateBlock),
-          arrows: Array.from(date.querySelectorAll('button')).map(box),
+          arrows: Array.from(date.querySelectorAll('button:not([title])')).map(box),
           actions: Array.from(header.querySelectorAll('button')).map(box),
           dayLines: range.getClientRects().length, dayFontSize: Number.parseFloat(getComputedStyle(day).fontSize),
           documentWidth: document.documentElement.scrollWidth,
@@ -664,7 +708,7 @@ describe('Hoje header geometry', () => {
       expect(geometry.arrows[1]!.right).toBeCloseTo(geometry.date.right - 16)
       expect(Math.abs((geometry.dateBlock.left + geometry.dateBlock.right - geometry.date.left - geometry.date.right) / 2)).toBeLessThanOrEqual(1)
       assertHeaderControls(geometry.arrows, width, scale)
-      assertHeaderControls(geometry.actions, width, scale, true)
+      assertHeaderControls(geometry.actions, width, scale)
     } finally { await page.close() }
   })
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
@@ -682,7 +726,7 @@ describe('Hoje header geometry', () => {
           await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px` }, scale)
           const geometry = await page.evaluate(() => {
             const row = document.querySelector('[data-today-date-row]')!
-            const arrows = Array.from(row.querySelectorAll('button')).map((arrow) => {
+            const arrows = Array.from(row.querySelectorAll('button:not([title])')).map((arrow) => {
               const bounds = arrow.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
             })

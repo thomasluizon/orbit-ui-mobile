@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { openTodayListOptions } from './hydration-guard'
 
 test.use({ appLocale: 'pt-BR', viewport: { width: 400, height: 915 } })
 
@@ -33,7 +34,7 @@ for (const width of [320, 412]) {
       await expect(row).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
       const geometry = await row.evaluate((element) => {
-        const [previous, next] = element.querySelectorAll('button')
+        const [previous, next] = element.querySelectorAll('button:not([title])')
         const date = element.querySelector('[title]')
         if (!previous || !next || !date) throw new Error('Date pager missing')
         const rowBounds = element.getBoundingClientRect()
@@ -79,7 +80,7 @@ test('keeps an off-today date and every action legible at 400px with enlarged te
   await page.goto('/?date=2026-09-01')
   const previous = page.getByRole('button', { name: ptBr.dates.previousDay })
   const next = page.getByRole('button', { name: ptBr.dates.nextDay })
-  const jump = page.getByRole('button', { name: ptBr.dates.goToToday })
+  const jump = page.getByRole('button', { name: new RegExp(ptBr.dates.goToToday) })
   const list = page.getByRole('button', { name: ptBr.habits.listOptions })
   const search = page.getByRole('button', { name: ptBr.habits.search.title })
   const date = page.locator('[title^="Terça-feira,"]')
@@ -93,11 +94,6 @@ test('keeps an off-today date and every action legible at 400px with enlarged te
       if (!day || !numeric) throw new Error('Date labels missing')
       day.style.fontSize = `${22 * scale}px`
       numeric.style.fontSize = `${12 * scale}px`
-    }, textScale)
-    await jump.evaluate((element, scale) => {
-      const label = element.querySelector('span')
-      if (!label) throw new Error('Today label missing')
-      label.style.fontSize = `${14 * scale}px`
     }, textScale)
     const geometry = await page.evaluate(() => {
       const dateBlock = document.querySelector('[title^="Terça-feira,"]')
@@ -128,8 +124,32 @@ test('keeps an off-today date and every action legible at 400px with enlarged te
       expect(bounds, `control remains visible at ${textScale * 100}% text`).not.toBeNull()
       expect(bounds!.x).toBeGreaterThanOrEqual(Math.max(0, geometry.rowLeft) - 0.5)
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(Math.min(400, geometry.rowRight) + 0.5)
-      expect(bounds!.height).toBeGreaterThanOrEqual(40)
+      expect(bounds!.height).toBeGreaterThanOrEqual(48)
       await expect(control).toHaveClass(/touch-target/)
     }
   }
 })
+
+for (const input of ['click', 'Enter', 'Space'] as const) {
+  test(`returns to today through the centred date with ${input}`, async ({ page }) => {
+    await page.goto('/?date=2026-09-01')
+    await openTodayListOptions(page, ptBr.habits.listOptions)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    const row = page.locator('[data-today-date-row]')
+    const label = row.getByRole('button', { name: new RegExp(ptBr.dates.goToToday) })
+    await expect(page.locator('[data-today-header-actions]').getByRole('button', {
+      name: new RegExp(ptBr.dates.goToToday),
+    })).toHaveCount(0)
+    const bounds = await label.boundingBox()
+    expect(bounds!.width).toBeGreaterThanOrEqual(48)
+    expect(bounds!.height).toBeGreaterThanOrEqual(48)
+    if (input === 'click') await label.click()
+    else { await label.focus(); await label.press(input) }
+    await expect(page).toHaveURL(/\/$/)
+    const today = row.getByRole('button', { name: new RegExp(`^${ptBr.dates.today},`) })
+    await expect(today).toHaveAttribute('aria-disabled', 'true')
+    await today.click({ force: true })
+    await expect(page).toHaveURL(/\/$/)
+  })
+}
