@@ -5,6 +5,11 @@ export const API = {
     opened: (id: string) => `/api/ai/proactive/${id}/opened` as const,
     acted: (id: string) => `/api/ai/proactive/${id}/acted` as const,
   },
+  connections: {
+    notion: '/api/connections/notion',
+    notionAuthorize: '/api/connections/notion/authorize',
+    notionCallback: '/api/connections/notion/callback',
+  },
   events: {
     stream: '/api/events',
     ticket: '/api/events/ticket',

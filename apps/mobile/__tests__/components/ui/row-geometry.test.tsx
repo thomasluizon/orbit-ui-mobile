@@ -29,7 +29,10 @@ vi.mock('@/components/profile/profile-api-keys', () => ({ ProfileApiKeys: () => 
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useLocalSearchParams: () => ({}),
+}))
 vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => null }))
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: () => null }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }) }))

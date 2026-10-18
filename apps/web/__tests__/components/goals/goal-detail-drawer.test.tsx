@@ -1,3 +1,6 @@
+import { QueryClient, QueryObserver, onlineManager } from '@tanstack/react-query'
+import { goalKeys } from '@orbit/shared/query'
+import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { personalText } from '@/__tests__/support/personal-text'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -7,7 +10,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useGoalProgressEntry } from '@/hooks/use-goal-progress-entry'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -30,8 +34,11 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
+let forecastMetrics: Pick<GoalDetailWithMetrics['metrics'], 'velocityPerDay' | 'projectedCompletionDate' | 'daysToDeadline' | 'trackingStatus'> = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
+let detailLoading = false
 let detailLoadError = false
 let detailAvailable = true
+let listAvailable = true
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
 const updateProgressMutateAsync = vi.fn()
@@ -39,14 +46,14 @@ const deleteMutateAsync = vi.fn()
 
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
-    data: {
+    data: listAvailable ? {
       allGoals: [listGoal],
       goalsById: new Map([['1', listGoal]]),
-    },
+    } : undefined,
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
-    isLoading: false,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, ...forecastMetrics, habitAdherence } } : null,
+    isLoading: detailLoading,
     isError: detailLoadError,
     refetch: refetchDetail,
   }),
@@ -70,8 +77,11 @@ describe('GoalDetailDrawer', () => {
     document.body.innerHTML = ''
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
+    forecastMetrics = { velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline' }
+    detailLoading = false
     detailLoadError = false
     detailAvailable = true
+    listAvailable = true
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
@@ -80,6 +90,283 @@ describe('GoalDetailDrawer', () => {
     useAppToastStore.setState({ currentToast: null, queue: [] })
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     useUIStore.setState({ astraConversationOpen: false })
+  })
+
+
+  it.each(['Standard', 'Streak'] as const)('shows the producer forecast for a %s goal', (type) => {
+    detailGoal = { ...listGoal, type, isProgressDerived: true, deadline: '2025-01-20', linkedHabits: [{ id: 'habit-read', title: 'Read nightly' }], progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, daysToDeadline: 13, projectedCompletionDate: '2025-01-25', trackingStatus: 'on_track' }
+    habitAdherence = [{ habitId: 'habit-read', habitTitle: 'Read nightly', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 3 }]
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent('13')
+    expect(screen.getByText('goals.metrics.velocity').nextElementSibling).toHaveTextContent('goals.metrics.dailyPace:{"value":"0.5","unit":"books"}')
+    expect(screen.getByText('goals.metrics.projectedCompletion').nextElementSibling).toHaveTextContent('Jan 25, 2025')
+    expect(screen.getByText('goals.metrics.weeklyAdherence:{"percent":"75"}')).toBeInTheDocument()
+  })
+
+  it('keeps no-deadline and no-data forecasts explicit', () => {
+    detailGoal = { ...listGoal, currentValue: 0, progressPercentage: 0, progressHistory: [] }
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent('goals.metrics.noDeadline')
+    expect(screen.getByText('goals.metrics.velocity').nextElementSibling).toHaveTextContent('goals.metrics.noData')
+    expect(screen.getByText('goals.metrics.projectedCompletion').nextElementSibling).toHaveTextContent('goals.metrics.noData')
+    expect(screen.queryByText(/goals.metrics.weeklyAdherence/)).not.toBeInTheDocument()
+  })
+
+  it.each([0, -3])('preserves %s deadline days instead of treating them as missing', (daysToDeadline) => {
+    detailGoal = { ...listGoal, deadline: daysToDeadline === 0 ? '2025-01-07' : '2025-01-04', progressHistory: [] }
+    forecastMetrics = { velocityPerDay: 0.5, projectedCompletionDate: '2025-01-25', daysToDeadline, trackingStatus: daysToDeadline === 0 ? 'at_risk' : 'behind' }
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.daysToDeadline').nextElementSibling).toHaveTextContent(String(daysToDeadline))
+  })
+
+  it('shows loading and recovers the forecast through the existing retry', () => {
+    detailAvailable = false
+    detailLoading = true
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByRole('progressbar', { name: 'goals.metrics.title' })).toBeInTheDocument()
+    expect(screen.queryByText('goals.metrics.velocity')).not.toBeInTheDocument()
+    detailLoading = false
+    detailLoadError = true
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(refetchDetail).toHaveBeenCalledOnce()
+    expect(screen.queryByText('goals.metrics.title')).not.toBeInTheDocument()
+    detailAvailable = true
+    detailLoadError = false
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('goals.metrics.velocity')).toBeInTheDocument()
+  })
+
+  it.each([
+    { status: 'Active', isProgressDerived: true },
+    { status: 'Completed', isProgressDerived: false },
+    { status: 'Abandoned', isProgressDerived: false },
+  ] as const)('blocks manual progress deep links for $status derived=$isProgressDerived', (state) => {
+    detailGoal = { ...detailGoal, ...state }
+    render(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.queryByLabelText('goals.progress')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.save' })).not.toBeInTheDocument()
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('retains the inline progress trigger while the editor is open', async () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    const trigger = screen.getByRole('button', { name: 'goals.updateProgress' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    expect(trigger).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.updateProgress' })).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
+  })
+
+  it('opens manual progress from modal detail and returns to refreshed history', async () => {
+    refetchDetail.mockImplementationOnce(async () => {
+      detailGoal = { ...detailGoal, currentValue: 7, progressHistory: [{ previousValue: 3, value: 7, note: 'Modal note', createdAtUtc: listGoal.createdAtUtc }] }
+    })
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    const input = await screen.findByLabelText('goals.progress')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.change(input, { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'Modal note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+    expect(await screen.findByText('Modal note')).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
+
+  it('labels unlinked streak entry as current progress', () => {
+    detailGoal = { ...detailGoal, type: 'Streak' }
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    expect(screen.getByLabelText('goals.progress')).toHaveValue('3')
+    expect(screen.queryByLabelText('goals.form.streakTarget')).not.toBeInTheDocument()
+  })
+
+  it('opens an accepted progress deep link after the goal finishes loading', () => {
+    detailAvailable = false
+    listAvailable = false
+    const view = render(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.queryByLabelText('goals.progress')).not.toBeInTheDocument()
+    detailAvailable = true
+    view.rerender(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByLabelText('goals.progress')).toHaveValue('3')
+  })
+
+  it('saves an arbitrary absolute progress value and trimmed note from the drawer', async () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7.5' } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: '  Finished a chapter  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1', data: { currentValue: 7.5, note: 'Finished a chapter' },
+      goalName: listGoal.title, goalCount: 12, goalUnit: 'books',
+    }))
+    expect(refetchDetail).toHaveBeenCalled()
+  })
+
+  it.each(['', '  ', '-1', 'abc', 'Infinity'])('rejects invalid manual progress %j without losing the note', (value) => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    const amount = screen.getByLabelText('goals.progress')
+    fireEvent.change(amount, { target: { value } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'Keep this note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(amount).toHaveAttribute('aria-invalid', 'true')
+    expect(amount).toHaveFocus()
+    expect(screen.getByText('goals.form.progressValueInvalid')).toBeVisible()
+    expect(screen.getByLabelText('goals.progressNote')).toHaveValue('Keep this note')
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each(['0', '100'])('caps manual progress %s and permits an omitted note', async (value) => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value } })
+    if (value === '100') expect(screen.getByText('goals.form.progressExceedsTarget')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: Math.min(Number(value), 12) } })))
+  })
+
+  it('retains a failed manual entry and note for retry and refreshes history after saving', async () => {
+    updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'Saved note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled())
+    expect(screen.getByLabelText('goals.progress')).toHaveValue('8')
+    expect(screen.getByLabelText('goals.progressNote')).toHaveValue('Saved note')
+    expect(screen.getAllByRole('alert').some(alert => !!alert.textContent)).toBe(true)
+    expect(refetchDetail).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(refetchDetail).toHaveBeenCalledOnce())
+    detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByText('Saved note')).toBeInTheDocument()
+  })
+
+  it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    client.mount()
+    const query = vi.fn(() => Promise.resolve(detailGoal))
+    const observer = new QueryObserver(client, { queryKey: goalKeys.detail('1'), queryFn: query, initialData: detailGoal, enabled: false })
+    const unsubscribe = observer.subscribe(() => undefined)
+    refetchDetail.mockImplementationOnce(() => observer.refetch())
+    updateProgressMutateAsync.mockImplementationOnce(() => { onlineManager.setOnline(false); return Promise.resolve() })
+    try {
+      render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+      fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7' } })
+      fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+      await waitFor(() => expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused'))
+      expect(query).not.toHaveBeenCalled()
+      await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+      expect(updateProgressMutateAsync).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+      fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+      await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+    } finally {
+      await client.cancelQueries()
+      unsubscribe()
+      client.unmount()
+      client.clear()
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it('bounds progress notes and retains an over-limit draft for correction', async () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    const note = screen.getByLabelText('goals.progressNote')
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7.5' } })
+    fireEvent.change(note, { target: { value: 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1) } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
+    expect(note).toHaveValue('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
+    expect(note).toHaveAttribute('aria-invalid', 'true')
+    expect(note).toHaveFocus()
+    expect(screen.getByText('goals.form.progressNoteTooLong')).toBeVisible()
+    const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
+    fireEvent.change(note, { target: { value: validNote } })
+    expect(note).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } })))
+  })
+
+  it('disables manual fields and repeated saves through successful dismissal', async () => {
+    let finish!: () => void
+    let finishExit!: () => void
+    const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
+    updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'One history entry' } })
+    const editor = screen.getByRole('dialog', { name: 'goals.updateProgress' })
+    Object.defineProperty(editor, 'getAnimations', { value: () => editor.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [] })
+    const save = screen.getByRole('button', { name: 'common.save' })
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+    fireEvent.click(save)
+    expect(save).toBeDisabled()
+    expect(save).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByLabelText('goals.progress')).toBeDisabled()
+    expect(screen.getByLabelText('goals.progressNote')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDisabled()
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
+    try {
+      await act(async () => { finish() })
+      await waitFor(() => expect(editor).toHaveAttribute('data-closed'))
+      fireEvent.click(save)
+      fireEvent.submit(screen.getByLabelText('goals.progress').closest('form')!)
+      expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
+      expect(save).toBeDisabled()
+      expect(screen.getByLabelText('goals.progressNote')).toBeDisabled()
+    } finally {
+      await act(async () => { finishExit() })
+    }
+    await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled()
+  })
+
+  it('keeps the synchronous submission guard locked after success', async () => {
+    const save = vi.fn().mockResolvedValue(undefined)
+    const refresh = vi.fn(() => new Promise<void>(() => undefined))
+    const { result } = renderHook(() => useGoalProgressEntry(3, 12, save, refresh))
+    const submit = result.current.submit
+    await act(async () => { expect(await submit()).toBe(true) })
+    await act(async () => { expect(await submit()).toBe(false) })
+    expect(save).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(result.current.busy).toBe(true)
+  })
+
+  it.each([
+    { status: 'Active', isProgressDerived: true },
+    { status: 'Completed', isProgressDerived: false },
+    { status: 'Abandoned', isProgressDerived: false },
+  ] as const)('hides manual entry for $status derived=$isProgressDerived', (state) => {
+    detailGoal = { ...detailGoal, ...state }
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.queryByRole('button', { name: 'goals.updateProgress' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a dirty manual draft when cancellation is declined', () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'Draft note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(screen.getByLabelText('goals.progressNote')).toHaveValue('Draft note')
+    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
   })
 
   it('opens Astra with the selected goal while retaining inline detail for return', () => {
@@ -253,8 +540,8 @@ describe('GoalDetailDrawer', () => {
 
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
-    const readRow = screen.getByRole('link', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
-    const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
+    const readRow = screen.getByRole('link', { name: 'Read every night, goals.metrics.weeklyAdherence:{"percent":"90"}, goals.detail.linkedHabitStreak:{"count":12}' })
+    const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.metrics.weeklyAdherence:{"percent":"75"}, goals.detail.linkedHabitStreak:{"count":4}' })
     expect(readRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
     expect(stretchRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
     expect(readRow).toHaveAttribute('href', '/habits/habit-read')

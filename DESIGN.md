@@ -1,6 +1,6 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the Astra header mark, light hover contrast, third-party sign-in brand colours, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation and pending reply, the web sidebar Astra row, composer placement, the centred Hoje date pager, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults. Amendments belong in the relevant sections below.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
-> - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
+> - Identity is carried by the orbital logo mark, the Astra orbital glyph, and progress rings and rounded-square habit checks. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
@@ -64,6 +64,18 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
+**Conversation participants:** the first message in each consecutive run of Astra messages starts
+with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
+separates the mark from the first content below it. Following messages have no mark or reserved
+avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the
+composer's leading content edge; blocks also fill its trailing edge. A running tool trace uses
+the same structure, showing the mark only when no Astra message precedes it in the run.
+Messages and blocks keep 16px gaps. The person's messages keep their right-aligned bubble with
+no avatar or reserved space. The pending reply uses the same mark row and 8px gap above its
+indicator, so the first reply replaces it at the same content edge. This participant structure
+supersedes the side-by-side avatar column amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` (#1408).
+
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
@@ -82,7 +94,7 @@ its conversation as a layer; that row is navigation chrome, not a fifth destinat
 4. **Astra speaks first.** Proactive check-ins are part of the architecture, not a preference buried
    in settings. See **The proactive line** below.
 
-**The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
+**The remit is curated.** Astra reads tasks from the Notion pages the person shares, read-only. Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
 notifications, metrics, feature explanation, and read-only record rows for API keys, profile, plan,
 and referral. Key rows show name, prefix, dates, and state. Plan rows describe the current plan
 without prices or upgrade actions. **Billing management, API-key management and account deletion
@@ -123,7 +135,9 @@ The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 **Astra pending reply:** sending immediately reserves one 24px line at the next assistant
-turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
+turn's start edge, after the thread's normal 16px gap. A new Astra run keeps its 24px mark
+on the row above with an 8px gap before the indicator; continuations reserve no mark row.
+Three neutral dots pulse in opacity
 for state indication, using the standard easing and four slow-duration units per cycle.
 Use the existing skeleton pulse count, then keep the dots static so automatic motion ends
 within five seconds.
@@ -163,8 +177,9 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
-a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds the Hoje jump pill
-only on another day, then search, options (`dots-vertical`) and the bell. Calendário holds options
+a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds search, options
+(`dots-vertical`) and the bell. No date navigator carries a separate Hoje jump control; its centred
+date or period label returns to today. Calendário holds options
 and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
 same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
 repeat the bell. Screen options always use `dots-vertical`.
@@ -204,7 +219,7 @@ keeps the name and email; the position directly beneath it stays available for O
 
 Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
 Deletion is last and keeps its danger label, confirmation and step-up. Preferências owns timezone,
-week start, clock, language, theme and showing general habits on Hoje. Astra owns today's allowance,
+week start, clock, language, theme and showing general habits on Hoje. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
 feature switches and Pro gates, then API keys and MCP. Notificações owns the current push-device
 controls, product email consent and the note that habit reminders live on each habit.
 
@@ -376,8 +391,12 @@ Designing any of these is the defect, not the omission.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
-  completing, a level up, and everything due today being done. **Never an individual habit
-  completion**, which the motion frequency gate already rules out at that frequency.
+  completing, a level up, and everything due today being done. Individual habit completions never
+  receive a celebration. The first confirmed completion that extends today's account streak by one
+  earns a daily streak moment in the same non-blocking shell notice slot. It counts from the previous
+  streak to the new number beside a day ring, then dismisses itself after 2500ms. It appears at most
+  once per local day, including across reloads, and never for a past-day log, an undo, a slip on a
+  habit to avoid, or an unchanged streak. A milestone uses the existing milestone panel instead.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
 - **A create-goal entry in navigation.** A goal is created from a habit, or by asking.
 - **The desktop stats rail.** Progresso owns the question it was answering.
@@ -394,7 +413,7 @@ Identity comes from three things and nothing else:
 
 1. the **orbital logo mark**,
 2. the **Astra orbital glyph** (which replaces the sparkle icon),
-3. **ring-shaped status and progress indicators**.
+3. **progress rings and rounded-square habit checks**.
 
 **The mark is a planet drawn as a ring with an open centre**, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right. That is deliberately not the ProgressRing shape, which is a true circle carrying a coloured sweep over a track, so a logo can never be read as a completion percentage. **The mark carries the accent on exactly one element, its moon, and that is the only non-state use of the accent in the whole system.** Everything else in the mark is `--fg-1`. `design/brand/orbit-mark-accent.svg` ships that treatment, so a surface takes the accent file and never tints the monochrome one itself.
 
@@ -542,7 +561,7 @@ The hover step must preserve the 4.5 text floor.
 
 **`--status-frozen` is retired as a hue.** The old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
-**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--track-empty`, so all four neutral statuses can share one column and stay distinguishable.
+**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done renders with `--fg-1` fill and a check; habit rows use the rounded-square check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--track-empty`, so all four neutral statuses can share one column and stay distinguishable.
 
 ### Light mode (MANDATORY, ships with every surface)
 
@@ -720,7 +739,7 @@ alternative, a bright fill carrying the canvas ink, was rendered and rejected by
 **What choosing hue 45 cost, recorded because it is the kind of thing that gets re-litigated.** Warm
 orange has the tightest separation of any candidate considered: 20 degrees from `--status-bad` in dark
 mode. It only clears because `--status-done` was unbound from the accent, which removed the frequent
-adjacency of a done ring beside an overdue chip. It also forced `--status-overdue` off `#B45B00` in
+adjacency of a done habit check beside an overdue chip. It also forced `--status-overdue` off `#B45B00` in
 light mode, because that value sat 9.8 degrees away. Both consequences are already applied above.
 
 **Emerald was discarded** because green binds the brand to a success verdict rather than to a state,
@@ -875,6 +894,13 @@ price response does not shift the layout.
 
 ### Hoje date pager
 
+The centred label is the return-to-today control on Hoje, Calendário and any other date navigator
+that offers a jump to today. Away from today, tap, Enter or Space returns to today; on today it does
+nothing.
+Its accessible name includes the displayed date and the localized return action when available.
+It keeps the shared 48px touch floor, padded interaction feedback and exactly one focus indicator.
+There is no separate Hoje jump pill.
+
 The previous-day target starts at the leading content edge and the next-day target ends at the
 trailing content edge. Each target remains 48px wide and at least 48px high. The day title and
 numeric date occupy the remaining space, with equal 12px gaps to the targets, centred within 1px
@@ -927,7 +953,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
 | EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
 | TimeGrid | Google Calendar week pattern: names at 12 with up to two lines and word-boundary ellipsis, status rings and time beneath when space permits; per-day any-time chips at 28 inside distinct 48 targets, first chip plus +N from three items, full names in disclosure; natural short weekdays and a single 24 today date disc; header and lane pinned only while together they occupy at most half the hour viewport, otherwise scrolling with the hours, aligned gutter, horizontal column scrolling, one hour scroller opening with now in its upper third or at the earlier of 07:00 and the first timed block for another week | `calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` |
-| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 12 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| HabitRow | each row owns a radius 20 body, current `--bg-card` surface fill and inset 1px `--hairline` border; 46px emoji well radius 12 `--bg-well`, name Geist Sans 17/500, meta 12 fg-3; trailing 28px rounded-square check, radius 12, inside its existing 48px target. Empty has a 1px `--status-empty` border; done uses `--status-done` fill and the canvas-colour check; overdue and bad retain their status colours, read-only stays dimmed and not tappable, parent progress follows the same rounded-square perimeter. **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu. Owner standard: “esse e o novo padrao dos habitos”, [landing Figma rows](https://www.figma.com/design/aLwwyaY3Dtw1NVesAWsNO7?node-id=7-72), nodes `7:72` and `7:84` | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
@@ -1054,15 +1080,15 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 
 ## Habit list
 
-- **Every top-level habit lives on its own tonal panel:** `--bg-card` plus an inset `--hairline-ghost` ring, radius 20. Single-row for a simple habit, multi-row for a family on ONE panel.
+- **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. Keep 4px between rows inside a Hoje family and 12px between families; habit detail child rows use 12px. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
 - The panel is the quietest step so the `--bg-well` emoji squares inside it read as the lighter elevation.
 - **Two levels inline, then drill in.** One fg-3 chevron column expands a top-level parent in place and opens the drill anywhere else. The drill head carries a round back button, the parent's name and a mono done count; deeper than one level, a home row returns to all habits.
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
-- **There is no habit colour system. Colour-as-data is dead**. D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its ring, and by nothing else.
-- **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log renders the dot dimmed and not tappable, and a parent renders a done-over-total ring instead of a dot. The accent enters this column only on progress toward something unfinished.
+- **There is no habit colour system. Colour-as-data is dead**. D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its check, and by nothing else.
+- **A row's status lives in its trailing rounded-square check.** The visible shape is 28px with radius 12 at both depths and in selection mode, inside a separate 48px target. Done is `--status-done` fill with the canvas-colour check; empty has a 1px `--status-empty` border; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log keeps its dimmed, non-tappable treatment. A parent carries done-over-total progress around the same perimeter; unfinished progress retains the accent and bad progress retains `--status-bad`. Completed good progress uses the neutral done fill. One inset focus indicator follows the check shape, with no second indicator on its glyph. Other progress indicators stay circular.
 - **A habit row is never frozen and never skipped**. `StreakFreeze` is `(UserId, UsedOnDate)`, so a freeze marks a **day** for a **user** and `Habit` carries no freeze member at all. Frozen renders on the streak day strip inside Progresso and nowhere else. Skipping advances the schedule, so the row leaves the day rather than taking a status; only a flexible habit even writes a log row for it. `--status-frozen` therefore serves the day strip only, and `--status-skip` binds to no habit-row state. No new surface may use it.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
@@ -1227,6 +1253,14 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
 
+**Daily streak feedback is state indication, once per day.** The daily streak moment uses the
+280ms movement token and ease-out curve for a 12px number change and a single day-ring sweep.
+It stays neutral, leaves the screen and composer interactive, and dismisses after 2500ms.
+Reduced motion shows the final number and completed ring immediately, with no movement.
+There is no glow, gradient, confetti, looping or exclamation. Logging has no additional Android
+haptic unless its logging interaction already uses one. Milestone days show only the milestone
+panel for the streak; other earned facts retain their queue order.
+
 **Every animation must name its purpose from this closed list:** feedback · spatial consistency · state indication · preventing a jarring change · explanation · delight (rare/first-run tier only). **If you cannot name it, delete it.**
 
 **Never animate data the user is trying to read or act on.**
@@ -1376,7 +1410,7 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 - **Render the live region empty and stable before updating its text.** A region inserted together with its content is announced inconsistently.
 - **Default to polite.** Overusing `assertive` interrupts whatever the reader was on.
-- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus.
+- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus. The daily streak moment has its own 2500ms dwell.
 - **Anything moving, blinking or updating automatically for more than 5 seconds needs a visible pause control.**
 - **Under reduced motion**, replace slides, scales and parallax with opacity cross-fades, kill autoplay, and start carousels paused. Keep spinners, progress, instant state changes and brief press feedback. Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in; where a global kill switch is the only option, use `0.01ms` rather than `none` so `transitionend` still fires.
 - **The `.sr-only` pattern uses 1px boxes, not zero**, with `clip-path: inset(50%)` and `white-space: nowrap`. Never `display: none`.

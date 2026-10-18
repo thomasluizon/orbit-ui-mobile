@@ -43,7 +43,7 @@ import { createSessionFixtureStore, readFixtureSession } from './session-fixture
 
 const HOST = '127.0.0.1'
 const PORT = 5099
-const habitMutations: { method: string; path: string; body: unknown }[] = []
+const habitMutations = new Map<string | undefined, { method: string; path: string; body: unknown }[]>()
 
 interface MockRoute {
   method: string
@@ -252,9 +252,11 @@ async function seedSessionFixtures(req: IncomingMessage, res: ServerResponse): P
   }
 }
 
-async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, method: string, path: string): Promise<void> {
+async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, method: string, path: string, session: string | undefined): Promise<void> {
   const body = await readRequestBody(req)
-  habitMutations.push({ method, path, body })
+  const journal = habitMutations.get(session) ?? []
+  journal.push({ method, path, body })
+  habitMutations.set(session, journal)
   if (path === '/api/habits/bulk') {
     const input = bulkCreateRequestSchema.parse(body)
     sendJson(res, 200, bulkCreateResponseSchema.parse({
@@ -272,17 +274,17 @@ async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, me
   }
 }
 
-function handleHabitTestRequest(req: IncomingMessage, res: ServerResponse, method: string, pathname: string): boolean {
+function handleHabitTestRequest(req: IncomingMessage, res: ServerResponse, method: string, pathname: string, session: string | undefined): boolean {
   if (pathname === '/_test/habit-mutations' && (method === 'GET' || method === 'DELETE')) {
     req.resume()
-    if (method === 'DELETE') habitMutations.length = 0
-    sendJson(res, 200, habitMutations)
+    if (method === 'DELETE') habitMutations.delete(session)
+    sendJson(res, 200, habitMutations.get(session) ?? [])
     return true
   }
   if ((method === 'POST' && pathname === '/api/habits/bulk') ||
       (method === 'PUT' && pathname === '/api/habits/reorder') ||
       (method === 'POST' && /^\/api\/habits\/[^/]+\/log$/.test(pathname))) {
-    void handleHabitMutation(req, res, method, pathname).catch(() => {
+    void handleHabitMutation(req, res, method, pathname, session).catch(() => {
       sendJson(res, 400, { error: 'Invalid habit mutation fixture' })
     })
     return true
@@ -332,7 +334,7 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   }
   if (session && method !== 'GET') sessionFixtures.mutate(session, method, pathname)
 
-  if (handleHabitTestRequest(req, res, method, pathname)) return
+  if (handleHabitTestRequest(req, res, method, pathname, session)) return
   req.resume()
 
   if (pathname === '/health') {

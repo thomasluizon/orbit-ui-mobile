@@ -960,6 +960,39 @@ export const DeleteApiChecklistTemplatesIdResponse = zod.void()
 export const GetApiConfigResponse = zod.unknown()
 
 
+export const PostApiConnectionsNotionAuthorizeBody = zod.object({
+  "redirectUri": zod.string()
+})
+
+export const PostApiConnectionsNotionAuthorizeResponse = zod.object({
+  "authorizeUrl": zod.string()
+})
+
+
+export const PostApiConnectionsNotionCallbackBody = zod.object({
+  "code": zod.string(),
+  "state": zod.string(),
+  "redirectUri": zod.string()
+})
+
+export const PostApiConnectionsNotionCallbackResponse = zod.void()
+
+
+export const GetApiConnectionsNotionResponse = zod.object({
+  "connected": zod.boolean(),
+  "workspaceName": zod.string().nullable(),
+  "status": zod.string(),
+  "lastPollAtUtc": zod.iso.datetime({"offset":true}).nullable(),
+  "sharedDatabases": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+}))
+})
+
+
+export const DeleteApiConnectionsNotionResponse = zod.void()
+
+
 export const PostApiEmailSesEventsResponse = zod.unknown()
 
 

@@ -48,7 +48,7 @@ const noop = () => {}
 const numericDate = formatLocaleDayMonth('2026-09-30', 'pt-BR')
 const dateProps = {
   dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate, isTodaySelected: true, nextDisabled: false,
-  previousLabel: 'Previous', nextLabel: 'Next', todayLabel: 'Today', goToTodayLabel: 'Today',
+  previousLabel: 'Previous', nextLabel: 'Next', goToTodayLabel: 'Today',
   moreLabel: 'Options', searchLabel: 'Search', selectLabel: 'Select', collapseLabel: 'Collapse', allCollapsed: false,
   refreshLabel: 'Refresh', completedLabel: 'Completed', showCompleted: false, isFetching: false,
   onGoToPreviousDay: noop, onGoToToday: noop, onGoToNextDay: noop, onSearch: noop,

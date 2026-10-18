@@ -124,3 +124,8 @@ export const proactiveKeys = {
   current: () => [...proactiveKeys.all, 'current'] as const,
   status: (id: string) => [...proactiveKeys.all, 'status', id] as const,
 }
+
+export const connectionKeys = {
+  all: ['connections'] as const,
+  notion: () => [...connectionKeys.all, 'notion'] as const,
+}

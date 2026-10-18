@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-17",
+  "calibratedAt": "2026-10-18",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -189,6 +189,13 @@
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review."
     },
+    ".claude/skills/flag/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "2fc022e19c4b229c",
+      "calibratedAt": "2026-10-18",
+      "verdict": "undeclared, inherits the session: it operates feature flags within the owner's explicit account or global scope and verifies live state before and after each write; scope judgment stays with the calling session."
+    },
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
@@ -220,8 +227,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "c003488e303f53e1",
-      "calibratedAt": "2026-10-17",
+      "digest": "da405925eb8a6616",
+      "calibratedAt": "2026-10-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -248,8 +255,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "3a5b604b2a062a0f",
-      "calibratedAt": "2026-10-17",
+      "digest": "1641966915f24fe3",
+      "calibratedAt": "2026-10-18",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {

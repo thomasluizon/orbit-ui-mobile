@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router'
 import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
+import { AstraConnections } from '@/components/profile/astra-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
@@ -59,6 +60,7 @@ function buildAstraRows(
           </RowList>
         ) : null}
       </View>
+      <AstraConnections hasProAccess={Boolean(profile?.hasProAccess)} />
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </View>
   )

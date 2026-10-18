@@ -26,3 +26,4 @@ export * from './xp-history'
 export * from './tag'
 
 export * from './proactive'
+export * from './notion-connection'

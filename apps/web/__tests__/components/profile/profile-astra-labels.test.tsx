@@ -12,7 +12,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const settings = vi.hoisted(() => ({ locale: 'pt-BR' as 'en' | 'pt-BR' }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
   return { ...actual, useTranslations: () => actual.createTranslator({ locale: settings.locale, messages: settings.locale === 'en' ? en : ptBR }) }
@@ -20,7 +20,7 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('@/hooks/use-stripe-checkout-return', () => ({ useStripeCheckoutReturn: () => ({ hasReturnError: false, isSettling: false }) }))
 vi.mock('@/hooks/use-session-reset', () => ({ useAccountScopedState: () => [false] }))
 vi.mock('@/hooks/use-account-scoped-mutation', () => ({ useAccountScopedMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useQuery: () => ({ data: undefined, isLoading: false }) }))
 vi.mock('@/components/profile/profile-api-keys', () => ({ ProfileApiKeys: () => null }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ isTrialActive: false }) }) }))
 
@@ -41,11 +41,19 @@ function expectSwitchAlignment(control: { top: number; height: number; titleTop:
   expect(Math.abs(alignment), JSON.stringify(control)).toBeLessThanOrEqual(1)
 }
 
+function expectWholeLabels(measured: { label: string; lines: number; clipped: boolean; ellipsis: boolean; fontSize: number; inset: number }[], connectionLabels: string[], scale: number) {
+  for (const label of measured) {
+    expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: connectionLabels.includes(label.label) ? 56 : 16 })
+    if (scale === 1) expect.soft(label.lines, label.label).toBe(1)
+    else expect.soft(label.lines, label.label).toBeGreaterThanOrEqual(1)
+  }
+}
+
 const cases = (['pt-BR', 'en'] as const).flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [false, true].flatMap((hasProAccess) => [1, 2].map((scale) => ({ locale, width, hasProAccess, scale })))))
 it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAccess, scale $scale', async ({ locale, width, hasProAccess, scale }) => {
   settings.locale = locale
   const words = locale === 'en' ? en : ptBR
-  const labels = [words.profile.allowance.title, words.profile.proactiveAstra.title, words.profile.aiSummary.title]
+  const labels = [words.profile.allowance.title, words.profile.proactiveAstra.title, words.profile.aiSummary.title, words.profile.connections.googleCalendar, words.profile.connections.notion]
   const profile = createMockProfile({ hasProAccess, isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: 15, aiSummaryEnabled: true, proactiveAstraEnabled: true })
   const { container } = render(<div style={{ padding: 16 }}><ProfileAstraContent profile={profile} patchProfile={vi.fn()} /></div>)
   const page = await browser.newPage({ viewport: { width, height: 1600 } })
@@ -99,11 +107,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
       }) }
     }, labels)
     expect.soft(measured.gap).toBe(24)
-    for (const label of measured.labels) {
-      expect.soft(label, JSON.stringify(measured)).toMatchObject({ clipped: false, ellipsis: false, fontSize: 17 * scale, inset: 16 })
-      if (scale === 1) expect.soft(label.lines, label.label).toBe(1)
-      else expect.soft(label.lines, label.label).toBeGreaterThanOrEqual(1)
-    }
+    expectWholeLabels(measured.labels, labels.slice(3), scale)
     expect(measured.lockedRows).toHaveLength(hasProAccess ? 0 : 2)
     for (const row of measured.lockedRows) {
       if (row.shouldWrap) expect(row.badgeTop, JSON.stringify(row)).toBeGreaterThanOrEqual(row.titleBottom + 12)
@@ -117,3 +121,6 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
     }
   } finally { await page.close() }
 })
+
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { notion_integration: { enabled: true } } } }) }))

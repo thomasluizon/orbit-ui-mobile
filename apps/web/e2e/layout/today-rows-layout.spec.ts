@@ -48,11 +48,11 @@ for (const mode of ['dark', 'light'] as const) {
         const well = row.querySelector('[data-habit-row-body] > span')!
         const bounds = panel.getBoundingClientRect()
         const wellBounds = well.getBoundingClientRect()
-        const track = row.querySelector('circle')
+        const track = row.querySelector('[data-habit-row-control="check"][aria-label*="/"] [data-habit-check]')
         return {
           height: bounds.height, above: wellBounds.top - bounds.top, below: bounds.bottom - wellBounds.bottom,
-          track: track ? getComputedStyle(track).stroke : null,
-          card: getComputedStyle(panel).backgroundColor,
+          track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? null : null,
+          card: getComputedStyle(row).backgroundColor,
           canvas: getComputedStyle(document.body).backgroundColor,
         }
       }))
