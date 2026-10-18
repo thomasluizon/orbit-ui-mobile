@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import { apiClient } from '@/lib/api-client'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   clearApiKeyCreationGrant,
@@ -78,6 +79,7 @@ export function useApiKeyManagement({
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
+    const accountGeneration = getAccountGeneration()
     setCreateKeyError(null)
     if (!createGrantAvailable) {
       await onCreateGrantRequired()
@@ -92,12 +94,14 @@ export function useApiKeyManagement({
         method: 'POST',
         body: JSON.stringify(request),
       })
+      if (getAccountGeneration() !== accountGeneration) return null
       consumeApiKeyCreationGrant()
       setCreateGrantAvailable(false)
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       await queryClient.invalidateQueries({ queryKey: profileKeys.all })
       return result
     } catch (caught: unknown) {
+      if (getAccountGeneration() !== accountGeneration) return null
       if (
         extractBackendStatus(caught) === 428
         && extractBackendErrorCode(caught) === 'API_KEY_CREATION_CHALLENGE_REQUIRED'

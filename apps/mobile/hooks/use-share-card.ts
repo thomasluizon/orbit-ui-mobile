@@ -88,5 +88,10 @@ export function useShareCard() {
     }
   }
 
-  return { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download }
+  function resetFeedback() {
+    setHasError(false)
+    setSavedFileName(null)
+  }
+
+  return { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download, resetFeedback }
 }

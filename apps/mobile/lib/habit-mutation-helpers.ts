@@ -691,6 +691,7 @@ export function invalidateHabitMutationQueries(
      * bucket. Parity with `apps/web/hooks/use-habits.ts`.
      */
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() }),
   ]
 
   if (options?.includeLists !== false) {

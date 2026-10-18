@@ -24,7 +24,8 @@ export const habitKeys = {
     timeBucket
       ? [...habitKeys.all, 'summary', from, to, locale, timeBucket] as const
       : [...habitKeys.all, 'summary', from, to, locale] as const,
-  retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
+  retrospectivePrefix: () => [...habitKeys.all, 'retrospective'] as const,
+  retrospective: (period: string) => [...habitKeys.retrospectivePrefix(), period] as const,
   rescheduleSuggestion: (id: string) => [...habitKeys.all, 'reschedule-suggestion', id] as const,
   trends: (range: string) => [...habitKeys.all, 'trends', range] as const,
 }
