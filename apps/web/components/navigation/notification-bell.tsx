@@ -26,7 +26,7 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const corner = countPlacement === 'corner'
   const layout = corner ? 'grid w-[48px] place-items-center rounded-[12px] text-[var(--fg-3)]' : 'inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-[8px] py-[4px]'
   const content = <>
-      <Bell size={corner ? 20 : 24} strokeWidth={1.8} aria-hidden="true" />
+      <Bell size={corner ? 20 : 24} strokeWidth={corner ? 2 : 1.8} aria-hidden="true" />
       {count > 0 ? <span aria-hidden="true" data-notification-count=""
         className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-xs tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
         style={{ borderRadius: 8, paddingInline: 4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>

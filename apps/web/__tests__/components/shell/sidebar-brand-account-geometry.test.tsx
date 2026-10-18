@@ -54,7 +54,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
 
   it.each(cases)('groups the brand controls and account at $width in $locale, collapsed=$collapsed', async ({ width, locale, collapsed }) => {
     useShellStore.setState({ sidebarCollapsed: collapsed })
-    const view = render(sidebarFixture(locale, 'Alex'))
+    const view = render(sidebarFixture(locale, 'Alex Lin'))
     const page = await browser.newPage({ viewport: { width, height: 900 } })
     try {
       await page.setContent(`<html lang="${locale}" class="dark"><head><style>${stylesheet}</style></head><body>${view.container.innerHTML}</body></html>`)
@@ -76,7 +76,10 @@ describe('sidebar brand and account geometry in Chromium', () => {
           lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
           firstControlIsToggle: controls[0] === toggle,
           afterNavigation: controls.slice(controls.indexOf(navigationEnd) + 1).map(element => element === create ? 'create' : element.hasAttribute('data-shell-account') ? 'account' : 'unexpected'),
-          icons: [bell, toggle].map(element => bounds(element.querySelector('svg')!)),
+          icons: [bell, toggle].map(element => {
+            const icon = element.querySelector('svg')!
+            return { ...bounds(icon), strokeWidth: getComputedStyle(icon).strokeWidth }
+          }),
           overflow: sidebar.scrollWidth > sidebar.clientWidth,
         }
       })
@@ -91,7 +94,10 @@ describe('sidebar brand and account geometry in Chromium', () => {
         expect(control.top).toBeGreaterThanOrEqual(header.brand.top)
         expect(control.bottom).toBeLessThanOrEqual(header.brand.bottom)
       }
-      for (const icon of header.icons) expect([icon.width, icon.height]).toEqual([20, 20])
+      for (const icon of header.icons) {
+        expect([icon.width, icon.height]).toEqual([20, 20])
+        expect(icon.strokeWidth).toBe('2px')
+      }
       if (collapsed) {
         expect(header.firstControlIsToggle).toBe(true)
         expect(header.bell.top - header.toggle.bottom).toBe(12)
@@ -106,7 +112,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
       if (collapsed) {
         expect(shortAccount.avatar.centerX).toBe(header.sidebar.centerX)
         expect(shortAccount.textHidden).toBe(true)
-        expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('title', `Alex, ${email}`)
+        expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('title', `Alex Lin, ${email}`)
       } else {
         expect(shortAccount.gap).toBeGreaterThanOrEqual(0)
         expect(shortAccount.gap).toBeLessThanOrEqual(2)

@@ -1198,6 +1198,8 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
 
+The sidebar surface inventory covers four compositions: (1) the expanded brand row with its bell and collapse control; (2) the collapsed rail header with the toggle above the bell; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
+
 ### The allowed shell divergences, enumerated
 
 Exactly these three, and nothing more. Everything below the shell stays parity-bound.
