@@ -1,5 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AppState, type AppStateStatus } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
 
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -92,8 +93,8 @@ function AuthenticatedRoot() {
   return isAuthenticated ? <ExpiryWarning /> : null
 }
 
-async function renderExpiredWarning(): Promise<TestInstance> {
-  mocks.setAuthState({ expiresAt: Date.now() - 60_000 })
+async function renderSession(expiresAt: number): Promise<TestInstance> {
+  mocks.setAuthState({ expiresAt })
   await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <I18nextProvider i18n={i18n}>
@@ -102,6 +103,14 @@ async function renderExpiredWarning(): Promise<TestInstance> {
     )
   })
   return tree!
+}
+
+async function renderExpiredWarning(expiresAt = Date.now() - 60_000): Promise<TestInstance> {
+  mocks.refreshSession.mockResolvedValueOnce({ status: 'network-error' })
+  const instance = await renderSession(expiresAt)
+  await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  mocks.refreshSession.mockClear()
+  return instance
 }
 
 function hostNodes(instance: TestInstance, type: string): TestNode[] {
@@ -161,10 +170,108 @@ afterEach(async () => {
     await TestRenderer.act(() => tree?.unmount())
     tree = null
   }
+  vi.restoreAllMocks()
+  AppState.currentState = 'active'
   vi.useRealTimers()
 })
 
 describe('ExpiryWarning', () => {
+  it('silently renews a 15-minute token throughout normal foreground use', async () => {
+    mocks.refreshSession.mockImplementation(() => {
+      mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
+      return { status: 'refreshed', token: 'fresh-access-token' }
+    })
+    const instance = await renderSession(Date.now() + 15 * 60_000)
+    for (let minute = 1; minute <= 31; minute += 1) {
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(hostNodes(instance, 'View'), `minute ${minute}`).toHaveLength(0)
+    }
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(3)
+    expect(mocks.authState.isAuthenticated).toBe(true)
+    expect(mocks.logout).not.toHaveBeenCalled()
+  })
+
+  it('shows a warning only after automatic refresh fails and retries without signing out', async () => {
+    mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
+    const instance = await renderSession(Date.now() + 15 * 60_000)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000 - 1) })
+    expect(hostNodes(instance, 'View')).toHaveLength(0)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(mocks.authState.isAuthenticated).toBe(true)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(29_999) })
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    mocks.refreshSession.mockImplementation(() => {
+      mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
+      return { status: 'refreshed', token: 'fresh-access-token' }
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(2)
+    expect(hostNodes(instance, 'View')).toHaveLength(0)
+    expect(mocks.logout).not.toHaveBeenCalled()
+  })
+
+  it('keeps an expired session signed in across repeated automatic failures', async () => {
+    mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
+    const instance = await renderSession(Date.now() + 15 * 60_000)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(16 * 60_000) })
+    expect(mocks.refreshSession.mock.calls.length).toBeGreaterThan(1)
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(mocks.authState.isAuthenticated).toBe(true)
+    expect(mocks.logout).not.toHaveBeenCalled()
+    expect(mocks.currentRoute).toBeNull()
+  })
+
+  it('routes to sign-in when automatic refresh is rejected', async () => {
+    mocks.refreshSession.mockResolvedValue({ status: 'unauthorized' })
+    await renderSession(Date.now() + 15 * 60_000)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000) })
+    expect(mocks.currentRoute).toBe('/login')
+    expect(mocks.logout).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes on foreground return and removes its timer and listener on unmount', async () => {
+    let onChange!: (state: AppStateStatus) => void
+    const remove = vi.fn()
+    vi.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+      onChange = listener
+      return { remove }
+    })
+    AppState.currentState = 'background'
+    mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
+    await renderSession(Date.now() + 15 * 60_000)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(12 * 60_000) })
+    expect(mocks.refreshSession).not.toHaveBeenCalled()
+    AppState.currentState = 'active'
+    await TestRenderer.act(() => { onChange('active') })
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    await TestRenderer.act(() => { tree?.unmount() })
+    tree = null
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    expect(remove).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes a valid token inside the warning window without signing out', async () => {
+    mocks.refreshSession.mockImplementation(() => {
+      mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
+      return { status: 'refreshed', token: 'fresh-access-token' }
+    })
+    const instance = await renderExpiredWarning(Date.now() + 4 * 60_000)
+
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    await TestRenderer.act(async () => {
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+    })
+
+    expect(mocks.refreshSession).toHaveBeenCalledOnce()
+    expect(mocks.logout).not.toHaveBeenCalled()
+    expect(mocks.authState.isAuthenticated).toBe(true)
+    expect(mocks.currentRoute).toBeNull()
+    expect(hostNodes(instance, 'View')).toHaveLength(0)
+  })
+
   it('recovers an elapsed session without asking for credentials', async () => {
     mocks.refreshSession.mockImplementation(() => {
       mocks.setAuthState({
@@ -175,7 +282,7 @@ describe('ExpiryWarning', () => {
     })
     const instance = await renderExpiredWarning()
 
-    expect(renderedText(instance)).toContain(i18n.t('auth.sessionExpired'))
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
     expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
 

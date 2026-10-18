@@ -10,6 +10,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { openAccountEventStream } from '@/lib/account-event-stream'
 import { openChatStream } from '@/lib/chat-stream'
+import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 
 import {
@@ -2022,14 +2023,207 @@ describe('mobile auth store security paths', () => {
     expect(clearAllTokensMock).not.toHaveBeenCalled()
   })
 
-  it('treats a thrown non-Error as unauthorized and clears the session', async () => {
+  it('preserves the session when fetch throws without rejecting credentials', async () => {
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     fetchMock.mockRejectedValue('socket exploded')
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
 
     const outcome = await refreshSession()
 
-    expect(outcome).toEqual({ status: 'unauthorized' })
-    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(outcome).toEqual({ status: 'network-error' })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('renews 15-minute credentials through the mounted warning without prompting or leaving tabs', async () => {
+    vi.useFakeTimers()
+    const mintToken = () => makeJwtWithClaims(Math.floor(Date.now() / 1000) + 900, 'user-1', 'user@example.com')
+    getTokenMock.mockResolvedValue(mintToken())
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockImplementation(() => Promise.resolve(Response.json({ token: mintToken(), refreshToken: 'next-refresh' })))
+    let view: {
+      root: { findAllByProps: (props: { accessibilityRole: string }) => unknown[] }
+      unmount: () => void
+    } | undefined
+    try {
+      await useAuthStore.getState().checkAuth()
+      await TestRenderer.act(() => {
+        view = TestRenderer.create(React.createElement(React.Fragment, null,
+          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(ExpiryWarning),
+        ))
+      })
+      for (let minute = 0; minute < 31; minute += 1) {
+        await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+        expect(view?.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(0)
+        expect(useAuthStore.getState().isAuthenticated).toBe(true)
+        expect(navigation.destinations.at(-1)).toBe('(tabs)')
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(setTokenMock).toHaveBeenCalledTimes(3)
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(navigation.destinations).not.toContain('login')
+    } finally {
+      await TestRenderer.act(() => { view?.unmount() })
+      vi.useRealTimers()
+    }
+  })
+
+  it('preserves the session when a refresh is aborted', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockRejectedValue(new DOMException('Aborted', 'AbortError'))
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
+
+    await expect(refreshSession()).resolves.toEqual({ status: 'network-error' })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('times out a stalled refresh at the transport ceiling and allows a later retry without signing out', async () => {
+    vi.useFakeTimers()
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    let rejectRequest!: (reason: Error) => void
+    let requestSignal: AbortSignal | null | undefined
+    fetchMock.mockImplementationOnce((_url: string, options: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        rejectRequest = reject
+        requestSignal = options.signal
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      }),
+    )
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
+    try {
+      let completed = false
+      const attempt = refreshSession().then((outcome) => { completed = true; return outcome })
+      await vi.advanceTimersByTimeAsync(9_999)
+      expect(completed).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(completed).toBe(true)
+      await expect(attempt).resolves.toEqual({ status: 'network-error' })
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      await vi.advanceTimersByTimeAsync(49_999)
+      expect(requestSignal?.aborted ?? false).toBe(false)
+      const joinedAttempt = refreshSession()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(requestSignal?.aborted).toBe(true)
+      await expect(joinedAttempt).resolves.toEqual({ status: 'network-error' })
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const token = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 900, 'user-1', 'user@example.com')
+      fetchMock.mockResolvedValueOnce(Response.json({ token, refreshToken: 'next-refresh' }))
+      await expect(refreshSession()).resolves.toEqual({ status: 'refreshed', token })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(setTokenMock).toHaveBeenCalledWith(token)
+      expect(setRefreshTokenMock).toHaveBeenCalledWith('next-refresh')
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    } finally {
+      rejectRequest(new TypeError('Network request failed'))
+      await vi.advanceTimersByTimeAsync(0)
+      vi.useRealTimers()
+    }
+  })
+
+  it('preserves a committed rotation delivered after the waiting deadline and retries with the current token', async () => {
+    vi.useFakeTimers()
+    const token = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 900, 'user-1', 'user@example.com')
+    let storedToken = 'old-access-token'
+    let storedRefreshToken = 'old-refresh-token'
+    let serverRefreshToken = storedRefreshToken
+    const sentRefreshTokens: string[] = []
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((value: string) => {
+      storedToken = value
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((value: string) => {
+      storedRefreshToken = value
+      return Promise.resolve()
+    })
+    fetchMock.mockImplementation((_url: string, options: RequestInit) => {
+      const { refreshToken } = JSON.parse(options.body as string) as { refreshToken: string }
+      sentRefreshTokens.push(refreshToken)
+      if (refreshToken !== serverRefreshToken) return Promise.resolve(new Response(null, { status: 401 }))
+      serverRefreshToken = `rotation-${sentRefreshTokens.length}`
+      const response = Response.json({ token, refreshToken: serverRefreshToken })
+      if (sentRefreshTokens.length > 1) return Promise.resolve(response)
+      return new Promise<Response>((resolve, reject) => {
+        setTimeout(() => resolve(response), 11_000)
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+    })
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
+    try {
+      const attempt = refreshSession()
+      await vi.advanceTimersByTimeAsync(10_000)
+      await expect(attempt).resolves.toEqual({ status: 'network-error' })
+      await vi.advanceTimersByTimeAsync(30_000)
+      const retry = await refreshSession()
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(retry).toEqual({ status: 'refreshed', token })
+      expect(storedToken).toBe(token)
+      expect(storedRefreshToken).toBe('rotation-2')
+      expect(useAuthStore.getState().expiresAt).toBeGreaterThan(Date.now())
+      expect(sentRefreshTokens).toEqual(['old-refresh-token', 'rotation-1'])
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('joins a pending committed rotation on the mounted warning retry after thirty seconds', async () => {
+    vi.useFakeTimers()
+    const token = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 900, 'user-1', 'user@example.com')
+    let storedRefreshToken = 'old-refresh-token'
+    let serverRefreshToken = storedRefreshToken
+    const sentRefreshTokens: string[] = []
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setRefreshTokenMock.mockImplementation((value: string) => {
+      storedRefreshToken = value
+      return Promise.resolve()
+    })
+    fetchMock.mockImplementation((_url: string, options: RequestInit) => {
+      const { refreshToken } = JSON.parse(options.body as string) as { refreshToken: string }
+      sentRefreshTokens.push(refreshToken)
+      if (refreshToken !== serverRefreshToken) return Promise.resolve(new Response(null, { status: 401 }))
+      serverRefreshToken = 'next-refresh-token'
+      return new Promise<Response>((resolve, reject) => {
+        setTimeout(() => resolve(Response.json({ token, refreshToken: serverRefreshToken })), 45_000)
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+    })
+    useAuthStore.setState({
+      sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false,
+      user: { userId: 'user-1', name: 'User', email: 'user@example.com' }, expiresAt: Date.now() + 60_000,
+    })
+    let view: {
+      root: { findAllByProps: (props: { accessibilityRole: string }) => unknown[] }
+      unmount: () => void
+    } | undefined
+    try {
+      await TestRenderer.act(() => {
+        view = TestRenderer.create(React.createElement(React.Fragment, null,
+          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(ExpiryWarning),
+        ))
+      })
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+      expect(view?.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(storedRefreshToken).toBe('next-refresh-token')
+      expect(sentRefreshTokens).toEqual(['old-refresh-token'])
+      expect(view?.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(0)
+      expect(navigation.destinations.at(-1)).toBe('(tabs)')
+      expect(navigation.destinations).not.toContain('login')
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+    } finally {
+      await TestRenderer.act(() => { view?.unmount() })
+      vi.useRealTimers()
+    }
   })
 
   it('returns false from checkAuth when an expired token cannot be refreshed', async () => {
