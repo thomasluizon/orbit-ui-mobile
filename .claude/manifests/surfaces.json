@@ -13,8 +13,6 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 226,
-  "cellCount": 1068,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -653,6 +651,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -670,6 +669,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -687,6 +687,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -704,6 +705,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -721,6 +723,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -738,6 +741,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -755,6 +759,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -772,6 +777,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/page.tsx",
         "apps/web/app/(app)/today-page-client.tsx",
+        "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-summary.ts"
@@ -997,6 +1003,70 @@
         "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -1696,9 +1766,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1716,9 +1784,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1736,9 +1802,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1756,9 +1820,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6877,6 +6939,110 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -7661,6 +7827,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7691,6 +7858,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7721,6 +7889,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7751,6 +7920,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7781,6 +7951,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7811,6 +7982,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7841,6 +8013,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7871,6 +8044,7 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
+        "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -7949,6 +8123,74 @@
         "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -9477,12 +9719,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9497,12 +9737,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9517,12 +9755,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9537,12 +9773,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -10639,6 +10873,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -13997,6 +14287,110 @@
         "apps/mobile/hooks/use-review-reminder.ts"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },

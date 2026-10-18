@@ -11,6 +11,7 @@ import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDat
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
 
@@ -414,6 +415,50 @@ describe('useLogHabit', () => {
     mockFetch.mockReset()
     captureHabitLogged.mockClear()
     mockShowError.mockClear()
+  })
+
+  it.each(['log', 'unlog', 'skip', 'delete', 'restore', 'bulk log', 'bulk skip', 'bulk delete'] as const)('invalidates the cached month retrospective after %s', async (operation) => {
+    const { logHabit, skipHabit, deleteHabit, restoreHabit, bulkLogHabits, bulkSkipHabits } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', logId: 'log-1', error: null }] })
+    vi.mocked(bulkSkipHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }] })
+    const queryClient = createQueryClient()
+    const retrospectiveKey = habitKeys.retrospective('month')
+    const retrospective = { period: 'month', metrics: createMockRetrospectiveMetrics({ periodDays: 30 }),
+      narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, fromCache: false }
+    queryClient.setQueryDefaults(retrospectiveKey, { staleTime: 5 * 60_000 })
+    queryClient.setQueryData(retrospectiveKey, retrospective)
+    const { result, unmount } = renderHook(() => {
+      const log = useLogHabit()
+      const skip = useSkipHabit()
+      const remove = useDeleteHabit()
+      const restore = useRestoreHabit()
+      const bulkLog = useBulkLogHabits()
+      const bulkSkip = useBulkSkipHabits()
+      const bulkDelete = useBulkDeleteHabits()
+      return {
+        log: () => log.mutateAsync({ habitId: 'h-1', intent: 'log' }),
+        unlog: () => log.mutateAsync({ habitId: 'h-1', intent: 'unlog' }),
+        skip: () => skip.mutateAsync({ habitId: 'h-1' }),
+        delete: () => remove.mutateAsync('h-1'),
+        restore: () => restore.mutateAsync('h-1'),
+        'bulk log': () => bulkLog.mutateAsync([{ habitId: 'h-1' }]),
+        'bulk skip': () => bulkSkip.mutateAsync([{ habitId: 'h-1' }]),
+        'bulk delete': () => bulkDelete.mutateAsync(['h-1']),
+      }
+    }, { wrapper: createWrapper(queryClient) })
+    try {
+      expect(queryClient.getQueryState(retrospectiveKey)?.isInvalidated).toBe(false)
+      await act(async () => { await result.current[operation]() })
+      expect(queryClient.getQueryState(retrospectiveKey)?.isInvalidated).toBe(true)
+      expect(queryClient.getQueryData(retrospectiveKey)).toEqual(retrospective)
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
   })
 
   it('celebrates the last Today log once with both due habits counted', async () => {

@@ -1,4 +1,6 @@
 export { achievementEmoji } from './achievement-emoji'
+export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
+export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
 export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
@@ -628,6 +630,7 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
@@ -789,3 +792,5 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { getSetupChecklist } from './setup-checklist'
