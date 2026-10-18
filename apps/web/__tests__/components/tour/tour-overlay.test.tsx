@@ -16,7 +16,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/stores/tour-store', () => ({
   useTourStore: Object.assign(() => mocks.store, { getState: () => mocks.staticState }),
 }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueryData }) }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => ({ setQueryData }),
+}))
 vi.mock('@/lib/actions/profile', () => ({ completeTour: () => completeTour() }))
 vi.mock('@/hooks/use-overlay-escape', () => ({ useOverlayEscape: () => {} }))
 vi.mock('@/components/tour/tour-spotlight', () => ({ TourSpotlight: () => <div data-testid="spotlight" /> }))

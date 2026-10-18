@@ -1,3 +1,4 @@
+import { configCache } from '@/lib/config-cache'
 import { create } from 'zustand'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
@@ -211,6 +212,7 @@ async function clearSessionCredentials(
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     sessionEpoch += 1
     credentialVersion += 1
+    configCache.setAccount(null)
     resetPostHogUser()
     useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     useAuthStore.setState({
@@ -436,6 +438,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const loginSession = await withCredentialMutationLock(async () => {
         if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
         clearPendingGoogleAuthSessionForLogin()
+        if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -445,6 +448,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await saveWidgetToken(token).catch(() => {})
         sessionEpoch += 1
         credentialVersion += 1
+        configCache.setAccount(user.userId)
         set({
           ...deriveSessionPhase('establishing'),
           user,

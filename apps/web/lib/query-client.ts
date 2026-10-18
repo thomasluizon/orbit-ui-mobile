@@ -1,5 +1,16 @@
-import { QueryClient } from '@tanstack/react-query'
+import { focusManager, QueryClient } from '@tanstack/react-query'
 import { configureAccountQueryDefaults } from '@orbit/shared/query'
+
+focusManager.setEventListener((handleFocus) => {
+  if (typeof window === 'undefined') return
+  const refreshFocus = () => handleFocus()
+  window.addEventListener('focus', refreshFocus)
+  window.addEventListener('visibilitychange', refreshFocus)
+  return () => {
+    window.removeEventListener('focus', refreshFocus)
+    window.removeEventListener('visibilitychange', refreshFocus)
+  }
+})
 
 export function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({

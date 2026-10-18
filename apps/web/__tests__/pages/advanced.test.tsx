@@ -35,7 +35,8 @@ let mockCapabilities: { scope: string; displayName: string }[] = []
 let mockCapabilitiesLoading = false
 let mockCapabilitiesError: Error | null = null
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     if (Array.isArray(queryKey) && queryKey[0] === 'ai' && queryKey[1] === 'capabilities') {
       return {
@@ -65,7 +66,8 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
-vi.mock('@orbit/shared/query', () => ({
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/query')>()),
   apiKeyKeys: {
     lists: () => ['api-keys', 'list'],
     all: ['api-keys'],
