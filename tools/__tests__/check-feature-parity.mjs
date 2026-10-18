@@ -183,7 +183,7 @@ export const cases = () => {
     const capability = inventory.entries.filter((entry) => entry.id === id)
     const before = compare(capability, scan(current, platform), rules)
     T(`${platform} attachment control is retained before removing its consumer`, before[0]?.disposition === 'retained')
-    const composer = `apps/${platform}/components/shell/composer.tsx`
+    const composer = 'packages/shared/src/chat/composer-controls.ts'
     const original = files[composer]
     files[composer] = original.split('\n').filter((line) => !line.includes("id: 'file', label: props.attachWords.file") && !line.includes("if (id === 'file') props.onAttachFile?.()")).join('\n')
     T(`${platform} mutation removes the real attachment menu item and selection branch`, files[composer] !== original && !files[composer].includes('props.attachWords.file'))
