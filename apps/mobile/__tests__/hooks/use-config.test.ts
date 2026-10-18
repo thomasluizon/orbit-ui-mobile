@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { focusManager, onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TestRenderer, { act } from 'react-test-renderer'
 import * as SecureStore from 'expo-secure-store'
 import { AppState } from 'react-native'
@@ -47,12 +47,14 @@ beforeEach(async () => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   vi.spyOn(AppState, 'addEventListener')
   focusManager.setFocused(true)
+  onlineManager.setOnline(true)
 })
 afterEach(() => {
   void act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
   queryClient.clear()
   setAccountId(null)
   focusManager.setFocused(undefined)
+  onlineManager.setOnline(true)
   vi.restoreAllMocks()
 })
 
@@ -182,6 +184,28 @@ describe('mobile config and flags', () => {
     const { result } = mount()
     await waitFor(() => expect(result.current.enabled).toBe(true))
     expect(result.current.isFetching).toBe(true)
+  })
+
+  it.each([0, 1])('restores persisted flags on a disconnected cold start and refreshes on reconnect with %s retries', async (retry) => {
+    const config = appConfigSchema.parse(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+    await SecureStore.setItemAsync('account_config', JSON.stringify({ accountId: 'account-a', config }))
+    queryClient.setDefaultOptions({ queries: { retry, retryDelay: 0 } })
+    mocks.fetch.mockRejectedValue(new Error('offline'))
+    onlineManager.setOnline(false)
+
+    const { result } = mount()
+
+    await waitFor(() => expect(result.current.enabled).toBe(true))
+    await waitFor(() => expect(retry ? result.current.isPaused : result.current.isError).toBe(true))
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(result.current.enabled).toBe(true)
+
+    respond(false)
+    void act(() => { onlineManager.setOnline(true) })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.enabled).toBe(false)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('retains a persisted last good value after a failed launch refresh', async () => {

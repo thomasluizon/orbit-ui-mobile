@@ -77,13 +77,15 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
   }),
 }))
 
-vi.mock('@orbit/shared/query', () => ({
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/query')>()),
   habitKeys: {
     lists: () => ['habits'],
   },

@@ -19,6 +19,7 @@ export function useConfig() {
   const query = useQuery({
     queryKey: configKeys.detail(scope.accountId, scope.generation),
     queryFn: () => configCache.fetch(scope, fetchConfig),
+    networkMode: 'offlineFirst',
     enabled: scope.accountId !== null,
     staleTime: 30 * 60 * 1000,
     refetchInterval: 30 * 60 * 1000,

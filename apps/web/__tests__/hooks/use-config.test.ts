@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { focusManager, onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import '@/lib/query-client'
 import { useConfig } from '@/hooks/use-config'
@@ -34,12 +34,14 @@ beforeEach(() => {
   setAccountId('account-a')
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   focusManager.setFocused(true)
+  onlineManager.setOnline(true)
 })
 afterEach(() => {
   cleanup()
   queryClient.clear()
   setAccountId(null)
   focusManager.setFocused(undefined)
+  onlineManager.setOnline(true)
 })
 
 describe('web config and flags', () => {
@@ -97,6 +99,26 @@ describe('web config and flags', () => {
     respond(false)
     act(() => { window.dispatchEvent(new Event('focus')) })
     await waitFor(() => expect(result.current.enabled).toBe(false))
+  })
+
+  it.each([0, 1])('attempts an offline launch request and refreshes on reconnect with %s retries', async (retry) => {
+    queryClient.setDefaultOptions({ queries: { retry, retryDelay: 0 } })
+    mocks.fetch.mockRejectedValue(new Error('offline'))
+    onlineManager.setOnline(false)
+
+    const { result } = mount()
+
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(retry ? result.current.isPaused : result.current.isError).toBe(true))
+    expect(result.current.enabled).toBe(false)
+    expect(result.current.defaultFlag).toBe(false)
+
+    respond(true)
+    act(() => { onlineManager.setOnline(true) })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.enabled).toBe(true)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('refreshes at launch when the same account has a last good value', async () => {

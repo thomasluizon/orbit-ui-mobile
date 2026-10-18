@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueryData: mocks.setQueryData }) }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
+}))
 vi.mock('@/lib/actions/profile', () => ({ resetTour: mocks.resetTour }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true } }) }))
 vi.mock('@/stores/tour-store', () => ({
