@@ -68,6 +68,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
+| `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
 | `.claude/manifests/feature-parity.json` | Generated production capability inventory for web and Android, reachable redesign evidence, cited removals and pending restoration tickets; regenerate with `git fetch origin main && node tools/check-feature-parity.mjs --write`. |

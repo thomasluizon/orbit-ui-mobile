@@ -117,3 +117,20 @@ it('reports an unsuccessful native write instead of showing a false confirmation
   expect(textValues()).toContain('orbitMcp.configCopyError')
   expect(textValues()).not.toContain('orbitMcp.copied')
 })
+
+
+it('keeps the Web guide reachable after visiting Code', () => {
+  renderKeys()
+  TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
+  expect(textValues()).not.toContain('orbitMcp.connectionInstructions')
+  TestRenderer.act(() => button('orbitMcp.claudeWeb').props.onPress())
+  TestRenderer.act(() => button('orbitMcp.connectionInstructions').props.onPress())
+  for (const step of ['webInstructions', 'webStep1', 'webStep2', 'webStep3', 'webStep4', 'webNoApiKey']) {
+    expect(textValues()).toContain(`orbitMcp.${step}`)
+  }
+  expect(button('orbitMcp.copy').props.disabled).toBe(false)
+  TestRenderer.act(() => button('orbitMcp.done').props.onPress())
+  expect(textValues()).not.toContain('orbitMcp.webStep1')
+  TestRenderer.act(() => button('orbitMcp.claudeCode').props.onPress())
+  expect(textValues()).toContain(buildMcpConfigJson(getMcpEndpointUrl(API_BASE)))
+})

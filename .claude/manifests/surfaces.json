@@ -6779,6 +6779,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-profile-profile-mcp-guide",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-profile-mcp-guide",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-profile-mcp-guide",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-profile-mcp-guide",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-referral-referral-drawer",
       "platform": "web",
       "kind": "overlay",
@@ -13745,6 +13797,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/profile-api-keys.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-profile-mcp-guide",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-profile-mcp-guide",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-profile-mcp-guide",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-profile-mcp-guide",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/profile-mcp-guide.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/profile-mcp-guide.tsx"
       ],
       "state": "default",
       "theme": "dark",
