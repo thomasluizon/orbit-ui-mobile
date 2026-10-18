@@ -145,6 +145,16 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     return trackOperation(operation)
   }, [chatContainerRef, trackOperation, threadScroll])
 
+  const [pendingVisible, setPendingVisible] = useState(true)
+  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit
+  const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0
+  const [announcingWork, setAnnouncingWork] = useState(false)
+  useEffect(() => {
+    let mounted = true
+    void Promise.resolve().then(() => { if (mounted) setAnnouncingWork(replyWorking) })
+    return () => { mounted = false }
+  }, [replyWorking])
+
   const senderIdPrefix = useId()
   const announcedMessageIds = useRef(new Set<string>())
   const claimAnnouncement = useCallback((messageId: string) => {
@@ -224,13 +234,14 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           }
         />
       </div>
-      <span role="status" aria-live="polite" className="sr-only">{activeSteps.length > 0 ? t('chat.trace.working') : ''}</span>
+      <span role="status" aria-live="polite" className="sr-only">{announcingWork ? t('chat.trace.working') : ''}</span>
 
       <div
         ref={registerChatContainer}
         onScroll={(event) => {
           const feed = event.currentTarget
           threadScroll.recordScroll(feed.scrollTop, feed.scrollHeight - feed.clientHeight)
+          setPendingVisible(feed.scrollHeight - feed.clientHeight - feed.scrollTop < 40)
         }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ padding: 16 }}
@@ -254,7 +265,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
-            animateEntry={!initialMessageIds.has(msg.id)}
+            animateEntry={msg.role === 'user' && !initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
@@ -269,6 +280,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </article>
         ))}
+        {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
+          <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
+        </div> : null}
         {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
         </div>
 

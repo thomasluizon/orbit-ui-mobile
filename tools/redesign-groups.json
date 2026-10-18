@@ -41,6 +41,7 @@
       "m-block-chat-metrics-card",
       "m-block-chat-operation-outcomes",
       "m-block-chat-pending-operation-card",
+      "m-block-chat-pending-reply",
       "m-block-chat-period-insight-card",
       "m-block-chat-proactive-action",
       "m-block-chat-record-list-card",
