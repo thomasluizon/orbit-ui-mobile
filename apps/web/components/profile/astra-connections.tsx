@@ -50,7 +50,7 @@ export function AstraConnections({ hasProAccess }: Readonly<{ hasProAccess: bool
       <ListRow textMode="label" compact icon={<Calendar size={24} strokeWidth={1.8} />} title={t('profile.connections.googleCalendar')}
         href="/calendar?import=1" />
       {controller.visible ? <NotionConnectionRow controller={controller} hasProAccess={hasProAccess} onUpgrade={onUpgrade}
-        onOpen={() => { controller.authorize.reset(); controller.disconnect.reset(); setOpen(true) }} /> : null}
+        onOpen={() => { controller.authorize.reset(); if (!controller.disconnect.isPending) controller.disconnect.reset(); setOpen(true) }} /> : null}
     </SettingsGroup>
     <p role="status" className="text-sm text-[var(--status-bad-text)]">{error && controller.enabled ? t('profile.connections.error') : ''}</p>
     {open && controller.enabled ? <NotionConnectionSheet callbackFailed={callbackFailed} controller={controller} onClose={() => { controller.authorize.reset(); setOpen(false) }} onAuthorize={connect} onOpenUrl={openUrl} /> : null}
