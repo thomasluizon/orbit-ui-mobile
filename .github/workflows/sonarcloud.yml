@@ -30,6 +30,12 @@ jobs:
           ref: ${{ matrix.branch }}
           fetch-depth: 0
 
+      - name: Resolve checked-out revision
+        id: revision
+        run: |
+          revision=$(git rev-parse HEAD)
+          echo "sha=$revision" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -85,6 +91,6 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         with:
-          args: -Dsonar.branch.name=${{ matrix.branch }}
+          args: -Dsonar.branch.name=${{ matrix.branch }} -Dsonar.scm.revision=${{ steps.revision.outputs.sha }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
