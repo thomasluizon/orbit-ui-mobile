@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseApiKeyExpiryUtc } from '../validation/api-key-form'
+import { API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
 
 describe('parseApiKeyExpiryUtc', () => {
   it('interprets a minute-precision value as UTC', () => {
@@ -48,5 +48,25 @@ describe('parseApiKeyExpiryUtc', () => {
     '2026-06-12T10:30:60',
   ])('rejects out-of-range calendar fields %j', (value) => {
     expect(parseApiKeyExpiryUtc(value)).toBeNull()
+  })
+})
+
+describe('validateApiKeyExpiry', () => {
+  const now = Date.parse('2099-12-31T23:59:00Z')
+
+  it.each([API_KEY_EXPIRY_DEFAULT, '   '])('submits no expiry for blank input %j', (value) => {
+    expect(validateApiKeyExpiry(value, now)).toEqual({ valid: true, expiresAtUtc: null })
+  })
+
+  it.each(['tomorrow', '2099-02-30T12:00', '2099-12-31T23:58', '2099-12-31T23:59'])('rejects malformed, past and current expiry %j', (value) => {
+    expect(validateApiKeyExpiry(value, now)).toEqual({ valid: false })
+  })
+
+  it('accepts the next second as UTC and revalidates it after time advances', () => {
+    const value = '2099-12-31T23:59:01'
+    expect(validateApiKeyExpiry(value, now)).toEqual({
+      valid: true, expiresAtUtc: '2099-12-31T23:59:01.000Z',
+    })
+    expect(validateApiKeyExpiry(value, now + 1000)).toEqual({ valid: false })
   })
 })

@@ -25,7 +25,7 @@ function approve() {
 }
 function expectCompleted() {
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-  for (const name of ['chat.preview.approve', 'chat.preview.edit', 'chat.preview.reject', 'chat.batch.retry']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  for (const name of ['chat.preview.approve', 'habits.actions.more', 'chat.batch.retry']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   expect(screen.getByText('chat.action.completed')).toHaveAttribute('role', 'status')
 }
 function expectParentRequest() {
@@ -36,6 +36,37 @@ function expectParentRequest() {
 beforeEach(() => { bulkCreate.mockReset(); onConfirmed.mockReset() })
 
 describe('breakdown parent choice', () => {
+  it.each([false, true])('confirms removal before creating or retrying a parent: failure %s', async (failure) => {
+    if (failure) bulkCreate.mockResolvedValueOnce(makeBulkCreateResponse(['Failed']))
+    bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+    render(<BreakdownSuggestion {...props} />)
+    fireEvent.click(grouping())
+    fireEvent.click(screen.getAllByRole('button', { name: 'habits.breakdown.removeHabit' })[0]!)
+    expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+    expect(bulkCreate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel confirmation' }))
+    expect(screen.getByRole('button', { name: 'Dishes' })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'habits.breakdown.removeHabit' })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm breakdown' }))
+    expect(screen.queryByRole('button', { name: 'Dishes' })).not.toBeInTheDocument()
+    expect(grouping()).toBeChecked()
+    approve()
+    if (failure) {
+      const retry = await screen.findByRole('button', { name: 'chat.batch.retry' })
+      expect(grouping()).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'habits.breakdown.removeHabit' })).not.toBeInTheDocument()
+      fireEvent.click(retry)
+    }
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
+    expect(bulkCreate).toHaveBeenCalledTimes(failure ? 2 : 1)
+    for (const [request] of bulkCreate.mock.calls) {
+      expect(request.habits).toHaveLength(1)
+      expect(request.habits[0]).toMatchObject({ title: 'House routine', subHabits: [{ title: 'Laundry', frequencyUnit: 'Week' }] })
+      expect(request.habits[0]!.subHabits).toHaveLength(1)
+    }
+    expectCompleted()
+  })
+
   it('preserves mixed child schedules after API cadence inheritance', async () => {
     bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
     render(<BreakdownSuggestion {...props} subHabits={[{ title: 'Dishes', frequencyUnit: 'Day', frequencyQuantity: 2 }, { title: 'Buy detergent' }]} />)
@@ -59,7 +90,8 @@ describe('breakdown parent choice', () => {
       return Promise.resolve(makeBulkCreateResponse(['Success', 'Success']))
     })
     render(<BreakdownSuggestion {...props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.preview.edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'chat.preview.edit' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wash dishes' } })
     fireEvent.blur(screen.getByRole('textbox'))
     fireEvent.click(grouping())
@@ -193,8 +225,8 @@ describe('breakdown parent choice', () => {
     approve()
     expect(grouping()).toBeDisabled()
     expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'chat.preview.edit' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'chat.preview.reject' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.actions.more' })).toBeDisabled()
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
     fireEvent.click(grouping())
     expect(grouping()).toBeChecked()
     expect(bulkCreate).toHaveBeenCalledTimes(1)

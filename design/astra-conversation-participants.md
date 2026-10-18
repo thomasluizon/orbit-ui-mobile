@@ -1,7 +1,7 @@
 # Astra conversation participants
 
 **At a glance:** participant avatar owners, content alignment, state coverage and the pending
-reply integration seam on web and Android.
+reply replacement on web and Android.
 
 ## Surface inventory
 
@@ -10,7 +10,7 @@ reply integration seam on web and Android.
 | Conversation feed | `apps/web/components/chat/conversation.tsx` | `apps/mobile/components/chat/conversation.tsx`, `conversation.styles.ts` | First Astra message, consecutive Astra messages, user messages and a new Astra run after a user message |
 | Reply content column | `apps/web/components/chat/message-bubble.tsx` within the feed | `apps/mobile/components/message-bubble.tsx` within the feed | Multi-paragraph prose, streaming prose, block-only replies, previews, clarification, breakdown, outcomes, actions, read lists and metrics |
 | Reply adjuncts | Conversation feed | Conversation feed | Running and completed tool traces and follow-up actions share the reply content edge |
-| Empty conversation | `apps/web/components/chat/chat-empty-state.tsx` | `apps/mobile/components/chat/chat-empty-state.tsx` | Retains the existing empty-state mark; no participant avatar without a message or running tool activity |
+| Empty conversation | `apps/web/components/chat/chat-empty-state.tsx` | `apps/mobile/components/chat/chat-empty-state.tsx` | Retains the existing empty-state mark; no participant avatar without a message, pending reply or running tool activity |
 
 Both shell layouts mount this conversation once: `apps/web/app/(app)/layout.tsx` and
 `apps/mobile/app/_layout.tsx`. Entry points share these owners. No new route, sheet or dialog is
@@ -27,11 +27,11 @@ its 65ch cap. The mark is decorative for assistive technology because each messa
 identifies its sender. A running tool trace uses the same mark row and full content column as a completed
 reply. It shows the mark after a user message or in an empty thread, and omits the mark row after an Astra message.
 
-The pending reply from #1402 shares this geometry: mark row at the thread inset, then an 8px gap
-before the indicator at the same content edge as the first reply. Its implementation is
-carried separately in ui#1756. The pull request that merges second aligns that pending row with
-the turn rendering. Shared files are both platforms' `components/chat/conversation.tsx`,
-`apps/web/__tests__/components/chat/message-block-layout.test.tsx`, `DESIGN.md` and `CLAUDE.md`.
+The pending reply shares this geometry: mark row at the thread inset when starting an Astra
+run, then an 8px gap before the indicator at the same content edge as the first reply. Pending,
+running tool activity and completed content use the same run boundary. The pending indicator is
+replaced immediately without reply entrance motion; the stable polite working announcement
+remains outside the busy feed.
 
 ## Verification owners
 
