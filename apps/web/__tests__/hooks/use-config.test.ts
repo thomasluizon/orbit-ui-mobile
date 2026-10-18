@@ -9,9 +9,13 @@ import { setAccountId } from '@/lib/account-scope'
 import { configCache } from '@/lib/config-cache'
 import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
+import { API } from '@orbit/shared/api'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn() }))
-vi.mock('@/lib/api-fetch', () => ({ sessionAwareFetch: mocks.fetch }))
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
+  sessionAwareFetch: mocks.fetch,
+}))
 vi.mock('@sentry/nextjs', () => ({ captureException: mocks.report }))
 
 let queryClient: QueryClient
@@ -51,6 +55,33 @@ describe('web config and flags', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.enabled).toBe(enabled)
     expect(result.current.unknown).toBe(false)
+  })
+
+  it('publishes config after slow session recovery through the redesign fetch adapter', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/api-fetch')>('@/lib/api-fetch')
+    const { useAuthStore } = await import('@/stores/auth-store')
+    const expiresAt = Date.now() + 60_000
+    useAuthStore.setState({ sessionRefreshFailed: true })
+    mocks.fetch.mockImplementation(actual.sessionAwareFetch)
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (input === API.config.get) return Response.json(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+      if (input === '/api/auth/session') {
+        await new Promise((resolve) => setTimeout(resolve, 1_200))
+        return Response.json({ expiresAt, userId: null, refreshFailed: false })
+      }
+      throw new Error('Unexpected request during configuration fetch')
+    }))
+    try {
+      const { result } = mount()
+      expect(result.current.enabled).toBe(false)
+      await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(result.current.enabled).toBe(true)
+      expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, sessionRefreshFailed: false, expiresAt })
+    } finally {
+      useAuthStore.setState(useAuthStore.getInitialState())
+      vi.unstubAllGlobals()
+    }
   })
 
   it('keeps every flag off on a cold start, including default-enabled features', () => {
