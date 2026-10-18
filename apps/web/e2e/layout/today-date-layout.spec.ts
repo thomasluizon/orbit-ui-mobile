@@ -5,7 +5,7 @@ import { test } from './upgrade-fixtures'
 test.use({ appLocale: 'pt-BR', viewport: { width: 400, height: 915 } })
 
 for (const width of [412, 1024, 1280]) {
-  test(`shows search in the correct Hoje shell at ${width}px`, async ({ page }) => {
+  test(`shows Hoje header search and both search controls on wide web at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 915 })
     await page.goto('/')
 
@@ -14,14 +14,12 @@ for (const width of [412, 1024, 1280]) {
       name: ptBr.nav.search,
     })
     await expect(dateRowSearch).toHaveCount(1)
+    await expect(dateRowSearch).toBeVisible()
     if (width >= 1024) {
-      await expect(dateRowSearch).toBeHidden()
       await expect(sidebarSearch).toBeVisible()
       const searchLabel = sidebarSearch.locator('span').first()
       await expect(searchLabel).toHaveText(ptBr.nav.search)
       expect(await searchLabel.evaluate((label) => label.scrollWidth <= label.clientWidth)).toBe(true)
-    } else {
-      await expect(dateRowSearch).toBeVisible()
     }
   })
 }

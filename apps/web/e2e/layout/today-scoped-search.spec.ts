@@ -74,7 +74,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBr]] as const) {
         await expect(rows).toHaveCount(2)
         await expect(selectedView).toHaveAttribute('aria-checked', 'true')
         if (view === 'today') {
-          await expect(pager).toHaveText(dateText!)
+          await expect(pager).toHaveText(dateText!, { useInnerText: true })
           await expect(page).toHaveURL(new RegExp(`\\?date=${selectedDay}$`))
         } else await expect(pager).toHaveCount(0)
         await expect(page.getByRole('dialog')).toHaveCount(0)
