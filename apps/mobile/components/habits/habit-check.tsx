@@ -16,19 +16,25 @@ interface HabitCheckProps {
 export function HabitCheck({ status, label, unavailable = false, progress }: Readonly<HabitCheckProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  if (unavailable) return (
+    <View testID="unavailable-status-dot"
+      accessibilityRole={label ? 'image' : undefined} accessibilityLabel={label}
+      style={{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: tokens.bgWell, borderWidth: 0 }} />
+  )
   const ratio = habitCheckProgress(progress)
-  const done = !unavailable && status !== 'bad' && (progress ? ratio === 1 : status === 'done')
+  const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
   const color = progress ? tokens.trackEmpty : {
     empty: { graphic: tokens.statusEmpty }, done: { graphic: tokens.fg1 }, overdue: { graphic: tokens.statusOverdue }, bad: { graphic: tokens.statusBad },
   }[status].graphic
   return (
-    <View testID={unavailable ? 'unavailable-status-dot' : 'habit-check'}
+    <View testID="habit-check"
       accessibilityRole={label ? 'image' : undefined} accessibilityLabel={label}
       style={{ width: 28, height: 28, borderRadius: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: unavailable ? tokens.bgWell : done ? tokens.fg1 : 'transparent',
-        borderWidth: unavailable || done ? 0 : 1, borderColor: color }}>
+        backgroundColor: done ? tokens.fg1 : 'transparent',
+        borderWidth: done ? 0 : 1, borderColor: color }}>
       {done ? <Check size={16} strokeWidth={3} color={tokens.bg} /> : null}
-      {!unavailable && !done && ratio > 0 ? <Svg width={28} height={28} style={{ position: 'absolute', top: -1, left: -1 }}>
+      {!done && ratio > 0 ? <Svg width={28} height={28} style={{ position: 'absolute', top: -1, left: -1 }}>
         <Path d={HABIT_CHECK_PATH} fill="none" stroke={status === 'bad' ? tokens.statusBad : tokens.primary}
           strokeWidth={1} strokeDasharray={`${ratio * HABIT_CHECK_PERIMETER} ${HABIT_CHECK_PERIMETER}`} strokeLinecap="round" />
       </Svg> : null}
