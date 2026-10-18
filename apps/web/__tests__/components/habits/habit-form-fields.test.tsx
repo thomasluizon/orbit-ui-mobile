@@ -15,7 +15,7 @@ import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
-const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
@@ -70,7 +70,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: tagCollection.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
@@ -805,7 +805,44 @@ describe('habit tag suggestions', () => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
     tagMutations.create.mockReset()
+    tagMutations.delete.mockReset()
     formLocale.language = 'en'
+  })
+
+  it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {
+    tagCollection.tags = [
+      { id: 'existing', name: 'Health', color: '#7c3aed' },
+      { id: 'outdoors', name: 'Outdoors', color: '#7c3aed' },
+    ]
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    const proposals = { tags: [
+      { ...tagCollection.tags[0]!, isExisting: true },
+      { ...tagCollection.tags[1]!, isExisting: true },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] }
+    const view = renderTagForm()
+    tagMutations.delete.mockImplementation((id: string) => {
+      tagCollection.tags = tagCollection.tags.filter((tag) => tag.id !== id)
+      view.refresh()
+      return Promise.resolve()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    if (phase === 'settled') await act(async () => complete(proposals))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
+    expect(tagMutations.delete).toHaveBeenCalledWith('existing')
+    if (phase === 'pending') await act(async () => complete(proposals))
+    const staleProposal = screen.queryByRole('button', { name: 'Health', pressed: false })
+    if (staleProposal) await act(async () => { fireEvent.click(staleProposal) })
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: 'Health', pressed: false })).toBeNull()
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors'))
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors,created'))
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
   })
 
   it.each(['settled', 'pending', 'error'])('preserves %s suggestion state across tag search changes', async (phase) => {
@@ -868,6 +905,7 @@ describe('habit tag suggestions', () => {
   })
 
   it('requests proposals with trimmed context and accepts existing and new tags only on selection', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
       { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
@@ -879,7 +917,7 @@ describe('habit tag suggestions', () => {
     expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
     expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
     expect(tagMutations.create).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Health', pressed: false }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
     await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing'))
     expect(tagMutations.create).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
@@ -951,13 +989,14 @@ describe('habit tag suggestions', () => {
   })
 
   it('disables remaining proposals at capacity', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
       { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
     ] })
     renderTagForm('Run', '', ['1', '2', '3', '4'])
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Health', pressed: false }))
+    fireEvent.click(within(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
     expect(tagMutations.create).not.toHaveBeenCalled()
   })

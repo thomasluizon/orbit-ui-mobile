@@ -316,6 +316,7 @@ export function HabitFormFields({
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
   const suggestTags = useSuggestTags()
   const tagSuggestions = useTagSuggestions({
+    availableTags,
     title, description, language, disabled: tagMutationPending || tags.atTagLimit,
     request: suggestTags.mutateAsync,
     accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),

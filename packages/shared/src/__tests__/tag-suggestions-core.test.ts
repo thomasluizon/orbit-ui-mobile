@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createTagSuggestionActions, createTagSuggestionState, tagSuggestionStatusKey, type TagSuggestionOptions, type TagSuggestionState } from '../hooks/tag-suggestions-core'
+import { createTagSuggestionActions, createTagSuggestionState, reconcileTagSuggestionState, tagSuggestionStatusKey, type TagSuggestionOptions, type TagSuggestionState } from '../hooks/tag-suggestions-core'
 import type { SuggestedTag, SuggestTagsResponse } from '../types/habit'
 
 const proposal: SuggestedTag = { name: 'Health', color: '#7c3aed', id: 'existing', isExisting: true }
@@ -7,11 +7,27 @@ const proposal: SuggestedTag = { name: 'Health', color: '#7c3aed', id: 'existing
 function createSubject(overrides: Partial<TagSuggestionOptions> = {}) {
   let state = createTagSuggestionState()
   const actions = createTagSuggestionActions((update) => { state = typeof update === 'function' ? update(state) : update })
-  const options = { title: ' Run ', description: ' Outside ', language: 'en', disabled: false, request: vi.fn().mockResolvedValue({ tags: [] }), accept: vi.fn().mockResolvedValue(undefined), ...overrides }
+  const options = { title: ' Run ', description: ' Outside ', language: 'en', disabled: false, availableTags: [{ id: 'existing' }], request: vi.fn().mockResolvedValue({ tags: [] }), accept: vi.fn().mockResolvedValue(undefined), ...overrides }
   return { actions, options, state: () => state }
 }
 
 describe('tag suggestion coordination', () => {
+  it('reconciles only unavailable existing proposals without changing operation status', () => {
+    const other = { ...proposal, name: 'Outdoors', id: 'outdoors' }
+    const newProposal = { ...proposal, name: 'Reading', id: null, isExisting: false }
+    const state: TagSuggestionState = { suggestions: [proposal, other, newProposal], pending: 'accept', noResults: false, error: { cause: new Error('Unavailable'), operation: 'accept' } }
+    expect(reconcileTagSuggestionState(state, [{ id: 'outdoors' }])).toEqual({ ...state, suggestions: [other, newProposal] })
+    expect(state.suggestions).toEqual([proposal, other, newProposal])
+  })
+
+  it('rejects direct acceptance of a deleted existing proposal', async () => {
+    const subject = createSubject({ request: vi.fn().mockResolvedValue({ tags: [proposal] }) })
+    await subject.actions.suggest(subject.options)
+    await subject.actions.acceptSuggestion(proposal, { ...subject.options, availableTags: [] })
+    expect(subject.options.accept).not.toHaveBeenCalled()
+    expect(subject.state().pending).toBeNull()
+  })
+
   it.each([{ title: '   ' }, { disabled: true }])('does not request unavailable suggestions: %j', async (overrides) => {
     const subject = createSubject(overrides)
     await subject.actions.suggest(subject.options)

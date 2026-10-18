@@ -1,10 +1,11 @@
-import type { SuggestedTag, SuggestTagsResponse } from '../types/habit'
+import type { HabitTag, SuggestedTag, SuggestTagsResponse } from '../types/habit'
 
 export interface TagSuggestionOptions {
   title: string
   description: string
   language: string
   disabled: boolean
+  availableTags: readonly Pick<HabitTag, 'id'>[]
   request: (input: { title: string; description: string | null; language: string }) => Promise<SuggestTagsResponse>
   accept: (suggestion: SuggestedTag) => Promise<void>
 }
@@ -18,6 +19,14 @@ export interface TagSuggestionState {
 
 export function createTagSuggestionState(): TagSuggestionState {
   return { suggestions: [], pending: null, noResults: false, error: null }
+}
+
+function isTagSuggestionAvailable(suggestion: SuggestedTag, availableTags: TagSuggestionOptions['availableTags']): boolean {
+  return !suggestion.isExisting || availableTags.some((tag) => tag.id === suggestion.id)
+}
+
+export function reconcileTagSuggestionState(state: TagSuggestionState, availableTags: TagSuggestionOptions['availableTags']): TagSuggestionState {
+  return { ...state, suggestions: state.suggestions.filter((suggestion) => isTagSuggestionAvailable(suggestion, availableTags)) }
 }
 
 export function tagSuggestionStatusKey(state: TagSuggestionState, atLimit: boolean, needsTitle: boolean): string | null {
@@ -50,8 +59,8 @@ export function createTagSuggestionActions(setState: (update: TagSuggestionState
     }
   }
 
-  async function acceptSuggestion(suggestion: SuggestedTag, { disabled, accept }: TagSuggestionOptions) {
-    if (disabled || operationPending) return
+  async function acceptSuggestion(suggestion: SuggestedTag, { disabled, accept, availableTags }: TagSuggestionOptions) {
+    if (disabled || operationPending || !isTagSuggestionAvailable(suggestion, availableTags)) return
     operationPending = true
     setState((previous) => ({ ...previous, pending: 'accept', error: null }))
     try {

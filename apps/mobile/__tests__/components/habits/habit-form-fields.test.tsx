@@ -21,7 +21,7 @@ import { habitFormSchema } from '@orbit/shared/validation'
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
-const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
@@ -66,7 +66,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 vi.mock('@/hooks/use-tags', () => ({
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: tagCollection.tags }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
-  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/keyboard-aware-scroll-view')>()
@@ -855,6 +855,9 @@ describe('habit tag suggestions', () => {
   function button(label: string) {
     return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
   }
+  function proposalButton(label: string) {
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')[0]?.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]
+  }
   async function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
     const helpers = createFormHelpers({ title, description })
     function OwningForm() {
@@ -872,10 +875,47 @@ describe('habit tag suggestions', () => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
     tagMutations.create.mockReset()
+    tagMutations.delete.mockReset()
     formLocale.language = 'en'
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
   afterEach(async () => { if (tree) await TestRenderer.act(() => tree.unmount()) })
+
+  it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {
+    tagCollection.tags = [
+      { id: 'existing', name: 'Health', color: '#7c3aed' },
+      { id: 'outdoors', name: 'Outdoors', color: '#7c3aed' },
+    ]
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    const proposals = { tags: [
+      { ...tagCollection.tags[0]!, isExisting: true },
+      { ...tagCollection.tags[1]!, isExisting: true },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] }
+    const view = await renderTagForm()
+    tagMutations.delete.mockImplementation((id: string) => {
+      tagCollection.tags = tagCollection.tags.filter((tag) => tag.id !== id)
+      view.refresh()
+      return Promise.resolve()
+    })
+    await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
+    if (phase === 'settled') await TestRenderer.act(() => complete(proposals))
+    await TestRenderer.act(() => button('habits.form.deleteTag: Health').props.onPress())
+    expect(tagMutations.delete).toHaveBeenCalledWith('existing')
+    if (phase === 'pending') await TestRenderer.act(() => complete(proposals))
+    const staleProposal = proposalButton('Health')
+    if (staleProposal) await TestRenderer.act(() => staleProposal.props.onPress())
+    expect(selected()).toBe('')
+    expect(proposalButton('Health')).toBeUndefined()
+    await TestRenderer.act(() => proposalButton('Outdoors').props.onPress())
+    expect(selected()).toBe('outdoors')
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    await TestRenderer.act(() => button('Reading').props.onPress())
+    expect(selected()).toBe('outdoors,created')
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+  })
 
   it.each(['settled', 'pending', 'error'])('preserves %s suggestion state across tag search remounts', async (phase) => {
     tagCollection.tags = Array.from({ length: 25 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
@@ -936,6 +976,7 @@ describe('habit tag suggestions', () => {
   })
 
   it('requests proposals and accepts existing and new tags only on selection', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
       { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
@@ -947,7 +988,7 @@ describe('habit tag suggestions', () => {
     expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')).toHaveLength(1)
     expect(selected()).toBe('')
     expect(tagMutations.create).not.toHaveBeenCalled()
-    await TestRenderer.act(() => button('Health').props.onPress())
+    await TestRenderer.act(() => proposalButton('Health').props.onPress())
     expect(selected()).toBe('existing')
     expect(tagMutations.create).not.toHaveBeenCalled()
     await TestRenderer.act(() => button('Reading').props.onPress())
@@ -1010,13 +1051,14 @@ describe('habit tag suggestions', () => {
   })
 
   it('disables remaining proposals at capacity', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
     tagMutations.suggest.mockResolvedValue({ tags: [
       { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
       { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
     ] })
     await renderTagForm('Run', '', ['1', '2', '3', '4'])
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
-    await TestRenderer.act(() => button('Health').props.onPress())
+    await TestRenderer.act(() => proposalButton('Health').props.onPress())
     expect(button('Reading').props.disabled).toBe(true)
     expect(tagMutations.create).not.toHaveBeenCalled()
   })

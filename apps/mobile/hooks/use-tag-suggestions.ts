@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { createTagSuggestionActions, createTagSuggestionState, type TagSuggestionOptions, type TagSuggestionState } from '@orbit/shared/hooks'
+import { createTagSuggestionActions, createTagSuggestionState, reconcileTagSuggestionState, type TagSuggestionOptions, type TagSuggestionState } from '@orbit/shared/hooks'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import type { SuggestedTag } from '@orbit/shared/types/habit'
 
@@ -25,7 +25,7 @@ export function useTagSuggestions(options: TagSuggestionOptions): TagSuggestions
       : previous)
   }), [generation])
   return {
-    ...state,
+    ...reconcileTagSuggestionState(state, options.availableTags),
     needsTitle,
     canSuggest: !needsTitle && !options.disabled && state.pending === null,
     suggest: () => actions.suggest(options),
