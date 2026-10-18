@@ -11,8 +11,8 @@ import { Shell412 } from '@/components/shell/shell-412'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { notificationKeys } from '@orbit/shared/query'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { notificationKeys, proactiveKeys } from '@orbit/shared/query'
+import { createMockNotification, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
@@ -27,14 +27,6 @@ vi.mock('react-native-safe-area-context', async () => ({
 vi.mock('@/hooks/use-notification-inbox', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/hooks/use-notification-inbox')>()
   return { useNotificationInbox: () => navigation.restored ? original.useNotificationInbox() : { visibleUnreadCount: navigation.count } }
-})
-vi.mock('@/hooks/use-notifications', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/hooks/use-notifications')>()
-  return {
-    ...original,
-    useNotifications: () => navigation.restored ? original.useNotifications()
-      : { notifications: [createMockNotification({ url: '/chat', body: 'Routine summary', createdAtUtc: new Date().toISOString() })] },
-  }
 })
 vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
@@ -176,6 +168,7 @@ afterEach(() => { __resetTestHostConfig(); navigation.count = 0; navigation.rest
 it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary at %s', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   navigation.count = 12
+  queryClient.setQueryData(proactiveKeys.current(), createMockProactiveItem({ text: 'Routine summary' }))
   let tree!: Tree
   await renderer.act(() => {
     tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>

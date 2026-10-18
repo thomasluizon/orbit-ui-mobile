@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
-import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TodayDateControl } from '@/components/today/today-date-control'
@@ -26,9 +26,8 @@ vi.mock('expo-router', () => ({ usePathname: () => '/', useRouter: () => ({ navi
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: new Date().toISOString() })] }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: createMockProactiveItem({ text: 'Sua rotina mudou. Vamos conversar?' }), openItem: vi.fn() }),
 }))
 
 interface Host {

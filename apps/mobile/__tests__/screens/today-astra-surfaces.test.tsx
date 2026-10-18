@@ -1,5 +1,5 @@
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
-import type { NotificationItem } from '@orbit/shared/types/notification'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import type { ProactiveItem } from '@orbit/shared/types/proactive'
 import { View } from 'react-native'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../support/safe-area-geometry'
@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
   timeZone: 'UTC',
   today: '2026-08-29',
   selectedDay: null as string | null,
-  notifications: [] as NotificationItem[],
+  proactiveItem: null as ProactiveItem | null,
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -52,9 +52,8 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined }),
 }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: mocks.notifications }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -175,7 +174,7 @@ describe('mobile Today Astra owned surfaces', () => {
 
   it('offers the daily summary upgrade from Hoje alongside the proactive line', async () => {
     mocks.hasProAccess = false
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
     try {
@@ -201,7 +200,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.timeZone = 'UTC'
     mocks.today = '2026-08-29'
     mocks.selectedDay = null
-    mocks.notifications = []
+    mocks.proactiveItem = null
     useUIStore.setState({
       showCreateModal: false,
       isSelectMode: false,
@@ -209,9 +208,9 @@ describe('mobile Today Astra owned surfaces', () => {
     })
   })
 
-  it('removes an unread previous-day check-in when the owning Today date rolls over', async () => {
+  it('clears the line when current returns no item after the owning Today date rolls over', async () => {
     mocks.timeZone = 'America/Sao_Paulo'
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in', localDate: '2026-08-29' })
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<TodayScreen />)
@@ -220,11 +219,11 @@ describe('mobile Today Astra owned surfaces', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length).toBeGreaterThan(0)
 
     mocks.today = '2026-08-30'
+    mocks.proactiveItem = null
     await TestRenderer.act(() => { tree.update(<TodayScreen />) })
 
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.type) === 'TodayDate')[0]?.props.date).toBe('2026-08-30')
-    expect(mocks.notifications[0]?.isRead).toBe(false)
   })
 
   it.each([
@@ -248,7 +247,7 @@ describe('mobile Today Astra owned surfaces', () => {
 
   it('keeps the same proactive line and header geometry throughout a habits refetch', async () => {
     mocks.geometry = true
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
     const findLine = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')[0]
@@ -292,7 +291,7 @@ describe('mobile Today Astra owned surfaces', () => {
 
   it.each(['first load', 'load error', 'select mode', 'list surface'])(
     'withholds the proactive line during %s', async (state) => {
-      mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
       mocks.hasData = state !== 'first load' && state !== 'load error'
       mocks.isFetching = state === 'first load'
       mocks.isError = state === 'load error'
@@ -354,7 +353,7 @@ describe('mobile Today Astra owned surfaces', () => {
   })
   it('keeps 24 between the proactive line and date control and clears the absent line', async () => {
     mocks.geometry = true
-    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<View><TodayScreen /></View>) as GeometryTree })
     const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
@@ -363,7 +362,7 @@ describe('mobile Today Astra owned surfaces', () => {
     try {
       const visible = measure()
       expect(visible.get('date')!.top - visible.get('line')!.bottom).toBe(24)
-      mocks.notifications = []
+      mocks.proactiveItem = null
       await TestRenderer.act(() => { tree.update(<TodayScreen />) })
       expect(measure().has('line')).toBe(false)
       const absent = measure()

@@ -1,4 +1,6 @@
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { Resvg } from '@resvg/resvg-js'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -6,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockNotification, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -18,6 +20,7 @@ import { NotificationDetailModal } from '@/components/navigation/notification-de
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useChatStore } from '@/stores/chat-store'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -55,6 +58,9 @@ vi.mock('@/hooks/use-notifications', () => ({
   useDeleteAllNotifications: () => ({ mutate: state.clear }),
 }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({
+  apiClient: (path: string) => Promise.resolve(path === API.proactive.current ? createMockProactiveItem() : undefined),
+}))
 
 type Node = {
   type: unknown
@@ -64,9 +70,10 @@ type Node = {
 }
 type Tree = { root: Node; update: (element: React.ReactNode) => void; unmount: () => void }
 let trees: Tree[] = []
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 function render(element: React.ReactNode = <><NotificationInbox /><NotificationDeleteNotice /></>): Tree {
   let tree: Tree
-  TestRenderer.act(() => { tree = TestRenderer.create(element) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) })
   trees.push(tree!)
   return tree!
 }
@@ -96,7 +103,7 @@ function testId(tree: Tree, id: string) {
   return tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === id)
 }
 function refresh(tree: Tree) {
-  TestRenderer.act(() => tree.update(<><NotificationInbox /><NotificationDeleteNotice /></>))
+  TestRenderer.act(() => tree.update(<QueryClientProvider client={queryClient}><NotificationInbox /><NotificationDeleteNotice /></QueryClientProvider>))
 }
 function seed(count: number) {
   state.notifications = Array.from({ length: count }, (_, index) => createMockNotification({
@@ -106,6 +113,7 @@ function seed(count: number) {
 }
 beforeEach(() => {
   useUIStore.setState({ astraConversationOpen: false })
+  useChatStore.setState({ messages: [], proactiveOutcomes: {} })
   vi.useFakeTimers()
   vi.clearAllMocks()
   resetPendingNotificationDeletesForTests()
@@ -128,6 +136,7 @@ afterEach(() => {
   sheetTestControls.defer(false)
   TestRenderer.act(() => trees.forEach((tree) => tree.unmount()))
   trees = []
+  queryClient.clear()
   resetPendingNotificationDeletesForTests()
   vi.useRealTimers()
 })
@@ -584,7 +593,7 @@ describe('mobile alerts', () => {
     ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
     ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
     ['/calendar-sync?mode=review', '/calendar?mode=review', en.nav.calendar],
-  ])('navigates from detail %s to the target after closing', (url, destination, labelTarget, habitId: string | null = null) => {
+  ])('navigates from detail %s to the target after closing', async (url, destination, labelTarget, habitId: string | null = null) => {
     sheetTestControls.defer(true)
     const onClose = vi.fn()
     const tree = render(<NotificationDetailModal open notification={createMockNotification({ url, habitId })}
@@ -598,12 +607,15 @@ describe('mobile alerts', () => {
     expect(state.push).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
 
-    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(state.push).toHaveBeenCalledWith(destination)
     expect(state.push).toHaveBeenCalledTimes(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
+    expect(useChatStore.getState().messages).toEqual(url === '/chat'
+      ? [expect.objectContaining({ role: 'ai', content: createMockProactiveItem().text })]
+      : [])
   })
 
   it.each([

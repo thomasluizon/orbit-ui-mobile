@@ -20,7 +20,7 @@ import * as offlineQueue from '@/lib/offline-queue'
 import { cancelScheduledFlush, resumeOfflineReplay } from '@/lib/offline-mutations'
 import { clearOfflineState } from '@/lib/offline-state'
 import { clearPersistedQueryCache, queryClient, setQueryCacheScope } from '@/lib/query-client'
-import { i18n } from '@/lib/i18n'
+import i18n, { changeLanguage } from 'i18next'
 import {
   decodeJwtPayload,
   getAccountIdFromPayload,
@@ -398,7 +398,7 @@ export async function refreshSessionToken(): Promise<string | null> {
 
 function applyProfilePresentation(profile: Profile): void {
   if (profile.language && i18n.language !== profile.language) {
-    void i18n.changeLanguage(profile.language)
+    void changeLanguage(profile.language)
   }
 
   setRuntimeTheme({
