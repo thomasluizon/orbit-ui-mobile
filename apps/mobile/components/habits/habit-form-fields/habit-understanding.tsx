@@ -222,7 +222,7 @@ function ScheduleCorrections({ proposed = false, days, daily = false, dayOptions
           const selected = daily || days.includes(day.value)
           return (
             <Pressable focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? proposed ? { backgroundColor: tokens.bgWell } : styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
-              {({ pressed }) => <Text style={[selected ? styles.dayTextSelected : styles.dayText, proposed && selected ? { color: pressed ? tokens.fg2 : tokens.fg3 } : null]}>{day.label.charAt(0)}</Text>}
+              <Text style={selected && !proposed ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
             </Pressable>
           )
         })}
