@@ -65,16 +65,16 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
 **Conversation participants:** the first message in each consecutive run of Astra messages starts
-with a 24px `AstraGlyph` in `--fg-1`, aligned to the top of the reply. An 8px gap separates its
-column from the content. Following messages reserve the same column without repeating the mark.
-Prose, previews, read blocks, charts, tool traces and follow-up actions share the content edge.
-A running tool trace reserves the same column, showing the mark only when no Astra message
-precedes it in the run.
+with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
+separates the mark from the first content below it. Following messages have no mark or reserved
+avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the
+composer's leading content edge; blocks also fill its trailing edge. A running tool trace uses
+the same structure, showing the mark only when no Astra message precedes it in the run.
 Messages and blocks keep 16px gaps. The person's messages keep their right-aligned bubble with
-no avatar or reserved column. The pending reply uses the same 24px mark and 8px gap, with its
-indicator beside the mark, so the first reply replaces it at the same position. This participant
-structure supersedes the unmarked reply layout in `design/canvas/Orbit Astra Conversation.dc.html`
-(#1408).
+no avatar or reserved space. The pending reply uses the same mark row and 8px gap above its
+indicator, so the first reply replaces it at the same content edge. This participant structure
+supersedes the side-by-side avatar column amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` (#1408).
 
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.

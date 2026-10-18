@@ -19,16 +19,16 @@ attachment bubbles remain right aligned without an avatar column.
 
 ## Geometry
 
-The thread inset is 16. Astra's leading column is 24, followed by an 8 gap. A run's first
-message shows `AstraGlyph` in `fg-1`; each continuation reserves the column without another mark.
+The thread inset is 16. A run's first message shows a 24px `AstraGlyph` in `fg-1` on its own
+row, followed by an 8px gap above the first content. Each continuation has no mark or reserved
+avatar space. Prose and blocks share the composer's leading edge; blocks fill its trailing edge.
 The content can shrink and wrap, and its blocks keep the existing 16 gaps. Web prose retains
 its 65ch cap. The mark is decorative for assistive technology because each message already
-identifies its sender. A running tool trace uses the same row and content column as a completed
-reply. It shows the mark after a user message or in an empty thread, and reserves the column
-without another mark after an Astra message.
+identifies its sender. A running tool trace uses the same mark row and full content column as a completed
+reply. It shows the mark after a user message or in an empty thread, and omits the mark row after an Astra message.
 
-The pending reply from #1402 shares this geometry: mark at the thread inset, indicator at the
-content edge, both starting in the same 24-high row as the first reply. Its implementation is
+The pending reply from #1402 shares this geometry: mark row at the thread inset, then an 8px gap
+before the indicator at the same content edge as the first reply. Its implementation is
 carried separately in ui#1756. The pull request that merges second aligns that pending row with
 the turn rendering. Shared files are both platforms' `components/chat/conversation.tsx`,
 `apps/web/__tests__/components/chat/message-block-layout.test.tsx`, `DESIGN.md` and `CLAUDE.md`.

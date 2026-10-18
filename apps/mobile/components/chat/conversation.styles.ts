@@ -44,18 +44,15 @@ export function createStyles(tokens: Tokens) {
       padding: 16,
       gap: 16,
     },
-    messageRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
+    messageTurn: {
       gap: 8,
     },
-    avatarColumn: {
+    avatar: {
       width: 24,
       height: 24,
       flexShrink: 0,
     },
     messageContent: {
-      flex: 1,
       minWidth: 0,
       gap: 16,
     },

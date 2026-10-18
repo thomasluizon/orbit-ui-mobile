@@ -188,9 +188,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item, index }) => (
-      <View style={styles.messageRow}>
-      {item.role === 'ai' ? <View testID={messages[index - 1]?.role !== 'ai' ? 'astra-avatar' : undefined} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatarColumn}>
-        {messages[index - 1]?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
+      <View style={styles.messageTurn}>
+      {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+        <AstraGlyph size={24} />
       </View> : null}
       <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
@@ -277,10 +277,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={activeSteps.length > 0 ? <View style={styles.messageRow}>
-                <View testID={messages.at(-1)?.role !== 'ai' ? 'astra-avatar' : undefined} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatarColumn}>
-                  {messages.at(-1)?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
-                </View>
+              ListFooterComponent={activeSteps.length > 0 ? <View style={styles.messageTurn}>
+                {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+                  <AstraGlyph size={24} />
+                </View> : null}
                 <View style={styles.messageContent}>
                   <ThinkingTrace steps={activeSteps} running />
                 </View>

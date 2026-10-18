@@ -79,11 +79,11 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
       expect(mark.bottom - mark.top).toBe(24)
     }
     for (const key of ['prose-0', 'prose-2', 'block-0', 'block-1', 'block-2', 'block-3']) {
-      expect(geometry.get(key)!.left).toBe(48)
+      expect(geometry.get(key)!.left).toBe(16)
     }
-    expect(geometry.get('avatar-0')!.top).toBe(geometry.get('prose-0')!.top)
-    expect(geometry.get('avatar-1')!.top).toBe(geometry.get('block-2')!.top)
-    expect(geometry.get('block-0')!.width).toBe(width - 64)
+    expect(geometry.get('prose-0')!.top - geometry.get('avatar-0')!.bottom).toBe(8)
+    expect(geometry.get('block-2')!.top - geometry.get('avatar-1')!.bottom).toBe(8)
+    expect(geometry.get('block-0')!.width).toBe(width - 32)
   } finally {
     await renderer.act(() => { feed.unmount(); conversation.unmount() })
   }
@@ -166,8 +166,8 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
     expect(geometry.get('block-0')!.top - currentProse.bottom).toBeCloseTo(16, 1)
     for (let index = 0; index < scenario.count; index++) {
       const block = geometry.get(`block-${index}`)!
-      expect(block.left).toBeCloseTo(48, 1)
-      expect(block.width).toBeCloseTo(width - 64, 1)
+      expect(block.left).toBeCloseTo(16, 1)
+      expect(block.width).toBeCloseTo(width - 32, 1)
       if (index > 0) expect(block.top - geometry.get(`block-${index - 1}`)!.bottom).toBeCloseTo(16, 1)
     }
   } finally {

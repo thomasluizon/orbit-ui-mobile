@@ -88,7 +88,8 @@ describe('Astra block layout in Chromium', () => {
       }))
       for (const index of [0, 1, 3, 4]) {
         const reply = geometry[index]!
-        expect(reply.content.left - reply.turn.left).toBeCloseTo(32, 1)
+        expect(reply.content.left).toBeCloseTo(reply.turn.left, 1)
+        expect(reply.content.left).toBeCloseTo(16, 1)
         for (const block of reply.blocks) {
           expect(block.left).toBeCloseTo(reply.content.left, 1)
           expect(block.right).toBeCloseTo(reply.turn.right, 1)
@@ -97,7 +98,7 @@ describe('Astra block layout in Chromium', () => {
           expect(reply.avatar.width).toBe(24)
           expect(reply.avatar.height).toBe(24)
           expect(reply.avatar.left).toBeCloseTo(reply.turn.left, 1)
-          expect(reply.avatar.top).toBeCloseTo(reply.content.top, 1)
+          expect(reply.content.top - reply.avatar.top - reply.avatar.height).toBeCloseTo(8, 1)
           expect(reply.color).toBe(reply.textColor)
         }
       }
@@ -200,7 +201,7 @@ describe('Astra block layout in Chromium', () => {
           offset: article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top }
       })
       expect(starting.count).toBe(1)
-      expect(starting.offset).toBeCloseTo(8, 1)
+      expect(starting.offset).toBeCloseTo(40, 1)
       await turn.evaluate((article, mode) => {
         const readAnimations = article.getAnimations.bind(article)
         const animations = readAnimations({ subtree: true })
@@ -224,7 +225,7 @@ describe('Astra block layout in Chromium', () => {
       await turn.evaluate(settleAnimations)
       expect(await turn.evaluate(article =>
         article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top,
-      )).toBeCloseTo(0, 1)
+      )).toBeCloseTo(32, 1)
     } finally { await page.close() }
   })
 
@@ -267,7 +268,7 @@ describe('Astra block layout in Chromium', () => {
       expect.soft(geometry.turn.top - geometry.previousProse.bottom).toBeCloseTo(16, 1)
       expect.soft(geometry.blocks[0]!.top - (geometry.currentProse?.bottom ?? geometry.previousProse.bottom)).toBeCloseTo(16, 1)
       for (const [index, block] of geometry.blocks.entries()) {
-        expect.soft(block.left).toBeCloseTo(geometry.composer.left + 32, 1)
+        expect.soft(block.left).toBeCloseTo(geometry.composer.left, 1)
         expect.soft(block.right).toBeCloseTo(geometry.composer.right, 1)
         expect.soft(block.right).toBeCloseTo(geometry.chips.right, 1)
         if (index > 0) expect.soft(block.top - geometry.blocks[index - 1]!.bottom).toBeCloseTo(16, 1)

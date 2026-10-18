@@ -237,12 +237,12 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-labelledby={`${senderIdPrefix}-${msg.id}`}
             aria-posinset={index + 1}
             aria-setsize={messages.length}
-            className="flex min-w-0 items-start gap-2"
+            className="flex min-w-0 flex-col gap-2"
           >
-          {msg.role === 'ai' ? <span aria-hidden="true" className="block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar={messages[index - 1]?.role !== 'ai' ? '' : undefined}>
-            {messages[index - 1]?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
+          {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
           </span> : null}
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
@@ -262,11 +262,11 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </div>
           </article>
         ))}
-        {activeSteps.length > 0 ? <div className="flex min-w-0 items-start gap-2">
-          <span aria-hidden="true" className="block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar={messages.at(-1)?.role !== 'ai' ? '' : undefined}>
-            {messages.at(-1)?.role !== 'ai' ? <AstraGlyph size={24} /> : null}
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
+        {activeSteps.length > 0 ? <div className="flex min-w-0 flex-col gap-2">
+          {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
+          </span> : null}
+          <div className="flex min-w-0 w-full flex-col gap-4">
             <ThinkingTrace steps={activeSteps} running />
           </div>
         </div> : null}
