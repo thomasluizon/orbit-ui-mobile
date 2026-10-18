@@ -1660,6 +1660,10 @@
       "rejected": "{name} foi rejeitado. Nada foi salvo."
     },
     "breakdown": {
+      "unnamedHabit": "Hábito sem nome",
+      "removeTitle": "Remover hábito?",
+      "removeBody": "Remover “{name}” desta proposta? Ele não será criado quando você aprovar.",
+      "empty": "Não sobrou nenhum hábito proposto.",
       "title": "Dividir {name}",
       "frequency": "Mudar a frequência de {name}",
       "conflict": "Já existe um hábito chamado {name}.",
@@ -3455,7 +3459,8 @@
       },
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",
-      "dismiss": "Dispensar"
+      "dismiss": "Dispensar",
+      "dismissError": "Não foi possível dispensar a lista. Tente de novo."
     }
   },
   "terms": {
