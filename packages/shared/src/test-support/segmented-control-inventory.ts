@@ -11,6 +11,7 @@ export const SEGMENT_GEOMETRY_OWNERS = [
   'components/onboarding/onboarding-create-habit.tsx',
   'components/upgrade/plan-selection.tsx',
   'components/habits/create-goal-from-habit/goal-type-selector.tsx',
+  'components/share/share-card-sheet.tsx',
 ] as const
 
 export const SEGMENT_ROW_ALLOWLIST = [

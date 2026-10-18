@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
@@ -138,5 +139,18 @@ describe('isRecapShareEmpty', () => {
         3,
       ),
     ).toBe(false)
+  })
+})
+
+
+describe('buildProgressShareCardStats', () => {
+  it('restores the production order and rounded completion rate', () => {
+    const metrics = createMockRetrospectiveMetrics({ completionRate: 73.5, totalCompletions: 40, bestStreak: 18, activeDays: 5 })
+    expect(buildProgressShareCardStats(metrics)).toEqual([
+      { labelKey: 'shareCard.stats.completionRate', value: '74%' },
+      { labelKey: 'shareCard.stats.completions', value: '40' },
+      { labelKey: 'shareCard.stats.bestStreak', value: '18' },
+      { labelKey: 'shareCard.stats.activeDays', value: '5' },
+    ])
   })
 })
