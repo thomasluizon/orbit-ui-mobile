@@ -39,6 +39,33 @@ async function renderHookValue<T>(hook: () => T): Promise<{ readonly current: T 
 }
 
 describe('mobile useShareCard', () => {
+  it('exposes a native share failure and allows retry', async () => {
+    mocks.open.mockRejectedValue(new Error('system share failed'))
+    const hook = await renderHookValue(() => useShareCard())
+    const payload = { shareTitle: 'Share progress', shareText: 'My progress', url: 'https://app.useorbit.org/r/ABC123?recap=week' }
+    await TestRenderer.act(async () => { await hook.current.share(payload) })
+    expect(hook.current.hasError).toBe(true)
+    expect(hook.current.isSharing).toBe(false)
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
+    mocks.open.mockResolvedValue(undefined)
+    await TestRenderer.act(async () => { await hook.current.share(payload) })
+    expect(hook.current.hasError).toBe(false)
+    expect(mocks.reportEvent).toHaveBeenCalledOnce()
+  })
+
+  it('clears export feedback before selecting another progress period', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+    await TestRenderer.act(async () => { await hook.current.download() })
+    expect(hook.current.savedFileName).toBe('orbit-recap.png')
+    TestRenderer.act(() => { hook.current.resetFeedback() })
+    expect(hook.current.savedFileName).toBeNull()
+    mocks.captureRef.mockRejectedValue(new Error('capture failed'))
+    await TestRenderer.act(async () => { await hook.current.download() })
+    expect(hook.current.hasError).toBe(true)
+    TestRenderer.act(() => { hook.current.resetFeedback() })
+    expect(hook.current.hasError).toBe(false)
+  })
+
   beforeEach(() => {
     mocks.captureRef.mockReset().mockResolvedValue('file:///cache/share-card.png')
     mocks.open.mockReset().mockResolvedValue({ success: true, message: 'OK' })

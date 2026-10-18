@@ -798,7 +798,8 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     try {
       const rows = tree.root.findAllByType(ListRow)
-      expect(rows).toHaveLength(11)
+      expect(rows).toHaveLength(12)
+      expect(rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.title)).toContain((locale === 'en' ? en : ptBR).shareCard.entry)
       const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow>; children: unknown[] }) => {
         let rowTree!: ReturnType<typeof TestRenderer.create>
         TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
@@ -1079,6 +1080,7 @@ describe('ProfileScreen', () => {
         .map((node: SettingsRowStubNode) => node.props.label),
     ).toEqual([
       'profile.settingsRows.wrapped',
+      'shareCard.entry',
       'profile.widgetTitle',
       'profile.calendarSync.title',
       'profile.support.rowTitle',
@@ -1112,14 +1114,14 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('keeps the share card off Perfil', async () => {
+  it('restores the share progress entry beside Wrapped', async () => {
     const tree = await renderProfileScreen()
     expect(
       tree.root.findAll(
         (node: SettingsRowStubNode) =>
           node.type === 'SettingsRowStub' && node.props.label === 'shareCard.entry',
       ),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
   })
 
   it('puts Sign out first in Ending things', async () => {

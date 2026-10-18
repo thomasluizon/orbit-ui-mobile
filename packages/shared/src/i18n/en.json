@@ -409,7 +409,7 @@
     },
     "today": "Today",
     "todayWithDate": "Today, {date}",
-    "goToToday": "Go to today",
+    "goToToday": "Back to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
@@ -675,6 +675,8 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "emojiSuggest": "Suggest an emoji",
+      "emojiSuggesting": "Finding an emoji…",
       "aiSuggest": "Suggest with AI",
       "aiSuggesting": "Thinking…",
       "aiSuggestApplied": "AI suggestion applied",
@@ -1079,7 +1081,7 @@
       "agenda": "Agenda"
     },
     "period": {
-      "goToCurrent": "{period}, go to today"
+      "goToCurrent": "{period}, back to today"
     },
     "range": {
       "label": "{start} to {end}",
@@ -1115,7 +1117,6 @@
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",
     "monthPicker": "Month and year",
-    "thisMonth": "This month",
     "legendTitle": "Legend",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
@@ -2131,6 +2132,11 @@
     }
   },
   "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
     "share": "Share",
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
@@ -2926,6 +2932,7 @@
       "unitTooLong": "Shorten the goal unit to 50 characters or fewer.",
       "habitLimit": "Link up to 20 habits to this goal.",
       "progressValueInvalid": "Enter a value of 0 or higher",
+      "progressNoteTooLong": "Shorten the note to 500 characters or fewer.",
       "type": "Goal type",
       "typeStandard": "Progress",
       "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",

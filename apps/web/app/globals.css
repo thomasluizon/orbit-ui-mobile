@@ -2201,6 +2201,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --primary-soft: var(--primary-text);
 }
 
+.orbit-today-date-return:active:not([aria-disabled="true"]) {
+  --fg-3: var(--fg-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-today-date-return:hover:not([aria-disabled="true"]) {
+    --fg-3: var(--fg-2);
+  }
+}
+
 .light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):active:not(:disabled) {
   --fg-3: var(--fg-2);
 }
@@ -2396,6 +2406,25 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .prose-orbit [data-copy-control] .orbit-pill-action:focus-visible {
   outline: 2px solid var(--fg-1);
   outline-offset: 2px;
+}
+
+.daily-streak-previous { opacity: 0; }
+@keyframes daily-streak-ring {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes daily-streak-previous {
+  from { opacity: 1; }
+  to { transform: translateY(-12px); opacity: 0; }
+}
+@keyframes daily-streak-number {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .daily-streak-ring { animation: daily-streak-ring var(--dur-3) var(--ease-out) both; }
+  .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
+  .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
 }
 
 @keyframes astra-pending-pulse {

@@ -1,5 +1,7 @@
 'use client'
 
+import { DailyStreakMoment } from './daily-streak-moment'
+
 import { useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useReducedMotion } from 'motion/react'
@@ -18,6 +20,7 @@ function getCelebrationCopy(
   pluralCount?: number
 } {
   switch (active.kind) {
+    case 'daily-streak':
     case 'streak':
       return {
         eyebrowKey: 'streak.eyebrow',
@@ -68,6 +71,7 @@ export function CelebrationPanel() {
   if (active.kind === 'streak' && !STREAK_MILESTONES.has(active.payload.streak)) return null
 
   const activeId = active.id
+  if (active.kind === 'daily-streak') return <DailyStreakMoment key={active.id} id={active.id} streak={active.payload.streak} reducedMotion={reducedMotion} onDismiss={dismiss} closeRef={closeButtonRef} />
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
   const translatedLine = t(lineKey, values)
   const line = pluralCount === undefined
