@@ -7,7 +7,7 @@ import {
 import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
-import { motionDurations, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { motionDurations, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Button } from '@/components/ui/pill-button'
 import { X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -75,7 +75,7 @@ export function DailyStreakMoment({ streak, reducedMotion, onDismiss, id }: {
 }
 
 const styles = StyleSheet.create({
-  panel: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 },
+  panel: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 12, padding: SPACING.s16 },
   announcement: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', fontFamily: 'Geist_400Regular', fontSize: 14 },
   ring: { height: 44, width: 44 },
   copy: { flex: 1, minWidth: 0 },

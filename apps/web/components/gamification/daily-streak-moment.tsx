@@ -41,7 +41,7 @@ export function DailyStreakMoment({ streak, reducedMotion, onDismiss, closeRef, 
       onPointerLeave={() => setHovered(false)}
       data-daily-streak-moment=""
       data-motion={reducedMotion ? 'static' : 'animated'}
-      className="flex items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] border border-transparent p-[16px] shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]"
+      className="flex items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] border border-transparent p-4 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]"
     >
       <span role="status" className="sr-only">{announcement}</span>
       <svg aria-hidden="true" className="size-[44px] shrink-0" viewBox="0 0 44 44">
