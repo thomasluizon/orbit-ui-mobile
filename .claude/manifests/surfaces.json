@@ -1007,6 +1007,70 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+        "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-profile-preferences",
       "platform": "web",
       "kind": "route",
@@ -1702,9 +1766,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1722,9 +1784,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1742,9 +1802,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1762,9 +1820,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/share/share-card.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/hooks/use-wrapped.ts"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3929,6 +3985,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3955,6 +4012,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3981,6 +4039,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4007,6 +4066,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4033,6 +4093,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4059,6 +4120,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4085,6 +4147,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -4111,6 +4174,7 @@
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -5109,6 +5173,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6883,6 +6999,110 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-share-card-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -7963,6 +8183,74 @@
         "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-tabs-profile",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/(tabs)/profile.tsx",
+      "href": "/profile",
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -9491,12 +9779,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9511,12 +9797,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9531,12 +9815,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9551,12 +9833,10 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
-        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
-        "apps/mobile/components/wrapped/wrapped-slide.tsx",
-        "apps/mobile/hooks/use-wrapped.ts"
+        "apps/mobile/components/wrapped/wrapped-slide.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -10653,6 +10933,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-pending-reply",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/pending-reply.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/pending-reply.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11765,6 +12101,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -14011,6 +14399,110 @@
         "apps/mobile/hooks/use-review-reminder.ts"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/share/share-card-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -14949,10 +15441,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15006,10 +15501,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15063,10 +15561,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",
@@ -15120,10 +15621,13 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_compact.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout_narrow.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_remainder.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values-pt-rBR/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_dimens.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_strings.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/xml/orbit_widget_info.xml",
         "apps/mobile/modules/orbit-widget/android/src/test/java/org/useorbit/app/widget/OrbitWidgetDayStateTest.kt",

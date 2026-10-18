@@ -101,7 +101,8 @@ export async function proxy(request: NextRequest) {
     siteUrl &&
     siteUrl.hostname !== 'localhost' &&
     requestHost &&
-    requestHost.toLowerCase() !== siteUrl.host
+    requestHost.toLowerCase() !== siteUrl.host &&
+    request.headers.get('x-forwarded-host')?.toLowerCase() !== siteUrl.host
   ) {
     const redirectUrl = new URL(siteUrl.origin)
     redirectUrl.pathname = pathname
@@ -135,9 +136,8 @@ export async function proxy(request: NextRequest) {
 
   if (!session.token && !isPublic) {
     const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
-    url.search = request.nextUrl.search
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
-      url.searchParams.set('returnUrl', pathname)
+      url.searchParams.set('returnUrl', pathname + request.nextUrl.search)
     }
     return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }

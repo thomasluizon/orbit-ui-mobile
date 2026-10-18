@@ -32,8 +32,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
     <span>{t(chatTraceLabelKey(step.domain, step.access))}</span>
     {running && index === steps.length - 1 ? <WorkingMark /> : null}
   </div>)
-  if (running) return <div className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
-  return <div className="py-2">
+  if (running) return <div data-thinking-trace="running" className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
+  return <div data-thinking-trace="completed" className="py-2">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-[var(--touch-min)] items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
       {t('chat.trace.steps', { count: steps.length })}
       <ChevronDown aria-hidden="true" size={16} strokeWidth={1.5} className={expanded ? 'rotate-180' : undefined} />
@@ -134,6 +134,16 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     return trackOperation(operation)
   }, [chatContainerRef, trackOperation, threadScroll])
 
+  const [pendingVisible, setPendingVisible] = useState(true)
+  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit
+  const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0
+  const [announcingWork, setAnnouncingWork] = useState(false)
+  useEffect(() => {
+    let mounted = true
+    void Promise.resolve().then(() => { if (mounted) setAnnouncingWork(replyWorking) })
+    return () => { mounted = false }
+  }, [replyWorking])
+
   const senderIdPrefix = useId()
   const announcedMessageIds = useRef(new Set<string>())
   const claimAnnouncement = useCallback((messageId: string) => {
@@ -213,13 +223,14 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           }
         />
       </div>
-      <span role="status" aria-live="polite" className="sr-only">{activeSteps.length > 0 ? t('chat.trace.working') : ''}</span>
+      <span role="status" aria-live="polite" className="sr-only">{announcingWork ? t('chat.trace.working') : ''}</span>
 
       <div
         ref={registerChatContainer}
         onScroll={(event) => {
           const feed = event.currentTarget
           threadScroll.recordScroll(feed.scrollTop, feed.scrollHeight - feed.clientHeight)
+          setPendingVisible(feed.scrollHeight - feed.clientHeight - feed.scrollTop < 40)
         }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ padding: 16 }}
@@ -237,13 +248,17 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-labelledby={`${senderIdPrefix}-${msg.id}`}
             aria-posinset={index + 1}
             aria-setsize={messages.length}
-            className="flex min-w-0 flex-col gap-[16px]"
+            className="flex min-w-0 flex-col gap-2"
           >
+          {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
+          </span> : null}
+          <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
-            animateEntry={!initialMessageIds.has(msg.id)}
+            animateEntry={msg.role === 'user' && !initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
@@ -255,9 +270,19 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           />
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+          </div>
           </article>
         ))}
-        {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+        {showPendingReply || activeSteps.length > 0 ? <div className="flex min-w-0 flex-col gap-2">
+          {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
+          </span> : null}
+          <div className="flex min-w-0 w-full flex-col gap-4">
+            {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
+              <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
+            </div> : <ThinkingTrace steps={activeSteps} running />}
+          </div>
+        </div> : null}
         </div>
 
       </div>

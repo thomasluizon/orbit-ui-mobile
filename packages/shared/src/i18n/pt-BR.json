@@ -409,7 +409,7 @@
     },
     "today": "Hoje",
     "todayWithDate": "Hoje, {date}",
-    "goToToday": "Ir para hoje",
+    "goToToday": "Voltar para hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
     "nextDay": "Próximo dia",
@@ -675,6 +675,8 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
+      "emojiSuggest": "Sugerir um emoji",
+      "emojiSuggesting": "Buscando um emoji…",
       "aiSuggest": "Sugerir com IA",
       "aiSuggesting": "Pensando…",
       "aiSuggestApplied": "Sugestão de IA aplicada",
@@ -1079,7 +1081,7 @@
       "agenda": "Agenda"
     },
     "period": {
-      "goToCurrent": "{period}, ir para hoje"
+      "goToCurrent": "{period}, voltar para hoje"
     },
     "range": {
       "label": "{start} a {end}",
@@ -1115,7 +1117,6 @@
     "googleCalendar": "Google Agenda",
     "options": "Opções do calendário",
     "monthPicker": "Mês e ano",
-    "thisMonth": "Este mês",
     "legendTitle": "Legenda",
     "title": "Google Agenda",
     "profileButton": "Google Agenda",
@@ -2131,6 +2132,11 @@
     }
   },
   "shareCard": {
+    "title": "Compartilhe seu progresso",
+    "entry": "Compartilhar progresso",
+    "loading": "Preparando seu card…",
+    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
+    "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "share": "Compartilhar",
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
@@ -2926,6 +2932,7 @@
       "unitTooLong": "Encurte a unidade da meta para até 50 caracteres.",
       "habitLimit": "Vincule até 20 hábitos a esta meta.",
       "progressValueInvalid": "Informe um valor igual ou maior que 0",
+      "progressNoteTooLong": "Encurte a nota para até 500 caracteres.",
       "type": "Tipo de meta",
       "typeStandard": "Progresso",
       "typeStandardDescription": "Acompanhe uma meta mensurável passo a passo. Atualize o progresso na mão ou vincule hábitos que contam para ela.",
@@ -3404,6 +3411,7 @@
     "expiresOn": "Expira em {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
     "expiresAtLabel": "Expira em (UTC, opcional)",
+    "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },
   "preferences": {

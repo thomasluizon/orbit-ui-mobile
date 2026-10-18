@@ -45,11 +45,16 @@ vi.mock('next/server', async () => {
   }
 })
 
-function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string; host?: string } = {}) {
+function createRequest(path: string, options: {
+  cookies?: Record<string, string>
+  method?: string
+  host?: string
+  headers?: Record<string, string>
+} = {}) {
   const url = new URL(path, 'http://localhost:3000')
   const request = new NextRequest(url, {
     method: options.method,
-    headers: options.host ? { host: options.host } : undefined,
+    headers: { ...options.headers, ...(options.host ? { host: options.host } : {}) },
   })
 
   if (options.cookies) {
@@ -67,7 +72,7 @@ describe('proxy', () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
-    vi.mocked(NextResponse.next).mockClear()
+    vi.mocked(NextResponse.next).mockReset()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
     vi.mocked(clearSessionCookies).mockReset()
@@ -309,6 +314,81 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['/login', 'GET', null],
+    ['/', 'GET', 'valid-token'],
+    ['/', 'POST', 'valid-token'],
+  ])('serves the Worker-forwarded %s application route with %s', async (path, method, token) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const actual = await vi.importActual<typeof import('next/server')>('next/server')
+    vi.mocked(NextResponse.next).mockImplementationOnce(actual.NextResponse.next)
+
+    const response = await proxy(createRequest(`https://0.0.0.0:10000${path}`, {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      method,
+      headers: {
+        'x-forwarded-host': 'app.useorbit.org',
+        'x-forwarded-proto': 'https',
+        origin: 'https://app.useorbit.org',
+      },
+    }))
+
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    const forwardedHeaders = vi.mocked(NextResponse.next).mock.calls[0]![0]?.request?.headers as Headers
+    expect(forwardedHeaders.get('x-forwarded-host')).toBe('app.useorbit.org')
+    expect(forwardedHeaders.get('x-forwarded-proto')).toBe('https')
+    expect(forwardedHeaders.get('origin')).toBe('https://app.useorbit.org')
+  })
+
+  it.each([
+    undefined,
+    'other.example.test',
+    'app.useorbit.org.other.example.test',
+    'app.useorbit.org:8443',
+    'app.useorbit.org, other.example.test',
+    'other.example.test, app.useorbit.org',
+  ])('redirects the service host when the forwarded host is %s', async (forwardedHost) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    await proxy(createRequest('https://0.0.0.0:10000/login?source=notification', {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      headers: forwardedHost === undefined ? {} : { 'x-forwarded-host': forwardedHost },
+    }))
+
+    expect(NextResponse.redirect).toHaveBeenCalledWith(
+      new URL('https://app.useorbit.org/login?source=notification'),
+      308,
+    )
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['/profile?source=notification', null, 'https://app.useorbit.org/login?returnUrl=%2Fprofile%3Fsource%3Dnotification'],
+    ['/login', 'valid-token', 'https://app.useorbit.org/'],
+  ])('uses the public origin for the Worker-forwarded %s session redirect', async (path, token, destination) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    await proxy(createRequest(`https://0.0.0.0:10000${path}`, {
+      host: 'orbit-web-staging-eakn.onrender.com',
+      headers: { 'x-forwarded-host': 'app.useorbit.org', 'x-forwarded-proto': 'https' },
+    }))
+
+    expect(NextResponse.redirect).toHaveBeenCalledWith(new URL(destination))
+  })
+
   it('passes through the public site host and the service health route', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')
 
@@ -396,8 +476,9 @@ describe('proxy', () => {
 
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('notificationUrl')).toBe('/profile')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([
+      ['returnUrl', '/?notificationUrl=%2Fprofile'],
+    ])
   })
 
   it('stops browsers from caching the push service worker script', async () => {
@@ -424,8 +505,9 @@ describe('proxy', () => {
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.origin).toBe('https://app.useorbit.org')
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/profile')
-    expect(redirectUrl.searchParams.get('source')).toBe('notification')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([
+      ['returnUrl', '/profile?source=notification'],
+    ])
   })
 
   it('restores a missing access cookie from a valid refresh-backed session', async () => {
@@ -517,8 +599,7 @@ describe('proxy', () => {
     await proxy(createRequest('/?astra=open'))
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('astra')).toBe('open')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+    expect([...redirectUrl.searchParams.entries()]).toEqual([['returnUrl', '/?astra=open']])
   })
 
   it('redirects authenticated users away from login', async () => {

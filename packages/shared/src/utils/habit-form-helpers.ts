@@ -209,6 +209,10 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   lockedGeneral?: boolean | null
   expandAdvancedSignal?: number
   onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+  onSuggestEmoji?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
+  emojiSuggestionLimitReached?: boolean
+  emojiSuggestionError?: string
+  isEmojiSuggesting?: boolean
   isSuggesting?: boolean
   readPhraseLocally?: boolean
   onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
@@ -241,6 +245,12 @@ export interface HabitRepeatIntervalProps {
 }
 
 export interface HabitUnderstandingProps {
+  onSuggestEmoji?: HabitFormCommonProps<unknown, unknown, unknown>['onSuggestEmoji']
+  canSuggestEmoji?: boolean
+  emojiSuggestionError?: string
+  isEmojiSuggesting?: boolean
+  emojiSuggestionHint?: string
+
   value: string
   error?: string
   emoji: string
@@ -813,4 +823,24 @@ export function validateHabitFormInput(
   if (subHabitError) return subHabitError
 
   return null
+}
+
+export function applyHabitEmojiSuggestion(
+  emoji: string | null,
+  currentEmoji: string | undefined,
+  onApply: (emoji: string) => void,
+): boolean {
+  if (!emoji || emoji === currentEmoji) return false
+  onApply(emoji)
+  return true
+}
+
+export function buildHabitEmojiSuggestionAvailability(
+  title: string,
+  atLimit: boolean,
+  labels: { titleRequired: string; limitReached: string },
+): { canSuggest: boolean; hint?: string } {
+  if (!title.trim()) return { canSuggest: false, hint: labels.titleRequired }
+  if (atLimit) return { canSuggest: false, hint: labels.limitReached }
+  return { canSuggest: true }
 }
