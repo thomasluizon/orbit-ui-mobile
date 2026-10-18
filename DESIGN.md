@@ -64,6 +64,18 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
+**Conversation participants:** the first message in each consecutive run of Astra messages starts
+with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
+separates the mark from the first content below it. Following messages have no mark or reserved
+avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the
+composer's leading content edge; blocks also fill its trailing edge. A running tool trace uses
+the same structure, showing the mark only when no Astra message precedes it in the run.
+Messages and blocks keep 16px gaps. The person's messages keep their right-aligned bubble with
+no avatar or reserved space. The pending reply uses the same mark row and 8px gap above its
+indicator, so the first reply replaces it at the same content edge. This participant structure
+supersedes the side-by-side avatar column amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` (#1408).
+
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
@@ -123,7 +135,9 @@ The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 **Astra pending reply:** sending immediately reserves one 24px line at the next assistant
-turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
+turn's start edge, after the thread's normal 16px gap. A new Astra run keeps its 24px mark
+on the row above with an 8px gap before the indicator; continuations reserve no mark row.
+Three neutral dots pulse in opacity
 for state indication, using the standard easing and four slow-duration units per cycle.
 Use the existing skeleton pulse count, then keep the dots static so automatic motion ends
 within five seconds.

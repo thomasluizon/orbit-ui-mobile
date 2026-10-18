@@ -66,6 +66,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
+| `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
