@@ -33,6 +33,24 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
 }
 
 describe('habit-request-builders', () => {
+  it('sends an empty checklist after removing every item in edit mode', () => {
+    const habit = createMockHabit({
+      checklistItems: [{ text: 'Pick a book', isChecked: false }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    expect(editor.formValues.checklistItems).toEqual(habit.checklistItems)
+
+    const request = buildUpdateHabitRequest(
+      { ...editor.formValues, checklistItems: [] },
+      editor.mode === 'oneTime',
+      editor.originalEndDate,
+      editor.reminderTimes,
+      editor.selectedGoalIds,
+    )
+
+    expect(request.checklistItems).toEqual([])
+  })
+
   it('clears removed timed offsets when saving selected untimed reminders', () => {
     const habit = createMockHabit({
       dueTime: '09:00',
@@ -314,6 +332,7 @@ describe('habit-request-builders', () => {
       reminderTimes: [],
       relativeReminders: [{ minutesBefore: 0 }],
       slipAlertEnabled: false,
+      checklistItems: [],
       goalIds: [],
     })
     expect(timedRequest).not.toHaveProperty('scheduledReminders')
@@ -340,6 +359,7 @@ describe('habit-request-builders', () => {
       scheduledReminders: [],
       relativeReminders: [],
       slipAlertEnabled: false,
+      checklistItems: [],
       goalIds: [],
     })
   })
@@ -370,6 +390,7 @@ describe('habit-request-builders', () => {
       scheduledReminders: [{ when: 'day_before', time: '21:00' }],
       relativeReminders: [],
       slipAlertEnabled: false,
+      checklistItems: [],
       goalIds: [],
     })
   })
