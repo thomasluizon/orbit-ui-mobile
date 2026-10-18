@@ -2035,6 +2035,25 @@
     }
   },
   "profile": {
+    "connections": {
+      "title": "Conexões",
+      "googleCalendar": "Google Agenda",
+      "notion": "Notion",
+      "connected": "Conectado",
+      "notConnected": "Não conectado",
+      "renew": "Reconexão necessária",
+      "connect": "Conectar",
+      "reconnect": "Reconectar",
+      "choosePages": "Escolher páginas",
+      "disconnect": "Desconectar",
+      "disconnectTitle": "Desconectar Notion?",
+      "description": "A Astra lê só as páginas que você escolher no Notion.",
+      "disconnectBody": "A Astra para de ler suas páginas e o Orbit apaga tudo o que guardou do Notion.",
+      "error": "A conexão não funcionou. Tente de novo.",
+      "offline": "Você está sem conexão. Conecte-se à internet para gerenciar o Notion.",
+      "lastSync": "Última sincronização: {time}",
+      "awaitingSync": "Aguardando a primeira sincronização."
+    },
     "submenus": {
       "accountLabel": "{name}, {email}, conta",
       "account": "Conta",
@@ -2406,7 +2425,7 @@
     "close": "Fechar política de privacidade",
     "title": "Política de privacidade",
     "headerTitle": "Privacidade",
-    "lastUpdated": "Última atualização: setembro de 2026",
+    "lastUpdated": "Última atualização: outubro de 2026",
     "intro": {
       "title": "Introdução",
       "body": "O Orbit é um aplicativo de acompanhamento de hábitos pessoais. Levamos sua privacidade a sério e temos o compromisso de proteger seus dados pessoais. Esta política explica quais dados guardamos, como os usamos e quais são os seus direitos previstos na LGPD (Lei Geral de Proteção de Dados) e em leis equivalentes de proteção de dados."
@@ -2430,6 +2449,7 @@
       "notifications": "Para enviar as notificações push e os lembretes de hábitos que você configurou"
     },
     "thirdParty": {
+      "notion": "Notion: acesso só de leitura aos títulos, às datas e ao status das páginas que você compartilha, para a Astra sugerir tarefas e hábitos. O Orbit guarda esses registros em seu banco de dados hospedado pela Render em Ohio, Estados Unidos. Desconectar apaga a conexão e todos os registros guardados do Notion.",
       "title": "Serviços de terceiros",
       "intro": "Usamos os seguintes serviços para operar o Orbit:",
       "google": "Google OAuth: para entrar diretamente com o Google",
@@ -2454,6 +2474,7 @@
       "body": "Todas as conexões com o Orbit usam criptografia HTTPS. A autenticação usa sessões de atualização rotativas. As informações de pagamento são tratadas inteiramente pela Stripe e nunca passam pelos nossos servidores."
     },
     "retention": {
+      "notion": "Notion: os registros das páginas compartilhadas e as credenciais criptografadas da conexão ficam guardados enquanto a conexão está ativa. Desconectar apaga tudo o que o Orbit guardou do Notion.",
       "title": "Por quanto tempo guardamos seus dados",
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
@@ -3168,6 +3189,13 @@
     "linkedHabits": "Hábitos vinculados",
     "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
+      "title": "Previsão",
+      "projectedCompletion": "Conclusão prevista",
+      "velocity": "Ritmo diário",
+      "daysToDeadline": "Dias até o prazo",
+      "noData": "Sem dados",
+      "dailyPace": "{value} {unit}/dia",
+      "weeklyAdherence": "Taxa semanal: {percent}%",
       "onTrack": "Em dia",
       "atRisk": "Em risco",
       "behind": "Atrasada",

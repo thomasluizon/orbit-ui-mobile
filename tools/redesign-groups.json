@@ -168,6 +168,7 @@
       "m-overlay-components-profile-preferences-content",
       "m-overlay-marketing-consent-marketing-consent-prompt",
       "m-overlay-profile-advanced-sections",
+      "m-overlay-profile-notion-connection-sheet",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
       "m-route-profile-account",
@@ -181,6 +182,7 @@
       "overlay-components-fresh-start-modal",
       "overlay-components-preference-picker-sheet",
       "overlay-marketing-consent-marketing-consent-prompt",
+      "overlay-profile-notion-connection-sheet",
       "overlay-profile-profile-api-keys",
       "route-delete-account",
       "route-profile",
@@ -250,8 +252,10 @@
       "overlay-ui-personal-text-details"
     ],
     "Orbit Verificacao": [
+      "m-route-auth-callback-notion",
       "m-route-auth-callback",
       "m-route-step-up",
+      "route-auth-callback-notion",
       "route-auth-callback",
       "route-step-up"
     ],
