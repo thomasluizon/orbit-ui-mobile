@@ -422,7 +422,8 @@ describe('ProfilePage', () => {
             overflow: row.scrollWidth > row.clientWidth,
           }
         }))
-        expect(rows).toHaveLength(11)
+        expect(rows).toHaveLength(12)
+        expect(rows.map(({ label }) => label)).toContain((locale === 'en' ? en : ptBR).shareCard.entry)
         for (const row of rows) {
           if (textScale === 1) {
             expect(row.lines, row.label!).toBe(1)
@@ -887,9 +888,10 @@ describe('ProfilePage', () => {
     expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
 
-  it('keeps the share card off Perfil', () => {
+  it('restores the share progress entry beside Wrapped', () => {
     render(<ProfilePage />)
-    expect(screen.queryByRole('button', { name: /shareCard\.entry/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /shareCard\.entry/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /profile\.settingsRows\.wrapped/i })).toHaveAttribute('href', '/wrapped')
   })
 
   it('puts Sign out first in Ending things', () => {
