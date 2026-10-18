@@ -74,7 +74,7 @@ describe('choice and pick list answers', () => {
     const { container, rerender } = render(choice(context))
     rerender(choice(context, false, true))
     expect(screen.getByText(words.closed).parentElement).toHaveFocus()
-    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(words.closed)
+    expect(container.querySelector('[aria-live="polite"]')).toBeNull()
   })
   it('keeps offline selection and gates choice at the message limit', () => {
     const context = interaction()
@@ -108,4 +108,46 @@ describe('choice and pick list answers', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: words.submit })) })
     expect(context.send).toHaveBeenCalledWith(expect.objectContaining({ answer: { blockId: choiceBlockFixture.blockId, selectedIds: [], freeText: 'Outro horário' } }))
   })
+})
+
+it.each(['single', 'multi', 'pickList'])('announces one acting reason outside the %s controls', async kind => {
+  let finish!: (value: { ok: true }) => void
+  const context = interaction({ send: vi.fn(() => new Promise<{ ok: true }>(resolve => { finish = resolve })) })
+  const { container } = render(kind === 'pickList'
+    ? <NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={pickListBlockFixture} interaction={context} /></NextIntlClientProvider>
+    : choice(context, kind === 'multi'))
+  fireEvent.click(screen.getAllByRole(kind === 'single' ? 'radio' : 'checkbox')[0]!)
+  fireEvent.click(screen.getByRole('button', { name: kind === 'pickList' ? words.review : words.submit }))
+  const status = container.querySelector('[aria-live="polite"]')!
+  expect(status.querySelector('[role="radio"], [role="checkbox"], button, input')).toBeNull()
+  expect(screen.getAllByText(kind === 'pickList' ? 'Preparando a prévia' : words.acting)).toHaveLength(1)
+  expect(status).toHaveTextContent(kind === 'pickList' ? 'Preparando a prévia' : words.acting)
+  await act(async () => { finish({ ok: true }) })
+  expect(container.querySelectorAll('[aria-live="polite"]')).toHaveLength(0)
+})
+
+it('keeps radio positions out of visible copy', () => {
+  render(choice())
+  expect(screen.queryByText('1 de 3')).not.toBeInTheDocument()
+})
+
+it.each(['offline', 'limit'])('shows the current %s reason after a failed answer', async reason => {
+  const context = interaction({ send: vi.fn(async () => ({ ok: false, status: 500 })) })
+  const { rerender } = render(choice(context))
+  fireEvent.click(screen.getAllByRole('radio')[0]!)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: words.submit })) })
+  expect(screen.getByRole('alert')).toHaveTextContent(words.error)
+  rerender(choice({ ...context, isOnline: reason !== 'offline', atMessageLimit: reason === 'limit' }))
+  expect(screen.getByRole('status')).toHaveTextContent(reason === 'offline' ? words.offline : 'Você usou suas 5 mensagens de hoje.')
+})
+
+it('opens the full pick-list habit name before selecting it', () => {
+  const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={pickListBlockFixture} interaction={interaction()} /></NextIntlClientProvider>)
+  const label = pickListBlockFixture.items[0]!.label
+  const disclosure = screen.getByRole('button', { name: label })
+  expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(disclosure)
+  expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('checkbox', { name: label })).toHaveAttribute('aria-checked', 'false')
+  expect(container.querySelector('[data-personal-text-expanded]')).not.toBeNull()
 })

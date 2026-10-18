@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { cloneElement, isValidElement, useContext, useState } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
@@ -61,6 +61,7 @@ export function Button({
   const [focused, setFocused] = useState(false)
 
   const textColorByVariant = buttonTextColors(tokens, quiet)
+  const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColorByVariant[variant])
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
@@ -119,7 +120,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : iconOnly ? children : leadingIcon}
+      ) : iconOnly ? children : leadingGlyph}
       {iconOnly ? null : (
         <Text
           numberOfLines={1}
@@ -162,3 +163,7 @@ const styles = StyleSheet.create({
 })
 
 export { Button as PillButton }
+
+function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
+  return isValidElement<{ color?: string }>(icon) ? cloneElement(icon, { color }) : icon
+}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AccessibilityInfo, StyleSheet } from 'react-native'
+import { AccessibilityInfo, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { controlContrast } from '@orbit/shared/__tests__/contrast'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
@@ -9,6 +9,7 @@ import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { ChoiceBlock } from '@/components/chat/choice-block'
 import { PickListBlock } from '@/components/chat/pick-list-block'
+import { ArrowUp } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
 import { i18n } from '@/lib/i18n'
@@ -25,6 +26,10 @@ function choice(context = interaction(), multiSelect = false, expired = false) {
 }
 function roles(role: string): ReactTestInstance[] {
   return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === role)
+}
+function rowTexts(control: ReactTestInstance): ReactTestInstance[] {
+  const row = tree.root.findAll(node => typeof node.type === 'string' && node.props['data-slot'] === 'list-row-body' && node.findAll(child => child === control).length > 0)[0]!
+  return row.findAll(node => String(node.type) === 'Text' && (StyleSheet.flatten(node.props.style as StyleProp<TextStyle>) as TextStyle | undefined)?.opacity !== 0)
 }
 async function mount(element: React.ReactElement) { await renderer.act(() => { tree = renderer.create(element) as typeof tree }) }
 async function press(node: ReactTestInstance) { await renderer.act(async () => { (node.props.onPress as () => void)(); await Promise.resolve() }) }
@@ -90,12 +95,12 @@ describe('Android choice and pick list answers', () => {
       expect(button().disabled).toBe(false)
     } else expect(content()).toContain(status === 409 ? words.alreadyAnswered : words.closed)
   })
-  it('closes when a later message exists and retains its polite region', async () => {
+  it('closes when a later message exists and announces through focus', async () => {
     const context = interaction()
     await mount(choice(context))
     await renderer.act(() => tree.update(choice(context, false, true)))
     expect(content()).toContain(words.closed)
-    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(0)
     expect(roles('radio')).toHaveLength(0)
   })
   it('keeps the offline selection and disables a choice at quota', async () => {
@@ -137,10 +142,65 @@ it('keeps proposed label and detail legible while pressed', async () => {
   await mount(<PickListBlock block={pickListBlockFixture} interaction={interaction()} />)
   await renderer.act(() => { (roles('checkbox')[0]!.props.onPressIn as () => void)() })
   const tokens = createTokensV2()
-  const texts = roles('checkbox')[0]!.findAll(node => String(node.type) === 'Text')
+  const texts = rowTexts(roles('checkbox')[0]!)
   expect(texts).toHaveLength(2)
   for (const text of texts) {
     const style = StyleSheet.flatten(text.props.style) as { color: string }
     expect(controlContrast(style.color, tokens.bgHover, [tokens.bg, tokens.bgCard]).graphic).toBeGreaterThanOrEqual(4.5)
   }
+})
+
+it.each(['single', 'multi', 'pickList'])('announces one acting reason outside Android %s controls', async kind => {
+  let finish!: (value: { ok: true }) => void
+  const context = interaction({ send: vi.fn(() => new Promise<{ ok: true }>(resolve => { finish = resolve })) })
+  await mount(kind === 'pickList' ? <PickListBlock block={pickListBlockFixture} interaction={context} /> : choice(context, kind === 'multi'))
+  await press(roles(kind === 'single' ? 'radio' : 'checkbox')[0]!)
+  await submit()
+  const live = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')
+  expect(live).toHaveLength(1)
+  expect(live[0]!.findAll(node => ['radio', 'checkbox', 'button'].includes(node.props.accessibilityRole as string))).toHaveLength(0)
+  expect(live[0]!.props.children).toBe(kind === 'pickList' ? 'Preparando a prévia' : words.acting)
+  await renderer.act(() => finish({ ok: true }))
+  expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(0)
+})
+
+it('keeps checked selection text distinct from completed habit text', async () => {
+  const { CheckRow } = await import('@/components/ui/check-row')
+  await mount(<><PickListBlock block={pickListBlockFixture} interaction={interaction()} /><CheckRow label="Completed habit" checked onChange={vi.fn()} /></>)
+  const color = (row: ReactTestInstance) => (StyleSheet.flatten(rowTexts(row)[0]!.props.style) as TextStyle).color
+  const tokens = createTokensV2()
+  expect(color(roles('checkbox')[0]!)).toBe(tokens.fg2)
+  await press(roles('checkbox')[0]!)
+  expect(color(roles('checkbox')[0]!)).toBe(tokens.fg1)
+  expect(color(roles('checkbox').at(-1)!)).toBe(tokens.fg3)
+})
+
+it.each([false, true])('keeps the action glyph on the control foreground, disabled %s', async disabled => {
+  const tokens = createTokensV2()
+  await mount(<Button variant="secondary" disabled={disabled} leadingIcon={<ArrowUp color={tokens.fg1} />}>{words.submit}</Button>)
+  const icon = tree.root.findAll(node => node.type === ArrowUp)[0]!
+  const label = tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === words.submit)[0]!
+  const foreground = (StyleSheet.flatten(label.props.style) as TextStyle).color
+  expect(icon.props.color).toBe(foreground)
+})
+
+it.each(['offline', 'limit'])('shows the current Android %s reason after failure', async reason => {
+  const context = interaction({ send: vi.fn(() => Promise.resolve({ ok: false, status: 500 })) })
+  await mount(choice(context))
+  await press(roles('radio')[0]!)
+  await submit()
+  expect(content()).toContain(words.error)
+  await renderer.act(() => tree.update(choice({ ...context, isOnline: reason !== 'offline', atMessageLimit: reason === 'limit' })))
+  expect(content()).toContain(reason === 'offline' ? words.offline : 'Você usou suas 5 mensagens de hoje.')
+  expect(roles('alert')).toHaveLength(0)
+})
+
+it('opens a full Android pick-list habit name before selecting it', async () => {
+  await mount(<PickListBlock block={pickListBlockFixture} interaction={interaction()} />)
+  const label = pickListBlockFixture.items[0]!.label
+  const disclosure = () => roles('button').find(row => row.props.accessibilityLabel === label)!
+  expect(disclosure()).toBeDefined()
+  await press(disclosure())
+  expect((disclosure().props.accessibilityState as { expanded: boolean }).expanded).toBe(true)
+  expect(state(roles('checkbox')[0]!).checked).toBe(false)
 })

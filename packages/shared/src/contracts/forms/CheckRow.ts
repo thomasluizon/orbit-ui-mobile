@@ -6,6 +6,7 @@ export type CheckRowProps = {
   onOpenLabel?: () => void
   labelExpanded?: boolean
   labelControls?: string
+  selection?: boolean
   checked: boolean
   proposed?: boolean
   wrapLabel?: boolean

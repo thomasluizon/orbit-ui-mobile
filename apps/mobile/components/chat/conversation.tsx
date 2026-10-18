@@ -206,7 +206,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
-        hasLaterMessage={item.id !== messages.at(-1)?.id}
+        laterMessages={messages.slice(index + 1)}
         blockAnswerInteraction={blockAnswerInteraction}
         animateEntry={item.role === 'user' && !initialMessageIds.has(item.id)}
         isStreaming={item.id === streamingMessageId}

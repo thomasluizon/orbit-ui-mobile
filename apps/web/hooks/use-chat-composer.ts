@@ -465,7 +465,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       draftMessageId = crypto.randomUUID()
       setStreamingMessageId(draftMessageId)
       setIsTyping(false)
-      addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date() })
+      addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date(), answerToBlockId: attempted.blockAnswer?.blockId })
       firstReveal.completion = new Promise<void>((resolve) => scrollToBottom(resolve))
       return draftMessageId
     }
@@ -616,7 +616,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       intendedAccountId: getHeldAccountId(),
         content, draftContent: '', image: null, preview: null,
         restoreDraftOnFailure: false, clearDraftOnSuccess: false, restoredDraftRevision: null,
-        onBlockAccepted: () => addMessage({ id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() }),
+        onBlockAccepted: () => addMessage({ answerToBlockId: request.answer.blockId, id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() }),
         messageCost: request.kind === 'pickList' ? 0 : 1,
         blockAnswer: request.answer, onBlockResult: result => { outcome.result = result },
       }, false)

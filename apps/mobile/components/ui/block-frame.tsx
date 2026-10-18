@@ -262,7 +262,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
-      <Text accessibilityLiveRegion="polite" style={[styles.staleMessage, { color: tokens.fg2 }]}>
+      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
       {props.state === 'loading' ? (
@@ -275,7 +275,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         <>
           {props.body}
           <ScrollView
-            accessibilityLiveRegion="polite"
+            accessibilityLiveRegion={props.items.length ? 'polite' : undefined}
             contentContainerStyle={styles.rows}
             style={styles.body}
             testID="block-frame-body"

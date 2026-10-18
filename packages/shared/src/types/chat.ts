@@ -324,8 +324,8 @@ export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
 const astraBlockOptionSchema = z.object({
   id: z.string().min(1),
-  label: z.string().min(1).max(40),
-  description: z.string().max(80).nullable().optional(),
+  label: z.string().min(1).max(20),
+  description: z.string().max(24).nullable().optional(),
 })
 
 export const choiceBlockSchema = z.object({
@@ -431,6 +431,7 @@ export const chatMessageSchema = z.object({
     editedItemIds: z.array(z.string()).optional(),
     operation: pendingAgentOperationSchema.optional(),
   })).optional(),
+  answerToBlockId: z.string().optional(),
   blockAnswers: z.record(z.string(), z.object({ text: z.string(), answered: z.boolean() })).optional(),
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),

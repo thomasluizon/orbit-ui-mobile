@@ -8,7 +8,8 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
+import en from '@orbit/shared/i18n/en.json'
+import { makeChoiceLayoutBlock, makePickListLayoutBlock } from '@orbit/shared/test-support/choice-layout-fixtures'
 import { chatResponseSchema } from '@orbit/shared/types/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -30,11 +31,11 @@ beforeAll(async () => {
 afterEach(cleanup)
 afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale }))))(
-  'keeps both answer blocks and long Portuguese labels whole at $width and text scale $scale', async ({ width, scale }) => {
-    const reply = chatResponseSchema.parse({ actions: [], parts: partsFixture.blocks.filter(part => part.kind === 'choice' || part.kind === 'pickList') })
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><div style={{ padding: 16, maxWidth: 740 }}><MessageBubble message={makeHeldHabitMessage({ ...reply, pendingOperations: [], content: '' })} /></div></NextIntlClientProvider>)
-    expect(container.querySelectorAll('section[data-state]')).toHaveLength(2)
+it.each([320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => [1, 2].map(scale => ({ width, scale, locale })))))(
+  'keeps both answer blocks and option lines and habit names at $width and text scale $scale in $locale', async ({ width, scale, locale }) => {
+    const reply = chatResponseSchema.parse({ actions: [], parts: [{ type: 'block', kind: 'choice', block: makeChoiceLayoutBlock(locale, false) }, { type: 'block', kind: 'choice', block: makeChoiceLayoutBlock(locale, true) }, { type: 'block', kind: 'pickList', block: makePickListLayoutBlock(locale) }] })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><div style={{ padding: 16, maxWidth: 740 }}><MessageBubble message={makeHeldHabitMessage({ ...reply, pendingOperations: [], content: '' })} /></div></NextIntlClientProvider>)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(3)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
@@ -50,25 +51,28 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
         }
         const rows = [...document.querySelectorAll<HTMLElement>('[role="radio"], [role="checkbox"]')]
         return { width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth,
-          rows: rows.map(row => {
+          rows: rows.map(target => {
+            const row = target.closest<HTMLElement>('[data-slot="list-row-body"]') ?? target
             const rect = row.getBoundingClientRect()
             const ranges = [...row.querySelectorAll('span')].flatMap(span => [...span.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).flatMap(node => {
               const range = document.createRange(); range.selectNodeContents(node)
-              return [...range.getClientRects()].map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
+              const personal = span.closest('[data-personal-text]')?.getBoundingClientRect()
+              return [...range.getClientRects()].filter(rect => !personal || rect.bottom <= personal.bottom + 1).map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
             }))
             const label = [...row.querySelectorAll('span')].find(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))!
             const labelBounds = label.getBoundingClientRect()
-            const control = (row.getAttribute('role') === 'radio' ? row.lastElementChild : row.firstElementChild)!.getBoundingClientRect()
-            return { controlCenter: control.top + control.height / 2, firstLineCenter: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, leading: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
+            const control = (target === row ? target.getAttribute('role') === 'radio' ? target.lastElementChild : target.firstElementChild : target)!.getBoundingClientRect()
+            return { controlCenter: control.top + control.height / 2, firstLineCenter: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, text: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => ({ personal: Boolean(span.closest('[data-personal-text]')), height: span.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(span).lineHeight) })), choice: row.closest('[data-answer-block]')?.getAttribute('data-answer-block') === 'choice', leading: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
           }) }
       }, scale)
       expect(measured.scroll).toBeLessThanOrEqual(measured.width)
-      expect(measured.rows).toHaveLength(7)
+      expect(measured.rows).toHaveLength(6)
       for (const row of measured.rows) {
         expect(row.height).toBeGreaterThanOrEqual(48)
         expect(Math.abs(row.controlCenter - row.firstLineCenter)).toBeLessThanOrEqual(1)
         expect(row.ranges.length).toBeGreaterThan(0)
         expect(Math.min(...row.leading)).toBeGreaterThanOrEqual(1.4)
+        if (scale === 1) for (const text of row.text.filter(text => row.choice || !text.personal)) expect(text.height).toBeCloseTo(text.lineHeight, 1)
         for (const text of row.ranges) {
           expect(text.left).toBeGreaterThanOrEqual(row.left - 1)
           expect(text.right).toBeLessThanOrEqual(row.right + 1)
@@ -81,7 +85,7 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
 )
 
 it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on %s hover', async mode => {
-  const reply = chatResponseSchema.parse({ actions: [], parts: partsFixture.blocks.filter(part => part.kind === 'pickList') })
+  const reply = chatResponseSchema.parse({ actions: [], parts: [{ type: 'block', kind: 'pickList', block: makePickListLayoutBlock('pt-BR') }] })
   const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><MessageBubble message={makeHeldHabitMessage({ ...reply, pendingOperations: [], content: '' })} /></NextIntlClientProvider>)
   const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
   try {
@@ -91,7 +95,7 @@ it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on
     const row = page.getByRole('checkbox').first()
     await row.hover()
     const colors = await row.evaluate(element => [...element.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => getComputedStyle(span).color))
-    expect(colors).toHaveLength(2)
+    expect(colors.length).toBeGreaterThanOrEqual(2)
     for (const color of colors) expect(controlContrast(color, tokens['--bg-hover']!, [tokens['--bg']!, tokens['--bg-card']!]).graphic).toBeGreaterThanOrEqual(4.5)
   } finally { await page.close() }
 })

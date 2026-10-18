@@ -32,3 +32,11 @@ describe('Astra block answers', () => {
     expect(blockAnswerSchema.safeParse({ blockId: choiceBlockFixture.blockId, selectedIds: [], freeText: 'x'.repeat(501) }).success).toBe(false)
   })
 })
+
+it('bounds choice copy to the measured compact row width', () => {
+  const option = { id: 'short', label: 'x'.repeat(20), description: 'x'.repeat(24) }
+  expect(choiceBlockSchema.safeParse({ ...choiceBlockFixture, options: [option, { ...option, id: 'other' }] }).success).toBe(true)
+  for (const invalid of [{ ...option, label: 'x'.repeat(21) }, { ...option, description: 'x'.repeat(25) }]) {
+    expect(choiceBlockSchema.safeParse({ ...choiceBlockFixture, options: [option, invalid] }).success).toBe(false)
+  }
+})

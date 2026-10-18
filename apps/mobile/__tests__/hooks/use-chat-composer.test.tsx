@@ -148,6 +148,7 @@ vi.mock('react-native-svg', () => ({
   Defs: () => null,
   Stop: () => null,
   Rect: () => null,
+  Circle: () => null,
 }))
 vi.mock('expo-status-bar', () => ({ StatusBar: () => null }))
 vi.mock('expo-router/react-navigation', () => ({}))
@@ -182,7 +183,12 @@ vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => n
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
-vi.mock('@/components/message-bubble', () => ({ MessageBubble: ({ message }: { message: ChatMessage }) => React.createElement('Text', null, message.content) }))
+vi.mock('@/components/message-bubble', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/components/message-bubble')>()
+  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
+    ? <actual.MessageBubble {...props} /> : React.createElement('Text', null, props.message.content) }
+})
+vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
 vi.mock('@/components/shell/composer', async (importOriginal) => {
@@ -729,6 +735,33 @@ describe('mobile useChatComposer', () => {
     expect(JSON.parse(contextCall[1] as string).partKinds).toEqual(expect.arrayContaining(['choice', 'pickList']))
     expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['Caminhar e Ler'])
     expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
+  })
+
+  it('retains selection and retries once after an Android answer turn and streamed reply fail', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    function Harness() { const chat = useChatComposer({ isOnline: true, offlineTitle: 'Offline' }); return <Conversation chat={chat} /> }
+    let thread!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { thread = TestRenderer.create(<Harness />); mountedTrees.push(thread) })
+    const radios = () => thread.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
+    const submit = () => thread.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!.props.onClick()
+    await TestRenderer.act(() => radios()[2]!.props.onPress())
+    await TestRenderer.act(async () => { submit(); await Promise.resolve() })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.some(message => message.role === 'user')).toBe(true))
+    await TestRenderer.act(() => {
+      stream.enqueue(frame('{"type":"delta","text":"Preparing"}'))
+      stream.enqueue(frame('{"type":"error","error":"Reply failed","status":500}'))
+      stream.close()
+    })
+    expect(visibleMessageTexts(thread)).toContain('chat.choice.error')
+    expect(radios()[2]!.props.accessibilityState.checked).toBe(true)
+    expect(visibleMessageTexts(thread)).not.toContain('chat.choice.closed')
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => { submit(); submit(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(visibleMessageTexts(thread).some(text => text.startsWith('chat.choice.answered'))).toBe(true)
   })
 
   it('keeps the answered summary after the thread remounts', async () => {

@@ -28,7 +28,7 @@ import { ChatBlock } from './block-registry'
 export function MessageBubble({
   message,
   blockAnswerInteraction,
-  hasLaterMessage,
+  laterMessages,
   senderLabelId,
   animateEntry,
   isStreaming = false,
@@ -83,7 +83,7 @@ export function MessageBubble({
 
         {parts.map((part, index) => {
           if (!part) return null
-          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />
+          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={laterMessages?.some(later => !('blockId' in part.block) || later.answerToBlockId !== part.block.blockId)} onActionChipClick={onActionChipClick} />
           const sourceText = stripChatDirectives(part.text, isStreaming)
           if (!isUser && !hasChatProse(sourceText) && !(index === 0 && message.imageUrl)) return null
           return <div

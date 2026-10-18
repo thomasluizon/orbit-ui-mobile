@@ -158,17 +158,17 @@
         "options": [
           {
             "id": "morning",
-            "label": "Caminhar pela manhã antes do trabalho",
-            "description": "Uma caminhada curta ao começar o dia."
+            "label": "Meditar 5 min ao",
+            "description": "Uma pausa curta logo ao"
           },
           {
             "id": "lunch",
-            "label": "Caminhar na pausa depois do almoço",
+            "label": "Ler antes de dormir,",
             "description": null
           },
           {
             "id": "evening",
-            "label": "Caminhar à noite depois do trabalho",
+            "label": "Caminhar no almoço",
             "description": null
           }
         ],
@@ -187,22 +187,22 @@
           {
             "id": "1",
             "label": "Caminhar por alguns minutos pela manhã",
-            "detail": "Uma sugestão para experimentar na sua rotina."
+            "detail": "Um passeio após o café."
           },
           {
             "id": "2",
             "label": "Beber água antes de começar o trabalho",
-            "detail": "Uma sugestão para experimentar na sua rotina."
+            "detail": "Deixe um copo na mesa."
           },
           {
             "id": "3",
             "label": "Ler algumas páginas durante a pausa",
-            "detail": "Uma sugestão para experimentar na sua rotina."
+            "detail": "Leia uma página à noite."
           },
           {
             "id": "4",
             "label": "Alongar o corpo antes de sair de casa",
-            "detail": "Uma sugestão para experimentar na sua rotina."
+            "detail": "Alongue depois do banho."
           }
         ],
         "action": "create_habits",

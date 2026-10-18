@@ -1223,9 +1223,10 @@
       "alreadyAnswered": "This question was already answered.",
       "invalid": "Check your selection and try again.",
       "error": "Could not send your answer. Try again.",
-      "offline": "You’re offline. Your selection is kept.",
-      "limit": "You’ve used your {allowance} messages for today.",
+      "offline": "You're offline. Your selection is kept.",
+      "limit": "You've used your {allowance} messages for today.",
       "acting": "Sending your answer",
+      "reviewing": "Preparing the preview",
       "proposed": "Suggested by Astra",
       "position": "{position} of {total}"
     },

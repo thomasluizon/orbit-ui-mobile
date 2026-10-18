@@ -62,7 +62,7 @@ function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
 export function MessageBubble({
   message,
   blockAnswerInteraction,
-  hasLaterMessage,
+  laterMessages,
   animateEntry,
   isStreaming = false,
   onBreakdownConfirmed,
@@ -119,7 +119,7 @@ export function MessageBubble({
       >
         {parts.map((part, index) => {
           if (!part) return null;
-          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={hasLaterMessage} onActionChipClick={onActionChipClick} />;
+          if (part.type === 'block') return <ChatBlock key={index} part={part} savedAnswers={message.blockAnswers} interaction={blockAnswerInteraction} expired={laterMessages?.some(later => !('blockId' in part.block) || later.answerToBlockId !== part.block.blockId)} onActionChipClick={onActionChipClick} />;
           return <MessageProse key={index} message={message}
             sourceText={isUser ? part.text : stripChatDirectives(part.text, isStreaming)}
             styles={styles} showImage={index === 0} />;

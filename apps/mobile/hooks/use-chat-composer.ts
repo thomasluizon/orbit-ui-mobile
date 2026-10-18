@@ -583,6 +583,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         setIsTyping(false);
         addMessage({
           id: draftMessageId,
+          answerToBlockId: attempted.blockAnswer?.blockId,
           role: "ai",
           content: "",
           timestamp: new Date(),
@@ -735,7 +736,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       await performSend({
         content, draftContent: '', image: null, preview: null,
         restoreDraftOnFailure: false, clearDraftOnSuccess: false, restoredDraftRevision: null,
-        onBlockAccepted: () => addMessage({ id: createChatMessageId(), role: 'user', content, timestamp: new Date() }),
+        onBlockAccepted: () => addMessage({ answerToBlockId: request.answer.blockId, id: createChatMessageId(), role: 'user', content, timestamp: new Date() }),
         messageCost: request.kind === 'pickList' ? 0 : 1,
         blockAnswer: request.answer, onBlockResult: result => { outcome.result = result },
       }, false)

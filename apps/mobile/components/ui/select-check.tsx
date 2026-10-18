@@ -43,7 +43,7 @@ export function RadioGlyph({
   )
 }
 
-export function RadioRow({ label, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { fontScale } = useWindowDimensions()
   const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
@@ -54,17 +54,18 @@ export function RadioRow({ label, wrapLabel, textMode, description, selected = f
     onSelect,
     selected,
   })
+  const labelColor = selection && !selected ? tokens.fg2 : tokens.fg1
   const content = (pressed = false) => {
     const secondaryColor = selected || pressed ? tokens.fg2 : tokens.fg3
     return (
       <>
         {leading ? <View style={styles.leading}>{leading}</View> : null}
         <View style={styles.textBlock}>
-          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: tokens.fg1 }, wrapLabel ? { lineHeight: 22.4 } : null]}>{label}</Text>}
+          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: labelColor }, wrapLabel ? { lineHeight: 22.4 } : null]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
-        {meta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
+        {meta && !hideMeta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
         {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
         <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: wrapLabel ? 22.4 * fontScale : undefined }}>
           <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />

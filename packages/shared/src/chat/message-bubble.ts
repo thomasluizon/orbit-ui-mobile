@@ -5,7 +5,7 @@ import type { BlockAnswerInteraction } from './block-answer'
 
 export interface MessageBubbleProps {
   blockAnswerInteraction?: BlockAnswerInteraction
-  hasLaterMessage?: boolean
+  laterMessages?: readonly ChatMessage[]
   animateEntry?: boolean
   isStreaming?: boolean
   message: ChatMessage

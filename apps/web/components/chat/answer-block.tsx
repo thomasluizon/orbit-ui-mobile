@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { blockAnswerErrorKey, blockAnswerOptions, hasBlockAnswer, formatBlockAnswer, type AnswerBlockProps } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -58,17 +58,32 @@ function AnswerOptions({ definition, answer, disabled }: Readonly<{
   const options = blockAnswerOptions(definition)
   const single = definition.kind === 'choice' && !definition.block.multiSelect
   return options.map((option, index) => single
-    ? <RadioRow wrapLabel key={option.id} label={option.label} description={option.description ?? undefined}
+    ? <RadioRow selection hideMeta wrapLabel key={option.id} label={option.label} description={option.description ?? undefined}
         meta={t('position', { position: index + 1, total: options.length })}
         selected={answer.selectedIds.includes(option.id)}
         onSelect={() => answer.setSelectedIds([option.id])}
-        {...(disabled ? { disabled: true as const, reason: t('acting') } : { disabled: false as const })} />
-    : <Proposed key={option.id} proposed={definition.kind === 'pickList' && !answer.selectedIds.includes(option.id)} scope="row" label={t('proposed')} inset keepMounted>
-        <CheckRow wrapLabel label={option.label} description={option.description ?? undefined}
-          proposed={definition.kind === 'pickList' && !answer.selectedIds.includes(option.id)}
-          checked={answer.selectedIds.includes(option.id)} disabled={disabled}
-          onChange={checked => answer.setSelectedIds(current => checked ? [...current, option.id] : current.filter(id => id !== option.id))} />
-      </Proposed>)
+        {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />
+    : <AnswerCheckRow key={option.id} definition={definition} option={option} answer={answer} disabled={disabled} proposedLabel={t('proposed')} />)
+
+}
+
+function AnswerCheckRow({ definition, option, answer, disabled, proposedLabel }: Readonly<{
+  definition: AnswerBlockProps['definition']
+  option: ReturnType<typeof blockAnswerOptions>[number]
+  answer: ReturnType<typeof useAnswer>
+  disabled: boolean
+  proposedLabel: string
+}>) {
+  const [expanded, setExpanded] = useState(false)
+  const contentId = useId()
+  const personal = definition.kind === 'pickList'
+  const checked = answer.selectedIds.includes(option.id)
+  return <Proposed proposed={personal && !checked} scope="row" label={proposedLabel} inset keepMounted>
+    <CheckRow selection wrapLabel textMode={personal ? 'personal' : undefined} label={option.label} description={option.description ?? undefined}
+      onOpenLabel={personal ? () => setExpanded(current => !current) : undefined} labelExpanded={personal ? expanded : undefined} labelControls={contentId}
+      proposed={personal && !checked} checked={checked} disabled={disabled}
+      onChange={selected => answer.setSelectedIds(current => selected ? [...current, option.id] : current.filter(id => id !== option.id))} />
+  </Proposed>
 }
 
 type AnswerContentProps = Readonly<{
@@ -89,19 +104,19 @@ function AnswerBody({ definition, answer, disabled }: AnswerContentProps) {
         }}><AnswerOptions definition={definition} answer={answer} disabled={disabled} /></RadioGroup> : <div role="group" aria-label={title}><AnswerOptions definition={definition} answer={answer} disabled={disabled} /></div>}
         {isChoice && definition.block.allowFreeText ? <Input label={t('freeText')} value={answer.freeText}
           onChange={answer.setFreeText} maxLength={500} disabled={disabled} onSubmit={() => void answer.submit()} /> : null}
-        {answer.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{answer.error}</p> : null}
       </div>
 }
 
 function AnswerSubmit({ definition, interaction, answer, disabled }: AnswerContentProps) {
   const t = useTranslations('chat.choice')
   const isChoice = definition.kind === 'choice'
-  const reason = interaction && !interaction.isOnline ? t('offline')
+  const reason = answer.acting ? t(isChoice ? 'acting' : 'reviewing') : interaction && !interaction.isOnline ? t('offline')
     : isChoice && interaction?.atMessageLimit ? t('limit', { allowance: interaction.allowance }) : undefined
-  return <div className="flex min-w-0 flex-col items-start gap-2">
+  const statusError = reason ? null : answer.error
+  return <div className="flex w-full min-w-0 flex-col items-end gap-2">
         <Button variant="ghost" size="sm" loading={answer.acting} disabled={disabled || !interaction || Boolean(reason) || !hasBlockAnswer(definition, answer.selectedIds, answer.freeText)}
           leadingIcon={<ArrowUp size={20} aria-hidden="true" />} onClick={() => void answer.submit()}>{t(isChoice ? 'submit' : 'review')}</Button>
-        {reason ? <p className="text-sm text-[var(--fg-3)]">{reason}</p> : null}
+        <p aria-live="polite" aria-atomic="true" role={statusError ? 'alert' : 'status'} className={statusError ? "text-sm text-[var(--status-bad-text)]" : "text-sm text-[var(--fg-3)]"}>{statusError ?? reason ?? ''}</p>
       </div>
 }
 
@@ -127,7 +142,7 @@ export function AnswerBlock(props: AnswerBlockProps) {
   const closed = settled?.text ?? (expired && !answer.acting ? t('closed') : null)
   const disabled = answer.acting || interaction?.isSending === true
 
-  return <div aria-live="polite" aria-atomic="true" className="min-w-0" data-answer-block={definition.kind}>
+  return <div className="min-w-0" data-answer-block={definition.kind}>
     {closed ? <TerminalAnswer text={closed} answered={settled?.answered === true} focus={focusWhenClosed} /> : <BlockFrame state={answer.acting ? 'acting' : 'resting'} title={title} wrapTitle items={[]}
       body={<AnswerBody definition={definition} answer={answer} disabled={disabled} />}
       actions={<AnswerSubmit definition={definition} interaction={interaction} answer={answer} disabled={disabled} />} />}

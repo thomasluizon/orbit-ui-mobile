@@ -12,6 +12,8 @@ type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type DisabledVariant = Extract<RadioRowProps, { disabled: true }>
 type EnabledVariant = Extract<RadioRowProps, { disabled?: false }>
 type ExpectedBase = {
+  selection?: boolean
+  hideMeta?: boolean
   label: string
   wrapLabel?: boolean
   textMode?: 'personal'
@@ -23,7 +25,7 @@ type ExpectedBase = {
   meta?: string
   tag?: string
 }
-type ExpectedDisabledVariant = ExpectedBase & { disabled: true; reason: string }
+type ExpectedDisabledVariant = ExpectedBase & ({ disabled: true; reason: string } | { disabled: true; reasonScope: 'group'; reason?: never })
 type ExpectedEnabledVariant = ExpectedBase & { disabled?: false; reason?: never }
 
 type Accepts<

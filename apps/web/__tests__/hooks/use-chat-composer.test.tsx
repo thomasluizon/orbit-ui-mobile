@@ -531,6 +531,32 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
   })
 
+  it('retains selection and retries once after an answer turn and streamed reply fail', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    function Harness() { const chat = useChatComposer(); return <AstraConversation chat={chat} /> }
+    render(<Harness />)
+    fireEvent.click(screen.getAllByRole('radio')[2]!)
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    await waitFor(() => expect(useChatStore.getState().messages.some(message => message.role === 'user')).toBe(true))
+    await act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Preparing"}'))
+      stream.enqueue(frame('{"type":"error","error":"Reply failed","status":500}'))
+      stream.close()
+    })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('error'))
+    expect(screen.getAllByRole('radio')[2]).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByText('closed')).not.toBeInTheDocument()
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => {
+      const submit = screen.getByRole('button', { name: 'submit' })
+      fireEvent.click(submit); fireEvent.click(submit)
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(screen.getByText(/chat.choice.answered/)).toBeInTheDocument()
+  })
+
   it('keeps the answered summary after the thread remounts', async () => {
     useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
     mocks.fetch.mockResolvedValue(sseResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Continue.', actions: [] } })}\n\n`))
