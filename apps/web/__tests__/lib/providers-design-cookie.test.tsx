@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
+import { installWebLocks } from '../helpers/web-locks'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), reload: vi.fn() }))
 vi.mock('@/lib/api-fetch', () => ({ sessionAwareFetch: mocks.fetch }))
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.clearAllMocks()
   mocks.fetch.mockReset()
+  installWebLocks()
   localStorage.clear()
   document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
   vi.stubGlobal('location', { href: '/', reload: mocks.reload })
@@ -43,6 +45,7 @@ afterEach(async () => {
   getQueryClient().clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  Reflect.deleteProperty(navigator, 'locks')
   document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
 })
 
@@ -65,6 +68,7 @@ describe('design routing through Providers and the account config query', () => 
     const { useAuthStore, queryClient } = await mount()
     signIn(useAuthStore)
     await act(async () => { await queryClient.refetchQueries() })
+    expect(mocks.fetch).toHaveBeenCalled()
     expect(document.cookie).not.toContain('orbit_design=')
     expect(mocks.reload).not.toHaveBeenCalled()
   })
@@ -76,6 +80,7 @@ describe('design routing through Providers and the account config query', () => 
     const { useAuthStore, queryClient } = await mount()
     signIn(useAuthStore)
     await act(async () => { await queryClient.refetchQueries() })
+    expect(mocks.fetch).toHaveBeenCalled()
     expect(cookieWrites).not.toHaveBeenCalled()
     expect(mocks.reload).not.toHaveBeenCalled()
   })
@@ -105,6 +110,7 @@ describe('design routing through Providers and the account config query', () => 
     respond(true)
     await act(async () => { await queryClient.refetchQueries() })
     unmount()
+    document.cookie = 'orbit_design=; Max-Age=0; Path=/; Secure; SameSite=Lax'
     render(<StrictMode><Providers><div>Remounted</div></Providers></StrictMode>)
     await act(async () => { await queryClient.refetchQueries() })
     expect(mocks.reload).toHaveBeenCalledOnce()
@@ -130,7 +136,25 @@ describe('design routing through Providers and the account config query', () => 
     const { useAuthStore, queryClient } = await mount()
     signIn(useAuthStore)
     await act(async () => { await queryClient.refetchQueries() })
+    expect(mocks.fetch).toHaveBeenCalled()
     expect(document.cookie).not.toContain('orbit_design=')
     expect(mocks.reload).not.toHaveBeenCalled()
+  })
+
+  it.each(['success', 'network failure'])('clears the cookie on sign-out after a BFF %s', async (outcome) => {
+    respond(true)
+    vi.stubGlobal('fetch', outcome === 'success'
+      ? vi.fn(async () => new Response(null, { status: 204 }))
+      : vi.fn(async () => { throw new TypeError('offline') }))
+    const { useAuthStore } = await mount()
+    signIn(useAuthStore)
+    await waitFor(() => expect(mocks.reload).toHaveBeenCalledOnce())
+
+    await act(async () => { await useAuthStore.getState().logout() })
+
+    expect(document.cookie).not.toContain('orbit_design=')
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    expect(mocks.reload).toHaveBeenCalledOnce()
+    expect(globalThis.location.href).toBe('/login')
   })
 })
