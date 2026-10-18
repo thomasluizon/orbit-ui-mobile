@@ -10,6 +10,7 @@ import { FlowShell } from '@/components/shell/flow-shell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
+import { ShareCardSheet } from '@/components/share/share-card-sheet'
 import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
 import { resolve } from 'node:path'
 import { createTokensV2, createSurfaces } from '@/lib/theme'
@@ -111,6 +112,8 @@ vi.mock('@/hooks/use-subscription-plans', async () => ({ ...(await import('@orbi
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: createSurfaces('orange', 'dark') }) }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: () => ({ recap: null, isLoading: true, isError: false }) }))
+vi.mock('@/hooks/use-share-card', () => ({ useShareCard: () => ({ shareRef: { current: null }, isSharing: false, hasError: false, canShareFiles: true }) }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
@@ -153,7 +156,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
 
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans'].map((surface) => ({ locale, width, surface })))))('fits the real $surface container in $locale at $width', async ({ locale, width, surface }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].map((surface) => ({ locale, width, surface })))))('fits the real $surface container in $locale at $width', async ({ locale, width, surface }) => {
   await i18n.changeLanguage(locale)
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   const tokens = createTokensV2('orange', 'dark')
@@ -166,6 +169,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens}
     viewSelector={<SegmentedControl fullWidth label={messages.calendar.view.switchLabel} value={choices[0].value} options={choices} onChange={vi.fn()} />} />
     : surface === 'goal' ? <CreateGoalSheet open onClose={vi.fn()} />
+    : surface === 'share' ? <ShareCardSheet onClose={vi.fn()} />
     : <PlanSelection plans={null} isLoading isError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly" checkoutLoading={null} checkoutError="" checkoutDisabled={false}
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
   let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
@@ -178,9 +182,9 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    expect(group.radios).toHaveLength(surface === 'calendar' ? choices.length : 2)
+    expect(group.radios).toHaveLength(surface === 'calendar' ? choices.length : surface === 'share' ? 3 : 2)
     expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
-    expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' ? 48 : 32))
+    expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)

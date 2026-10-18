@@ -1,5 +1,7 @@
 'use client'
 
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+
 import { useRouter } from 'next/navigation'
 import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import {
@@ -38,10 +40,10 @@ interface RowContext {
 }
 
 function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
-  const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
+  const navigationRows = PROFILE_NAV_ITEMS.flatMap((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     const href = redirectsToUpgrade ? '/upgrade' : item.route ?? undefined
-    return (
+    const navigationRow = (
       <ListRow
         key={item.id}
         textMode="label"
@@ -55,6 +57,7 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
         onClick={item.action === 'openWidget' ? openWidget : undefined}
       />
     )
+    return item.id === 'wrapped' ? [navigationRow, <ShareCardEntryButton key="share-progress" />] : [navigationRow]
   })
 
   return navigationRows

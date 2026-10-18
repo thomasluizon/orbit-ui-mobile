@@ -1,8 +1,7 @@
 # The canvas documents
 
-> **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens, with the native mobile rule, centred Hoje date pager, selectable BarChart columns and Perfil sub-menu amendments. Build from these. The eleven documents in
-> `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
+> **At a glance** - the granted canvas export and design tokens for every redesign surface.
+> Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
 ## The authority
 
