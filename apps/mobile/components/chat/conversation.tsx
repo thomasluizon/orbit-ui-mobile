@@ -86,6 +86,22 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
   return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
 }
 
+function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
+  hasDraft: boolean;
+  disabledReason: string | undefined;
+  onSelect: (id: string, label: string, prompt: string) => void;
+}>) {
+  const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = createTokensV2(currentScheme, currentTheme);
+  const pendingIdea = useChatStore(state => state.contextualSuggestion);
+  if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
+  return <View style={{ paddingHorizontal: 16 }}>
+    {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
+    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+  </View>;
+}
+
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -184,7 +200,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const returnFocusVersion = useRef(0);
   const browseHeaderRef = useRef<View>(null);
   const browseEmptyRef = useRef<View>(null);
-  const pendingIdea = useChatStore(state => state.contextualSuggestion);
   const disabledReason = promptDisabledReason(chat, t);
   const openLibrary = (trigger: { current: View | null }) => { returnFocusVersion.current++; Keyboard.dismiss(); libraryTrigger.current = trigger; setLibraryMounted(true); setLibraryOpen(true); };
   const returnToConversation = () => {
@@ -354,10 +369,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
-          {pendingIdea?.id.startsWith('prompt-library:') ? <View style={{ paddingHorizontal: 16 }}>
-            {composerProps.value ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
-            <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={!!composerProps.value || !!disabledReason} onClick={() => selectIdea(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
-          </View> : null}
+          <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
           <Composer
             inputSelection={inputSelection}
             {...composerProps}

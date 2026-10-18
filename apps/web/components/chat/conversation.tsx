@@ -85,6 +85,20 @@ function moveBetweenTurns(event: KeyboardEvent, feed: HTMLDivElement | null) {
   }
 }
 
+function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
+  hasDraft: boolean
+  disabledReason: string | undefined
+  onSelect: (id: string, label: string, prompt: string) => void
+}>) {
+  const t = useTranslations()
+  const pendingIdea = useChatStore(state => state.contextualSuggestion)
+  if (!pendingIdea?.id.startsWith('prompt-library:')) return null
+  return <div className="px-4">
+    {hasDraft ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
+    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+  </div>
+}
+
 export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
@@ -168,7 +182,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const returnFocusVersion = useRef(0)
   const browseHeaderRef = useRef<HTMLButtonElement>(null)
   const browseEmptyRef = useRef<HTMLButtonElement>(null)
-  const pendingIdea = useChatStore(state => state.contextualSuggestion)
   const disabledReason = promptDisabledReason(chat, t)
   const openLibrary = (trigger: { current: HTMLButtonElement | null }) => { returnFocusVersion.current++; libraryTrigger.current = trigger; setLibraryOpen(true) }
   const returnToConversation = useCallback(() => {
@@ -328,10 +341,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
       <div className="shrink-0">
         {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
-        {pendingIdea?.id.startsWith('prompt-library:') ? <div className="px-4">
-          {composerProps.value ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
-          <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={!!composerProps.value || !!disabledReason} onClick={() => selectIdea(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
-        </div> : null}
+        <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
         <Composer {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={composerProps.suggestions} />
       </div>
 
