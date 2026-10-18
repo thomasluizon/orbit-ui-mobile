@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nearestBarIndex, resolveBarChartGeometry, stepSelection } from '../contracts/display'
+import { resolveBarChartReadout, resolveBarChartSelection, resolveBarChartGeometry, stepSelection } from '../contracts/display'
 import { mapCompletionSeries } from '../utils/completion-series'
 
 describe('bar chart geometry', () => {
@@ -12,19 +12,21 @@ describe('bar chart geometry', () => {
     expect(bars.at(-1)!.x + bars.at(-1)!.width).toBeLessThanOrEqual(320)
   })
 
-  it('selects the bar owning any position in its slot', () => {
-    const bars = resolveBarChartGeometry([0, 25, 50, 75, 100], 320)
-    bars.forEach((bar, index) => {
-      expect(nearestBarIndex(bar.slotStart, bars)).toBe(index)
-      expect(nearestBarIndex(bar.slotEnd - 0.01, bars)).toBe(index)
-    })
+  it.each([320, 412])('keeps first and last readouts within %i pixels', (width) => {
+    for (const readoutWidth of [120, 240, width]) {
+      for (const index of [0, 29]) {
+        const left = resolveBarChartReadout(width, readoutWidth, index, 30)
+        expect(left).toBeGreaterThanOrEqual(0)
+        expect(left + readoutWidth).toBeLessThanOrEqual(width)
+      }
+    }
   })
 
   it('uses a four pixel stub for empty and zero days', () => {
     const bars = resolveBarChartGeometry([null, 0, 100], 320)
     expect(bars.map((bar) => bar.height)).toEqual([4, 4, 96])
     expect(stepSelection(1, 3, 'right')).toBe(2)
-    expect(stepSelection(2, 3, 'right')).toBe(2)
+    expect(stepSelection(2, 3, 'right')).toBe(0)
     expect(stepSelection(2, 3, 'home')).toBe(0)
   })
 })
@@ -37,6 +39,10 @@ describe('completion series', () => {
     ] }
     const points = mapCompletionSeries(series, 'pt-BR')
     expect(points[0]!.dateLabel).toContain('set')
+    expect(points[0]!.readoutDateLabel).toContain('ter.')
+    expect(resolveBarChartSelection(points, null, new Date(2026, 8, 1))).toBe(0)
+    expect(resolveBarChartSelection(points, null, new Date(2026, 8, 3))).toBe(1)
+    expect(resolveBarChartSelection(points, points[0]!.startDate, new Date(2026, 8, 2))).toBe(0)
     expect(points[1]!.rate).toBeNull()
   })
 
@@ -47,5 +53,8 @@ describe('completion series', () => {
     const [point] = mapCompletionSeries(series, 'pt-BR')
     expect(point?.dateLabel).toContain('28 de set')
     expect(point?.dateLabel).toContain('30 de set')
+    expect(point?.readoutDateLabel).toContain('seg.')
+    expect(point?.readoutDateLabel).toContain('qua.')
+    expect(resolveBarChartSelection([point!], null, new Date(2026, 8, 29))).toBe(0)
   })
 })
