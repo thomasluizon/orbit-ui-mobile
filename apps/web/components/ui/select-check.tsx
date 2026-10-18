@@ -41,20 +41,23 @@ function RadioRowContent({ label, wrapLabel, textMode, description, selected = f
     <>
       {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
-        {textMode === 'personal' ? <PersonalText id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: wrapLabel ? 1.4 : 1.3, overflowWrap: wrapLabel ? 'anywhere' : undefined }}>{label}</span>}
+        {textMode === 'personal' ? <PersonalText id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', ...radioLabelStyle(wrapLabel) }}>{label}</span>}
         {description ? <span className="orbit-radio-row-secondary" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
         {disabled && reason ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
       </span>
       {meta ? <span className="orbit-radio-row-secondary shrink-0" style={{ color: secondaryColor, fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
       {tag ? <span className="orbit-radio-row-secondary shrink-0 uppercase" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
-      <RadioGlyph selected={selected} size={24} />
+      <span aria-hidden="true" className="flex shrink-0 items-center" style={{ minHeight: wrapLabel ? 'calc(var(--fs-base) * 1.4)' : undefined }}>
+        <RadioGlyph selected={selected} size={24} />
+      </span>
     </>
   )
 }
 
-function radioRowStyle(depth: number, selected: boolean, disabled: boolean) {
+function radioRowStyle(depth: number, selected: boolean, disabled: boolean, wrapLabel: boolean | undefined) {
   return {
     gap: 12,
+    alignItems: wrapLabel ? 'flex-start' : undefined,
     minHeight: 52,
     paddingBlock: 8,
     paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
@@ -71,7 +74,7 @@ export function RadioRow({ label, wrapLabel, textMode, description, selected = f
   const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
   const content = <RadioRowContent label={label} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} />
-  const style = radioRowStyle(depth, selected, disabled)
+  const style = radioRowStyle(depth, selected, disabled, wrapLabel)
   const accessibilityLabel = textMode === 'personal'
     ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
     : undefined
@@ -118,4 +121,12 @@ function DisabledRadioRow({ label, textMode, accessibilityLabel, contentId, sele
     </div>
     <button type="button" aria-label={label} aria-expanded={disclosed} aria-controls={contentId} onClick={onToggle} className="orbit-hover-text flex min-h-12 min-w-12 items-center justify-center rounded-[12px] p-2 hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><ChevronDown aria-hidden="true" size={20} strokeWidth={2} className={disclosed ? 'rotate-180' : undefined} /></button>
   </div>
+}
+
+function radioLabelStyle(wrapLabel: boolean | undefined) {
+  return {
+    fontSize: wrapLabel ? 'var(--fs-base)' : 16,
+    lineHeight: wrapLabel ? 1.4 : 1.3,
+    overflowWrap: wrapLabel ? 'anywhere' as const : undefined,
+  }
 }

@@ -17,6 +17,7 @@ export function CheckRow({
   labelExpanded,
   checked,
   proposed = false,
+  wrapLabel = false,
   onChange,
   description,
   error,
@@ -26,6 +27,7 @@ export function CheckRow({
 }: Readonly<CheckRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { fontScale } = useWindowDimensions()
   const [pressed, setPressed] = useState(false)
   const colors = checkRowTextColors(tokens, proposed, checked, pressed, Boolean(error))
 
@@ -49,17 +51,20 @@ export function CheckRow({
       data-error={error ? '' : undefined}
       style={({ pressed }) => [
         styles.row,
-        { minHeight: error || description ? 68 : 52 },
+        { minHeight: error || description ? 68 : 52, alignItems: wrapLabel ? 'flex-start' : 'center' },
         pressed ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
       ]}
     >
-      <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      <View data-slot="check-row-control" style={{ justifyContent: 'center', minHeight: wrapLabel ? 22.4 * fontScale : undefined }}>
+        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      </View>
       <View style={styles.copy}>
         <Text
           style={[
             styles.label,
             { color: colors.label },
+            wrapLabel ? { lineHeight: 22.4 } : null,
           ]}
         >
           {label}
@@ -175,7 +180,7 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
 
 function checkRowTextColors(tokens: ReturnType<typeof createTokensV2>, proposed: boolean, checked: boolean, pressed: boolean, error: boolean) {
   return {
-    label: proposed ? tokens.fg3 : checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1,
-    description: error ? tokens.statusBadText : proposed ? tokens.fg3 : tokens.fg2,
+    label: proposed ? (pressed ? tokens.fg2 : tokens.fg3) : checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1,
+    description: error ? tokens.statusBadText : proposed && !pressed ? tokens.fg3 : tokens.fg2,
   }
 }

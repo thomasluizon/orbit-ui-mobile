@@ -1,6 +1,8 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { controlContrast } from '@orbit/shared/__tests__/contrast'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { choiceBlockFixture, pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
@@ -129,4 +131,16 @@ describe('Android choice and pick list answers', () => {
     await submit()
     expect(context.send).toHaveBeenCalledWith(expect.objectContaining({ answer: { blockId: choiceBlockFixture.blockId, selectedIds: [], freeText: 'Outro horário' } }))
   })
+})
+
+it('keeps proposed label and detail legible while pressed', async () => {
+  await mount(<PickListBlock block={pickListBlockFixture} interaction={interaction()} />)
+  await renderer.act(() => { (roles('checkbox')[0]!.props.onPressIn as () => void)() })
+  const tokens = createTokensV2()
+  const texts = roles('checkbox')[0]!.findAll(node => String(node.type) === 'Text')
+  expect(texts).toHaveLength(2)
+  for (const text of texts) {
+    const style = StyleSheet.flatten(text.props.style) as { color: string }
+    expect(controlContrast(style.color, tokens.bgHover, [tokens.bg, tokens.bgCard]).graphic).toBeGreaterThanOrEqual(4.5)
+  }
 })

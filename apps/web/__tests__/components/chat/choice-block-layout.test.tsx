@@ -1,3 +1,5 @@
+import { controlContrast } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -40,6 +42,8 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
       const measured = await page.evaluate(scale => {
         const textElements = [...document.querySelectorAll<HTMLElement>('[data-answer-block] *')].filter(element => [...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
         const textSizes = textElements.map(element => ({ element, size: parseFloat(getComputedStyle(element).fontSize), height: parseFloat(getComputedStyle(element).lineHeight) }))
+        document.documentElement.style.fontSize = `${16 * scale}px`
+        document.documentElement.style.setProperty('--fs-base', `${16 * scale}px`)
         for (const { element, size, height } of textSizes) {
           element.style.fontSize = `${size * scale}px`
           element.style.lineHeight = `${height * scale}px`
@@ -52,13 +56,17 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
               const range = document.createRange(); range.selectNodeContents(node)
               return [...range.getClientRects()].map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }))
             }))
-            return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, leading: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
+            const label = [...row.querySelectorAll('span')].find(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))!
+            const labelBounds = label.getBoundingClientRect()
+            const control = (row.getAttribute('role') === 'radio' ? row.lastElementChild : row.firstElementChild)!.getBoundingClientRect()
+            return { controlCenter: control.top + control.height / 2, firstLineCenter: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, ranges, leading: [...row.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => parseFloat(getComputedStyle(span).lineHeight) / parseFloat(getComputedStyle(span).fontSize)) }
           }) }
       }, scale)
       expect(measured.scroll).toBeLessThanOrEqual(measured.width)
       expect(measured.rows).toHaveLength(7)
       for (const row of measured.rows) {
         expect(row.height).toBeGreaterThanOrEqual(48)
+        expect(Math.abs(row.controlCenter - row.firstLineCenter)).toBeLessThanOrEqual(1)
         expect(row.ranges.length).toBeGreaterThan(0)
         expect(Math.min(...row.leading)).toBeGreaterThanOrEqual(1.4)
         for (const text of row.ranges) {
@@ -71,3 +79,19 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
     } finally { await page.close() }
   },
 )
+
+it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on %s hover', async mode => {
+  const reply = chatResponseSchema.parse({ actions: [], parts: partsFixture.blocks.filter(part => part.kind === 'pickList') })
+  const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}><MessageBubble message={makeHeldHabitMessage({ ...reply, pendingOperations: [], content: '' })} /></NextIntlClientProvider>)
+  const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+  try {
+    const tokens = resolveWebThemeVariables('orange', mode)
+    const variables = Object.entries(tokens).map(([key, value]) => `${key}:${value}`).join(';')
+    await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+    const row = page.getByRole('checkbox').first()
+    await row.hover()
+    const colors = await row.evaluate(element => [...element.querySelectorAll('span')].filter(span => [...span.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map(span => getComputedStyle(span).color))
+    expect(colors).toHaveLength(2)
+    for (const color of colors) expect(controlContrast(color, tokens['--bg-hover']!, [tokens['--bg']!, tokens['--bg-card']!]).graphic).toBeGreaterThanOrEqual(4.5)
+  } finally { await page.close() }
+})

@@ -67,7 +67,7 @@ function AnswerOptions({ definition, answer, disabled }: Readonly<{
         onSelect={() => answer.setSelectedIds([option.id])}
         {...(disabled ? { disabled: true as const, reason: t('acting') } : { disabled: false as const })} />
     : <Proposed key={option.id} proposed={definition.kind === 'pickList' && !answer.selectedIds.includes(option.id)} scope="row" label={t('proposed')} inset keepMounted>
-        <CheckRow label={option.label} description={option.description ?? undefined}
+        <CheckRow wrapLabel label={option.label} description={option.description ?? undefined}
           proposed={definition.kind === 'pickList' && !answer.selectedIds.includes(option.id)}
           checked={answer.selectedIds.includes(option.id)} disabled={disabled}
           onChange={checked => answer.setSelectedIds(current => checked ? [...current, option.id] : current.filter(id => id !== option.id))} />

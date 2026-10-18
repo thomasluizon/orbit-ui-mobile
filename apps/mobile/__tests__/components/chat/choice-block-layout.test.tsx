@@ -41,9 +41,13 @@ it.each([320, 412, 1352].flatMap(width => [1, 2].map(scale => ({ width, scale })
       expect(frames).toHaveLength(2)
       expect(frames.every(box => box.width <= width - 32)).toBe(true)
       const labels = partsFixture.blocks.filter(part => part.kind === 'choice' || part.kind === 'pickList').flatMap(part => part.block.options?.map(option => option.label) ?? part.block.items?.map(item => item.label) ?? [])
-      for (const label of labels) {
+      const rowControls = layout.parts.filter(part => part.slot === 'radio-row-control' || part.slot === 'check-row-control')
+      expect(rowControls).toHaveLength(7)
+      for (const [index, label] of labels.entries()) {
         const text = layout.texts.find(text => text.label === label)
         expect(text, label).toBeDefined()
+        const control = rowControls[index]!
+        expect(Math.abs(control.top + control.height / 2 - text!.top - text!.height / text!.lines / 2)).toBeLessThanOrEqual(1)
         expect(text!.clipped).toBe(false)
         expect(text!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
         expect(text!.left).toBeGreaterThanOrEqual(0)

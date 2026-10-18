@@ -3,7 +3,7 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -44,6 +44,7 @@ export function RadioGlyph({
 }
 
 export function RadioRow({ label, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+  const { fontScale } = useWindowDimensions()
   const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -65,13 +66,16 @@ export function RadioRow({ label, wrapLabel, textMode, description, selected = f
         </View>
         {meta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
         {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
-        <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+        <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: wrapLabel ? 22.4 * fontScale : undefined }}>
+          <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+        </View>
       </>
     )
   }
   const rowStyle = [
     styles.row,
     {
+      alignItems: wrapLabel ? 'flex-start' as const : 'center' as const,
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: 'transparent',

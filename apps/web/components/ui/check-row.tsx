@@ -17,6 +17,7 @@ export function CheckRow({
   labelControls,
   checked,
   proposed = false,
+  wrapLabel = false,
   onChange,
   description,
   error,
@@ -24,12 +25,13 @@ export function CheckRow({
   disabled = false,
   loading = false,
 }: Readonly<CheckRowProps>) {
+  const wrapStyles = checkRowWrapStyles(wrapLabel)
   if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} labelControls={labelControls} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} />
   return (
     <button
       data-slot="list-row-body"
-      style={{ minHeight: error || description ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}
+      style={{ ...wrapStyles.row, minHeight: error || description ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}
       type="button"
       role="checkbox"
       aria-checked={checked}
@@ -41,15 +43,18 @@ export function CheckRow({
       data-error={error ? '' : undefined}
       className="group/check-row orbit-hover-text flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
     >
-      <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      <span aria-hidden="true" className="flex shrink-0 items-center" style={wrapStyles.control}>
+        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      </span>
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span
-          className={`text-base font-medium ${proposed || checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}
+          style={wrapStyles.label}
+          className={`text-base font-medium ${proposed || checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)] group-active/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}
         >
           {label}
         </span>
         {error || description ? (
-          <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : proposed ? 'text-[var(--fg-3)]' : 'text-[var(--fg-2)]'}`}>
+          <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : proposed ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)] group-active/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-2)]'}`}>
             {error ?? description}
           </span>
         ) : null}
@@ -98,4 +103,12 @@ function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpande
       </button>
     </div>
   )
+}
+
+function checkRowWrapStyles(wrapLabel: boolean) {
+  return {
+    row: { alignItems: wrapLabel ? 'flex-start' as const : undefined },
+    control: { minHeight: wrapLabel ? 'calc(var(--fs-base) * 1.4)' : undefined },
+    label: { lineHeight: wrapLabel ? 1.4 : undefined },
+  }
 }
