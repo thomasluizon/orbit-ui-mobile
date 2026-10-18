@@ -2133,6 +2133,11 @@
     }
   },
   "shareCard": {
+    "title": "Compartilhe seu progresso",
+    "entry": "Compartilhar progresso",
+    "loading": "Preparando seu card…",
+    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
+    "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "share": "Compartilhar",
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
@@ -3399,6 +3404,7 @@
     "expiresOn": "Expira em {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
     "expiresAtLabel": "Expira em (UTC, opcional)",
+    "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },
   "preferences": {

@@ -1,4 +1,6 @@
 export { achievementEmoji } from './achievement-emoji'
+export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
+export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
 export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
@@ -630,6 +632,7 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
