@@ -133,20 +133,22 @@ function SidebarAccount({ account, accountEmail, collapsed }: Readonly<{ account
             aria-label={[account, accountEmail].filter(Boolean).join(', ')}
             title={collapsed ? [account, accountEmail].filter(Boolean).join(', ') : undefined}
             href="/profile"
-            className="orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className={`orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center ${collapsed ? 'justify-center' : ''} gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]`}
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
               {Array.from(account)[0]?.toLocaleUpperCase()}
             </span>
-            <span className={collapsed ? 'sr-only' : 'flex min-w-0 flex-1 flex-col gap-1'}>
-              <span className="min-h-[2lh]"><PersonalText data-shell-account-name="">{account}</PersonalText></span>
-              <span className="min-h-[1lh] text-[12px] font-normal text-[var(--fg-3)]">{accountEmail ? <PersonalText data-shell-account-email="">{accountEmail}</PersonalText> : null}</span>
+            <span className={collapsed ? 'sr-only' : 'flex min-w-0 flex-1 flex-col'}>
+              <PersonalText data-shell-account-name="">{account}</PersonalText>
+              {accountEmail ? <PersonalText data-shell-account-email="" className="text-[12px] font-normal text-[var(--fg-3)]">{accountEmail}</PersonalText> : null}
             </span>
           </Link></div>
         ) : (
-          <div data-shell-account="" data-loading="true" aria-hidden="true" className="flex min-h-[var(--touch-min)] flex-col gap-1 px-2 py-2 text-[14px]">
-            <span className="min-h-[2lh]" />
-            <span className="min-h-[1lh] text-[12px]" />
+          <div data-shell-account="" data-loading="true" aria-hidden="true" className="flex min-h-[var(--touch-min)] flex-col px-2 py-2 text-[14px]">
+            {collapsed ? null : <>
+              <span className="min-h-[1lh]" />
+              <span className="min-h-[1lh] text-[12px]" />
+            </>}
           </div>
         )}</>
 }
@@ -168,14 +170,46 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
         ) : null}</>
 }
 
-function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string; collapsed: boolean }>) {
+function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ collapsed: boolean; navigationId: string; notifications?: ReactNode }>) {
   const client = useIsClient()
   const t = useTranslations()
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
+  const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
+  const sidebarToggle = (
+    <button
+      key="toggle"
+      type="button"
+      data-shell-sidebar-toggle=""
+      aria-label={toggleLabel}
+      title={toggleLabel}
+      aria-expanded={!collapsed}
+      aria-controls={navigationId}
+      disabled={!client}
+      onClick={toggleSidebar}
+      className="orbit-hover-text flex min-h-[var(--touch-min)] w-12 shrink-0 touch-manipulation items-center justify-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40"
+    >
+      {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
+    </button>
+  )
+
+  return (
+        <div data-shell-brand-row="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'px-3'}`}>
+          <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
+          <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
+            {!collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+            {sidebarToggle}
+            {collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+          </div>
+        </div>
+  )
+}
+
+function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string; collapsed: boolean }>) {
+  const client = useIsClient()
   const collapsed = props.collapsed
   const navigationId = useId()
-  const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
   useEffect(() => { void useShellStore.persist.rehydrate() }, [])
+
   return (
     <aside
       data-shell-sidebar=""
@@ -187,46 +221,32 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
-      className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
+      className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
     >
       <div className="flex flex-col gap-6">
-        <div className="flex min-h-12 items-center justify-between">
-          <span className={collapsed ? 'sr-only' : undefined}><Lockup /></span>
-          {props.notifications}
+        <SidebarBrandRow collapsed={collapsed} navigationId={navigationId} notifications={props.notifications} />
+
+        <div className="flex flex-col gap-6 px-6">
+          <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
+
+          <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-1">
+            {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
+            {props.items.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                active={!props.layerOpen && item.id === props.activeId}
+                current={item.id === props.activeId}
+                collapsed={collapsed}
+                onSelect={props.onSelect}
+              />
+            ))}
+          </nav>
         </div>
-
-        <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
-
-        <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-1">
-          {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
-          {props.items.map((item) => (
-            <SidebarItem
-              key={item.id}
-              item={item}
-              active={!props.layerOpen && item.id === props.activeId}
-              current={item.id === props.activeId}
-              collapsed={collapsed}
-              onSelect={props.onSelect}
-            />
-          ))}
-        </nav>
       </div>
 
       <div className="flex-1 shrink-0 min-h-6" />
-      <div className="flex flex-col gap-6">
-        <button
-          type="button"
-          data-shell-sidebar-toggle=""
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          aria-expanded={!collapsed}
-          aria-controls={navigationId}
-          disabled={!client}
-          onClick={toggleSidebar}
-          className="orbit-hover-text flex min-h-[var(--touch-min)] w-full shrink-0 touch-manipulation items-center justify-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40"
-        >
-          {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
-        </button>
+      <div className="flex flex-col gap-6 px-6">
         {props.onCreate ? (
           <div className="flex flex-col gap-3">
             <div aria-live="polite" aria-atomic="true">{collapsed ? null : props.createRefusal}</div>

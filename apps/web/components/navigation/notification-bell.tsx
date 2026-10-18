@@ -24,9 +24,9 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const t = useTranslations()
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const corner = countPlacement === 'corner'
-  const layout = corner ? 'grid w-[48px] place-items-center' : 'inline-flex min-w-[48px] items-center justify-center gap-[4px] px-[8px] py-[4px]'
+  const layout = corner ? 'grid w-[48px] place-items-center rounded-[12px] text-[var(--fg-3)]' : 'inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-[8px] py-[4px]'
   const content = <>
-      <Bell size={24} strokeWidth={1.8} aria-hidden="true" />
+      <Bell size={corner ? 20 : 24} strokeWidth={1.8} aria-hidden="true" />
       {count > 0 ? <span aria-hidden="true" data-notification-count=""
         className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-xs tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
         style={{ borderRadius: 8, paddingInline: 4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
@@ -34,8 +34,8 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
       </span> : null}
   </>
   return onClick ? <button type="button" aria-label={label}
-    className={`transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] relative min-h-[48px] shrink-0 cursor-pointer rounded-full border-0 bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] ${layout}`}
+    className={`transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] relative min-h-[48px] shrink-0 cursor-pointer touch-manipulation border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] ${layout}`}
     onClick={onClick}>{content}</button>
     : <span role="img" aria-label={label}
-      className={`relative min-h-[48px] shrink-0 text-[var(--fg-2)] ${layout}`}>{content}</span>
+      className={`relative min-h-[48px] shrink-0 ${layout}`}>{content}</span>
 }
