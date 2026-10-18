@@ -122,6 +122,17 @@ replaces the visible title; the header heading keeps the accessible name `Astra`
 The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
+**Astra pending reply:** sending immediately reserves one 24px line at the next assistant
+turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
+for state indication, using the standard easing and four slow-duration units per cycle.
+Use the existing skeleton pulse count, then keep the dots static so automatic motion ends
+within five seconds.
+The dots remain visible and static under reduced motion; pause the pulse outside the feed
+viewport. Replace the line in the same render as the first reply text, tool step or block,
+without an assistant entrance translation or exit delay. Clear it on error, cancellation or
+the allowance notice. Keep the feed busy and announce work once through a stable polite
+region outside the feed, independently of the dots; completed prose retains its turn announcement.
+
 Every conversation entry, including the proactive line, the no-habits action and habit detail's
 own entry, opens this same layer. Closing it restores the underlying surface and its selection.
 
