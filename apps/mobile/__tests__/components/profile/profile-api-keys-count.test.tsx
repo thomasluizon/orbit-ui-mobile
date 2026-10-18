@@ -65,17 +65,32 @@ it.each([0, 1, 3])('shows the count before key step-up for %i active keys', (cou
     : `profile.apiKeys.activeCount:{"count":${count}}`)
 })
 
-it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+it.each([
+  ['', null],
+  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
+])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
+  mocks.create.mockClear()
+  mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
   const scoped = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.createScoped')!
   TestRenderer.act(() => scoped.props.onClick())
+  const expiryField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')!
+  TestRenderer.act(() => expiryField.props.onChange(expiry))
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.keyName')!.props.onChange('Personal key'))
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.apiKeys.scopeAction'])
   expectSmallSheetActions(tree.root)
   const createAction = () => tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
   expect(createAction().props.disabled).toBe(true)
   TestRenderer.act(() => tree.root.findAllByType(Input).find((input: { props: { label: string } }) => input.props.label === 'profile.apiKeys.scopeLabel')!.props.onChange('habits:read'))
   expect(createAction().props.disabled).toBe(false)
+  expect(expiryField.props.value).toBe(expiry)
+  await TestRenderer.act(async () => { createAction().props.onClick(); await Promise.resolve() })
+  expect(mocks.create).toHaveBeenCalledExactlyOnceWith({
+    name: 'Personal key', scopes: ['habits:read'], expiresAtUtc,
+  }, expect.any(Function))
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
+  TestRenderer.act(() => tree.unmount())
 })
 
 it('uses a small intrinsic acknowledgement for the revealed key', async () => {
@@ -84,7 +99,7 @@ it('uses a small intrinsic acknowledgement for the revealed key', async () => {
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
   const create = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.create')!
   TestRenderer.act(() => create.props.onClick())
-  TestRenderer.act(() => tree.root.findByType(Input).props.onChange('Personal key'))
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.keyName')!.props.onChange('Personal key'))
   const submit = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
   await TestRenderer.act(async () => { await submit.props.onClick() })
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
@@ -141,7 +156,7 @@ it.each([false, true])('asks for a name before creating a key with scoped=%s', a
   expect(mocks.create).not.toHaveBeenCalled()
   TestRenderer.act(() => name().props.onChange(`  ${'x'.repeat(50)}  `))
   await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
-  expect(mocks.create).toHaveBeenCalledWith({ name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  expect(mocks.create).toHaveBeenCalledWith({ name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}), expiresAtUtc: null }, expect.any(Function))
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
   TestRenderer.act(() => tree.unmount())
 })

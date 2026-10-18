@@ -30,6 +30,20 @@ describe('Chromium test lifecycle', () => {
     mocks.connect.mockResolvedValue(browser)
   })
 
+  it('keeps jsdom before Chromium even when the worker limit resolves to one', () => {
+    const projects = vitestConfig.test?.projects
+      ?.flatMap((project) => typeof project === 'object' && 'test' in project ? [project.test] : [])
+    const jsdom = projects?.find((project) => project?.name === 'jsdom')
+    const chromium = projects?.find((project) => project?.name === 'chromium')
+    const jsdomOrder = jsdom?.sequence?.groupOrder
+    const chromiumOrder = chromium?.sequence?.groupOrder
+
+    expect(jsdomOrder).toBeGreaterThan(0)
+    expect(chromiumOrder).toBeGreaterThan(0)
+    expect(chromiumOrder).toBeGreaterThan(jsdomOrder!)
+    expect(chromium?.maxWorkers).toBe(1)
+  })
+
   it('keeps the Chrome launch budget between the global and Chromium hook budgets', () => {
     let registeredHook: (() => Promise<void> | void) | undefined
     let chromiumHookTimeout: number | undefined

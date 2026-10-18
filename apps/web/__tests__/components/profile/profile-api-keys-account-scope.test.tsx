@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { readStepUpTiming } from '@/lib/step-up-storage'
+import { bindStepUpStateToAccount, retainApiKeyExpiryDraft, readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { resetAuthStore, retireHeldAccount } from '@/__tests__/support/account-change'
 import type { ApiKey } from '@orbit/shared/types'
@@ -143,15 +143,28 @@ async function revealAccountAKey() {
   expectSmallSheetActions()
 }
 
-it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+it.each([
+  ['', null],
+  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
+])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
   render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
+  const expiryField = screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })
+  fireEvent.change(expiryField, { target: { value: expiry } })
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
   expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
   expectSmallSheetActions()
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeDisabled()
   fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
   expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeEnabled()
+  expect(expiryField).toHaveValue(expiry)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
+  expect(management.handleCreateKey).toHaveBeenCalledExactlyOnceWith({
+    name: 'Personal key', scopes: ['habits:read'], expiresAtUtc,
+  }, expect.any(Function))
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+  expect(sheetSlotButtons('sheet-actions')).toEqual([en.orbitMcp.done])
 })
 
 it('takes the revealed API key off the screen when another account replaces the tab', async () => {
@@ -295,7 +308,7 @@ it.each([false, true])('asks for a name before creating a key with scoped=%s', a
   fireEvent.change(name, { target: { value: `  ${'x'.repeat(50)}  ` } })
   await act(async () => { fireEvent.click(submit) })
   expect(management.handleCreateKey).toHaveBeenCalledWith(
-    { name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}) },
+    { name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}), expiresAtUtc: null },
     expect.any(Function),
   )
   expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
@@ -330,16 +343,26 @@ it('keeps the name after a failed request and disables repeat submissions while 
 
 it('clears the name when creation is explicitly cancelled', () => {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  bindStepUpStateToAccount('user-1')
+  retainApiKeyExpiryDraft('2099-12-31T23:59')
+  const view = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
   fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Cancelled key' } })
+  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel }), { target: { value: '2099-12-31T23:59' } })
   fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
   fireEvent.click(screen.getByRole('button', { name: en.common.keepEditing }))
   expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('Cancelled key')
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('2099-12-31T23:59')
   fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
   fireEvent.click(screen.getByRole('button', { name: en.common.discardChangesAction }))
   fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
   expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('')
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
+  view.unmount()
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('')
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
   expect(management.handleCreateKey).not.toHaveBeenCalled()
 })
 
@@ -385,7 +408,9 @@ it('preserves no scopes, unused, read/write and no expiry states', () => {
   expect(screen.getByText('No scopes')).toBeInTheDocument()
   expect(screen.getByText('Never')).toBeInTheDocument()
   expect(screen.getByText('Read/write')).toBeInTheDocument()
-  expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.create }))
+  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('')
+  expect(screen.queryByText(/^Expires /, { selector: 'p' })).not.toBeInTheDocument()
 })
 
 it('withholds key details while access is locked or the list is loading', () => {
