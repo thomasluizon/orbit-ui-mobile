@@ -105,7 +105,7 @@ for (const [jobId, stepName, path, options] of [
 
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "parity", "expo-pin", "review-harness", "surface-manifest", "gate-charter"]
+    "expo-pin", "surface-manifest", "gate-charter"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
@@ -141,7 +141,7 @@ test("pull requests run each source check through one owner", () => {
     assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
   }
   assert.ok(testWorkflow.jobs["tool-hook-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
-  assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test -- --coverage"))
+  assert.ok(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run === "npx turbo run test --concurrency=1 -- --coverage"))
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {

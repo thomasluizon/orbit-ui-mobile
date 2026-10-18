@@ -16,8 +16,8 @@ const isCI = !!process.env.CI
 export default defineConfig({
   testDir: './e2e',
   outputDir: './e2e/.results',
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: isLayout && isCI,
+  workers: isLayout && isCI ? 2 : 1,
   retries: 0,
   forbidOnly: isCI,
   timeout: 60_000,
