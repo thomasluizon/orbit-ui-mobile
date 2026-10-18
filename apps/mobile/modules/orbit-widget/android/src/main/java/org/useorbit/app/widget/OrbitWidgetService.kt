@@ -3,6 +3,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -146,9 +147,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
 
         /** Resolves a synced token color (or its purple-dark fallback) to an ARGB int. */
-        private fun readColor(prefs: android.content.SharedPreferences, token: String): Int {
+        private fun readColor(context: Context, prefs: android.content.SharedPreferences, token: String): Int {
             val fallback = FALLBACK_COLORS.getValue(token)
-            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + token, fallback) ?: fallback
+            val mode = if (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+                Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
+            val resolvedToken = if (token == "streak") "streakText" else token
+            val key = if (prefs.getBoolean("theme_mode_preferences", false)) "${mode}_$resolvedToken" else token
+            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + key, fallback) ?: fallback
             return parseColor(value, fallback)
         }
 
@@ -175,17 +180,17 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         fun getThemeColors(context: Context): WidgetColors {
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             return WidgetColors(
-                primary = readColor(prefs, "primary"),
-                background = readColor(prefs, "background"),
-                surface = readColor(prefs, "surface"),
-                surfaceGround = readColor(prefs, "surfaceGround"),
-                textPrimary = readColor(prefs, "textPrimary"),
-                textMuted = readColor(prefs, "textMuted"),
-                border = readColor(prefs, "border"),
-                borderMuted = readColor(prefs, "borderMuted"),
-                overdue = readColor(prefs, "overdue"),
-                streak = readColor(prefs, "streak"),
-                statusEmpty = readColor(prefs, "statusEmpty")
+                primary = readColor(context, prefs, "primary"),
+                background = readColor(context, prefs, "background"),
+                surface = readColor(context, prefs, "surface"),
+                surfaceGround = readColor(context, prefs, "surfaceGround"),
+                textPrimary = readColor(context, prefs, "textPrimary"),
+                textMuted = readColor(context, prefs, "textMuted"),
+                border = readColor(context, prefs, "border"),
+                borderMuted = readColor(context, prefs, "borderMuted"),
+                overdue = readColor(context, prefs, "overdue"),
+                streak = readColor(context, prefs, "streak"),
+                statusEmpty = readColor(context, prefs, "statusEmpty")
             )
         }
 

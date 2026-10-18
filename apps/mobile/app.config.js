@@ -1,11 +1,16 @@
 const appJson = require('./app.json')
 
-function withAndroidReleaseBuildFixesPlugin(plugins) {
+function withLocalPlugins(plugins) {
   const nextPlugins = Array.isArray(plugins) ? [...plugins] : []
-  const pluginPath = './plugins/with-android-release-build-fixes'
+  const pluginPaths = [
+    './plugins/with-android-release-build-fixes',
+    './plugins/with-react-native-imperative-focus',
+  ]
 
-  if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
-    nextPlugins.push(pluginPath)
+  for (const pluginPath of pluginPaths) {
+    if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
+      nextPlugins.push(pluginPath)
+    }
   }
 
   return nextPlugins
@@ -15,7 +20,7 @@ module.exports = () => {
   const baseConfig = appJson.expo ?? {}
   const productionConfig = {
     ...baseConfig,
-    plugins: withAndroidReleaseBuildFixesPlugin(baseConfig.plugins),
+    plugins: withLocalPlugins(baseConfig.plugins),
   }
   const variant = process.env.ORBIT_APP_VARIANT ?? 'production'
   if (variant === 'production') return productionConfig
