@@ -5115,6 +5115,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-goals-goal-habits-field",
       "platform": "web",
       "kind": "overlay",
@@ -11765,6 +11817,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goal-detail-drawer-goal-progress-form",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx"
       ],
       "state": "default",
       "theme": "dark",

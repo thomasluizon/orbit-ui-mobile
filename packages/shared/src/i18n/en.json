@@ -2926,6 +2926,7 @@
       "unitTooLong": "Shorten the goal unit to 50 characters or fewer.",
       "habitLimit": "Link up to 20 habits to this goal.",
       "progressValueInvalid": "Enter a value of 0 or higher",
+      "progressNoteTooLong": "Shorten the note to 500 characters or fewer.",
       "type": "Goal type",
       "typeStandard": "Progress",
       "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",
