@@ -1102,8 +1102,7 @@ export function HabitList({
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const boundary = getTodayBoundary(selectedDateStr, accountToday)
-    if (boundary === 'read-only' || (boundary === 'future' &&
-      !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
+    if (boundary === 'read-only' || !canLogHabitOnDate(habit, selectedDateStr, accountToday)) return
     const habitId = habit.id
     const date = selectedDateStr
     const settlementData = promptDataRef.current
@@ -1312,7 +1311,7 @@ export function HabitList({
           onReorder: options?.onReorder,
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: completionReadOnly ? undefined : () => { void skipFromRow(habit) },
+          onSkip: !completionReadOnly && canLog ? () => { void skipFromRow(habit) } : undefined,
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)

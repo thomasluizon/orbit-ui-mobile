@@ -625,6 +625,31 @@ describe('HabitList', () => {
     queryClient.clear()
   })
 
+  it.each(['future', 'future-child'])('withholds current-day Skip from the future recurring Todos row %s', (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />) })
+    const row = tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    TestRenderer.act(() => row.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
+    const skipItems = tree!.root.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))
+    expect(skipItems).toHaveLength(0)
+    expect(row.props.actions.onSkip).toBeUndefined()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each(['parent', 'today-child', 'overdue', 'one-time'])('keeps current-day Skip or postponement available for the Todos row %s', async (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    const oneTime = createMockHabit({ id: 'one-time', frequencyUnit: null, dueDate: TOMORROW, scheduledDates: [] })
+    mockHabitsData.habitsById.set(oneTime.id, oneTime)
+    mockHabitsData.topLevelHabits.push(oneTime)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />) })
+    await confirmRowSkip(tree, id)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: id, date: TODAY, onUndo: expect.any(Function) })
+  })
+
   it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
@@ -1438,7 +1463,7 @@ describe('HabitList', () => {
   })
 
   it('skips a recurring habit immediately', async () => {
-    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise', scheduledDates: [TODAY] })
     seedHabits([habit])
 
     let tree: any
@@ -3162,8 +3187,8 @@ describe('HabitList', () => {
       scheduledDates: [TODAY, TOMORROW],
       instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
-    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent' })
-    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent' })
+    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent', scheduledDates: [TODAY] })
+    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent', scheduledDates: [TODAY] })
     seedHabits([parent, childA, childB])
 
     let tree: any

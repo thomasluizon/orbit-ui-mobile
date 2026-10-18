@@ -140,6 +140,7 @@ interface RowActionHandlers {
 }
 
 interface ActionRowProps extends Omit<HabitRowProps, 'actions'> {
+  canSkip: boolean
   hasSubHabits: boolean
   isDrillCard: boolean
   onLongPressCard?: () => void
@@ -148,6 +149,7 @@ interface ActionRowProps extends Omit<HabitRowProps, 'actions'> {
 
 function ActionRow({
   habit,
+  canSkip,
   hasSubHabits,
   isDrillCard,
   onLongPressCard,
@@ -164,7 +166,7 @@ function ActionRow({
     return {
       onLog: () => handlersRef.current.toggle(habitId, 'log'),
       onUnlog: () => handlersRef.current.toggle(habitId, 'unlog'),
-      onSkip: () => handlersRef.current.skip(latestRef.current.habit),
+      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
@@ -182,7 +184,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
@@ -1185,8 +1187,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const currentDate = new Date()
       const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
       const boundary = getTodayBoundary(selectedDateStr, accountToday)
-      if (boundary === 'read-only' || (boundary === 'future' &&
-        !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
+      if (boundary === 'read-only' || !canLogHabitOnDate(habit, selectedDateStr, accountToday)) return
       const habitId = habit.id
       const date = selectedDateStr
       const settlementData = promptDataRef.current
@@ -1512,6 +1513,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           <ActionRow
             key={habit.id}
             habit={habit}
+            canSkip={canLogHabitOnDate(habit, selectedDateStr, todayStr)}
             structuralColumn
             selectedDate={selectedDate}
             today={todayStr}
@@ -1536,6 +1538,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [
         selectedDate,
+        selectedDateStr,
         todayStr,
         collapsedIds,
         getChildrenProgress,

@@ -472,6 +472,28 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue', intent: 'log' })
   })
 
+  it.each(['future', 'future-child'])('withholds current-day Skip from the future recurring Todos row %s', async (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    renderWithProviders(<HabitList view="all" filters={{}} />)
+    expect(screen.getByTestId(`habit-card-${id}`)).toHaveAttribute('data-can-log', 'no')
+    expect(screen.getByTestId(`habit-card-${id}`)).toHaveAttribute('data-has-skip', 'no')
+    await act(async () => { fireEvent.click(screen.getByTestId(`skip-${id}`)) })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each(['parent', 'today-child', 'overdue', 'one-time'])('keeps current-day Skip or postponement available for the Todos row %s', async (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    const oneTime = createMockHabit({ id: 'one-time', frequencyUnit: null, dueDate: TOMORROW, scheduledDates: [] })
+    mockHabitsData.habitsById.set(oneTime.id, oneTime)
+    mockHabitsData.topLevelHabits.push(oneTime)
+    renderWithProviders(<HabitList view="all" filters={{}} />)
+    expect(screen.getByTestId(`habit-card-${id}`)).toHaveAttribute('data-has-skip', 'yes')
+    await act(async () => { fireEvent.click(screen.getByTestId(`skip-${id}`)) })
+    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: id, date: TODAY, onUndo: expect.any(Function) })
+  })
+
   it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
@@ -3699,7 +3721,7 @@ describe('HabitList', () => {
   })
 
   it('skips immediately and asks before deleting a habit', async () => {
-    const habit = createMockHabit({ id: 'h-1', title: 'Stretch' })
+    const habit = createMockHabit({ id: 'h-1', title: 'Stretch', scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'h-2', title: 'Warm up', parentId: habit.id })
     mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.habitsById.set(child.id, child)
