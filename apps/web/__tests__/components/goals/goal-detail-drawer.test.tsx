@@ -10,7 +10,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useGoalProgressEntry } from '@/hooks/use-goal-progress-entry'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -247,11 +248,17 @@ describe('GoalDetailDrawer', () => {
     await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } })))
   })
 
-  it('disables manual fields and repeated saves while a write is pending', async () => {
+  it('disables manual fields and repeated saves through successful dismissal', async () => {
     let finish!: () => void
+    let finishExit!: () => void
+    const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
     updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
     fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    fireEvent.change(screen.getByLabelText('goals.progress'), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText('goals.progressNote'), { target: { value: 'One history entry' } })
+    const editor = screen.getByRole('dialog', { name: 'goals.updateProgress' })
+    Object.defineProperty(editor, 'getAnimations', { value: () => editor.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [] })
     const save = screen.getByRole('button', { name: 'common.save' })
     expect(save).toBeEnabled()
     fireEvent.click(save)
@@ -262,7 +269,32 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByLabelText('goals.progressNote')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDisabled()
     expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
-    await act(async () => { finish() })
+    try {
+      await act(async () => { finish() })
+      await waitFor(() => expect(editor).toHaveAttribute('data-closed'))
+      fireEvent.click(save)
+      fireEvent.submit(screen.getByLabelText('goals.progress').closest('form')!)
+      expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
+      expect(save).toBeDisabled()
+      expect(screen.getByLabelText('goals.progressNote')).toBeDisabled()
+    } finally {
+      await act(async () => { finishExit() })
+    }
+    await waitFor(() => expect(screen.queryByLabelText('goals.progressNote')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
+    expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled()
+  })
+
+  it('keeps the synchronous submission guard locked after success', async () => {
+    const save = vi.fn().mockResolvedValue(undefined)
+    const refresh = vi.fn(() => new Promise<void>(() => undefined))
+    const { result } = renderHook(() => useGoalProgressEntry(3, 12, save, refresh))
+    const submit = result.current.submit
+    await act(async () => { expect(await submit()).toBe(true) })
+    await act(async () => { expect(await submit()).toBe(false) })
+    expect(save).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(result.current.busy).toBe(true)
   })
 
   it.each([

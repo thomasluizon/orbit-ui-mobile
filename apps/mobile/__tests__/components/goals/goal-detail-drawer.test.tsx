@@ -354,11 +354,14 @@ describe('GoalDetailDrawer', () => {
     expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } }))
   })
 
-  it('disables manual fields and repeated saves while a write is pending', async () => {
+  it('disables manual fields and repeated saves through successful dismissal', async () => {
     let finish!: () => void
     updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     const tree = renderDrawer()
     press(tree, 'goals.updateProgress')
+    changeEntry(tree, 'goals.progress', '7')
+    changeEntry(tree, 'goals.progressNote', 'One history entry')
+    sheetTestControls.defer(true)
     const button = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
     const submit = button.props.onPress
     TestRenderer.act(() => { submit(); submit() })
@@ -369,7 +372,25 @@ describe('GoalDetailDrawer', () => {
       expect(input.length).toBeGreaterThan(0)
     }
     expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
-    await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+    try {
+      await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      await TestRenderer.act(async () => { submit(); submit(); await Promise.resolve() })
+      expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
+      expect(button.props.disabled).toBe(true)
+      expect(button.props.accessibilityState.busy).toBe(true)
+      for (const label of ['goals.progress', 'goals.progressNote']) {
+        expect(tree.root.findAll((node: { props: { accessibilityLabel?: string; editable?: boolean } }) => node.props.accessibilityLabel === label && node.props.editable === false).length).toBeGreaterThan(0)
+      }
+    } finally {
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      sheetTestControls.defer(false)
+    }
+    expect(tree.root.findAllByProps({ name: 'progressNote' })).toHaveLength(0)
+    press(tree, 'goals.updateProgress')
+    const reopened = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]
+    expect(reopened.props.disabled).toBe(false)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it.each([

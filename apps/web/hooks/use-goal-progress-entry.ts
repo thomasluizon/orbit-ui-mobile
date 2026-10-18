@@ -25,10 +25,9 @@ export function useGoalProgressEntry(initialValue: number, targetValue: number, 
       return true
     } catch (failure: unknown) {
       dispatch({ type: 'failure', failure })
-      return false
-    } finally {
       pending.current = false
       dispatch({ type: 'finish' })
+      return false
     }
   }
 
