@@ -282,6 +282,10 @@ export function useLogHabit() {
           (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
         void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+        response.linkedGoalUpdates.forEach(({ goalId }) => {
+          void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+          void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+        })
       }
 
       /**
