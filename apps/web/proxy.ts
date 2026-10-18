@@ -136,9 +136,8 @@ export async function proxy(request: NextRequest) {
 
   if (!session.token && !isPublic) {
     const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
-    url.search = request.nextUrl.search
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
-      url.searchParams.set('returnUrl', pathname)
+      url.searchParams.set('returnUrl', pathname + request.nextUrl.search)
     }
     return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }

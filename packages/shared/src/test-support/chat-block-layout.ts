@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../types/chat'
 import {
+  apiStatusCardsFinalFixture,
   breakdownSubHabits,
   goalListCardFixture,
   habitListCardFixture,
@@ -22,7 +23,7 @@ export const chatBlockLayoutCases = [
   })) } },
   { kind: 'outcome', count: 2, fields: { operations: [makeAgentOperationResult('Failed', 1), makeAgentOperationResult('UnsupportedByPolicy', 2)] } },
   { kind: 'action', count: 1, fields: { actions: [makeActionResult()] } },
-  { kind: 'lists and metrics', count: 9, fields: {
+  { kind: 'lists and metrics', count: 10, fields: {
     habitList: habitListCardFixture,
     goalList: goalListCardFixture,
     metricsCard: { period: 'week', completionRate: 67, totalCompletions: 2, totalScheduled: 3,
@@ -31,10 +32,10 @@ export const chatBlockLayoutCases = [
       activeDays: 2, periodDays: 7, totalCompletions: 2, totalScheduled: 3, currentStreak: 2, bestStreak: 4,
       topHabits: [], needsAttention: [], narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, surfaceId: 'progress' },
     daySummary: { date: '2026-09-29', due: 3, done: 2, completionRate: 67, overdueCount: 1, currentStreak: 4, surfaceId: 'today' },
-    streakCard: { currentStreak: 2, longestStreak: 4, level: 1, totalXp: 20, xpForNextLevel: 100,
+    streak: { currentStreak: 2, longestStreak: 4, level: 1, totalXp: 20, xpForNextLevel: 100,
       lastActiveDate: '2026-09-29', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' },
-    calendarCard: { events: [{ title: 'Walk', start: '2026-09-29T12:00:00Z', end: null, isAllDay: false }], surfaceId: 'calendar' },
-    recordList: { kind: 'tags', totalCount: 2, items: [{ id: 'tag-1', title: 'Morning' }, { id: 'tag-2', title: 'Evening' }], surfaceId: 'tags' },
+    calendar: { events: [{ title: 'Walk', start: '2026-09-29T12:00:00Z', end: null, isAllDay: false }], sync: null, surfaceId: 'calendar' },
+    recordLists: apiStatusCardsFinalFixture.response.recordLists,
     accountRows: { kind: 'profile', rows: [{ key: 'name', value: 'Orbit', valueType: 'text' }], surfaceId: 'profile' },
   } },
 ] satisfies { kind: string; count: number; fields: Partial<ChatMessage> }[]

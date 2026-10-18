@@ -42,7 +42,7 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     : quiet && variant === 'ghost'
     ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
-  return [baseClasses, variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, interactionClasses,
+  return [baseClasses, variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
@@ -74,6 +74,23 @@ function buttonDescriptionIds(descriptionId: string | undefined, hintId: string,
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
 }
 
+function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant'> & { quiet: boolean }>): CSSProperties {
+  const sizeSpec = BUTTON_SIZES[size]
+  return {
+    ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight),
+    ...(brand === 'google' ? { paddingInlineStart: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingInlineEnd: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : undefined),
+    height: minimumHeight === undefined ? sizeSpec.height : undefined,
+    minHeight: minimumHeight,
+    fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
+    color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
+  }
+}
+
+function ButtonIcon({ size, loading, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize }>) {
+  if (loading) return <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
+  return iconOnly ? children : leadingIcon
+}
+
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
@@ -90,6 +107,7 @@ export function Button({
   onMouseLeave,
   disabled = false,
   loading = false,
+  focusableWhenLoading = false,
   children,
   accessibleName,
   iconOnly,
@@ -107,19 +125,19 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
-  const sizeSpec = BUTTON_SIZES[size]
 
   return (
     <><button
       ref={buttonRef}
       type={onClick ? 'button' : 'submit'}
       form={formId}
-      onClick={loading ? undefined : onClick}
+      onClick={loading ? (event) => event.preventDefault() : onClick}
       onFocus={onFocus}
       onBlur={onBlur}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      disabled={disabled || loading}
+      disabled={disabled || (loading && !focusableWhenLoading)}
+      aria-disabled={!disabled && loading && focusableWhenLoading ? true : undefined}
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
       aria-describedby={descriptionIds}
@@ -130,11 +148,9 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
-      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight), ...(brand === 'google' ? { paddingInlineStart: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingInlineEnd: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : undefined), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
+      style={buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet })}
     >
-      {loading ? (
-        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
-      ) : iconOnly ? children : leadingIcon}
+      <ButtonIcon size={size} loading={loading} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
       {iconOnly ? null : <span>{children}</span>}
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )

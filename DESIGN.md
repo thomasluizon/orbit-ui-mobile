@@ -64,6 +64,18 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
+**Conversation participants:** the first message in each consecutive run of Astra messages starts
+with a 24px `AstraGlyph` in `--fg-1` on its own row at the thread's 16px inset. An 8px gap
+separates the mark from the first content below it. Following messages have no mark or reserved
+avatar space. Prose, previews, read blocks, charts, tool traces and follow-up actions share the
+composer's leading content edge; blocks also fill its trailing edge. A running tool trace uses
+the same structure, showing the mark only when no Astra message precedes it in the run.
+Messages and blocks keep 16px gaps. The person's messages keep their right-aligned bubble with
+no avatar or reserved space. The pending reply uses the same mark row and 8px gap above its
+indicator, so the first reply replaces it at the same content edge. This participant structure
+supersedes the side-by-side avatar column amendment in
+`design/canvas/Orbit Astra Conversation.dc.html` (#1408).
+
 **Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
@@ -123,7 +135,9 @@ The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
 **Astra pending reply:** sending immediately reserves one 24px line at the next assistant
-turn's start edge, after the thread's normal 16px gap. Three neutral dots pulse in opacity
+turn's start edge, after the thread's normal 16px gap. A new Astra run keeps its 24px mark
+on the row above with an 8px gap before the indicator; continuations reserve no mark row.
+Three neutral dots pulse in opacity
 for state indication, using the standard easing and four slow-duration units per cycle.
 Use the existing skeleton pulse count, then keep the dots static so automatic motion ends
 within five seconds.
@@ -163,8 +177,9 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
-a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds the Hoje jump pill
-only on another day, then search, options (`dots-vertical`) and the bell. Calendário holds options
+a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds search, options
+(`dots-vertical`) and the bell. No date navigator carries a separate Hoje jump control; its centred
+date or period label returns to today. Calendário holds options
 and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
 same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
 repeat the bell. Screen options always use `dots-vertical`.
@@ -370,8 +385,12 @@ Designing any of these is the defect, not the omission.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
-  completing, a level up, and everything due today being done. **Never an individual habit
-  completion**, which the motion frequency gate already rules out at that frequency.
+  completing, a level up, and everything due today being done. Individual habit completions never
+  receive a celebration. The first confirmed completion that extends today's account streak by one
+  earns a daily streak moment in the same non-blocking shell notice slot. It counts from the previous
+  streak to the new number beside a day ring, then dismisses itself after 2500ms. It appears at most
+  once per local day, including across reloads, and never for a past-day log, an undo, a slip on a
+  habit to avoid, or an unchanged streak. A milestone uses the existing milestone panel instead.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
 - **A create-goal entry in navigation.** A goal is created from a habit, or by asking.
 - **The desktop stats rail.** Progresso owns the question it was answering.
@@ -869,6 +888,13 @@ price response does not shift the layout.
 
 ### Hoje date pager
 
+The centred label is the return-to-today control on Hoje, Calendário and any other date navigator
+that offers a jump to today. Away from today, tap, Enter or Space returns to today; on today it does
+nothing.
+Its accessible name includes the displayed date and the localized return action when available.
+It keeps the shared 48px touch floor, padded interaction feedback and exactly one focus indicator.
+There is no separate Hoje jump pill.
+
 The previous-day target starts at the leading content edge and the next-day target ends at the
 trailing content edge. Each target remains 48px wide and at least 48px high. The day title and
 numeric date occupy the remaining space, with equal 12px gaps to the targets, centred within 1px
@@ -1221,6 +1247,14 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | occasional (modals, sheets, drawers, toasts, settings) | the standard scale below |
 | rare / first-run (onboarding, milestone, celebration) | the only place the delight budget lives |
 
+**Daily streak feedback is state indication, once per day.** The daily streak moment uses the
+280ms movement token and ease-out curve for a 12px number change and a single day-ring sweep.
+It stays neutral, leaves the screen and composer interactive, and dismisses after 2500ms.
+Reduced motion shows the final number and completed ring immediately, with no movement.
+There is no glow, gradient, confetti, looping or exclamation. Logging has no additional Android
+haptic unless its logging interaction already uses one. Milestone days show only the milestone
+panel for the streak; other earned facts retain their queue order.
+
 **Every animation must name its purpose from this closed list:** feedback · spatial consistency · state indication · preventing a jarring change · explanation · delight (rare/first-run tier only). **If you cannot name it, delete it.**
 
 **Never animate data the user is trying to read or act on.**
@@ -1370,7 +1404,7 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 - **Render the live region empty and stable before updating its text.** A region inserted together with its content is announced inconsistently.
 - **Default to polite.** Overusing `assertive` interrupts whatever the reader was on.
-- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus.
+- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Action toasts dismiss after the standard duration, through a close control or an Android swipe, and on destination change. Timed feedback uses a 5 second floor and pauses on hover or focus. The daily streak moment has its own 2500ms dwell.
 - **Anything moving, blinking or updating automatically for more than 5 seconds needs a visible pause control.**
 - **Under reduced motion**, replace slides, scales and parallax with opacity cross-fades, kill autoplay, and start carousels paused. Keep spinners, progress, instant state changes and brief press feedback. Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in; where a global kill switch is the only option, use `0.01ms` rather than `none` so `transitionend` still fires.
 - **The `.sr-only` pattern uses 1px boxes, not zero**, with `clip-path: inset(50%)` and `white-space: nowrap`. Never `display: none`.

@@ -1,5 +1,6 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { act, fireEvent, render, screen } from '@testing-library/react'
@@ -8,7 +9,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
-import type { Page } from '@playwright/test'
 import type { Recap } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -100,6 +100,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
   afterEach(() => { vi.useRealTimers() })
 
   beforeEach(() => {
+    expect(browser.contexts(), 'previous geometry case released its contexts').toHaveLength(0)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 1, 12))
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
@@ -108,10 +109,23 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
+  async function createPage(options: Parameters<Browser['newContext']>[0]) {
+    const controller = new AbortController()
+    const contextLaunch = browser.newContext(options)
+    onTestFinished(async () => {
+      controller.abort()
+      await (await contextLaunch).close()
+    })
+    const context = await contextLaunch
+    controller.signal.throwIfAborted()
+    const page = await context.newPage()
+    controller.signal.throwIfAborted()
+    return { page, signal: controller.signal }
+  }
+
   async function measureSlide(page: Page, markup: string) {
-    await page.setContent(`<style>${stylesheet}</style>${markup}`)
-    await loadAppFonts(page)
-    return await page.evaluate(() => {
+    return await page.evaluate((slideMarkup) => {
+      document.body.innerHTML = slideMarkup
       const dialog = document.querySelector('[role="dialog"]')!
       const notice = dialog.querySelector('[data-shell-notice]')!
       const pager = dialog.querySelector('[data-testid="wrapped-pager"]')!
@@ -159,10 +173,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         noticeTopAtEnd: notice.getBoundingClientRect().top,
         lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
       }
-    })
+    }, markup)
   }
 
-  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, safeArea = false, ...viewport }) => {
+  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast, safe area $safeArea', async ({ locale, toast, safeArea = false, ...viewport }) => {
+    const { page, signal } = await createPage({ viewport })
     const messages = locale === 'en' ? en : pt
     const insets = playerInsets(viewport.width, safeArea)
     useVersionGateStore.getState().requireReload('appUpdated')
@@ -171,7 +186,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         kind: 'neutral', message: messages.errors.api.appUpdated, actionLabel: messages.errors.api.reload, onAction: vi.fn(),
       })
     }
-    const { container } = render(
+    const { container, getByTestId } = render(
       <NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>,
     )
     fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
@@ -179,36 +194,39 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
     if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
-    const page = await browser.newPage({ viewport })
-    try {
-      const session = await page.context().newCDPSession(page)
-      await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
-      for (const slide of wrapped.slides as { id: string }[]) {
-        const measured = await measureSlide(page, container.innerHTML)
+    const session = await page.context().newCDPSession(page)
+    await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
+    await page.setContent(`<style>${stylesheet}</style>`)
+    await loadAppFonts(page)
 
-        expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
-          .toBeLessThanOrEqual(viewport.height - insets.bottom)
-        for (const control of measured.controls) {
-          expect(control.left).toBeGreaterThanOrEqual(insets.left)
-          expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
-        }
-        expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
-        expect(measured.unavailableValueOverflow).toBe(0)
-        expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
-        expect(measured.closeTop).toBeGreaterThanOrEqual(insets.top)
-        expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
-        expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
-        expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
-        expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - insets.bottom)
-        expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
-        expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
-        expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
-        expect(measured.lastSlidePartBottomAtEnd).toBeLessThanOrEqual(measured.noticeTopAtEnd + 0.5)
+    for (const [index, slide] of (wrapped.slides as { id: string }[]).entries()) {
+      signal.throwIfAborted()
+      expect(container.querySelector('[data-testid="wrapped-pager"] [data-index]'), `slide ${slide.id} pager index`)
+        .toHaveAttribute('data-index', String(index))
+      const measured = await measureSlide(page, container.innerHTML)
+      signal.throwIfAborted()
 
-        const next = screen.queryByTestId('wrapped-next-zone')
-        if (next) fireEvent.click(next)
+      expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
+        .toBeLessThanOrEqual(viewport.height - insets.bottom)
+      for (const control of measured.controls) {
+        expect(control.left).toBeGreaterThanOrEqual(insets.left)
+        expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
       }
-    } finally { await page.close() }
+      expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
+      expect(measured.unavailableValueOverflow).toBe(0)
+      expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
+      expect(measured.closeTop).toBeGreaterThanOrEqual(insets.top)
+      expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
+      expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
+      expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
+      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - insets.bottom)
+      expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
+      expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
+      expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
+      expect(measured.lastSlidePartBottomAtEnd).toBeLessThanOrEqual(measured.noticeTopAtEnd + 0.5)
+
+      if (index < wrapped.slides.length - 1) fireEvent.click(getByTestId('wrapped-next-zone'))
+    }
   })
 
   it.each([
@@ -218,11 +236,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     { width: 1200, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
     { width: 1600, height: 900, top: 0, bottom: 0, left: 0, right: 0 },
   ])('restores the cover inset after closing the player at $width', async ({ width, height, ...insets }) => {
+    const { page } = await createPage({ viewport: { width, height } })
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.close }))
     await act(async () => {})
-    const page = await browser.newPage({ viewport: { width, height } })
     try {
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
@@ -236,10 +254,10 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
   })
 
   it.each(['dark', 'light'] as const)('fills the whole close target on hover and press in %s mode', async (mode) => {
+    const { page } = await createPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
     await act(async () => {})
-    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
     try {
       const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root{${declarations}} button{transition:none !important}</style>${container.innerHTML}`)
