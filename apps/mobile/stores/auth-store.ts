@@ -290,14 +290,11 @@ async function rotateSessionToken(
   const currentUser = useAuthStore.getState().user
 
   let data: RefreshResponse
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10_000)
   try {
     const response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
-      signal: controller.signal,
     })
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     if (!response.ok) {
@@ -307,8 +304,6 @@ async function rotateSessionToken(
   } catch {
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     return { status: 'network-error' }
-  } finally {
-    clearTimeout(timeout)
   }
 
   if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
@@ -350,8 +345,19 @@ async function runRefreshSession(): Promise<RefreshSessionOutcome> {
   }
 }
 
-export function refreshSession(): Promise<RefreshSessionOutcome> {
-  return refreshSessionInFlight ??= runRefreshSession()
+export async function refreshSession(): Promise<RefreshSessionOutcome> {
+  const rotation = refreshSessionInFlight ??= runRefreshSession()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      rotation,
+      new Promise<RefreshSessionOutcome>((resolve) => {
+        timeout = setTimeout(() => resolve({ status: 'network-error' }), 10_000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 /**
