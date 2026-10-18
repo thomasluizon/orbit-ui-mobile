@@ -97,7 +97,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         </button>
         <button type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
           aria-disabled={props.isTodaySelected} onClick={() => { if (!props.isTodaySelected) props.onGoToToday() }}
-          className="touch-target group transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-[8px] py-[4px] text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-[8px] py-[4px] text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
           title={`${props.dayName}, ${props.numericDate}`}>
           <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
             {props.shortDayName ? <>
@@ -105,7 +105,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
               <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
             </> : props.dayName}
           </p>
-          <p className="m-0 font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)] group-[[aria-disabled=false]:hover]:text-[var(--fg-2)] group-[[aria-disabled=false]:active]:text-[var(--fg-2)]">{props.numericDate}</p>
+          <p className="m-0 font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
         </button>
         <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
