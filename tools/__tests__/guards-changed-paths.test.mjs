@@ -105,7 +105,7 @@ for (const [jobId, stepName, path, options] of [
 
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "parity", "expo-pin", "surface-manifest", "gate-charter"]
+    "expo-pin", "surface-manifest", "gate-charter"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")

@@ -17,6 +17,8 @@ test("text edits and label changes have their own check without restarting Guard
   assert.equal(metadata.jobs.metadata.name, "PR Metadata")
   assert.ok(metadata.jobs.metadata.steps.every((step) => !step.run?.includes("npm ci")))
   assert.doesNotMatch(JSON.stringify(load("guards")), /gh api.*pulls/)
+  assert.doesNotMatch(JSON.stringify(load("guards")), /parity:exempt/,
+    "label changes must be resolved entirely by metadata, without a stale full guard failure")
 })
 
 function check(body, labels, paths, expected, options = {}) {
