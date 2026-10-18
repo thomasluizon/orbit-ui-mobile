@@ -25,7 +25,21 @@ const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
 const properties = readFileSync(join(repositoryRoot, "sonar-project.properties"), "utf8")
 const generatedRoots = new Set([".next", ".expo", ".turbo", "dist"])
 const missing = []
-for (const line of properties.replace(/\\\r?\n[ \t\f]*/g, "").split(/\r?\n/)) {
+const logicalLines = []
+let continuedLine = ""
+for (const line of properties.split(/\r?\n/)) {
+  if (!continuedLine && /^[ \t\f]*[#!]/.test(line)) continue
+  const content = continuedLine ? line.replace(/^[ \t\f]+/, "") : line
+  const backslashes = content.match(/\\+$/)?.[0].length ?? 0
+  if (backslashes % 2 === 1) {
+    continuedLine += content.slice(0, -1)
+  } else {
+    logicalLines.push(continuedLine + content)
+    continuedLine = ""
+  }
+}
+if (continuedLine) logicalLines.push(continuedLine)
+for (const line of logicalLines) {
   const separator = line.indexOf("=")
   if (separator === -1) continue
   const setting = line.slice(0, separator).trim()

@@ -28,6 +28,11 @@ export const cases = () => {
   writeFileSync(properties, "sonar.coverage.exclusions=\\\n  present.ts,\\\n  missing.ts\n")
   run("continued missing exclusion is named", { status: 1, stderr: /sonar\.coverage\.exclusions: missing\.ts/ })
 
+  writeFileSync(properties, "# A comment ending in a backslash does not continue\\\nsonar.coverage.exclusions=missing.ts\n")
+  run("comment continuation cannot hide a missing path", { status: 1, stderr: /missing\.ts/ })
+  writeFileSync(properties, "sonar.coverage.exclusions=\\\r\n  present.ts,\\\r\n  present.ts\r\n")
+  run("continued exclusions accept CRLF", { status: 0 })
+
   writeFileSync(properties, "sonar.exclusions=.next/**\n")
   run("generated output glob may have no directory yet", { status: 0 })
 }
