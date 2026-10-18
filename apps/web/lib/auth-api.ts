@@ -5,6 +5,7 @@ export const AUTH_COOKIE = 'auth_token'
 export const REFRESH_COOKIE = 'refresh_token'
 
 const ACCESS_TOKEN_REFRESH_THRESHOLD_MS = 60_000
+const REFRESH_TRANSPORT_TIMEOUT_MS = 60_000
 const DEFAULT_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
@@ -183,11 +184,14 @@ export async function refreshSessionTokens(
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
 
   const request = (async (): Promise<RefreshSessionResult> => {
+    const controller = new AbortController()
+    const transportTimeout = setTimeout(() => controller.abort(), REFRESH_TRANSPORT_TIMEOUT_MS)
     try {
       const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -200,6 +204,8 @@ export async function refreshSessionTokens(
       }
     } catch {
       return { outcome: 'retryable' }
+    } finally {
+      clearTimeout(transportTimeout)
     }
   })()
 
