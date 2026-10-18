@@ -17,7 +17,7 @@ function computeGoalProgressPercentage(currentValue: number, targetValue: number
 }
 
 function resolveDefinedValue<T>(value: T | undefined, fallback: T): T {
-  return value ?? fallback
+  return value === undefined ? fallback : value
 }
 
 export function buildTempGoal(
