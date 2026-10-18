@@ -85,6 +85,12 @@ test("parity checks reject removed exemptions and require a specific justificati
   check("## Parity\n\nDesktop stats rail.", ["parity:exempt"], web, 0)
 })
 
+test("a workflow-only PR can carry a label at creation without a UI exemption", () => {
+  check("## Parity\n\nWorkflow-only change, no app code.", ["parity:exempt"], [
+    ".github/workflows/test.yml", ".github/workflows/pr-metadata.yml",
+  ], 0)
+})
+
 test("ratchet labels refresh the lightweight check without replacing Guards", () => {
   const directory = mkdtempSync(join(tmpdir(), "pr-metadata-ratchet-"))
   try {
