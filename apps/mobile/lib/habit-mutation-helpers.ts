@@ -692,6 +692,7 @@ export function invalidateHabitMutationQueries(
      */
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() }),
+    queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() }),
   ]
 
   if (options?.includeLists !== false) {

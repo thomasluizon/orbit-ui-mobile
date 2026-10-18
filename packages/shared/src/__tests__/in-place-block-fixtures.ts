@@ -2,6 +2,20 @@ import { vi } from 'vitest'
 import type { z } from 'zod'
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject<{ daySummary: z.ZodType; calendar: z.ZodType }> }>('../types/__generated__/api.generated')
 import { calendarCardSchema, daySummaryCardSchema } from '../types/chat'
+import { logHabitResponseSchema } from '../types/habit'
+import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
+
+export const successfulUnlogResponse = logHabitResponseSchema.parse({
+  logId: '11111111-1111-4111-8111-111111111111', isFirstCompletionToday: false,
+  currentStreak: 0, linkedGoalUpdates: [], xpEarned: null, newAchievementIds: null,
+})
+
+export function recapWithCompletions(completed: number) {
+  return createMockRecap({ metrics: createMockRetrospectiveMetrics({
+    totalCompletions: completed, completionRate: completed * 100, totalScheduled: 1,
+    activeDays: completed, badHabitSlips: 0, topHabits: [],
+  }) })
+}
 
 export const inPlaceDayFixture = daySummaryCardSchema.parse(PostApiChatResponse.shape.daySummary.parse({
   date: '2026-10-17', due: 25, done: 0, completionRate: 0, overdueCount: 0, currentStreak: 3, surfaceId: 'today', totalRows: 25,

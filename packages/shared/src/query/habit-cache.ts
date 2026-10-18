@@ -3,7 +3,7 @@ import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import type { HabitListSnapshots } from './keys'
-import { habitKeys } from './keys'
+import { gamificationKeys, habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
   if (!filters.dateFrom) return true
@@ -249,6 +249,7 @@ export function invalidateHabitDependents(queryClient: QueryClient, habitId: str
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
+  void queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() })
 }
 
 export function rollbackDatedHabitLists(
