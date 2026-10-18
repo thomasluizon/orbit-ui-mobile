@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -40,12 +40,6 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
 
 type ChatController = ReturnType<typeof useChatComposer>;
-
-function promptDisabledReason(chat: ChatController, t: ReturnType<typeof useTranslation>['t']) {
-  return chat.isOnline === false ? t('shell.composer.offline.reason')
-    : chat.atMessageLimit ? t('shell.composer.limit.reason', { allowance: chat.aiMessagesLimit })
-    : chat.isSending ? t('shell.composer.busy.reason') : undefined;
-}
 
 function ThinkingTrace({ steps, running }: Readonly<{
   steps: readonly { domain: string; access: string }[];

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { filterPromptTemplates, promptCategories, PROMPT_CATEGORIES, PROMPT_PAGE_SIZE, type PromptCategory } from '@orbit/shared/chat'
+import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES } from '@orbit/shared/chat'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { motionDurations, motionEasings, motionLayerTiming, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
@@ -28,18 +28,6 @@ type PromptLibraryProps = {
   disabledReason?: string
 }
 
-function usePromptFilters(visible: boolean) {
-  const [category, setCategory] = useState<PromptCategory>('start')
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(0)
-  const [previousVisible, setPreviousVisible] = useState(visible)
-  if (previousVisible !== visible) {
-    setPreviousVisible(visible)
-    if (visible) { setCategory('start'); setQuery(''); setPage(0) }
-  }
-  return { category, setCategory, query, setQuery, page, setPage }
-}
-
 export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   const { t, i18n } = useTranslation()
   const visibleLayer = props.visible ?? true
@@ -51,13 +39,14 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   const { onExitComplete } = props
   const progress = useMemo(() => new Animated.Value(0), [])
   const headingRef = useRef<Text>(null)
-  const { category, setCategory, query, setQuery, page, setPage } = usePromptFilters(visibleLayer)
-  const categories = promptCategories(props.hasProAccess, props.hasGoogleConnection)
-  const activeCategory = categories.includes(category) ? category : 'start'
-  const matches = filterPromptTemplates({ category: activeCategory, query, locale: i18n.language, categories, translate: t })
-  const lastPage = Math.max(0, Math.ceil(matches.length / PROMPT_PAGE_SIZE) - 1)
-  const currentPage = Math.min(page, lastPage)
-  const visible = matches.slice(currentPage * PROMPT_PAGE_SIZE, (currentPage + 1) * PROMPT_PAGE_SIZE)
+  const [filters, dispatch] = useReducer(reducePromptFilters, INITIAL_PROMPT_FILTERS)
+  const [previousVisible, setPreviousVisible] = useState(visibleLayer)
+  if (previousVisible !== visibleLayer) {
+    setPreviousVisible(visibleLayer)
+    if (visibleLayer) dispatch({ type: 'reset' })
+  }
+  const { query } = filters
+  const { categories, activeCategory, matches, lastPage, currentPage, visible } = buildPromptPage({ ...props, filters, locale: i18n.language, translate: t })
   useEffect(() => {
     if (visibleLayer && headingRef.current) AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
   }, [visibleLayer])
@@ -75,11 +64,11 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
       <View style={{ gap: 4 }}>
         <Text nativeID="prompt-search-label" style={{ fontFamily: 'Geist_500Medium', fontSize: 14, color: tokens.fg2 }}>{t('chat.templates.search')}</Text>
-        <TypedTextInput onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} autoComplete="off" accessibilityLabel={t('chat.templates.search')} accessibilityLabelledBy="prompt-search-label" value={query} onChangeText={value => { setQuery(value); setPage(0) }}
+        <TypedTextInput onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} autoComplete="off" accessibilityLabel={t('chat.templates.search')} accessibilityLabelledBy="prompt-search-label" value={query} onChangeText={value => { dispatch({ type: 'query', query: value }) }}
           style={[styles.search, { color: tokens.fg1, backgroundColor: tokens.bgField, borderColor: searchFocused ? tokens.primary : tokens.borderControl, borderWidth: searchFocused ? 2 : 1 }]} />
       </View>
       <ScrollView horizontal style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
-        {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { setCategory(item); setQuery(''); setPage(0) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
+        {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
       </ScrollView>
     </View>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
@@ -97,11 +86,11 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       })}
       <View style={matches.length === 0 ? styles.empty : undefined}>
         <Text accessibilityLiveRegion="polite" style={matches.length === 0 ? { fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 } : styles.silentStatus}>{matches.length === 0 ? t('chat.templates.noMatches', { query: query.trim() }) : ''}</Text>
-        {matches.length === 0 ? <Button variant="ghost" onClick={() => { setQuery(''); setPage(0) }}>{t('chat.templates.clearSearch')}</Button> : null}
+        {matches.length === 0 ? <Button variant="ghost" onClick={() => { dispatch({ type: 'query', query: '' }) }}>{t('chat.templates.clearSearch')}</Button> : null}
       </View>
       {lastPage > 0 ? <View style={styles.pages}><ActionRow>
-        <Button variant="ghost" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>{t('chat.templates.previous')}</Button>
-        <Button variant="ghost" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>{t('chat.templates.more')}</Button>
+        <Button variant="ghost" disabled={currentPage === 0} onClick={() => dispatch({ type: 'page', page: currentPage - 1 })}>{t('chat.templates.previous')}</Button>
+        <Button variant="ghost" disabled={currentPage === lastPage} onClick={() => dispatch({ type: 'page', page: currentPage + 1 })}>{t('chat.templates.more')}</Button>
       </ActionRow></View> : null}
     </ScrollView>
   </Animated.View>

@@ -1,4 +1,5 @@
 export * from './prompt-library'
+export * from './composer-controls'
 export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'

@@ -12,7 +12,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
@@ -175,34 +175,23 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
-  const voiceActive = props.state === 'recording' || props.state === 'transcribing'
+  const { voiceActive, disabled, label, items } = buildComposerControls(props)
   if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
-    <button type="button" aria-label={props.voiceWords.stop} disabled={props.state === 'transcribing'} onClick={props.onVoice}
+    <button type="button" aria-label={label} disabled={props.state === 'transcribing'} onClick={props.onVoice}
       className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
       <Square size={16} fill="currentColor" aria-hidden="true" />
     </button>
   </div>
-  const inputDisabled = props.state !== 'idle'
-  const disabled = inputDisabled && !(props.state === 'atLimit' && props.onVoice)
-  const items = [
-    ...(props.onAttachImage ? [{ id: 'image', label: props.attachWords.image, icon: 'photo', disabled: inputDisabled }] : []),
-    ...(props.onAttachFile ? [{ id: 'file', label: props.attachWords.file, icon: 'file', disabled: inputDisabled }] : []),
-    ...(props.onVoice ? [{ id: 'voice', label: props.voiceWords.start, icon: 'microphone' }] : []),
-  ]
   if (items.length === 0) return null
   return <div data-composer-controls className="flex shrink-0 items-center">
-    <button ref={anchorRef} type="button" aria-label={props.words.actions} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
+    <button ref={anchorRef} type="button" aria-label={label} aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined} aria-expanded={open && !disabled}
       disabled={disabled} onClick={() => setOpen(true)} onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
       }}
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
     </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={(id) => {
-      if (id === 'image') props.onAttachImage?.()
-      if (id === 'file') props.onAttachFile?.()
-      if (id === 'voice') props.onVoice?.()
-    }} />
+    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => selectComposerAction(props, id)} />
   </div>
 }
 

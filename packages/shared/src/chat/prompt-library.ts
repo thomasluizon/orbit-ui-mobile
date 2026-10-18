@@ -5,6 +5,32 @@ export type PromptCategory = (typeof PROMPT_CATEGORIES)[number]
 export type PromptTemplate = { id: string; category: PromptCategory; labelKey: string; promptKey: string }
 export const PROMPT_PAGE_SIZE = 8
 
+export type PromptFilters = { category: PromptCategory; query: string; page: number }
+export type PromptFilterAction =
+  | { type: 'reset' }
+  | { type: 'category'; category: PromptCategory }
+  | { type: 'query'; query: string }
+  | { type: 'page'; page: number }
+
+export const INITIAL_PROMPT_FILTERS: PromptFilters = { category: 'start', query: '', page: 0 }
+
+export function reducePromptFilters(state: PromptFilters, action: PromptFilterAction): PromptFilters {
+  switch (action.type) {
+    case 'reset': return INITIAL_PROMPT_FILTERS
+    case 'category': return { category: action.category, query: '', page: 0 }
+    case 'query': return { ...state, query: action.query, page: 0 }
+    case 'page': return { ...state, page: action.page }
+  }
+}
+
+export function promptDisabledReason(state: {
+  isOnline: boolean; atMessageLimit: boolean; aiMessagesLimit: number; isSending: boolean
+}, translate: (key: string, values?: { allowance: number }) => string): string | undefined {
+  if (state.isOnline === false) return translate('shell.composer.offline.reason')
+  if (state.atMessageLimit) return translate('shell.composer.limit.reason', { allowance: state.aiMessagesLimit })
+  return state.isSending ? translate('shell.composer.busy.reason') : undefined
+}
+
 export const PROMPT_TEMPLATES: readonly PromptTemplate[] = [
   { id: 'morning', category: 'start', labelKey: 'chat.templates.items.morning.label', promptKey: 'chat.templates.items.morning.prompt' },
   { id: 'evening', category: 'start', labelKey: 'chat.templates.items.evening.label', promptKey: 'chat.templates.items.evening.prompt' },
@@ -65,6 +91,26 @@ export function filterPromptTemplates(options: {
   return PROMPT_TEMPLATES.filter(template => options.categories.includes(template.category)
     && (query ? normalize(`${options.translate(template.labelKey)} ${options.translate(template.promptKey)}`).includes(query)
       : template.category === options.category))
+}
+
+export function buildPromptPage(options: {
+  filters: PromptFilters
+  locale: string
+  hasProAccess: boolean
+  hasGoogleConnection: boolean
+  translate: (key: string) => string
+}): {
+  categories: readonly PromptCategory[]; activeCategory: PromptCategory
+  matches: readonly PromptTemplate[]; visible: readonly PromptTemplate[]; currentPage: number; lastPage: number
+} {
+  const { category, query, page } = options.filters
+  const categories = promptCategories(options.hasProAccess, options.hasGoogleConnection)
+  const activeCategory = categories.includes(category) ? category : 'start'
+  const matches = filterPromptTemplates({ ...options, category: activeCategory, query, categories })
+  const lastPage = Math.max(0, Math.ceil(matches.length / PROMPT_PAGE_SIZE) - 1)
+  const currentPage = Math.min(page, lastPage)
+  return { categories, activeCategory, matches, lastPage, currentPage,
+    visible: matches.slice(currentPage * PROMPT_PAGE_SIZE, (currentPage + 1) * PROMPT_PAGE_SIZE) }
 }
 
 export function preparePromptTemplate(chat: Pick<ChatStoreState, 'draft' | 'setDraft' | 'setContextualSuggestion'>, request: { id: string; label: string; prompt: string }): ReturnType<typeof findPromptSlot> {

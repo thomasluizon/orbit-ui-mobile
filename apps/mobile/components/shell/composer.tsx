@@ -8,7 +8,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, View, useWindowDimensions } from 'react-native'
 import { useUIStore } from '@/stores/ui-store'
@@ -208,31 +208,20 @@ function ComposerActionIcon({ state, tokens }: Readonly<{ state: ComposerProps['
 
 function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
   const menu = useAnchoredMenu()
-  const voiceActive = props.state === 'recording' || props.state === 'transcribing'
+  const { voiceActive, disabled, label, items } = buildComposerControls(props)
   const isRecording = props.state === 'recording'
-  const inputDisabled = props.state !== 'idle'
-  const disabled = voiceActive ? props.state === 'transcribing' : inputDisabled && !(props.state === 'atLimit' && props.onVoice)
   const menuOpen = menu.visible && !disabled && !voiceActive
-  const items = [
-    ...(props.onAttachImage ? [{ id: 'image', label: props.attachWords.image, icon: 'photo', disabled: inputDisabled }] : []),
-    ...(props.onAttachFile ? [{ id: 'file', label: props.attachWords.file, icon: 'file', disabled: inputDisabled }] : []),
-    ...(props.onVoice ? [{ id: 'voice', label: props.voiceWords.start, icon: 'microphone' }] : []),
-  ]
   if (!voiceActive && items.length === 0) return null
   return <View testID="composer-controls" style={styles.controls}>
     <MenuAnchorHost anchorRef={menu.anchorRef}>
-      <InsetFocusPressable accessibilityRole="button" accessibilityLabel={voiceActive ? props.voiceWords.stop : props.words.actions}
+      <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
         focusColor={isRecording ? tokens.fgOnPrimary : tokens.fg1}
         accessibilityState={{ disabled, ...(!voiceActive ? { expanded: menuOpen } : {}) }} disabled={disabled} onPress={voiceActive ? props.onVoice : menu.open}
         style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
         <ComposerActionIcon state={props.state} tokens={tokens} />
       </InsetFocusPressable>
     </MenuAnchorHost>
-    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={(id) => {
-      if (id === 'image') props.onAttachImage?.()
-      if (id === 'file') props.onAttachFile?.()
-      if (id === 'voice') props.onVoice?.()
-    }} />
+    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => selectComposerAction(props, id)} />
   </View>
 }
 

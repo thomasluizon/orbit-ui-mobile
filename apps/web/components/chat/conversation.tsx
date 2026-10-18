@@ -7,7 +7,7 @@ import { AnimatePresence } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate } from '@orbit/shared/chat'
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -51,12 +51,6 @@ type ChatController = Omit<
   ReturnType<typeof useChatComposer>,
   'fileInputRef' | 'textFileInputRef' | 'handleFileSelect' | 'handleTextFileSelect'
 >
-
-function promptDisabledReason(chat: ChatController, t: ReturnType<typeof useTranslations>) {
-  return chat.isOnline === false ? t('shell.composer.offline.reason')
-    : chat.atMessageLimit ? t('shell.composer.limit.reason', { allowance: chat.aiMessagesLimit })
-    : chat.isSending ? t('shell.composer.busy.reason') : undefined
-}
 
 function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: Readonly<{
   content: string
