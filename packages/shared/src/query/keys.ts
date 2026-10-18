@@ -83,7 +83,7 @@ export const apiKeyKeys = {
 
 export const configKeys = {
   all: ['config'] as const,
-  detail: () => [...configKeys.all, 'detail'] as const,
+  detail: (accountId: string | null = null, generation = 0) => [...configKeys.all, 'detail', accountId, generation] as const,
 }
 
 export const checklistTemplateKeys = {

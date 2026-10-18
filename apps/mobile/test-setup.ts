@@ -1,6 +1,8 @@
 import { vi } from 'vitest'
 import React from 'react'
 
+vi.mock('@sentry/react-native', () => ({ captureException: vi.fn() }))
+
 vi.mock('posthog-react-native', () => ({
   PostHog: class {
     identify = vi.fn()
