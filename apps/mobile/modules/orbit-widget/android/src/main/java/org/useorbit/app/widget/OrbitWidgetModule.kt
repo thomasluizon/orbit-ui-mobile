@@ -126,9 +126,12 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("saveToken") { token: String ->
       val context = moduleContext()
-      synchronized(accountRenderLock) {
-        getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply()
-      }
+      WidgetAccountState(accountRenderLock) { getToken(context)?.let { sessionKey(it) } }
+        .replaceAccount(
+          sessionKey(token),
+          saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() },
+          clearCache = { clearWidgetCache(context) }
+        )
       refreshWidgets(context)
     }
 
