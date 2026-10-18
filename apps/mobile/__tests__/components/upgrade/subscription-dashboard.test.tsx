@@ -329,7 +329,7 @@ describe('subscription dashboards (mobile)', () => {
       .map((node) => node.props.children).filter((text) => typeof text === 'string').join(' ')
     expect(invoiceText.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
     expect(invoiceText.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
-    expect(online.root.findAll((node) => node.type === 'Text' && node.props.children === 'usd 7.77')).toHaveLength(2)
+    expect(online.root.findAll((node) => node.type === 'Text' && String(node.props.children).endsWith(' · usd 7.77'))).toHaveLength(2)
     expect(
       online.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),

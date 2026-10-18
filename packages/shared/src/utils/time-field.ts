@@ -29,6 +29,16 @@ export function parseTypedTimeFieldValue(value: string, hourCycle: 'h23' | 'h12'
   return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
+export function reconcileTimeFieldInput(
+  draft: string,
+  previousHourCycle: 'h23' | 'h12',
+  hourCycle: 'h23' | 'h12',
+): { draft: string; parsed: Time24 | null } {
+  const parsed = parseTypedTimeFieldValue(draft, previousHourCycle)
+    ?? parseTypedTimeFieldValue(draft, hourCycle)
+  return { draft: parsed ? presentTimeFieldValue(parsed, hourCycle) : draft, parsed }
+}
+
 export function formatTimeFieldInput(value: string, previousValue: string): string {
   if (previousValue.endsWith(':') && value === previousValue.slice(0, -1)) {
     return value.slice(0, -1)
