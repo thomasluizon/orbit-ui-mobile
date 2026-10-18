@@ -19,6 +19,7 @@ import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
 import { setAccountId } from '@/lib/account-scope'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
+import { clearDesignCookie } from '@/lib/design-cookie'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 const SESSION_RECOVERY_CHECK_LIMIT = 3
@@ -82,6 +83,7 @@ function clearAccountScopedSessionState(): void {
  * it.
  */
 function endSessionLocally(): void {
+  clearDesignCookie()
   useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   sessionReadVersion += 1
   clearAccountScopedSessionState()
@@ -411,6 +413,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (teardownEpoch === null || teardownEpoch !== getSessionEpoch()) return
+
 
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
