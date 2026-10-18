@@ -106,6 +106,30 @@ describe('mobile config and flags', () => {
     expect(mocks.report).toHaveBeenCalled()
   })
 
+  it('does not republish or persist a canceled refresh after a newer response disables a flag', async () => {
+    respond(true)
+    const { result } = mount()
+    await waitFor(() => { expect(result.current.enabled).toBe(true); expect(result.current.isSuccess).toBe(true) })
+    let finishOlder!: (response: unknown) => void
+    let finishNewer!: (response: unknown) => void
+    mocks.fetch.mockReturnValueOnce(new Promise<unknown>((resolve) => { finishOlder = resolve }))
+    mocks.fetch.mockReturnValueOnce(new Promise<unknown>((resolve) => { finishNewer = resolve }))
+    void act(() => { void result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    void act(() => { void result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
+
+    await act(() => { finishNewer(createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })) })
+    await waitFor(() => { expect(result.current.enabled).toBe(false); expect(result.current.isFetching).toBe(false) })
+    const expectedStorage = JSON.stringify({ accountId: 'account-a', config: result.current.resolvedConfig })
+    await waitFor(async () => expect(await SecureStore.getItemAsync('account_config')).toBe(expectedStorage))
+    await act(() => { finishOlder(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } })) })
+
+    expect(result.current.enabled).toBe(false)
+    expect(result.current.resolvedConfig?.features.analytics?.enabled).toBe(false)
+    await expect(SecureStore.getItemAsync('account_config')).resolves.toBe(expectedStorage)
+  })
+
   it('refreshes on app foreground even while config is fresh', async () => {
     respond(true)
     const { result } = mount()

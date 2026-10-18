@@ -92,6 +92,31 @@ describe('web config and flags', () => {
     expect(mocks.report).toHaveBeenCalled()
   })
 
+  it('does not republish a canceled refresh after a newer response disables a flag', async () => {
+    respond(true)
+    const { result } = mount()
+    await waitFor(() => { expect(result.current.enabled).toBe(true); expect(result.current.isSuccess).toBe(true) })
+    let finishOlder!: (response: Response) => void
+    let finishNewer!: (response: Response) => void
+    mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { finishOlder = resolve }))
+    mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { finishNewer = resolve }))
+    act(() => { void result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    act(() => { void result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
+
+    await act(async () => {
+      finishNewer(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } }))))
+    })
+    await waitFor(() => { expect(result.current.enabled).toBe(false); expect(result.current.isFetching).toBe(false) })
+    await act(async () => {
+      finishOlder(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))))
+    })
+
+    expect(result.current.enabled).toBe(false)
+    expect(result.current.resolvedConfig?.features.analytics?.enabled).toBe(false)
+  })
+
   it('refreshes on window focus even while config is fresh', async () => {
     respond(true)
     const { result } = mount()

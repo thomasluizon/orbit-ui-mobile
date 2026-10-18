@@ -55,6 +55,58 @@ describe('account config cache', () => {
     expect(cache.getSnapshot().config).toBeUndefined()
   })
 
+  it.each(['abort', 'supersede'])('keeps the latest config when an older response completes after %s', async (invalidation) => {
+    const storage = createStorage()
+    const cache = createConfigCache(vi.fn(), storage)
+    const disabled = createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })
+    cache.setAccount('account-a')
+    await cache.fetch(cache.getSnapshot(), async () => disabled)
+    const olderResponse = deferred<unknown>()
+    const controller = new AbortController()
+    const olderFetch = cache.fetch(cache.getSnapshot(), () => olderResponse.promise, controller.signal)
+    await Promise.resolve()
+    if (invalidation === 'abort') controller.abort()
+    else await cache.fetch(cache.getSnapshot(), async () => disabled)
+
+    olderResponse.resolve(enabledResponse())
+    await olderFetch
+
+    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(false)
+    await expect(storage.read()).resolves.toBe(JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config }))
+  })
+
+  it.each(['abort', 'supersede'])('rechecks ownership before a queued save after %s', async (invalidation) => {
+    const storage = createStorage()
+    const pendingSave = deferred<void>()
+    const cache = createConfigCache(vi.fn(), {
+      ...storage,
+      write: async (value) => { await pendingSave.promise; await storage.write(value) },
+    })
+    const disabled = createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })
+    cache.setAccount('account-a')
+    await cache.fetch(cache.getSnapshot(), async () => disabled)
+    const lastGood = JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config })
+    const controller = new AbortController()
+    await cache.fetch(cache.getSnapshot(), async () => enabledResponse(), controller.signal)
+    const newerResponse = deferred<unknown>()
+    const newerFetch = invalidation === 'supersede'
+      ? cache.fetch(cache.getSnapshot(), () => newerResponse.promise)
+      : Promise.resolve()
+    if (invalidation === 'abort') controller.abort()
+
+    pendingSave.resolve()
+    await vi.waitFor(async () => {
+      await expect(storage.read()).resolves.toBe(lastGood)
+      expect(storage.write).toHaveBeenCalledTimes(1)
+    })
+    newerResponse.resolve(disabled)
+    await newerFetch
+    await vi.waitFor(async () => {
+      await expect(storage.read()).resolves.toBe(lastGood)
+      expect(storage.write).toHaveBeenCalledTimes(invalidation === 'supersede' ? 2 : 1)
+    })
+  })
+
   it('does not publish a persisted read that completes after switching accounts', async () => {
     const read = deferred<string | null>()
     const storage = createStorage()

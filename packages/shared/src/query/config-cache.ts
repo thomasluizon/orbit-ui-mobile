@@ -18,7 +18,7 @@ export interface ConfigCache {
   getServerSnapshot: () => ConfigSnapshot
   subscribe: (listener: () => void) => () => void
   setAccount: (accountId: string | null) => void
-  fetch: (scope: ConfigSnapshot, request: () => Promise<unknown>) => Promise<AppConfig>
+  fetch: (scope: ConfigSnapshot, request: () => Promise<unknown>, signal?: AbortSignal) => Promise<AppConfig>
 }
 
 const storedConfigSchema = z.object({ accountId: z.string(), config: appConfigSchema })
@@ -26,6 +26,7 @@ const initialSnapshot: ConfigSnapshot = { accountId: null, generation: 0, config
 
 export function createConfigCache(reportError: (error: unknown) => void, storage?: ConfigStorage): ConfigCache {
   let snapshot = initialSnapshot
+  let requestSequence = 0
   let storageQueue = Promise.resolve()
   const listeners = new Set<() => void>()
   const publish = (next: ConfigSnapshot) => {
@@ -70,17 +71,20 @@ export function createConfigCache(reportError: (error: unknown) => void, storage
       publish({ accountId, generation: snapshot.generation + 1, config: undefined })
       if (storage && previousAccountId !== null) void enqueue(storage.clear).catch(() => {})
     },
-    fetch: async (scope: ConfigSnapshot, request: () => Promise<unknown>): Promise<AppConfig> => {
-      if (!scope.accountId || !isCurrent(scope)) return DEFAULT_CONFIG
+    fetch: async (scope: ConfigSnapshot, request: () => Promise<unknown>, signal?: AbortSignal): Promise<AppConfig> => {
+      if (!scope.accountId || !isCurrent(scope) || signal?.aborted) return DEFAULT_CONFIG
+      const sequence = ++requestSequence
+      const canCommit = () => isCurrent(scope) && sequence === requestSequence && !signal?.aborted
       await restore(scope)
-      if (!isCurrent(scope)) return DEFAULT_CONFIG
+      if (!canCommit()) return DEFAULT_CONFIG
       try {
         const config = appConfigSchema.parse(await request())
-        if (!isCurrent(scope)) return DEFAULT_CONFIG
+        if (!canCommit()) return DEFAULT_CONFIG
         publish({ ...snapshot, config })
         if (storage) {
-          void enqueue(() => storage.write(JSON.stringify({ accountId: scope.accountId, config })))
-            .catch(() => {})
+          void enqueue(async () => {
+            if (canCommit()) await storage.write(JSON.stringify({ accountId: scope.accountId, config }))
+          }).catch(() => {})
         }
         return config
       } catch (error) {
