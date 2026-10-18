@@ -21,7 +21,7 @@ if (process.env.CHECK_DASHES !== "false" && spawnSync(process.execPath, [
 const paths = readFileSync(changedPaths, "utf8").split(/\r?\n/)
 const web = paths.some((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
 const mobile = paths.some((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
-if (labels.includes("parity:exempt")) {
+if (labels.includes("parity:exempt") && (web || mobile)) {
   const section = text.split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].trim()
   if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|NativeWind|next-intl|i18next|navigation chrome|sidebar|tab bar|desktop stats rail|command palette|keyboard shortcuts|hover affordances/i.test(section)) {
     console.error("::error::parity:exempt requires a line under ## Parity naming the platform adapter or permitted layout-shell divergence.")

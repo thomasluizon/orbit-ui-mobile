@@ -5,9 +5,8 @@ on:
     branches: [main, redesign/main]
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# Every metadata event must finish its required check. A shared concurrency group
+# can cancel running siblings and replace pending label events at the same head.
 
 permissions:
   contents: read

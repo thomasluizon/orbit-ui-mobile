@@ -3,7 +3,7 @@ name: PR Tests
 on:
   pull_request:
     branches: [main, redesign/main]
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
