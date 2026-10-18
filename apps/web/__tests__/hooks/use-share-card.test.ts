@@ -33,6 +33,36 @@ afterEach(() => {
 })
 
 describe('useShareCard', () => {
+  it('exposes a system share failure and allows retry', async () => {
+    const systemShare = vi.fn().mockRejectedValue(new Error('system share failed'))
+    Object.defineProperty(navigator, 'canShare', { value: vi.fn(() => true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: systemShare, configurable: true })
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+    await act(async () => { await result.current.share(payload) })
+    expect(result.current.hasError).toBe(true)
+    expect(result.current.isSharing).toBe(false)
+    expect(reportEventMock).not.toHaveBeenCalled()
+    systemShare.mockResolvedValue(undefined)
+    await act(async () => { await result.current.share(payload) })
+    expect(result.current.hasError).toBe(false)
+    expect(reportEventMock).toHaveBeenCalledOnce()
+  })
+
+  it('clears export feedback before selecting another progress period', async () => {
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+    await act(async () => { await result.current.download() })
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
+    act(() => { result.current.resetFeedback() })
+    expect(result.current.savedFileName).toBeNull()
+    toBlobMock.mockResolvedValue(null)
+    await act(async () => { await result.current.download() })
+    expect(result.current.hasError).toBe(true)
+    act(() => { result.current.resetFeedback() })
+    expect(result.current.hasError).toBe(false)
+  })
+
   it('does not share a capture that finishes after account replacement', async () => {
     let finishCapture!: (blob: Blob) => void
     toBlobMock.mockImplementationOnce(() => new Promise((resolve) => { finishCapture = resolve }))
