@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -40,6 +41,32 @@ test("branch analysis runs nightly for both branches and PR coverage analysis st
   assert.ok(nightly.on.schedule.length)
   assert.ok(Object.hasOwn(nightly.on, "workflow_dispatch"))
   assert.deepEqual(nightly.jobs.sonarcloud.strategy.matrix.branch, ["main", "redesign/main"])
+  const steps = nightly.jobs.sonarcloud.steps
+  const checkoutIndex = steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"))
+  const scanIndex = steps.findIndex((step) => step.uses?.startsWith("SonarSource/sonarqube-scan-action@"))
+  const scanArguments = steps[scanIndex].with.args
+  assert.ok(scanArguments.includes("-Dsonar.branch.name=${{ matrix.branch }}"))
+  const revisionArgument = scanArguments.match(/-Dsonar\.scm\.revision=\$\{\{ steps\.([\w-]+)\.outputs\.([\w-]+) \}\}/)
+  assert.ok(revisionArgument, "Sonar must use the checked-out revision through a step output")
+  const [, revisionStepId, revisionOutput] = revisionArgument
+  const revisionIndex = steps.findIndex((step) => step.id === revisionStepId)
+  assert.ok(checkoutIndex >= 0 && checkoutIndex < revisionIndex && revisionIndex < scanIndex)
+  assert.equal(steps[checkoutIndex].with.ref, "${{ matrix.branch }}")
+  const outputDirectory = mkdtempSync(resolve(tmpdir(), "sonar-revision-"))
+  try {
+    const outputFile = resolve(outputDirectory, "github-output")
+    const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" })
+    assert.equal(head.status, 0, head.stderr)
+    const revision = spawnSync("bash", ["-e", "-c", steps[revisionIndex].run], {
+      cwd: root,
+      env: { ...process.env, GITHUB_OUTPUT: outputFile, GITHUB_SHA: "0".repeat(40) },
+      encoding: "utf8",
+    })
+    assert.equal(revision.status, 0, revision.stderr)
+    assert.equal(readFileSync(outputFile, "utf8").trim(), `${revisionOutput}=${head.stdout.trim()}`)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
   assert.ok(workflow("test").jobs.sonarcloud.steps.some((step) => step.uses?.startsWith("SonarSource/sonarqube-scan-action@")))
 })
 
