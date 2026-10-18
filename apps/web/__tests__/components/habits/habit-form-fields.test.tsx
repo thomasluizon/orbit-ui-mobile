@@ -1,4 +1,5 @@
 import React from 'react'
+import userEvent from '@testing-library/user-event'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -131,11 +132,12 @@ function renderForm(
   readPhraseLocally = false,
   lockedGeneral: boolean | null = null,
   onResolveSubHabitProposalReady?: (resolve: () => void) => void,
+  emojiOptions: Pick<React.ComponentProps<typeof HabitFormFields>, 'onSuggestEmoji' | 'isEmojiSuggesting' | 'emojiSuggestionError'> = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const buildForm = (isSuggesting = false) => (
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady} {...emojiOptions}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>
@@ -145,6 +147,81 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
+    const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
+    renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button.hasAttribute('disabled')).toBe(!title.trim())
+    if (title.trim()) {
+      const user = userEvent.setup()
+      await user.tab()
+      await user.tab()
+      await user.tab()
+      expect(button).toHaveFocus()
+      await user.keyboard('{Enter}')
+    } else fireEvent.click(button)
+    await waitFor(() => expect(onSuggestEmoji).toHaveBeenCalledTimes(title.trim() ? 1 : 0))
+    if (!title.trim()) expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+  })
+
+  it.each([false, true])('preserves the emoji action through pending and success after moving focus: %j', async (moveFocus) => {
+    let complete!: (proposal: HabitFormProposal) => void
+    const pending = new Promise<HabitFormProposal>((resolve) => { complete = resolve })
+    const onSuggestEmoji = vi.fn(() => pending)
+    const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
+    const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    button.focus()
+    await user.keyboard('{Enter}')
+    emojiOptions.isEmojiSuggesting = true
+    view.rerenderForm(true)
+    const busy = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(busy).toBe(button)
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(busy).not.toBeDisabled()
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{Enter} ')
+    fireEvent.click(busy)
+    expect(onSuggestEmoji).toHaveBeenCalledOnce()
+    const phrase = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    if (moveFocus) await user.click(phrase)
+    await act(async () => { complete(SETUP_PROPOSAL); await pending })
+    emojiOptions.isEmojiSuggesting = false
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiSuggest' })).toBe(button)
+    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(moveFocus ? phrase : button).toHaveFocus()
+  })
+
+  it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
+    const onSuggestEmoji = vi.fn()
+    renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeDisabled()
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('explains the emoji allowance boundary and keeps request failures inline', () => {
+    mockProfileState.aiMessagesUsed = 5
+    const emojiOptions = { onSuggestEmoji: vi.fn(), emojiSuggestionError: undefined as string | undefined }
+    const view = renderForm(createFormHelpers({ title: 'Swim' }), undefined, false, false, null, undefined, emojiOptions)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    emojiOptions.emojiSuggestionError = 'Try again'
+    view.rerenderForm()
+    expect(screen.getByRole('alert')).toBe(alert)
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button).toBeDisabled()
+    expect(button.getAttribute('aria-describedby')).toBeTruthy()
+    expect(screen.getByRole('alert')).toHaveTextContent('Try again')
+    expect(button).toHaveAccessibleDescription(expect.stringContaining('Try again'))
+  })
+
   it('announces the details state and identifies the reminders region across toggles', () => {
     renderForm()
     const disclosure = screen.getByRole('button', { name: 'habits.form.moreDetails' })
