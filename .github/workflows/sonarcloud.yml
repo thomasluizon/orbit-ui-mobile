@@ -1,15 +1,12 @@
 name: SonarCloud
 
 on:
-  # Analysing redesign/main on push creates a long lived branch only if sonar.branch.longLivedBranches.regex matches it.
-  # of (branch|release)-.*. If its first analysis does not match, the branch is created short lived and
-  # cannot be reclassified, so the setting must be updated before that first analysis.
-  push:
-    branches: [main, redesign/main]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # In SonarCloud Project Settings > Branches and Pull Requests, set the long-lived
+  # sonar.branch.longLivedBranches.regex to (main|redesign/main|(branch|release)-.*)
+  # before the first redesign/main analysis. A short-lived branch cannot be reclassified.
+  schedule:
+    - cron: '37 4 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,29 +15,31 @@ jobs:
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        branch: [main, redesign/main]
+    concurrency:
+      group: sonar-branch-${{ matrix.branch }}
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ matrix.branch }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
+          # A scheduled run saves caches in the default branch scope, and this job checks out redesign/main.
+          package-manager-cache: false
 
       - run: npm ci
 
-      - name: Cache turbo
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
-
       - name: Run Tests with Coverage
-        run: npx turbo run test -- --coverage
+        run: npx turbo run test --concurrency=1 -- --coverage
 
       - name: Merge Coverage Reports
         run: |
@@ -85,5 +84,7 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          args: -Dsonar.branch.name=${{ matrix.branch }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
