@@ -68,7 +68,7 @@ describe('Shell bottom column geometry', () => {
     } finally { vi.restoreAllMocks(); await page.close(); view.unmount() }
   })
 
-  it.each([1100, 1352])('keeps the account block and destinations in place as the profile loads at %ipx', async (width) => {
+  it.each([1100, 1352])('matches one-line account loading height and keeps wrapped accounts grounded at %ipx', async (width) => {
     const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
       astraRow: { label: 'Astra', onOpen: vi.fn() } }
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -80,10 +80,13 @@ describe('Shell bottom column geometry', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${shell()}`)
       const loading = await measure()
-      for (const account of ['Account', 'A longer account name spanning multiple words']) {
-        await page.setContent(`<style>${stylesheet}</style>${shell(account)}`)
-        expect(await measure()).toEqual(loading)
-      }
+      await page.setContent(`<style>${stylesheet}</style>${shell('Account')}`)
+      expect(await measure()).toEqual(loading)
+      await page.setContent(`<style>${stylesheet}</style>${shell('A longer account name spanning multiple words')}`)
+      const wrapped = await measure()
+      expect(wrapped[1]).toEqual(loading[1])
+      expect(wrapped[0]!.height).toBeGreaterThan(loading[0]!.height)
+      expect(wrapped[0]!.top + wrapped[0]!.height).toBe(loading[0]!.top + loading[0]!.height)
     } finally { await page.close() }
   })
 

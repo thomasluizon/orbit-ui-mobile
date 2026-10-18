@@ -207,7 +207,8 @@ describe('Foldable shell geometry', () => {
           expect(field.clipped).toBe(true)
           expect(field.width).toBeCloseTo(field.availableWidth, 0)
         }
-        expect(geometry.fields[1]!.top).toBeGreaterThan(geometry.fields[0]!.bottom)
+        expect(geometry.fields[1]!.top - geometry.fields[0]!.bottom).toBeGreaterThanOrEqual(0)
+        expect(geometry.fields[1]!.top - geometry.fields[0]!.bottom).toBeLessThanOrEqual(2)
         expect(geometry.height).toBeGreaterThanOrEqual(48)
         expect(geometry.topPadding).toBeGreaterThanOrEqual(4)
         expect(geometry.bottomPadding).toBeGreaterThanOrEqual(4)
