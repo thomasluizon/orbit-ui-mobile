@@ -36,7 +36,7 @@ vi.mock('react-native-safe-area-context', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
+  useProfile: () => ({ profile: { hasProAccess: true, aiSummaryEnabled: false, ...mocks.profile }, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.item, openItem: (item: ProactiveItem) => {

@@ -796,3 +796,5 @@ export { resolveHabitAccessibleStatus } from './habit-row-status'
 
 export { proactiveActionLabelKey, getProactiveActionReason } from './proactive'
 export { getSetupChecklist } from './setup-checklist'
+
+export { getSummaryFirstSentence } from './summary-sentence'

@@ -58,6 +58,23 @@ describe('shared chat store', () => {
     expect(store.getState().streamingMessageId).toBe('streaming')
   })
 
+  it('reopens the current summary first without duplicating it or interrupting a reply', () => {
+    const store = createStoreHarness()
+    store.getState().addMessage({ id: 'streaming', role: 'ai', content: 'Partial', timestamp: new Date() })
+    store.getState().setStreamingMessageId('streaming')
+    store.getState().setDraft('My draft')
+    store.getState().openDailySummary('2026-08-29', 'Morning. More guidance.')
+    store.getState().appendToMessageContent('streaming', ' reply')
+    store.getState().openDailySummary('2026-08-29', 'Afternoon. Updated guidance.')
+    expect(store.getState().messages).toEqual([
+      expect.objectContaining({ role: 'ai', content: 'Afternoon. Updated guidance.' }),
+      expect.objectContaining({ id: 'streaming', content: 'Partial reply' }),
+    ])
+    expect(store.getState().proactiveEntryId).toBe('daily-summary-2026-08-29')
+    expect(store.getState().draft).toBe('My draft')
+    expect(store.getState().streamingMessageId).toBe('streaming')
+  })
+
   it('appends messages and tracks the active streamed message', () => {
     const store = createStoreHarness()
     const { addMessage, setIsTyping, setStreamingMessageId } = store.getState()

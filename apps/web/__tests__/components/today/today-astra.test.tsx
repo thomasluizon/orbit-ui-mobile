@@ -40,7 +40,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
+  useProfile: () => ({ profile: { hasProAccess: true, aiSummaryEnabled: false, ...mocks.profile }, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.item, openItem: (item: ProactiveItem) => {

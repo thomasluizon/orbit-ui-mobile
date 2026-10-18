@@ -1471,6 +1471,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   -webkit-tap-highlight-color: transparent;
 }
 
+.today-astra-line:disabled {
+  cursor: default;
+}
+
 .today-astra-line::before {
   position: absolute;
   inset: 0;
@@ -1504,7 +1508,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -4px;
 }
 
-.today-astra-line:active::before {
+.today-astra-line:not(:disabled):active::before {
   opacity: 1;
   transition-duration: 0s;
 }
@@ -1529,7 +1533,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .today-astra-line:hover::before {
+  .today-astra-line:not(:disabled):hover::before {
     opacity: 1;
   }
 

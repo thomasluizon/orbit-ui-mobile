@@ -11,6 +11,7 @@ export interface ChatStoreState {
   proactiveEntryId: string | null
   clearProactiveEntry: (id: string) => void
   proactiveOutcomes: Record<string, 'opened' | 'acted'>
+  openDailySummary: (date: string, summary: string) => void
   openProactiveItem: (item: ProactiveItem) => boolean
   claimProactiveAction: (id: string) => boolean
   isTyping: boolean
@@ -68,6 +69,15 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       })
       return added
     },
+    openDailySummary: (date, summary) => set((state) => {
+      const id = `daily-summary-${date}`
+      const existing = state.messages.find((message) => message.id === id)
+      return {
+        proactiveEntryId: id,
+        messages: [{ id, role: 'ai', content: summary, timestamp: existing?.timestamp ?? new Date() },
+          ...state.messages.filter((message) => message.id !== id)],
+      }
+    }),
     claimProactiveAction: (id) => {
       let claimed = false
       set((state) => {

@@ -47,5 +47,5 @@ export type { ParsedAccountEvent } from './account-event-stream'
 export { resetAccountQueries } from './reset-account-queries'
 export { shouldRetryQuery, queryRetryDelay, parseRetryAfter, errorRetryAfter, isUpstreamStarting } from './retry'
 
-export { dailySummaryQueryOptions, AI_SUMMARY_CLAMP_CHARS } from './daily-summary'
+export { dailySummaryQueryOptions } from './daily-summary'
 export type { DailySummaryOptions } from './daily-summary'

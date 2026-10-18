@@ -154,7 +154,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.hasProAccess = false
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
-    const upgrade = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.upgrade')
+    const upgrade = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.freePrompt')
     try {
       expect(upgrade()).toHaveLength(1)
       await TestRenderer.act(() => {
@@ -172,16 +172,14 @@ describe('mobile Today Astra owned surfaces', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it('offers the daily summary upgrade from Hoje alongside the proactive line', async () => {
+  it('gives the unread check-in the only insight slot ahead of the free summary', async () => {
     mocks.hasProAccess = false
     mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
     try {
-      const upgrade = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.upgrade')
-      expect(upgrade).toHaveLength(1)
-      await TestRenderer.act(() => (upgrade[0]!.props.onPress as () => void)())
-      expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+      const upgrade = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.freePrompt')
+      expect(upgrade).toHaveLength(0)
       expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in').length).toBeGreaterThan(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })

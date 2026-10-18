@@ -1,7 +1,5 @@
 'use client'
 
-import { useId } from 'react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   getReturningInterval,
@@ -9,7 +7,8 @@ import {
 } from '@orbit/shared/utils'
 import { useProactiveItem } from '@/hooks/use-proactive-item'
 import { useProfile } from '@/hooks/use-profile'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { TodayAstraLine } from './today-astra-line'
+import { TodayAISummary } from './today-ai-summary'
 
 interface TodayAstraProps {
   today: string
@@ -17,15 +16,15 @@ interface TodayAstraProps {
   suppressed: boolean
 }
 
-export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
-  const destinationId = useId()
   const { profile } = useProfile()
   const { item: proactive, openItem } = useProactiveItem()
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
 
-  const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
-    ? proactive
+  if (!shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })) return null
+
+  const line = proactive
       ? { text: proactive.text, destination: t('todayAstra.openConversation'), item: proactive }
       : returning
         ? {
@@ -36,38 +35,9 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             item: null,
           }
         : null
-    : null
 
-  if (!line) return null
-
-  const content = (
-    <>
-      <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
-        <AstraGlyph size={20} color="var(--fg-3)" />
-      </span>
-      <span className="today-astra-sentence">{line.text}</span>
-    </>
-  )
-
-  return (
-    <div className="px-[16px]">
-      {line.item ? (
-        <button
-          type="button"
-          className="today-astra-line"
-          aria-describedby={destinationId}
-          onClick={() => {
-            openItem(line.item)
-          }}
-        >
-          {content}
-        </button>
-      ) : (
-        <Link className="today-astra-line" href="/progress" aria-describedby={destinationId}>
-          {content}
-        </Link>
-      )}
-      <span id={destinationId} className="sr-only">{line.destination}</span>
-    </div>
-  )
+  if (!line) return <TodayAISummary date={today} />
+  return <TodayAstraLine text={line.text} destination={line.destination}
+    href={line.item ? undefined : '/progress'}
+    onPress={line.item ? () => openItem(line.item) : undefined} />
 }

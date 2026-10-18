@@ -130,7 +130,7 @@ describe('web Today Astra owned surfaces', () => {
   it.each(['past day', 'create', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', (state) => {
     mocks.hasProAccess = false
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.getByRole('link', { name: 'summary.upgrade' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'summary.freePrompt' })).toBeInTheDocument()
     if (state === 'past day') mocks.view.nav.dateStr = '2026-08-28'
     mocks.view.showCreateModal = state === 'create'
     mocks.view.isSelectMode = state === 'select'
@@ -139,14 +139,14 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.isFetching = state === 'first load'
     mocks.view.data.showLoadError = state === 'load error'
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.queryByRole('link', { name: 'summary.upgrade' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'summary.freePrompt' })).not.toBeInTheDocument()
   })
 
-  it('offers the daily summary upgrade from Hoje alongside the proactive line', () => {
+  it('gives the unread check-in the only insight slot ahead of the free summary', () => {
     mocks.hasProAccess = false
     mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
     render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.getByRole('link', { name: 'summary.upgrade' })).toHaveAttribute('href', '/upgrade')
+    expect(screen.queryByText('summary.freePrompt')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
   })
 
