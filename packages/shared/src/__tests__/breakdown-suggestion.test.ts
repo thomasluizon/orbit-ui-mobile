@@ -124,7 +124,7 @@ describe('buildBreakdownCreateRequest', () => {
     expect(request.habits[0]?.frequencyQuantity).toBeUndefined()
   })
 
-  it('nests rows under a parent that inherits frequency and earliest due date', () => {
+  it('preserves mixed child schedules after API inheritance and the earliest due date', () => {
     const request = buildBreakdownCreateRequest(
       [
         makeEditableHabit({ title: 'Walk', dueDate: '2025-03-05' }),
@@ -142,12 +142,34 @@ describe('buildBreakdownCreateRequest', () => {
     expect(request.habits).toHaveLength(1)
     const parent = request.habits[0]
     expect(parent?.title).toBe('Get fit')
-    expect(parent?.frequencyUnit).toBe('Day')
-    expect(parent?.frequencyQuantity).toBe(2)
+    expect(parent?.subHabits?.map(child => ({
+      frequencyUnit: child.frequencyUnit ?? parent.frequencyUnit ?? null,
+      frequencyQuantity: child.frequencyQuantity ?? parent.frequencyQuantity ?? null,
+    }))).toEqual([
+      { frequencyUnit: null, frequencyQuantity: null },
+      { frequencyUnit: 'Day', frequencyQuantity: 2 },
+    ])
     expect(parent?.dueDate).toBe('2025-03-01')
     expect(parent?.subHabits?.map((subHabit) => subHabit.title)).toEqual([
       'Walk',
       'Stretch',
+    ])
+  })
+
+  it('retains a recurring parent when every child has an explicit cadence', () => {
+    const request = buildBreakdownCreateRequest([
+      makeEditableHabit({ frequencyUnit: 'Day', frequencyQuantity: 2 }),
+      makeEditableHabit({ frequencyUnit: 'Week', frequencyQuantity: 3 }),
+    ], 'Get fit', true)
+    const parent = request.habits[0]!
+    expect(parent.frequencyUnit).toBe('Day')
+    expect(parent.frequencyQuantity).toBe(2)
+    expect(parent.subHabits?.map(child => ({
+      frequencyUnit: child.frequencyUnit ?? parent.frequencyUnit,
+      frequencyQuantity: child.frequencyQuantity ?? parent.frequencyQuantity,
+    }))).toEqual([
+      { frequencyUnit: 'Day', frequencyQuantity: 2 },
+      { frequencyUnit: 'Week', frequencyQuantity: 3 },
     ])
   })
 

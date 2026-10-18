@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import yaml from "js-yaml"
+import { guardGroups } from "./_guard-groups.mjs"
 
 import { BASH, REPO_ROOT, T, check, root } from "./_harness.mjs"
 
@@ -14,7 +15,10 @@ const entry = (overrides = {}) => ({
 
 const scopedGuardWorkflow = "jobs:\n  existing:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n"
 
-const scopedLintWorkflow = readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")
+const currentGuards = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/guards.yml"), "utf8"))
+const lintWithDesign = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8"))
+lintWithDesign.jobs["design-guard"] = guardGroups(currentGuards)["design-guard"]
+const scopedLintWorkflow = yaml.dump(lintWithDesign)
 
 const stageRepository = (label, charter, { guardWorkflow = scopedGuardWorkflow, lintWorkflow = scopedLintWorkflow } = {}) => {
   const repository = join(root, "gate-charter", label)
@@ -40,6 +44,32 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  const consolidated = structuredClone(currentGuards)
+  consolidated.jobs.guards.steps = consolidated.jobs.guards.steps.filter((step) =>
+    !step.id || step.id === "timeless__1")
+  consolidated.jobs.guards.steps.find((step) => step.id === "timeless__1").id = "existing__1"
+  check(
+    "check-gate-charter.mjs",
+    "accepts a consolidated guard with the same scope contract",
+    ["--root", stageRepository("consolidated", completeCharter(), { guardWorkflow: yaml.dump(consolidated) })],
+    { status: 0 },
+  )
+  const unregisteredStep = structuredClone(consolidated)
+  unregisteredStep.jobs.guards.steps.push({ name: "Unregistered gate", run: "node unregistered.mjs" })
+  check(
+    "check-gate-charter.mjs",
+    "rejects an unregistered run in the consolidated job",
+    ["--root", stageRepository("unregistered-step", completeCharter(), { guardWorkflow: yaml.dump(unregisteredStep) })],
+    { status: 2, stderr: /each guard step must have a registered group id/ },
+  )
+  const successDependent = structuredClone(consolidated)
+  successDependent.jobs.guards.steps.find((step) => step.id === "existing__1").if = "${{ success() }}"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a guard that would be skipped after another guard fails",
+    ["--root", stageRepository("success-dependent", completeCharter(), { guardWorkflow: yaml.dump(successDependent) })],
+    { status: 2, stderr: /independent !cancelled/ },
+  )
   const missingGate = stageRepository("missing-gate", completeCharter())
   writeFileSync(join(missingGate, "tools", "check-new-gate.mjs"), "process.exit(0)\n")
   check(
@@ -86,7 +116,7 @@ export const cases = () => {
     { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
   )
 
-  const timelessJob = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")).jobs.timeless
+  const timelessJob = guardGroups(currentGuards).timeless
   const timelessWorkflow = (job) => yaml.dump({ jobs: { existing: job } })
   check(
     "check-gate-charter.mjs",
@@ -246,7 +276,7 @@ export const cases = () => {
     ["dashes", "PR title and body carry no dashes"],
     ["review-harness", "A UI pull request on redesign/main records what the review skills found"],
   ]) {
-    const step = guards.jobs[jobId].steps.find((candidate) => candidate.name === stepName)
+    const step = guardGroups(guards)[jobId].steps.find((candidate) => candidate.name === stepName)
     writeFileSync(join(root, "changed-paths.txt"), "")
     const script = `gh() { [[ "$2" == "repos/example/repo/pulls/1050" ]] || return 88; printf 'text'; }\nnode() { :; }\ngit() { :; }\n${step.run.replaceAll("${{ github.base_ref }}", "redesign/main")}`
     const result = spawnSync(BASH, ["-c", script], {

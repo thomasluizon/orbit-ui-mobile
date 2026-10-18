@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
-import { readdirSync, statSync } from "node:fs"
-import { dirname, join, relative, resolve, sep } from "node:path"
+import { createHash } from "node:crypto"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
+import { basename, dirname, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
 
-  Walks installed node_modules trees under <root> and fails on any file whose mtime is later than
-  its own package's earliest file. That is a write that did not come from the install.
+  Walks installed node_modules trees under <root> for files later than their package's extraction.
+  For a flagged package, compares all regular files with its integrity-verified locked archive.
+  Matching contents pass regardless of extraction duration; modified, missing or extra files fail.
+  Without a locked archive, the timestamp finding remains. Unverifiable locked archives fail.
+  Archives are read from file: paths or fetched over HTTPS with a 30 second timeout.
   Generated .next/standalone copies are excluded, including roots inside that output.
 
   --root <path>              tree to scan (defaults to the parent of this tool's directory)
@@ -18,7 +24,7 @@ const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-se
   Run the reinstall in the project that owns the affected dependency tree.
   A plain npm install leaves a complete package alone and will not repair it.
 
-exit codes: 0 no file was written after its install, 1 at least one was, 2 usage error`
+exit codes: 0 no dependency edits found, 1 edits or unverifiable flagged packages, 2 usage error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -55,6 +61,8 @@ while (argumentsToParse.length > 0) {
 }
 
 const findings = []
+const flaggedPackages = []
+const lockfiles = new Map()
 let packagesScanned = 0
 let filesScanned = 0
 
@@ -67,7 +75,7 @@ const readEntries = (directory) => {
 }
 
 /** Every file the package itself owns, with its mtime. A nested tree is a separate package. */
-function collectPackageFiles(directory, collected) {
+function collectPackageFiles(directory, collected, installed = true) {
   for (const entry of readEntries(directory)) {
     const path = join(directory, entry.name)
     /**
@@ -77,12 +85,13 @@ function collectPackageFiles(directory, collected) {
      */
     if (entry.isSymbolicLink()) continue
     if (entry.isDirectory()) {
-      if (entry.name === "node_modules") scanInstalledTree(path)
-      else collectPackageFiles(path, collected)
+      if (entry.name === "node_modules") {
+        if (installed) scanInstalledTree(path)
+      } else collectPackageFiles(path, collected, installed)
       continue
     }
     if (!entry.isFile()) continue
-    filesScanned += 1
+    if (installed) filesScanned += 1
     try {
       collected.push({ path, modifiedAtMs: statSync(path).mtimeMs })
     } catch {
@@ -92,22 +101,120 @@ function collectPackageFiles(directory, collected) {
 }
 
 function scanPackage(packageDirectory) {
+  let missingManifest = false
   try {
     statSync(join(packageDirectory, "package.json"))
   } catch {
-    /** No package.json means this directory is not an installed package, so it is not judged. */
-    return
+    try {
+      /** A locked package remains installed content even when its manifest has been removed. */
+      if (!findLockedArchive(packageDirectory)) return
+      missingManifest = true
+    } catch (error) {
+      findings.push({ path: packageDirectory, packageDirectory, reason: `could not read package lock: ${error.message}` })
+      return
+    }
   }
   packagesScanned += 1
   const collected = []
   collectPackageFiles(packageDirectory, collected)
-  if (collected.length === 0) return
-  let extractedAtMs = collected[0].modifiedAtMs
+  if (collected.length === 0 && !missingManifest) return
+  let extractedAtMs = collected.length > 0 ? collected[0].modifiedAtMs : 0
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
-  for (const file of collected) {
-    if (file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000) {
-      findings.push({ path: file.path, packageDirectory, lateSeconds: Math.round((file.modifiedAtMs - extractedAtMs) / 1000) })
+  const lateFiles = collected.filter((file) => file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000)
+  if (missingManifest || lateFiles.length > 0) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
+}
+
+function findLockedArchive(packageDirectory) {
+  for (let directory = dirname(packageDirectory); ; directory = dirname(directory)) {
+    const lockPath = join(directory, "package-lock.json")
+    if (existsSync(lockPath)) {
+      if (!lockfiles.has(lockPath)) lockfiles.set(lockPath, JSON.parse(readFileSync(lockPath, "utf8")))
+      const packagePath = relative(directory, packageDirectory).split(sep).join("/")
+      const locked = lockfiles.get(lockPath).packages?.[packagePath]
+      if (locked?.resolved && locked.integrity) return { directory, resolved: locked.resolved, integrity: locked.integrity }
     }
+    if (dirname(directory) === directory) return null
+  }
+}
+
+async function readLockedArchive(locked) {
+  let archive
+  if (locked.resolved.startsWith("file:")) {
+    archive = readFileSync(resolve(locked.directory, locked.resolved.slice(5)))
+  } else {
+    if (!locked.resolved.startsWith("https://")) throw new Error("locked archive must use HTTPS or file:")
+    const response = await fetch(locked.resolved, { signal: AbortSignal.timeout(30000) })
+    if (!response.ok) throw new Error(`locked archive request failed (${response.status})`)
+    archive = Buffer.from(await response.arrayBuffer())
+  }
+  const hashes = locked.integrity.split(/\s+/).map((hash) => hash.split("-"))
+  const algorithm = ["sha512", "sha384", "sha256", "sha1"].find((name) => hashes.some(([kind]) => kind === name))
+  if (!algorithm) throw new Error("locked archive has no supported integrity hash")
+  const digest = createHash(algorithm).update(archive).digest("base64")
+  if (!hashes.some(([kind, expected]) => kind === algorithm && expected === digest)) {
+    throw new Error("locked archive integrity mismatch")
+  }
+  return archive
+}
+
+async function compareLockedPackage(packageDirectory, collected, locked) {
+  const archive = await readLockedArchive(locked)
+  const scratch = mkdtempSync(join(tmpdir(), "dependency-archive-"))
+  try {
+    const archivePath = join(scratch, "package.tgz")
+    const unpacked = join(scratch, "contents")
+    mkdirSync(unpacked)
+    writeFileSync(archivePath, archive)
+    /** Reuse the archive reader shipped with the existing web dependency. */
+    const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+    const seenNpmIgnores = new Set()
+    await tar.x({
+      file: archivePath, cwd: unpacked, strip: 1, strict: true,
+      /** Match npm extraction: ignore links and let an explicit .npmignore win either archive order. */
+      filter: (name, entry) => {
+        if (/Link$/.test(entry.type)) return false
+        if (/File$/.test(entry.type)) {
+          if (basename(name) === ".npmignore") seenNpmIgnores.add(name)
+          else if (basename(name) === ".gitignore") {
+            const npmIgnore = name.replace(/\.gitignore$/, ".npmignore")
+            if (seenNpmIgnores.has(npmIgnore)) return false
+            entry.path = npmIgnore
+          }
+          return true
+        }
+      },
+    })
+    const expected = []
+    collectPackageFiles(unpacked, expected, false)
+    if (expected.length === 0) throw new Error("locked archive contains no regular package files")
+    const installed = new Set(collected.map((file) => relative(packageDirectory, file.path)))
+    const differences = []
+    for (const file of expected) {
+      const name = relative(unpacked, file.path)
+      const path = join(packageDirectory, name)
+      if (!installed.delete(name)) differences.push({ path, packageDirectory, reason: "missing" })
+      else if (!readFileSync(path).equals(readFileSync(file.path))) differences.push({ path, packageDirectory, reason: "modified" })
+    }
+    for (const name of installed) differences.push({ path: join(packageDirectory, name), packageDirectory, reason: "extra" })
+    return differences
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+async function checkFlaggedPackage({ packageDirectory, collected, lateFiles, extractedAtMs }) {
+  try {
+    const locked = findLockedArchive(packageDirectory)
+    if (locked) {
+      findings.push(...await compareLockedPackage(packageDirectory, collected, locked))
+      return
+    }
+  } catch (error) {
+    findings.push({ path: packageDirectory, packageDirectory, reason: `could not verify locked archive: ${error.message}` })
+    return
+  }
+  for (const file of lateFiles) {
+    findings.push({ path: file.path, packageDirectory, lateSeconds: Math.round((file.modifiedAtMs - extractedAtMs) / 1000) })
   }
 }
 
@@ -141,6 +248,7 @@ function findInstalledTrees(directory) {
 
 const startedAtMs = Date.now()
 findInstalledTrees(repositoryRoot)
+for (const flagged of flaggedPackages) await checkFlaggedPackage(flagged)
 const elapsedSeconds = ((Date.now() - startedAtMs) / 1000).toFixed(1)
 const relativePath = (path) => relative(repositoryRoot, path).split(sep).join("/")
 
@@ -155,9 +263,10 @@ if (findings.length === 0) {
 }
 
 const editedPackages = [...new Set(findings.map((finding) => finding.packageDirectory))].sort()
-console.error(`\n${findings.length} file(s) in ${editedPackages.length} package(s) were written after their install:`)
+console.error(`\n${findings.length} file(s) in ${editedPackages.length} package(s) failed dependency verification:`)
 for (const finding of findings.slice(0, MAXIMUM_LISTED_FINDINGS)) {
-  console.error(`  ${relativePath(finding.path)}  (+${finding.lateSeconds}s after its package's earliest file)`)
+  if (finding.reason) console.error(`  ${finding.reason}: ${relativePath(finding.path)}`)
+  else console.error(`  ${relativePath(finding.path)}  (+${finding.lateSeconds}s after its package's earliest file)`)
 }
 if (findings.length > MAXIMUM_LISTED_FINDINGS) {
   console.error(`  ... and ${findings.length - MAXIMUM_LISTED_FINDINGS} more`)

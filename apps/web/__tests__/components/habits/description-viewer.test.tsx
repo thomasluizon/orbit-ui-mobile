@@ -131,7 +131,7 @@ describe('DescriptionViewer', () => {
     )
     fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.copyFailed')
+      expect(screen.getByRole('status')).toHaveTextContent('habits.detail.copyFailed')
     })
     expect(screen.getByLabelText('habits.detail.copyDescription')).toBeInTheDocument()
   })
@@ -148,7 +148,7 @@ describe('DescriptionViewer', () => {
       />,
     )
     fireEvent.click(screen.getByLabelText('habits.detail.copyDescription'))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
 
     fireEvent.click(screen.getByText('close-overlay'))
     expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -169,6 +169,6 @@ describe('DescriptionViewer', () => {
         description="Copy me"
       />,
     )
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })
