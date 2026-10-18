@@ -5,7 +5,7 @@ import { API } from '@orbit/shared/api'
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
@@ -521,6 +521,57 @@ describe('mobile habit hooks', () => {
     mocks.cancelQueuedDeleteForUndo.mockClear()
     useOfflineSyncStore.setState({ drops: [] })
     storage.setItem.mockClear()
+  })
+
+  it.each(['log', 'unlog', 'skip', 'delete', 'restore', 'bulk log', 'bulk skip', 'bulk delete'] as const)('invalidates the cached month retrospective after %s', async (operation) => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const retrospectiveKey = habitKeys.retrospective('month')
+    const retrospective = { period: 'month', metrics: createMockRetrospectiveMetrics({ periodDays: 30 }),
+      narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, fromCache: false }
+    client.setQueryDefaults(retrospectiveKey, { staleTime: 5 * 60_000 })
+    client.setQueryData(retrospectiveKey, retrospective)
+    let runMutation!: () => Promise<unknown>
+    function Probe() {
+      const log = useLogHabit()
+      const skip = useSkipHabit()
+      const remove = useDeleteHabit()
+      const restore = useRestoreHabit()
+      const bulkLog = useBulkLogHabits()
+      const bulkSkip = useBulkSkipHabits()
+      const bulkDelete = useBulkDeleteHabits()
+      runMutation = {
+        log: () => log.mutateAsync({ habitId: 'habit-1', intent: 'log' }),
+        unlog: () => log.mutateAsync({ habitId: 'habit-1', intent: 'unlog' }),
+        skip: () => skip.mutateAsync({ habitId: 'habit-1' }),
+        delete: () => remove.mutateAsync('habit-1'),
+        restore: () => restore.mutateAsync('habit-1'),
+        'bulk log': () => bulkLog.mutateAsync([{ habitId: 'habit-1' }]),
+        'bulk skip': () => bulkSkip.mutateAsync([{ habitId: 'habit-1' }]),
+        'bulk delete': () => bulkDelete.mutateAsync(['habit-1']),
+      }[operation]
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      const logResponse = { logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }
+      const bulkResponse = { results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null }] }
+      mocks.runQueuedMutation.mockResolvedValueOnce(operation === 'bulk log' || operation === 'bulk skip'
+        ? bulkResponse : operation === 'log' || operation === 'unlog' ? logResponse : undefined)
+      expect(client.getQueryState(retrospectiveKey)?.isInvalidated).toBe(false)
+      await TestRenderer.act(() => runMutation())
+      expect(client.getQueryState(retrospectiveKey)?.isInvalidated).toBe(true)
+      expect(client.getQueryData(retrospectiveKey)).toEqual(retrospective)
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
   })
 
   it('gives queued toggles a durable habit and occurrence date key', async () => {

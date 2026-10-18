@@ -101,7 +101,8 @@ export async function proxy(request: NextRequest) {
     siteUrl &&
     siteUrl.hostname !== 'localhost' &&
     requestHost &&
-    requestHost.toLowerCase() !== siteUrl.host
+    requestHost.toLowerCase() !== siteUrl.host &&
+    request.headers.get('x-forwarded-host')?.toLowerCase() !== siteUrl.host
   ) {
     const redirectUrl = new URL(siteUrl.origin)
     redirectUrl.pathname = pathname

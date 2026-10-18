@@ -2416,3 +2416,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .daily-streak-previous { animation: daily-streak-previous var(--dur-3) var(--ease-out) both; }
   .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out) both; }
 }
+
+@keyframes astra-pending-pulse {
+  50% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .astra-pending-pulse {
+    animation: astra-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) var(--skeleton-pulse-iterations);
+  }
+}
