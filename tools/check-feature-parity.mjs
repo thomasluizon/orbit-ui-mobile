@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -13,7 +13,7 @@ const USAGE = `usage: check-feature-parity.mjs [--root <directory>] [--productio
 
 Derives production capabilities from reachable routes, translation uses, option values,
 and keyboard handlers on web and Android. Resolves redesign evidence from source, never
-from a recorded completion status. Writes the generated inventory only with --write.
+from a recorded completion status. Writes the untracked inventory only with --write.
 
   --root <directory>  repository (default: script's repository)
   --production <ref>  production tree (default: origin/main; fetch it first)
@@ -630,6 +630,7 @@ function run(options) {
   if (options.write) {
     const { entries: rows, translationUses, ...header } = inventory
     const serialize = (entry) => JSON.stringify(entry, (key, value) => ['label', 'consumers'].includes(key) ? undefined : value)
+    mkdirSync(dirname(resolve(options.root, INVENTORY)), { recursive: true })
     writeFileSync(resolve(options.root, INVENTORY), `${JSON.stringify(header, null, 2).slice(0, -2)},\n  "translationUses": [\n${translationUses.map((entry) => `    ${serialize(entry)}`).join(',\n')}\n  ],\n  "entries": [\n${rows.map((entry) => `    ${serialize(entry)}`).join(',\n')}\n  ]\n}\n`)
   }
   const missing = entries.filter((entry) => entry.disposition === 'missing')
