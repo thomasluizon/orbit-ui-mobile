@@ -34,6 +34,7 @@ import {
   canLogHabitOnDate,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeHabitDayProgress,
   computeParentPromptProgress,
   collectSelectableDescendantIds,
@@ -43,7 +44,6 @@ import {
   getAllDoneOnDate,
   getTodayBoundary,
   hasAncestorInSet,
-  hasHabitScheduleOnDate,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -820,11 +820,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           confirmedResolutions,
           promptDataRef.current,
         )
-        if (progress.total === 0 || progress.done < progress.total) {
+        const decision = computeParentPromptDecision(
+          promptDataRef.current?.habitsById.get(parentId) ?? null,
+          progress,
+          selectedDateStr,
+          promptedParentIdsRef.current,
+        )
+        if (decision.type === 'release') {
           promptedParentIdsRef.current.delete(parentId)
         }
       }
-    }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt])
+    }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
     const recordHabitResolution = useCallback((
       confirmedResolutions: ConfirmedResolutionRecord,
@@ -869,13 +875,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           return
         }
 
-        const parentIsDueOnViewedDate =
-          parentHabit.isGeneral ||
-          parentHabit.isOverdue ||
-          hasHabitScheduleOnDate(parentHabit, settlementData.selectedDateStr)
-        if (!parentIsDueOnViewedDate) return
-
-        const mode = computeParentSettlementDecision(
+        const decision = computeParentPromptDecision(
           parentHabit,
           getParentPromptProgress(
             parentHabit.id,
@@ -883,18 +883,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             settlementData,
           ),
           settlementData.selectedDateStr,
+          promptedParentIdsRef.current,
         )
-        if (mode) {
+        if (decision.type === 'open') {
           confirmedResolutions.clearWhenIdle = false
-          if (!promptedParentIdsRef.current.has(parentHabit.id)) {
-            promptedParentIdsRef.current.add(parentHabit.id)
-            setParentPromptQueue((current) => enqueueParentPrompt(current, {
-              habit: parentHabit,
-              mode,
-              date: settlementData.selectedDateStr,
-            }))
-          }
-        } else {
+          promptedParentIdsRef.current.add(parentHabit.id)
+          setParentPromptQueue((current) => enqueueParentPrompt(current, {
+            habit: parentHabit,
+            mode: decision.mode,
+            date: settlementData.selectedDateStr,
+          }))
+        } else if (decision.type === 'release') {
           promptedParentIdsRef.current.delete(parentHabit.id)
           setParentPromptQueue((current) => removeParentPrompt(
             current,
@@ -919,7 +918,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const parentHabit = operation.data.habitsById.get(childHabit.parentId)
         if (!parentHabit) return
 
-        const mode = computeParentSettlementDecision(
+        const decision = computeParentPromptDecision(
           parentHabit,
           getParentPromptProgress(
             parentHabit.id,
@@ -927,12 +926,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             operation.data,
           ),
           operation.date,
+          promptedParentIdsRef.current,
         )
-        if (!mode) {
-          promptedParentIdsRef.current.delete(parentHabit.id)
-          return
-        }
-        if (promptedParentIdsRef.current.has(parentHabit.id)) return
+        if (decision.type === 'release') promptedParentIdsRef.current.delete(parentHabit.id)
+        if (decision.type !== 'open') return
+        const { mode } = decision
 
         if (mode === 'log' && operation.requiresLogConfirmation) {
           checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)

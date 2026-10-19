@@ -2,7 +2,7 @@
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,7 @@ import {
   computeHabitFutureHint,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeHabitDayProgress,
   computeParentPromptProgress,
   formatAPIDate,
@@ -24,7 +25,6 @@ import {
   getAllDoneOnDate,
   getTodayBoundary,
   hasAncestorInSet,
-  hasHabitScheduleOnDate,
   isHabitDoneForRange,
   sortNormalizedHabits,
   type HabitResolution,
@@ -381,9 +381,9 @@ export function HabitList({
     () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
     [recentlyCompletedDates, selectedDateStr],
   )
-  const pendingToggleHabitIdsRef = useReactRef(new Set<string>())
-  const promptedParentIdsRef = useReactRef(new Set<string>())
-  const confirmedResolutionsRef = useReactRef(
+  const pendingToggleHabitIdsRef = useRef(new Set<string>())
+  const promptedParentIdsRef = useRef(new Set<string>())
+  const confirmedResolutionsRef = useRef(
     createConfirmedResolutionRecord(selectedDateStr),
   )
   const [parentPromptQueue, setParentPromptQueue] = useAccountScopedState<ParentPromptQueue>(() => ({
@@ -392,9 +392,9 @@ export function HabitList({
   }))
   const parentPrompt = getCurrentParentPrompt(parentPromptQueue, selectedDateStr)
   const hasQueuedParentPrompt = parentPrompt !== null
-  const promptDataRef = useReactRef<ParentSettlementData | null>(null)
+  const promptDataRef = useRef<ParentSettlementData | null>(null)
 
-  const recentlyCompletedTimersRef = useReactRef(
+  const recentlyCompletedTimersRef = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   )
 
@@ -406,7 +406,7 @@ export function HabitList({
       }
       timers.clear()
     }
-  }, [recentlyCompletedTimersRef])
+  }, [])
 
   const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
     setRecentlyCompletedDates((prev) => addRecentCompletion(prev, habitId, date))
@@ -421,7 +421,7 @@ export function HabitList({
         setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
       }, 1400),
     )
-  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
+  }, [selectedDateStr, setRecentlyCompletedDates])
 
   const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
     const timers = recentlyCompletedTimersRef.current
@@ -432,12 +432,12 @@ export function HabitList({
       timers.delete(timerKey)
     }
     setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
-  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
+  }, [selectedDateStr, setRecentlyCompletedDates])
 
   useEffect(() => {
     promptedParentIdsRef.current.clear()
     confirmedResolutionsRef.current = createConfirmedResolutionRecord(selectedDateStr)
-  }, [confirmedResolutionsRef, promptedParentIdsRef, selectedDateStr])
+  }, [selectedDateStr])
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,
@@ -522,7 +522,7 @@ export function HabitList({
       isListView: view !== 'today',
     }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren and habitsById are aliased from the query result every render and already listed; the effect only mirrors the current render values into a ref, so no staleness is possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [promptDataRef, getChildren, visibility, habitsById, selectedDateStr, view])
+  }, [getChildren, visibility, habitsById, selectedDateStr, view])
 
   const childrenProgressMap = useMemo(() => {
     const map = new Map<string, { done: number; total: number }>()
@@ -585,20 +585,20 @@ export function HabitList({
       promptDataRef.current?.habitsById ?? EMPTY_HABITS_BY_ID,
     )
     for (const parentId of promptedParentIdsRef.current) {
-      const { done, total } = getParentPromptProgress(
+      const progress = getParentPromptProgress(
         parentId,
         confirmedResolutions,
         promptDataRef.current,
       )
-      if (total === 0 || done < total) promptedParentIdsRef.current.delete(parentId)
+      const decision = computeParentPromptDecision(
+        promptDataRef.current?.habitsById.get(parentId) ?? null,
+        progress,
+        selectedDateStr,
+        promptedParentIdsRef.current,
+      )
+      if (decision.type === 'release') promptedParentIdsRef.current.delete(parentId)
     }
-  }, [
-    confirmedResolutionsRef,
-    habitsQuery.dataUpdatedAt,
-    hasQueuedParentPrompt,
-    promptDataRef,
-    promptedParentIdsRef,
-  ])
+  }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
   const dragItems = useMemo<DragItem[]>(() => {
     const ordered = view === 'all' ? buildHabitDateBuckets(habits, todayStr).flatMap((bucket) => bucket.habits) : habits
@@ -606,12 +606,12 @@ export function HabitList({
   }, [habits, collapsedIds, visibility, view, todayStr])
 
   const [isDragging, setIsDragging] = useAccountScopedState(false)
-  const autoCollapsedOnDragRef = useReactRef<string | null>(null)
+  const autoCollapsedOnDragRef = useRef<string | null>(null)
 
-  const dragItemsRef = useReactRef<DragItem[]>(dragItems)
+  const dragItemsRef = useRef<DragItem[]>(dragItems)
   useEffect(() => {
     dragItemsRef.current = dragItems
-  }, [dragItems, dragItemsRef])
+  }, [dragItems])
 
   const [dragOverrideItems, setDragOverrideItems] = useAccountScopedState<DragItem[] | null>(null)
   const activeDragItems = dragOverrideItems ?? dragItems
@@ -823,28 +823,21 @@ export function HabitList({
       return
     }
 
-    const parentIsDueOnViewedDate =
-      parent.isGeneral ||
-      parent.isOverdue ||
-      hasHabitScheduleOnDate(parent, settlementData.selectedDateStr)
-    if (!parentIsDueOnViewedDate) return
-
-    const mode = computeParentSettlementDecision(
+    const decision = computeParentPromptDecision(
       parent,
       getParentPromptProgress(parent.id, confirmedResolutions, settlementData),
       settlementData.selectedDateStr,
+      promptedParentIdsRef.current,
     )
-    if (mode) {
+    if (decision.type === 'open') {
       confirmedResolutions.clearWhenIdle = false
-      if (!promptedParentIdsRef.current.has(parent.id)) {
-        promptedParentIdsRef.current.add(parent.id)
-        setParentPromptQueue((current) => enqueueParentPrompt(current, {
-          habit: parent,
-          mode,
-          date: settlementData.selectedDateStr,
-        }))
-      }
-    } else {
+      promptedParentIdsRef.current.add(parent.id)
+      setParentPromptQueue((current) => enqueueParentPrompt(current, {
+        habit: parent,
+        mode: decision.mode,
+        date: settlementData.selectedDateStr,
+      }))
+    } else if (decision.type === 'release') {
       promptedParentIdsRef.current.delete(parent.id)
       setParentPromptQueue((current) => removeParentPrompt(
         current,
@@ -863,7 +856,7 @@ export function HabitList({
     const parent = operation.data.habitsById.get(child.parentId)
     if (!parent) return
 
-    const mode = computeParentSettlementDecision(
+    const decision = computeParentPromptDecision(
       parent,
       getParentPromptProgress(
         parent.id,
@@ -871,12 +864,11 @@ export function HabitList({
         operation.data,
       ),
       operation.date,
+      promptedParentIdsRef.current,
     )
-    if (!mode) {
-      promptedParentIdsRef.current.delete(parent.id)
-      return
-    }
-    if (promptedParentIdsRef.current.has(parent.id)) return
+    if (decision.type === 'release') promptedParentIdsRef.current.delete(parent.id)
+    if (decision.type !== 'open') return
+    const { mode } = decision
 
     if (mode === 'log' && operation.requiresLogConfirmation) {
       checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)
@@ -1207,7 +1199,7 @@ export function HabitList({
     settleBulkHabitResolutions,
   }))
 
-  const listContainerRef = useReactRef<HTMLDivElement>(null)
+  const listContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const container = listContainerRef.current
@@ -1230,7 +1222,7 @@ export function HabitList({
 
     container.addEventListener('keydown', handleHomeEndFocus)
     return () => container.removeEventListener('keydown', handleHomeEndFocus)
-  }, [listContainerRef])
+  }, [])
 
   function deriveRowState(
     habit: NormalizedHabit,

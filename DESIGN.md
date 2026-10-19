@@ -185,9 +185,10 @@ own entry, opens this same layer. Closing it restores the underlying surface and
 Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
 all open these owners through the conversation store; no entry owns a separate header.
 
-**Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
-control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
-with its neutral count pill, one filled create action, and the account row.
+**Each composer pins to the bottom of its content column.** The sidebar carries the brand row with
+the lockup at the start and the Avisos bell with its neutral count pill followed by the collapse
+control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
+destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
 12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
@@ -1232,12 +1233,14 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.**
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
-- **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
+- **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge with a 12px gap between their icon-only targets. In the collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
 - **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
+
+The sidebar surface inventory covers four compositions: (1) the expanded brand row with its bell and collapse control; (2) the collapsed rail header with the toggle above the bell; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
 
 ### The allowed shell divergences, enumerated
 

@@ -20,6 +20,7 @@ import { startAccountScopedSession as resetAccountScopedState } from '@/lib/acco
 import { setAccountId } from '@/lib/account-scope'
 import { setUIAccountScope } from './ui-store'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
+import { clearDesignCookie } from '@/lib/design-cookie'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 const SESSION_RECOVERY_CHECK_LIMIT = 3
@@ -83,6 +84,7 @@ function clearAccountScopedSessionState(): void {
  * it.
  */
 function endSessionLocally(): void {
+  clearDesignCookie()
   useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   sessionReadVersion += 1
   clearAccountScopedSessionState()

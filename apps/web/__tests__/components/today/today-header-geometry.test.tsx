@@ -138,7 +138,7 @@ describe('Hoje header geometry', () => {
           expect(inspected).toBe(width < 1024 ? [3, 2, 1, 1][index] : [2, 1, 0, 0][index])
           if (width >= 1024) {
             const bell = page.locator('[data-shell-sidebar] button[aria-label^="' + ptBr.notifications.bell + '"]')
-            const next = page.locator('[data-shell-sidebar] > div').first().locator(':scope > button')
+            const next = page.locator('[data-shell-sidebar] [data-shell-search]')
             await expectHeaderFillClearance(page, bell, next, mode)
           }
         }
@@ -396,7 +396,7 @@ describe('Hoje header geometry', () => {
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
           await control.evaluate((element) => element.previousElementSibling?.remove())
           if ((await control.getAttribute('aria-label'))?.startsWith(messages.notifications.bell)) {
-            await expect.poll(async () => (await measure()).background).toBe(fill)
+            await expect.poll(async () => (await measure()).background).toBe('rgba(0, 0, 0, 0)')
             expect(await control.evaluate((element) => Number.parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2)
           }
           await control.evaluate((element) => (element as HTMLElement).blur())
