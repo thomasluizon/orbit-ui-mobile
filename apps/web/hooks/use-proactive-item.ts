@@ -1,15 +1,12 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { proactiveItemQueryOptions, proactiveItemQueryResult } from '@orbit/shared/hooks'
 import { useAuthStore } from '@/stores/auth-store'
-import { currentProactiveOptions, openProactiveItem } from '@/lib/proactive-item'
+import { proactiveItemController } from '@/lib/proactive-item'
 
 export function useProactiveItem() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const query = useQuery({
-    ...currentProactiveOptions,
-    enabled: isAuthenticated,
-    refetchInterval: 60_000,
-  })
-  return { ...query, item: query.data ?? null, openItem: openProactiveItem }
+  const query = useQuery(proactiveItemQueryOptions(proactiveItemController, isAuthenticated))
+  return proactiveItemQueryResult(query, proactiveItemController.openProactiveItem)
 }
