@@ -82,7 +82,7 @@ describe('search result geometry in Chromium', () => {
     mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
     useShellStore.setState({ paletteOpen: surface === 'palette' })
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface === 'search' ? <SearchPage /> : <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />}</NextIntlClientProvider>)
-    const input = screen.getByRole('combobox')
+    const input = await screen.findByRole('combobox')
     fireEvent.change(input, { target: { value: 'walk' } })
     await screen.findByText('“walking”')
     const themeVariables = resolveWebThemeVariables('orange', theme)

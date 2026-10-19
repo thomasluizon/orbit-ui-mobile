@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -6,12 +6,21 @@ import { CommandPalette, CommandPaletteBackground } from '@/components/command/c
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 
-const loaded = vi.hoisted(() => ({ menuImports: 0 }))
+const loaded = vi.hoisted(() => {
+  let releaseMenu = () => {}
+  let markMenuReady = () => {}
+  const pendingMenu = new Promise<void>((resolve) => { releaseMenu = resolve })
+  const menuReady = new Promise<void>((resolve) => { markMenuReady = resolve })
+  return { menuImports: 0, pendingMenu, releaseMenu, menuReady, markMenuReady }
+})
 const push = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/command/command-menu', async (importOriginal) => {
   loaded.menuImports += 1
-  return importOriginal<typeof import('@/components/command/command-menu')>()
+  const commandMenu = await importOriginal<typeof import('@/components/command/command-menu')>()
+  await loaded.pendingMenu
+  loaded.markMenuReady()
+  return commandMenu
 })
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
@@ -34,22 +43,45 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
+function PaletteHarness() {
+  return (
+    <CommandPaletteBackground>
+      <button type="button" onClick={() => useShellStore.getState().setPaletteOpen(true)}>Search</button>
+      <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />
+    </CommandPaletteBackground>
+  )
+}
+
 it('defers the real palette until its trigger, then searches, navigates and restores focus', async () => {
   const user = userEvent.setup()
   useShellStore.setState({ paletteOpen: false })
   useUIStore.setState({ openOverlayIds: [] })
-  render(
-    <CommandPaletteBackground>
-      <button type="button" onClick={() => useShellStore.getState().setPaletteOpen(true)}>Search</button>
-      <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />
-    </CommandPaletteBackground>,
-  )
+  const owner = render(<PaletteHarness />)
 
   expect(loaded.menuImports).toBe(0)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(useUIStore.getState().openOverlayIds).toEqual([])
 
-  const trigger = screen.getByRole('button', { name: 'Search' })
+  let trigger = screen.getByRole('button', { name: 'Search' })
+  await user.click(trigger)
+  await waitFor(() => expect(loaded.menuImports).toBe(1), { timeout: 5000 })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+  await user.keyboard('{Escape}')
+  expect(useShellStore.getState().paletteOpen).toBe(false)
+  expect(useUIStore.getState().openOverlayIds).toEqual([])
+  await user.click(trigger)
+  owner.unmount()
+  expect(useShellStore.getState().paletteOpen).toBe(false)
+  expect(useUIStore.getState().openOverlayIds).toEqual([])
+  await act(async () => {
+    loaded.releaseMenu()
+    await loaded.menuReady
+  })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+  render(<PaletteHarness />)
+  trigger = screen.getByRole('button', { name: 'Search' })
   await user.click(trigger)
   const input = await screen.findByRole('combobox', { name: 'command.placeholder' }, { timeout: 5000 })
   expect(loaded.menuImports).toBe(1)

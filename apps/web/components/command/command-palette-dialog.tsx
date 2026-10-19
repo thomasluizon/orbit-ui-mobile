@@ -1,12 +1,10 @@
 'use client'
 
-import { useCallback, useContext, useEffect, useId, useRef } from 'react'
+import { useCallback, useContext, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
-import { useUIStore } from '@/stores/ui-store'
 import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
@@ -19,26 +17,16 @@ import { CommandPalettePortalContext, type CommandPaletteProps } from './command
  * Tab inside the panel and restores focus on close. Mounted app-wide, but the
  * menu (and its habit query) only mount while `shell-store.paletteOpen`.
  */
-export function CommandPaletteDialog({ navItems, onCreateHabit }: Readonly<CommandPaletteProps>) {
+export function CommandPaletteDialog({ navItems, onCreateHabit, modalId }: Readonly<CommandPaletteProps & { modalId: string }>) {
   const t = useTranslations()
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
   const panelRef = useRef<HTMLDivElement>(null)
-  const modalId = `modal:${useId()}`
-  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
-  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const registerPortal = useContext(CommandPalettePortalContext)
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
 
-  useEffect(() => {
-    if (!paletteOpen) return
-    registerOpenOverlay(modalId)
-    return () => unregisterOpenOverlay(modalId)
-  }, [modalId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
-
-  useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
   useModalFocusTrap(paletteOpen, panelRef)
 
   if (!mounted) return null

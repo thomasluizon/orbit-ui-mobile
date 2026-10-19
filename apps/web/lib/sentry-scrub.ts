@@ -1,5 +1,5 @@
 import type { ErrorEvent, EventHint } from '@sentry/nextjs'
-import { ApiClientError } from '@orbit/shared'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 
 const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie'])
 
