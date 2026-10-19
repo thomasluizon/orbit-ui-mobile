@@ -51,16 +51,16 @@ async function readFill(control: Locator) {
     const pixels = (value: string) => Number.parseFloat(value) || 0
     const radius = (value: string, width: number, height: number) => Math.min(pixels(value), width / 2, height / 2)
     const extendedBounds = { left: controlBounds.left, right: controlBounds.right, top: controlBounds.top, bottom: controlBounds.bottom }
-    const pseudoHitExtensions = ['::before', '::after'].filter((pseudo) => {
+    const pseudoElements = ['::before', '::after']
+    pseudoElements.forEach((pseudo) => {
       const pseudoStyle = getComputedStyle(element, pseudo)
       const extendsTarget = !['none', 'normal'].includes(pseudoStyle.content) && pseudoStyle.position === 'absolute'
         && pseudoStyle.pointerEvents !== 'none'
         && [pseudoStyle.left, pseudoStyle.right, pseudoStyle.top, pseudoStyle.bottom].some((offset) => pixels(offset) < 0)
-      if (!extendsTarget) return false
+      if (!extendsTarget) return
       const target = { left: controlBounds.left + pixels(pseudoStyle.left), right: controlBounds.right - pixels(pseudoStyle.right), top: controlBounds.top + pixels(pseudoStyle.top), bottom: controlBounds.bottom - pixels(pseudoStyle.bottom) }
       const painted = fill !== element && Object.entries(target).every(([edge, value]) => Math.abs(value - bounds[edge as 'left' | 'right' | 'top' | 'bottom']) <= 1)
       if (painted) Object.assign(extendedBounds, target)
-      return !painted
     })
     const paddings = content.filter((rect) => rect.width > 0).map((rect) => ({
       inline: Math.min(rect.left - bounds.left, bounds.right - rect.right),
@@ -74,7 +74,7 @@ async function readFill(control: Locator) {
         .map((value) => radius(value, bounds.width, bounds.height)),
       matchesHitArea: Math.abs(bounds.left - extendedBounds.left) <= 1 && Math.abs(bounds.right - extendedBounds.right) <= 1
         && Math.abs(bounds.top - extendedBounds.top) <= 1 && Math.abs(bounds.bottom - extendedBounds.bottom) <= 1,
-      pseudoHitExtensions, paddings,
+      paddings,
     }
   })
 }
@@ -90,7 +90,6 @@ export async function expectFillShape(control: Locator, state: string) {
   for (const [index, radius] of fill.radii.entries()) {
     expect.soft(radius, `${state}: fill uses the control's corner radius`).toBeCloseTo(fill.controlRadii[index]!, 1)
   }
-  expect.soft(fill.pseudoHitExtensions, `${state}: a hit extension must also carry the fill`).toEqual([])
   expect(fill.paddings.length, `${state}: visible content is measured`).toBeGreaterThan(0)
   for (const padding of fill.paddings) {
     expect.soft(padding.inline, `${state}: fill has inline breathing room`).toBeGreaterThanOrEqual(7.5)

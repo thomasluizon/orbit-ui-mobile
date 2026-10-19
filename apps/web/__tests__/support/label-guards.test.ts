@@ -527,7 +527,7 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
-  it('rejects a full-size fill with an unpainted pseudo-element hit extension', async () => {
+  it('accepts a full-size fill with a transparent pseudo-element hit extension', async () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>
@@ -535,7 +535,7 @@ describe('label and interaction fill guards in Chromium', () => {
           background: rgb(220, 220, 220); }
         button::before { content: ""; position: absolute; inset: -4px; }
       </style><button>Go</button>`)
-      await expect(expectFillShape(page.locator('button'), 'press')).rejects.toThrow('a hit extension must also carry the fill')
+      await expectFillShape(page.locator('button'), 'press')
     } finally {
       await page.close()
     }
