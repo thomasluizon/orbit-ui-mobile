@@ -20,8 +20,8 @@ const SELECT_ALL_BUTTON_STYLE = {
   fontWeight: 500,
   minWidth: TOUCH_TARGET_MIN,
   minHeight: TOUCH_TARGET_MIN,
-  padding: '12px 8px',
-  margin: '-8px -4px',
+  padding: "var(--orbit-space-12) var(--orbit-space-8)",
+  margin: "calc(-1 * var(--orbit-space-8)) calc(-1 * var(--orbit-space-4))",
   textDecoration: 'underline',
   textUnderlineOffset: 3,
   textDecorationColor: 'var(--hairline-strong)',
@@ -103,7 +103,7 @@ export function SelectionTray({
         gap: 8,
         background: 'var(--bg-sheet)',
         borderRadius: 20,
-        padding: '12px 16px',
+        padding: "var(--orbit-space-12) var(--orbit-space-16)",
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
       initial={{

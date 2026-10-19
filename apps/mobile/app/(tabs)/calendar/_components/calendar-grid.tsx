@@ -1,4 +1,4 @@
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, type RefObject } from 'react'
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
 import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
@@ -229,7 +229,7 @@ export function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
-  calendarGrid: { paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset, paddingTop: 0, paddingBottom: 8 },
+  calendarGrid: { paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset, paddingTop: SPACING.s0, paddingBottom: SPACING.s8 },
   gridCard: {
     width: '100%',
     alignSelf: 'center',

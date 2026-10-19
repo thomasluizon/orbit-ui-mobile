@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildChatClientContext } from '../chat/client-context'
 import { chatClientContextSchema } from '../types/chat'
+import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
 
 describe('buildChatClientContext', () => {
   it.each(['web', 'mobile'] as const)('sends the chosen clock and capabilities on %s', (platform) => {
@@ -18,6 +19,8 @@ describe('buildChatClientContext', () => {
       timeFormat: '24h',
       supportsHabitListCard: true,
       supportsPendingOperationChanges: true,
+      supportsParts: true,
+      partKinds: [...CHAT_BLOCK_KINDS],
       messageOrigin: 'followUp',
       entryPointIntent: 'support',
     })

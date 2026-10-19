@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import type { SkeletonProps } from '@orbit/shared/contracts/feedback'
-import { skeletonPulseIterations } from '@orbit/shared/theme'
+import { SPACING, skeletonPulseIterations } from '@orbit/shared/theme'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated already drives this single opacity pulse on the UI thread; the existing Reanimated migration remains device-gated https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   habitRow: {
     height: 68,
     borderRadius: radius.xl,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   habitStatus: { width: 30, height: 30, borderRadius: radius.full },
   settingsRow: {
     height: 52,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.s16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   statTile: {
     borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 16,
+    padding: SPACING.s16,
     gap: 8,
     alignItems: 'flex-start',
   },

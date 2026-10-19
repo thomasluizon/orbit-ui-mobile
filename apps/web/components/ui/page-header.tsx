@@ -6,7 +6,7 @@ import { ShellHeader } from '@/components/shell/shell-header'
 
 function PageHeaderContent({ title, titleTranslate, backLabel, onBack, action, footer }: Readonly<PageHeaderProps>) {
   return <header className="shadow-[inset_0_-1px_0_var(--hairline)]">
-    <div className="flex min-h-[60px] items-center gap-[8px] py-[8px] ps-[8px] pe-[16px]">
+    <div className="flex min-h-[60px] items-center gap-[8px] py-2 ps-2 pe-4">
       <button type="button" aria-label={backLabel} onClick={onBack}
         className="grid min-h-[48px] w-[48px] shrink-0 place-items-center rounded-full text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2">
         <ArrowLeft size={20} aria-hidden="true" />

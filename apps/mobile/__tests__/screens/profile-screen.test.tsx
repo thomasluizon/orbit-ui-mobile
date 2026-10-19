@@ -697,11 +697,17 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
   })
 
-  it.each([600, 840, 1352])('fills the compact Perfil column and caps wide content at %i', async (width) => {
+  it.each([412, 600, 840, 1352])('fills the compact Perfil column and caps wide content at %i', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const tree = await renderProfileScreen()
     try {
       const measured = measureProfileRow(tree.toJSON(), width, 1)
+      const groups = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'profile-settings-groups')[0]!
+      expect(StyleSheet.flatten(groups.props.style).gap).toBe(32)
+      const more = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'profile-settings-group-more')[0]!
+      expect(StyleSheet.flatten(more.props.style).gap).toBe(12)
+      const ordered = measured.boxes.filter((box) => box.testID.startsWith('profile-settings-group-'))
+      for (let index = 1; index < ordered.length; index++) expect(ordered[index]!.top - ordered[index - 1]!.bottom).toBeCloseTo(32, 2)
       for (const testID of ['profile-settings-group-you', 'profile-settings-group-ending']) {
         const box = measured.boxes.find((box) => box.testID === testID)!
         expect(box.left).toBe(16)
@@ -1497,7 +1503,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => field.props.onChangeText(expiry))
     await nameAndCreateApiKey(tree)
     expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'Personal key', expiresAtUtc }),
+      body: JSON.stringify({ name: 'Personal key', expiresAtUtc, isReadOnly: false }),
     }))
     expect(nodeText(tree.root)).toContain('orb_secret')
   })
@@ -1570,6 +1576,7 @@ describe('ProfileScreen', () => {
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     retainApiKeyExpiryDraft('2099-12-31T23:59')
     let tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
@@ -1592,6 +1599,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => findButtonByText(tree, 'common.discardChangesAction').props.onPress())
     tree.unmount()
     tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
     expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
@@ -1610,7 +1618,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'Second key', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Second key', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: true}),
     }))
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
@@ -1669,7 +1677,7 @@ describe('ProfileScreen', () => {
     await nameAndCreateApiKey(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: false}),
     }))
     expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
     expect(readApiKeyExpiryDraft()).toBe('')
@@ -1708,7 +1716,7 @@ describe('ProfileScreen', () => {
     await submit(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: false}),
     }))
   })
 
@@ -1780,7 +1788,7 @@ describe('ProfileScreen', () => {
       await nameAndCreateApiKey(secondTree)
       expect(nodeText(secondTree.root)).toContain('orb_secret')
       expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-        body: JSON.stringify({ name: 'Personal key', expiresAtUtc: null }),
+        body: JSON.stringify({ name: 'Personal key', expiresAtUtc: null , isReadOnly: false}),
       }))
     } finally {
       clock.mockRestore()

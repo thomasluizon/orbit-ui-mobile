@@ -1,10 +1,98 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import yaml from 'js-yaml'
 
-import { T, REPO_ROOT } from './_harness.mjs'
+import { T, REPO_ROOT, root, stage, run } from './_harness.mjs'
 import { scan, compare, validateRules, newLosses } from '../check-feature-parity.mjs'
 
+const manifestPath = '.claude/manifests/feature-parity.json'
+
+function generatedInventory(catalog, rules) {
+  const directory = join(root, 'parity-source')
+  const put = (path, source) => stage(`parity-source/${path}`, source)
+  const git = (args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
+  const fixtureCatalog = JSON.parse(catalog)
+  const files = {
+    '.gitignore': readFileSync(join(REPO_ROOT, '.gitignore'), 'utf8'),
+    'tools/feature-parity-rules.json': JSON.stringify({ staticHeadingLabels: rules.staticHeadingLabels }),
+    'packages/shared/src/parity-controls.tsx': `export function First() { return <button onClick={open}>{t('habits.viewAll')}</button> }${'\n'.repeat(12)}export function Second() { return <button onClick={open}>{t('common.all')}</button> }\n`,
+  }
+  for (const platform of ['web', 'mobile']) {
+    const ids = Object.entries(rules.tickets).filter(([id, ticket]) => id.startsWith(`${platform}:`) && ticket === '#1447').map(([id]) => id)
+    ids.push(...['common.nextWeek', 'common.previousWeek', 'chat.attachFile', 'gamification.levelUp.title', 'goals.completedCelebrationTitle'].map((key) => `${platform}:control:${key}`))
+    if (platform === 'web') ids.push('web:control:calendar.agenda.nextDay', 'web:control:calendar.agenda.previousDay')
+    for (const id of ids) fixtureCatalog[id.split(':')[2]] = id.split(':')[2]
+    const labels = ids.map((id) => id.includes(':display:')
+      ? `<p>{t('${id.split(':')[2]}', { count: 1 })}</p>`
+      : `<button onClick={open}>{t('${id.split(':')[2]}')}</button>`).join('\n')
+    files[`apps/${platform}/app/${platform === 'web' ? 'page' : 'index'}.tsx`] = `import { First, Second } from '../../../packages/shared/src/parity-controls'; export default function Home() { return <><First /><Second />${labels}</> }`
+    for (const document of ['privacy', 'terms']) {
+      const path = platform === 'web' ? `apps/web/app/(public)/${document}/page.tsx` : `apps/mobile/app/${document}.tsx`
+      files[path] = `export default function Legal() { return <p>{t('${document}.intro.title')}</p> }`
+    }
+  }
+  files['packages/shared/src/i18n/en.json'] = JSON.stringify(fixtureCatalog)
+  for (const [path, source] of Object.entries(files)) put(path, source)
+  git(['init', '-q', '--initial-branch=production'])
+  git(['config', 'user.email', 'gate@orbit.test'])
+  git(['config', 'user.name', 'Orbit Gate'])
+  git(['add', ...Object.keys(files)])
+  git(['commit', '-q', '-m', 'Production source fixture'])
+  mkdirSync(join(directory, '.claude/manifests'), { recursive: true })
+  const generate = (extra = []) => run('check-feature-parity.mjs', ['--root', directory, '--production', 'production', '--write', ...extra])
+  const generated = generate(['--ci', '--base', 'production'])
+  T('the CLI generates a temporary inventory from source without a recorded manifest', generated.status === 0, generated.stderr)
+  const inventory = JSON.parse(readFileSync(join(directory, manifestPath), 'utf8'))
+  const tracked = execFileSync('git', ['ls-files', manifestPath], { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
+  T('the generated parity inventory is not tracked', tracked === '')
+  if (tracked) git(['add', manifestPath])
+  git(['commit', '-q', '--allow-empty', '-m', 'Generated inventory policy fixture'])
+  return { directory, put, git, generate, inventory, source: files['packages/shared/src/parity-controls.tsx'] }
+}
+
+function inventoryRegressions(fixture) {
+  const { directory, put, git, generate, source } = fixture
+  const controls = 'packages/shared/src/parity-controls.tsx'
+  const manifest = () => JSON.parse(readFileSync(join(directory, manifestPath), 'utf8'))
+  const secondLine = () => manifest().entries.find((entry) => entry.id === 'web:control:common.all').redesign[0].line
+  const originalLine = secondLine()
+  const base = git(['rev-parse', 'HEAD'])
+  for (const branch of ['shift-first', 'shift-second']) {
+    git(['checkout', '-q', '-b', branch, base])
+    const shift = branch === 'shift-first' ? 1 : 2
+    put(controls, branch === 'shift-first' ? `\n${source}` : source.replace('export function Second', '\n\nexport function Second'))
+    const generated = generate(['--ci', '--base', base])
+    T(`${branch} regenerates evidence from shifted source`, generated.status === 0 && secondLine() === originalLine + shift, generated.stderr)
+    git(['add', controls])
+    if (git(['ls-files', manifestPath])) git(['add', manifestPath])
+    git(['commit', '-q', '-m', `Shift inventoried source on ${branch}`])
+  }
+  const merged = spawnSync('git', ['merge-tree', '--write-tree', 'shift-first', 'shift-second'], { cwd: directory, encoding: 'utf8' })
+  T('independent source line shifts merge without generated evidence conflicts', merged.status === 0, merged.stdout + merged.stderr)
+  const ignored = spawnSync('git', ['check-ignore', manifestPath], { cwd: directory, encoding: 'utf8' })
+  T('regenerated evidence stays ignored', ignored.status === 0 && ignored.stdout.trim() === manifestPath)
+  put(manifestPath, 'invalid stale inventory')
+  put(controls, source.replace("<button onClick={open}>{t('habits.viewAll')}</button>", '<span />'))
+  const loss = generate(['--ci', '--base', base])
+  T('the CLI rejects a new loss despite a stale local manifest', loss.status === 1 && /web:control:habits.viewAll \| packages\/shared\/src\/parity-controls.tsx:1/.test(loss.stdout), loss.stdout + loss.stderr)
+  put('tools/feature-parity-rules.json', JSON.stringify({ tickets: { 'web:control:habits.viewAll': '#1423', 'mobile:control:habits.viewAll': '#1423' } }))
+  T('a restoration ticket cannot exempt a new source loss', generate(['--ci', '--base', base]).status === 1)
+  git(['add', controls, 'tools/feature-parity-rules.json'])
+  git(['commit', '-q', '-m', 'Ticketed source debt fixture'])
+  T('ticketed base losses remain advisory without a committed manifest', generate(['--ci', '--base', 'HEAD']).status === 0)
+  put('tools/feature-parity-rules.json', '{}')
+  T('an unticketed base loss still blocks', generate(['--ci', '--base', 'HEAD']).status === 1)
+  put(controls, source)
+  rmSync(join(directory, '.claude/manifests'), { recursive: true })
+  const fresh = generate(['--ci', '--base', base])
+  T('writing the inventory creates its output directory', fresh.status === 0, fresh.stderr)
+}
+
 export const cases = () => {
+  const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
+  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
+  T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
   const snapshot = (source, extra = {}) => {
     const files = {
@@ -141,7 +229,8 @@ export const cases = () => {
   }
 
   const rules = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/feature-parity-rules.json'), 'utf8'))
-  const inventory = JSON.parse(readFileSync(join(REPO_ROOT, '.claude/manifests/feature-parity.json'), 'utf8'))
+  const fixture = generatedInventory(catalog, rules)
+  const { inventory } = fixture
   for (const platform of ['web', 'mobile']) {
     for (const document of ['privacy', 'terms']) {
       const path = platform === 'web' ? `apps/web/app/(public)/${document}/page.tsx` : `apps/mobile/app/${document}.tsx`
@@ -238,5 +327,5 @@ export const cases = () => {
     T(`${platform} deleting the celebration output blocks both mapped titles`, newLosses(afterCelebration, beforeCelebration).length === 2)
     files[celebration] = originalCelebration
   }
-
+  inventoryRegressions(fixture)
 }

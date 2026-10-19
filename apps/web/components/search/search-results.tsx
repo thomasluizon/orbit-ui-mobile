@@ -22,13 +22,13 @@ export function Searching() {
 
 function renderQueryText(chunks: ReactNode) { return <span>{chunks}</span> }
 
-export function SearchEmpty({ query, onCreate, createRefusal = false }: Readonly<{ query: string; onCreate: () => void; createRefusal?: boolean }>) {
+export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = false }: Readonly<{ query: string; onCreate?: () => void; onClearSearch?: () => void; createRefusal?: boolean }>) {
   const t = useTranslations()
   const wide = useIsWideDesktop()
   return <div className="flex flex-col items-start gap-3 p-3">
     <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p>
     <p className="text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('habits.search.emptyBody')}</p>
-    <Button size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onCreate}>{t('habits.search.create')}</Button>
+    <Button size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onClearSearch ?? onCreate}>{t(onClearSearch ? 'common.clear' : 'habits.search.create')}</Button>
     <div aria-live="polite" aria-atomic="true" className="w-full">
       {createRefusal ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
     </div>

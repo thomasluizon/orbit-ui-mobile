@@ -34,6 +34,33 @@ Play enforces uniqueness within each package. `open` and `production` require `m
 A binary is never promoted
 between tracks because its API base is fixed when it is built.
 
+## Design bundles
+
+Production design releases run from `main`, embed legacy, and publish the `legacy` and `redesign`
+channels before building the native union. The publication job reads `redesign/main` directly, so
+this branch declares `redesign` in `lib/design-bundle-identity.ts` and carries the matching launch
+module, widget bridge, native versions and config plugins. The preflight compares both native
+inventories and rejects drift on either side before publication.
+
+Internal releases retain the selected branch build: dispatch `redesign/main` to build Orbit Staging
+against `https://api-staging.useorbit.org`. Publication is skipped for an internal release from a
+branch other than `main`; the build still runs. An internal release from `main` publishes both
+staging bundles first. Never promote a binary between tracks.
+
+Both production designs use runtime `orbit-android-designs-1`; staging appends `-staging` for both.
+Native changes require advancing the runtime in both sources and building another union binary.
+Each cold process starts with its embedded design. The account flag selects the matching channel
+once; a failed download keeps the running bundle. Sign-in and foreground refresh save the next
+launch's choice under the same per-account SecureStore key in both designs. Signed-out launches
+select `legacy`.
+
+The main publication job needs `EXPO_TOKEN` in the `production` and `android-internal` GitHub
+environments, with publication access to the project in `app.json`. EAS `production` and `preview`
+environments must match their GitHub public settings, especially `ORBIT_APP_VARIANT` (`production`
+or `staging`) and `EXPO_PUBLIC_API_BASE` (production or staging API). Verify both channels, runtime
+and source commits in the EAS project's **Updates** screen. Review **Billing > Usage** against the
+free allowance before rollout, following the main release procedure.
+
 ## Step 1 - Read the last run to derive the defaults
 
 The workflow sets `run-name` to

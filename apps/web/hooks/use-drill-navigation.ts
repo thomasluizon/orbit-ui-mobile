@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, shouldRetryQuery, queryRetryDelay, isUpstreamStarting } from '@orbit/shared/query'
 
-import { useCallback, useMemo, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   countCompletedDrillChildren,
@@ -74,6 +74,16 @@ export function useDrillNavigation(
   const [drillLoading, setDrillLoading] = useAccountScopedState(false)
   const [drillError, setDrillError] = useAccountScopedState('')
 
+  const [drillView, setDrillView] = useState(view)
+  if (drillView !== view) {
+    setDrillView(view)
+    setDrillStack([])
+    setDrillChildrenMap(new Map())
+    setDrillParentInfo(null)
+    setDrillLoading(false)
+    setDrillError('')
+  }
+
   const currentParentId = drillStack.at(-1) ?? null
   const activeParentIdRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
@@ -81,6 +91,14 @@ export function useDrillNavigation(
   useEffect(() => {
     activeParentIdRef.current = currentParentId
   }, [currentParentId])
+
+  useEffect(() => () => {
+    requestIdRef.current += 1
+    feedbackPendingRef.current = false
+    const parentId = activeParentIdRef.current
+    activeParentIdRef.current = null
+    if (parentId) void queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId), exact: true })
+  }, [queryClient, view])
 
   const currentParent = useMemo(() => {
     if (!currentParentId) return null

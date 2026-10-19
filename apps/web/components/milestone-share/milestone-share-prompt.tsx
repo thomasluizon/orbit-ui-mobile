@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -189,7 +192,7 @@ export function MilestoneSharePrompt() {
 
           <p
             style={{
-              margin: 0,
+              margin: SPACING.s0,
               textAlign: 'center',
               fontFamily: 'var(--font-sans)',
               fontSize: 16,

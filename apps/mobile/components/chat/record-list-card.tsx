@@ -1,6 +1,6 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,7 +25,7 @@ function recordFilterStyle(tokens: ReturnType<typeof createTokensV2>, focused: b
     borderWidth: focused ? 2 : 1,
     borderColor: focused ? tokens.primary : tokens.borderControl,
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.s12,
     color: tokens.fg1,
     fontSize: 14,
   }

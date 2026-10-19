@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -132,7 +133,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
 
 const styles = StyleSheet.create({
   body: {
-    paddingTop: 8,
+    paddingTop: SPACING.s8,
     gap: 16,
   },
   label: {

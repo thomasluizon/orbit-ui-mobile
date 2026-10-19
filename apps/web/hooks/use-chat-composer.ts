@@ -241,13 +241,14 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }, [recordingDuration])
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((afterScroll?: () => void) => {
     requestAnimationFrame(() => {
       const el = chatContainerRef.current
       if (el && threadScroll.isFollowing()) el.scrollTo({
         top: el.scrollHeight,
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       })
+      afterScroll?.()
     })
   }, [threadScroll])
 
@@ -336,7 +337,13 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     scrollToBottom()
   }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>) => {
+    if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
+      const accountGeneration = getAccountGeneration()
+      await firstReveal
+      if (getAccountGeneration() !== accountGeneration) return
+      threadScroll.holdPosition()
+    }
     setIsTyping(false)
     activeStepsRef.current = []
     setActiveSteps([])
@@ -380,7 +387,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, updateMessage])
+  }, [addMessage, queryClient, scrollToBottom, setIsTyping, setStreamingMessageId, threadScroll, updateMessage])
 
   useEffect(() => {
     if (!draftHydrated) {
@@ -438,13 +445,14 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     let draftMessageId: string | null = null
+    const firstReveal = { completion: Promise.resolve() }
     const ensureDraftMessage = () => {
       if (draftMessageId) return draftMessageId
       draftMessageId = crypto.randomUUID()
       setStreamingMessageId(draftMessageId)
       setIsTyping(false)
       addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date() })
-      scrollToBottom()
+      firstReveal.completion = new Promise<void>((resolve) => scrollToBottom(resolve))
       return draftMessageId
     }
 
@@ -499,7 +507,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (!ownsAccount()) return false
 
       if (outcome.kind === 'final') {
-        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current)
+        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion)
         return true
       }
       if (outcome.kind === 'error') {

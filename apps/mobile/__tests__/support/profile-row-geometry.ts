@@ -127,14 +127,14 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   function layoutHost(host: HostRow): YogaNode {
     const node = Yoga.Node.createWithConfig(config)
     const declared = host.props.style
-    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
+    const style = { ...StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) } as TextStyle & ViewStyle
     if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
     if (host.props.testID) boxes.push({ node, testID: host.props.testID })
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel })
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
-    if (host.type === 'Text' && label) {
+    if (host.type === 'Text') {
       texts.push({ node, label, style, limit: host.props.numberOfLines })
       node.setMeasureFunc((available, mode) => {
         const textScale = scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17)

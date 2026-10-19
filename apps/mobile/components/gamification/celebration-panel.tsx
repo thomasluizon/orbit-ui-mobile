@@ -1,5 +1,5 @@
 import { DailyStreakMoment } from './daily-streak-moment'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- WHY: the pinned Reanimated ABI cannot move until https://github.com/thomasluizon/orbit-ui-mobile/issues/243.
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    padding: 24,
+    padding: SPACING.s24,
   },
   ring: { height: 44, width: 44 },
   travelRing: {

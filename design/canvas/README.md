@@ -15,7 +15,9 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| Astra blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que a Astra montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Astra in the stale line. |
 | #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Astra metrics. |
+| #1479 | Astra replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
 | Astra ideas library | A second full view in the conversation layer uses AppBar back, persistent search, one scrolling category chip row, eight-row result pages, SectionLabel headings and ListRow ideas; the conversation header adds a 48 browse icon and the empty thread adds one ghost browse action; live suggestions become rows, Calendar requires Pro and Google, slots preserve drafts, and Escape or Android back returns focus to the entry | This amendment specifies the library without a separate drawing and makes routine, bulk and restart requests discoverable. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
@@ -58,6 +60,22 @@ that disagrees with production is a trap rather than an authority.
 Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
 mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
 TalkBack and real Android text rendering remain device-verification boundaries.
+
+### Ordered Astra reply surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Streaming reply | One selectable text part, with blocks withheld until final delivery. |
+| Ordered final reply | Text, habit list, text and metrics retain server order with a 16 gap; all nine existing block kinds use the platform registry. |
+| Unsupported or malformed block | The part is skipped while text and valid blocks remain; a fully skipped reply uses its joined text. |
+| Legacy and cached reply | Missing or null parts adapt the joined text and cards in their existing order, including every record list. |
+| Prose and trailing slots | Every text part uses the existing Markdown renderer and code-block copy controls; pending operations, outcomes and follow-ups keep their slots. |
+
+Chromium unit geometry covers the first text offset and scroll position during final replacement.
+Controller tests drive final delivery and conversation resize callbacks on both platforms, retaining
+the reading position until the next send or a deliberate return to the bottom.
+Native component tests cover ordering and the existing spacing cases. Whole-page layout remains
+owned by the layout workflow, and native text geometry remains a device-verification boundary.
 
 ### Hoje date pager amendment surface inventory
 

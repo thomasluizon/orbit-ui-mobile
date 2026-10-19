@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Sheet } from '@/components/ui/sheet'
@@ -121,7 +124,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           className="flex"
           style={{
             gap: 8,
-            paddingBlock: 8,
+            paddingBlock: SPACING.s8,
             overflowX: 'auto',
           }}
         >
@@ -142,7 +145,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           })}
         </div>
 
-        <div className="flex flex-col gap-4" style={{ paddingTop: 16 }}>
+        <div className="flex flex-col gap-4" style={{ paddingTop: SPACING.s16 }}>
           {items.map((item) => (
             <div
               key={item.titleKey}

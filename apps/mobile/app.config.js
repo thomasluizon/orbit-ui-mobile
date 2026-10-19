@@ -6,12 +6,18 @@ function readBooleanEnv(name, defaultValue) {
   return value === "1" || value.toLowerCase() === "true";
 }
 
-function withLocalPlugin(plugins, pluginPath) {
-  const nextPlugins = Array.isArray(plugins) ? [...plugins] : [];
-  if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
-    nextPlugins.push(pluginPath);
+function withLocalPlugins(plugins) {
+  const nextPlugins = Array.isArray(plugins) ? [...plugins] : []
+  for (const pluginPath of [
+    './plugins/with-android-release-build-fixes',
+    './plugins/with-react-native-imperative-focus',
+    './plugins/with-design-bundle-launch',
+  ]) {
+    if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
+      nextPlugins.push(pluginPath)
+    }
   }
-  return nextPlugins;
+  return nextPlugins
 }
 
 module.exports = () => {
@@ -24,10 +30,7 @@ module.exports = () => {
       allowBackup: false,
       googleServicesFile: captureMode ? undefined : baseConfig.android?.googleServicesFile,
     },
-    plugins: withLocalPlugin(
-      withLocalPlugin(baseConfig.plugins, "./plugins/with-android-release-build-fixes"),
-      "./plugins/with-react-native-imperative-focus"
-    ),
+    plugins: withLocalPlugins(baseConfig.plugins),
   };
   const variant = process.env.ORBIT_APP_VARIANT ?? 'production'
   if (variant === 'production') return productionConfig
@@ -37,6 +40,7 @@ module.exports = () => {
   const linkHost = 'app-staging.useorbit.org'
   return {
     ...productionConfig,
+    runtimeVersion: `${productionConfig.runtimeVersion}-staging`,
     name: 'Orbit Staging',
     scheme: 'orbit-staging',
     android: {

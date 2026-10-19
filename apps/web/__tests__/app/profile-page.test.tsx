@@ -1195,6 +1195,7 @@ describe('ProfilePage', () => {
       expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).not.toBeInTheDocument()
     })
 
+    fireEvent.click(apiKeys.getByRole('switch', { name: 'orbitMcp.readOnlyKeyLabel' }))
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'orbitMcp.expiresAtLabel' }), { target: { value: '2099-12-31T23:59' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
@@ -1206,6 +1207,7 @@ describe('ProfilePage', () => {
       expect(mockCreateApiKey).toHaveBeenCalledWith({
         name: 'Home automation',
         scopes: ['habits:read'],
+        isReadOnly: true,
         expiresAtUtc: '2099-12-31T23:59:00.000Z',
       }, 'account-a')
     })
@@ -1227,7 +1229,7 @@ describe('ProfilePage', () => {
     fireEvent.change(field, { target: { value: expiry } })
     nameAndCreateApiKey('Personal key')
     await waitFor(() => expect(mockCreateApiKey).toHaveBeenCalledWith({
-      name: 'Personal key', expiresAtUtc,
+      name: 'Personal key', isReadOnly: false, expiresAtUtc,
     }, 'account-a'))
     expect(await screen.findByText('orb_secret')).toBeInTheDocument()
   })
@@ -1391,6 +1393,7 @@ describe('ProfilePage', () => {
     nameAndCreateApiKey('Second key')
     await screen.findByText('orb_second')
     expect(mockCreateApiKey).toHaveBeenLastCalledWith(expect.objectContaining({
+      isReadOnly: false,
       expiresAtUtc: '2099-12-31T23:59:00.000Z',
       ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}),
     }), 'account-a')
@@ -1424,7 +1427,7 @@ describe('ProfilePage', () => {
     nameAndCreateApiKey('Work key')
     await screen.findByText('orb_second')
     expect(mockCreateApiKey).toHaveBeenLastCalledWith({
-      name: 'Work key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z',
+      name: 'Work key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), isReadOnly: false, expiresAtUtc: '2099-12-31T23:59:00.000Z',
     }, 'account-a')
   })
 
@@ -1489,7 +1492,7 @@ describe('ProfilePage', () => {
       mockCreateApiKey.mockResolvedValueOnce({ success: true, response: { id: 'key-1', key: 'orb_secret' } })
       nameAndCreateApiKey('Personal key')
       await screen.findByText('orb_secret')
-      expect(mockCreateApiKey).toHaveBeenCalledWith({ name: 'Personal key', expiresAtUtc: null }, 'account-a')
+      expect(mockCreateApiKey).toHaveBeenCalledWith({ name: 'Personal key', isReadOnly: false, expiresAtUtc: null }, 'account-a')
     } finally {
       clock.mockRestore()
     }

@@ -1,3 +1,4 @@
+import { PADDING, } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -88,7 +89,7 @@ export function AstraAllowancePanel({
 const styles = StyleSheet.create({
   panel: {
     gap: 12,
-    padding: 16,
+    padding: PADDING.recordInset,
     borderRadius: radius.xl,
     borderWidth: 1,
   },

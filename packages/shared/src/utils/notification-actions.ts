@@ -44,10 +44,21 @@ export function shouldShowTodayAstraSurface({
   return isTodaySelected && !inDrillOrSurface
 }
 
+export const RETIRED_NOTIFICATION_URL_PREFIXES = ['/social', '/public-profile', '/u/'] as const
+
+export function isRetiredNotification(
+  notification: { url?: string | null },
+): boolean {
+  const { url } = notification
+  return typeof url === 'string' &&
+    RETIRED_NOTIFICATION_URL_PREFIXES.some((prefix) => url.startsWith(prefix))
+}
+
 export function isViewableNotificationUrl(
   url: string | null | undefined,
 ): url is string {
   if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return false
+  if (isRetiredNotification({ url })) return false
   const resolvedUrl = resolveNotificationUrl(url)
   if (!resolvedUrl) return false
   const pathname = resolvedUrl.split(/[?#]/, 1)[0] ?? resolvedUrl
@@ -139,9 +150,10 @@ export function getNotificationInboxState(
   pendingDeleteIds: readonly string[],
 ): { visibleNotifications: NotificationItem[]; visibleUnreadCount: number } {
   const pending = new Set(pendingDeleteIds)
-  const hiddenUnread = notifications.filter((item) => pending.has(item.id) && !item.isRead).length
+  const isHidden = (item: NotificationItem) => isRetiredNotification(item) || pending.has(item.id)
+  const hiddenUnread = notifications.filter((item) => isHidden(item) && !item.isRead).length
   return {
-    visibleNotifications: notifications.filter((item) => !pending.has(item.id)),
+    visibleNotifications: notifications.filter((item) => !isHidden(item)),
     visibleUnreadCount: Math.max(0, unreadCount - hiddenUnread),
   }
 }

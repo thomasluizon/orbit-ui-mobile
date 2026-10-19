@@ -852,7 +852,10 @@ describe('Android widget header', () => {
     const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
     const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
 
-    expect(saveToken).toMatch(/putString\(KEY_TOKEN, token\)\.apply\(\)\s*\}\s*refreshWidgets\(context\)/)
+    expect(saveToken).toContain('WidgetAccountState(accountRenderLock)')
+    expect(saveToken).toContain('saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() }')
+    expect(saveToken).toContain('clearCache = { clearWidgetCache(context) }')
+    expect(saveToken).toMatch(/\)\s*refreshWidgets\(context\)/)
     expect(buildWidgetViews).toContain('renderSessionKey(appWidgetId, widgetHeightDp)')
     expect(buildWidgetViews).toContain('OrbitWidgetModule.sessionKey')
     expect(buildWidgetViews).toMatch(/views\.setViewVisibility\(R\.id\.widget_list, if \(ownsRows && !showSkeleton && rowCount > 0\) View\.VISIBLE else View\.GONE\)/)
@@ -905,12 +908,16 @@ describe('Android widget header', () => {
     const clear = module.slice(module.indexOf('AsyncFunction("clearToken")'), module.indexOf('AsyncFunction("syncTheme")'))
 
     const publication = kotlinBlockBody(update, update.indexOf('synchronized(OrbitWidgetModule.accountRenderLock)'))
-    const tokenWrite = kotlinBlockBody(save, save.indexOf('synchronized(accountRenderLock)'))
+    const accountState = readFileSync(resolve(widgetSourceRoot, 'WidgetAccountState.kt'), 'utf8')
+    const tokenWrite = kotlinBlockBody(accountState, accountState.indexOf('synchronized(lock)'))
     const tokenClear = kotlinBlockBody(clear, clear.indexOf('synchronized(accountRenderLock)'))
 
     expect(publication).toContain('renderWidget(context, appWidgetManager, appWidgetId)')
     expect(publication).toContain('appWidgetManager.updateAppWidget(appWidgetId, fallback)')
-    expect(tokenWrite).toContain('putString(KEY_TOKEN, token).apply()')
+    expect(save).toContain('WidgetAccountState(accountRenderLock)')
+    expect(save).toContain('saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() }')
+    expect(tokenWrite).toContain('if (currentSession() != session) clearCache()')
+    expect(tokenWrite).toContain('saveToken()')
     expect(tokenClear).toContain('remove(KEY_TOKEN).apply()')
     expect(tokenClear).toContain('clearWidgetCache(context)')
   })
@@ -962,14 +969,20 @@ describe('Android widget header', () => {
     const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
 
     expect(widgetModule).toMatch(
-      /AsyncFunction\("syncWidgetData"\) \{ json: String, token: String ->/,
+      /AsyncFunction\("syncWidgetData"\) \{ json: String, token: String\? ->/,
     )
+    expect(widgetModule).not.toMatch(/token\s*\?:\s*getToken\(context\)/)
     expect(widgetModule).toMatch(
-      /val session = sessionKey\(token\)\s*if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", session\)/,
+      /if \(token != null\) \{\s*val session = sessionKey\(token\)\s*if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", session\)/,
     )
     expect(widgetModule).toMatch(
       /\.digest\(\(accountId\(token\) \?: token\)\.toByteArray\(Charsets\.UTF_8\)\)/,
     )
+    const nativeSync = widgetModule.slice(
+      widgetModule.indexOf('AsyncFunction("syncWidgetData")'),
+      widgetModule.indexOf('OnActivityEntersBackground'),
+    )
+    expect(nativeSync).toMatch(/\n      \}\n      refreshWidgets\(context\)/)
 
     const caller = readFileSync(resolve(process.cwd(), 'lib/orbit-widget.ts'), 'utf8')
     const sync = caller.slice(caller.indexOf('export async function syncWidgetData'))
@@ -979,6 +992,22 @@ describe('Android widget header', () => {
     )
     expect(sync).toContain('await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)')
     expect(sync).not.toMatch(/syncWidgetData\(JSON\.stringify\(data\), token\)/)
+  })
+
+  it('formats row times with the clock preference from the owning account payload', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    expect(service).toContain('val uses24HourClock: Boolean? = null')
+    expect(kotlinFunctionBody(service, 'loadWidgetData')).toContain('uses24HourClock = widgetData.uses24HourClock')
+    expect(kotlinFunctionBody(service, 'applyDueTime')).toContain('formatWidgetTime(dueTime, uses24HourClock, Locale.forLanguageTag(lang))')
+    expect(kotlinFunctionBody(service, 'formatWidgetTime')).toContain('if (uses24HourClock != false)')
+  })
+
+  it('keeps the binary palette for legacy theme calls and uses qualified colors for redesign calls', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const colors = kotlinFunctionBody(service, 'readColor')
+    expect(colors).toContain('if (!prefs.getBoolean("theme_mode_preferences", false)) return fallbackColor(mode, token)')
+    expect(colors).toContain('"${OrbitWidgetModule.COLOR_KEY_PREFIX}${mode}_$token"')
+    expect(service).toContain('if (mode == "dark") WidgetColorFallbacks.dark else WidgetColorFallbacks.light')
   })
 
   /**

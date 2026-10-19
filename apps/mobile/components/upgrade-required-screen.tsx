@@ -1,4 +1,4 @@
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useEffect, useId, useState } from 'react'
 import { Linking, Modal, ScrollView, Text, View } from 'react-native'
 import Constants from 'expo-constants'
@@ -45,7 +45,7 @@ export function UpgradeRequiredScreen() {
   return (
     <Modal visible animationType="none" onRequestClose={() => {}}>
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
-        <ScrollView contentContainerStyle={{ alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, flexGrow: 1, justifyContent: 'center', gap: 24, padding: 32 }}>
+        <ScrollView contentContainerStyle={{ alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, flexGrow: 1, justifyContent: 'center', gap: 24, padding: SPACING.s32 }}>
           <OrbitMark size={40} />
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('forceUpdate.title')}</Text>
           <Text style={[styles.body, { color: tokens.fg2 }]}>

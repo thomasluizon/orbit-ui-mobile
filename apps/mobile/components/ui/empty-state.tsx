@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { EmptyStateProps } from '@orbit/shared/contracts/feedback'
 import { StyleSheet, Text, View } from 'react-native'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -29,8 +30,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: 24,
-    paddingVertical: 48,
-    paddingHorizontal: 24,
+    paddingVertical: SPACING.s48,
+    paddingHorizontal: SPACING.s24,
   },
   title: {
     fontFamily: 'Geist_500Medium',

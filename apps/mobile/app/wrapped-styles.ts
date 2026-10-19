@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
@@ -12,15 +12,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    paddingLeft: 16,
-    paddingRight: 8,
-    paddingBottom: 8,
+    paddingLeft: SPACING.s16,
+    paddingRight: SPACING.s8,
+    paddingBottom: SPACING.s8,
   },
   headerCopy: { flex: 1, alignItems: 'flex-start' },
   headerWindow: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   slideScrollContent: { flexGrow: 1 },
   page: { flex: 1, position: 'relative' },
-  pager: { paddingHorizontal: 16, paddingTop: 16 },
+  pager: { paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
   closeBtn: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, flexShrink: 0, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
@@ -30,8 +30,8 @@ export const styles = StyleSheet.create({
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingHorizontal: SPACING.s16,
+    paddingVertical: SPACING.s24,
     gap: 8,
   },
   heroNumeral: {
@@ -73,9 +73,9 @@ export const styles = StyleSheet.create({
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 24,
+    paddingHorizontal: SPACING.s16,
+    paddingTop: SPACING.s24,
+    paddingBottom: SPACING.s24,
     gap: 16,
   },
   shareError: { fontFamily: 'Geist_400Regular', fontSize: 14 },
@@ -91,8 +91,8 @@ export const styles = StyleSheet.create({
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: SPACING.s24,
+    paddingVertical: SPACING.s32,
     gap: 24,
   },
   coverHeader: { alignItems: 'flex-start', gap: 8 },
