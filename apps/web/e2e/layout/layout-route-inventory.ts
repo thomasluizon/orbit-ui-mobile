@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const appDirectory = resolve(import.meta.dirname, '../../app')
+const appDirectory = resolve(__dirname, '../../app')
 
 export const layoutRouteInventory = readdirSync(appDirectory, { recursive: true, encoding: 'utf8' })
   .filter((path) => path === 'page.tsx' || path.endsWith('/page.tsx'))

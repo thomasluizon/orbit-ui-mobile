@@ -81,7 +81,7 @@ function SummaryText({ summary, busy }: Readonly<{ summary: string; busy: boolea
         onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={({ pressed }) => [styles.toggle, { backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' },
-          focused ? { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 } : null]}>
+          focused ? { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: -2 } : null]}>
         {expanded ? <ChevronsUp size={16} color={tokens.fg2} /> : <ChevronsDown size={16} color={tokens.fg2} />}
         <Text style={[styles.toggleLabel, { color: tokens.fg2 }]}>{expanded ? t('common.seeLess') : t('common.seeMore')}</Text>
       </Pressable> : null}

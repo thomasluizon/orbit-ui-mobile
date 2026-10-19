@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
@@ -81,6 +82,25 @@ describe('daily summary on Hoje', () => {
       await press(tree, 'common.seeLess')
       expect(message().props.numberOfLines).toBe(3)
       expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['common.seeMore', 'common.seeLess'])('keeps the %s focus ring inside the toggle and clears it on blur', async (label) => {
+    mocks.summary = 'Your habits are ready for today. '.repeat(8)
+    const tree = await renderSummary()
+    const toggleStyle = (pressed: boolean) => {
+      const style = action(tree, label).props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      return StyleSheet.flatten(style({ pressed }))
+    }
+    try {
+      if (label === 'common.seeLess') await press(tree, 'common.seeMore')
+      expect(toggleStyle(false).outlineWidth ?? 0).toBe(0)
+      await TestRenderer.act(() => (action(tree, label).props.onFocus as () => void)())
+      for (const pressed of [false, true]) {
+        expect(toggleStyle(pressed)).toMatchObject({ outlineStyle: 'solid', outlineWidth: 2, outlineOffset: -2 })
+      }
+      await TestRenderer.act(() => (action(tree, label).props.onBlur as () => void)())
+      expect(toggleStyle(false).outlineWidth ?? 0).toBe(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
