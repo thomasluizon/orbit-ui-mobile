@@ -1902,6 +1902,7 @@
       "invalid": "Check the edited values and try again.",
       "stale": "Your habits changed since Astra prepared this preview.",
       "refresh": "Refresh preview",
+      "empty": "There are no changes to approve.",
       "refreshFailed": "Couldn't refresh. Try again.",
       "staleUnavailable": "You can't refresh this preview anymore. Ask Astra to prepare it again.",
       "list": {

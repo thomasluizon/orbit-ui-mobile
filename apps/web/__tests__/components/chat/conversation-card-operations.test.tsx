@@ -76,7 +76,7 @@ function CardConversation({ operations, scrollOwner }: { operations: CardOperati
     const feed = chatContainerRef.current
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }
-  const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations),
+  const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations).flatMap(message => [{ ...message, role: 'user' as const, content: 'My request', pendingOperations: [], id: `${message.id}-user` }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: operations.length === 0,
     canShowFollowUps: false, composerProps: { suggestions: [] }, handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
@@ -197,4 +197,14 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   await act(async () => { owner.grow(); await new Promise(requestAnimationFrame) })
   expect(owner.feed.scrollTop).toBe(reading ? 100 : 1300)
   if (reading) expect(owner.scrolling).not.toHaveBeenCalled()
+})
+
+it('keeps the completed trace above its own reply blocks and after its request', () => {
+  const { container } = render(<CardConversation operations={['revise']} />)
+  const trace = container.querySelector('[data-thinking-trace="completed"]')!
+  const preview = container.querySelector('section[data-state]')!
+  const request = screen.getByText('My request')
+  expect(request.compareDocumentPosition(trace) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(trace.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(trace.closest('article')).toBe(preview.closest('article'))
 })

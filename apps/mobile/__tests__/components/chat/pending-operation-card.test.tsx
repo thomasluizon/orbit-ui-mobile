@@ -1,4 +1,4 @@
-import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,44 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree, handlers } = renderCard({ ...makeCreateHabitsPreview(0), changeTargetCount: count })
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+    expect(renderedText(tree.toJSON())).toContain((locale === 'en' ? en : ptBR).chat.operation.empty)
+    expect(renderedText(tree.toJSON())).not.toContain('chat.pendingOp.pendingTitle')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it.each([null, undefined])('keeps plain confirmation when the producer has no item preview: %s', items => {
+    const { tree } = renderCard({ ...makeCreateHabitsPreview(1), items, changes: null, changeTargetCount: null })
+    expect(press(tree, 'chat.operation.approveCount')).toBeDefined()
+  })
+
+  it('disables every preview action and announces busy during deletion', () => {
+    const { tree, handlers } = renderCard(makeDeleteHabitsPreview(10), vi.fn())
+    handlers.onConfirmExecute.mockReturnValue(new Promise(() => {}))
+    TestRenderer.act(() => press(tree, 'chat.operation.approveCount.deleteHabits').props.onPress())
+    TestRenderer.act(() => tree.root.findByType('ConfirmSheet').props.onConfirm())
+    expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'blockFrame.status.acting')).toHaveLength(10)
+    const actions = tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => (typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('chat.operation.remove')) || renderedText(node.props.children).includes('chat.operation.reject') || renderedText(node.props.children).includes('chat.operation.approveCount'))
+    for (const action of actions) expect(action.props.disabled).toBe(true)
+    expect(tree.root.findByProps({ testID: 'block-frame-acting' }).props.accessibilityState).toEqual({ busy: true })
+    expect(handlers.onConfirmExecute).toHaveBeenCalledOnce()
+  })
+
+  it('shows only the stale explanation after execution and refresh fail', async () => {
+    const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
+    const { tree, handlers } = renderCard(preview, undefined, refresh)
+    handlers.onConfirmExecute.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.stale')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.operationFailed')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.operation.refreshFailed')
+  })
+
   describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
     it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {
       visibleLocale.actual = true

@@ -75,6 +75,28 @@ const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
 }
 
 describe('MessageBubble', () => {
+  it('renders a clarified operation and its repeated pending preview once', () => {
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    message.pendingOperationStates = { [operation.id]: { status: 'done' } }
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const { container } = render(<MessageBubble message={message} {...callbacks} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+  })
+
+  it('renders an operation id once and retains the original reply state', () => {
+    const message = makeHeldHabitMessage()
+    message.pendingOperations = [message.pendingOperations![0]!, message.pendingOperations![0]!]
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const { container, rerender } = render(<MessageBubble message={message} {...callbacks} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    rerender(<MessageBubble message={{ ...message, id: 'later-reply' }} earlierMessages={[message]} {...callbacks} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(0)
+  })
+
   beforeEach(() => {
     push.mockClear()
   })

@@ -213,23 +213,25 @@ function pendingActions<Node>(
     message: labels.stepUpMessage,
     actionLabel: labels.stepUpAction,
     onAction: () => void card.startStepUp(),
-    busy: card.busy,
+    busy: card.busy || revision?.busy === true,
   })
   if (action !== 'buttons') return undefined
   if (card.status === 'failed') return render.fragment(render.button({
     label: labels.retry,
+    disabled: card.busy || revision?.busy === true,
     variant: 'primary',
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   }))
   const reject = render.button({
     label: labels.reject,
+    disabled: card.busy || revision?.busy === true,
     variant: 'ghost',
     onClick: revision?.canRevise ? () => void revision.rejectAll() : card.dismiss,
   })
   const approve = render.button({
     label: labels.approve(count),
     variant: 'primary',
-    disabled: revision?.canRevise === true && revision.items.length === 0,
+    disabled: card.busy || revision?.busy === true || (revision?.canRevise === true && revision.items.length === 0),
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
   if (!revision?.canRevise) return render.fragment(reject, approve)
@@ -239,6 +241,7 @@ function pendingActions<Node>(
     reject,
     render.button({
       label: labels.edit,
+      disabled: card.busy || revision.busy,
       variant: 'ghost',
       onClick: () => revision.startEdit(firstEditableItem.itemId),
     }),
@@ -331,7 +334,7 @@ function previewFrame<Node>(
     title: previewItems ? labels.name : labels.pendingTitle,
     wrapTitle: true,
     focusTitleOnMount: card.focusTitleOnMount,
-    body: previewBody(card, labels, render),
+    body: revision?.stale ? undefined : previewBody(card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,
@@ -344,7 +347,7 @@ function previewFrame<Node>(
   }
   if (revision?.stale && !revision.busy) return render.blockFrame({
     ...frameBase, state: 'stale',
-    staleMessage: `${revision.canRefresh ? labels.stale : labels.staleUnavailable}${revision.error ? ` ${labels.refreshFailed}` : ''}`,
+    staleMessage: revision.canRefresh ? labels.stale : labels.staleUnavailable,
     refreshLabel: labels.refresh,
     onRefresh: revision.canRefresh ? () => void revision.refresh() : undefined,
   })
@@ -366,6 +369,9 @@ export function renderPendingOperationCard<Node>({
 }): Node | null {
   const revision = card.revision
   if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(targetCount(pendingOperation))))
+
+  if (pendingOperation.changeTargetCount === 0 || (pendingOperation.changeTargetCount == null
+    && pendingOperation.items?.length === 0 && !pendingOperation.changes?.length)) return render.notice(labels.empty)
 
   const deletionCount = pendingOperation.items?.filter((item) => item.removesData === true).length ?? 0
   const presentation = getPendingOperationCardPresentation(

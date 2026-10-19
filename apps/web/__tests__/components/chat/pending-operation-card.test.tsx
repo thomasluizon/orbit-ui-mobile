@@ -1,4 +1,4 @@
-import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,45 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each([0, null, undefined].flatMap(count => ['en', 'pt-BR'].map(locale => ({ count, locale }))))('renders a zero-target preview as a notice without approval with count $count in $locale', ({ count, locale }) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    render(<PendingOperationCard pendingOperation={{ ...makeCreateHabitsPreview(0), changeTargetCount: count }} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent((locale === 'en' ? en : ptBR).chat.operation.empty)
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([null, undefined])('keeps plain confirmation when the producer has no item preview: %s', items => {
+    const operation = { ...makeCreateHabitsPreview(1), items, changes: null, changeTargetCount: null }
+    render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('button', { name: /chat.operation.approveCount/ })).toBeInTheDocument()
+  })
+
+  it('disables every preview action and announces busy during deletion', async () => {
+    confirm.mockReturnValue(new Promise(() => {}))
+    const { container } = render(<PendingOperationCard pendingOperation={makeDeleteHabitsPreview(10)} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-sheet' }))
+    await waitFor(() => expect(screen.getAllByText('status.acting')).toHaveLength(10))
+    for (const button of container.querySelectorAll('[data-action-row] button, button[aria-label^="chat.operation.remove"]')) expect(button).toBeDisabled()
+    expect(container.querySelector('[data-state="acting"]')).toHaveAttribute('aria-busy', 'true')
+    expect(confirm).toHaveBeenCalledOnce()
+  })
+
+  it('shows only the stale explanation after execution and refresh fail', async () => {
+    confirm.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
+    render(<PendingOperationCard pendingOperation={preview} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'chat.operation.refresh' }))
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+    await screen.findByText('chat.operation.stale')
+    expect(screen.queryByText('chat.operationFailed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/chat.operation.refreshFailed/)).not.toBeInTheDocument()
+  })
+
 
   describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
     it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {

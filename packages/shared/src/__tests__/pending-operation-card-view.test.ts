@@ -266,7 +266,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
-  approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
+  empty: 'No changes to approve.', approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
   summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',

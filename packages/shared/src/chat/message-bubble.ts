@@ -12,6 +12,7 @@ import { attachClarificationPreview, updatePendingOperationMessage, type Pending
 
 export interface MessageBubbleProps {
   blockAnswerInteraction?: BlockAnswerInteraction
+  earlierMessages?: readonly ChatMessage[]
   laterMessages?: readonly ChatMessage[]
   animateEntry?: boolean
   isStreaming?: boolean
@@ -76,13 +77,33 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   }
 }
 
+function messageOperationIds(message: ChatMessage): string[] {
+  return [...(message.pendingOperations ?? []), ...Object.values(message.clarificationPreviews ?? {})].map(operation => operation.id)
+}
+
+function selectOwnedOperationBlocks(props: MessageBubbleProps) {
+  const previousIds = new Set(props.earlierMessages?.flatMap(messageOperationIds))
+  const pendingOperations = [...new Map((props.message.pendingOperations ?? []).map(operation => [operation.id, operation])).values()]
+    .filter(operation => !previousIds.has(operation.id))
+  const claimedIds = new Set([...previousIds, ...pendingOperations.map(operation => operation.id)])
+  const clarifications = partitionMessageActions(selectMessageOperationBlocks(props.message).actions, props.message.policyDenials).clarificationActions
+    .filter(action => {
+      const preview = props.message.clarificationPreviews?.[action.clarificationRequest.operationId]
+      if (!preview) return true
+      if (claimedIds.has(preview.id)) return false
+      claimedIds.add(preview.id)
+      return true
+    })
+  return { pendingOperations, clarifications }
+}
+
 export function getMessageBubbleOperations(props: MessageBubbleProps, transitionMessage: ChatStoreState['transitionMessage']) {
   const { message, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp } = props
-  const actions = partitionMessageActions(selectMessageOperationBlocks(message).actions, message.policyDenials)
+  const owned = selectOwnedOperationBlocks(props)
   const onStateChange = (operationId: string, patch: PendingOperationMessageState) => transitionMessage(message.id,
     current => updatePendingOperationMessage(current, operationId, patch))
   return {
-    clarifications: actions.clarificationActions.map(action => ({
+    clarifications: owned.clarifications.map(action => ({
       key: action.clarificationRequest.operationId,
       clarificationRequest: action.clarificationRequest,
       entityName: action.entityName,
@@ -99,7 +120,7 @@ export function getMessageBubbleOperations(props: MessageBubbleProps, transition
       onActionChipClick: props.onActionChipClick,
     })),
     pendingOperations: onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp
-      ? (message.pendingOperations ?? []).map(pendingOperation => ({
+      ? owned.pendingOperations.map(pendingOperation => ({
         key: pendingOperation.id,
         pendingOperation,
         savedState: message.pendingOperationStates?.[pendingOperation.id],
