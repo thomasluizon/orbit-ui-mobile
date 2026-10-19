@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -12,7 +12,7 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   if (followUps.length < 2) return null
-  return <View style={{ gap: 8, paddingBottom: 12 }}>
+  return <View style={{ gap: 8, paddingBottom: SPACING.s12 }}>
     <Text style={{ color: tokens.fg3, fontSize: 12 }}>{t('chat.followUps.label')}</Text>
     <View style={{ gap: 8 }}>
       {followUps.slice(0, 3).map((text) => <Pressable
@@ -21,7 +21,7 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
         accessibilityLabel={text}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
-          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden',
+          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: SPACING.s12, paddingHorizontal: SPACING.s16, borderRadius: 12, overflow: 'hidden',
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}

@@ -3,7 +3,7 @@ import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { TOUCH_TARGET_MIN, BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { PADDING, TOUCH_TARGET_MIN, BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   notice: {
-    paddingHorizontal: 16,
+    paddingHorizontal: PADDING.screenGutter,
   },
   bottomColumn: {
     flexShrink: 1,

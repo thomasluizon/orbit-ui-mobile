@@ -101,6 +101,39 @@ describe('alerts', () => {
     textStyles = rules.join('\n')
   })
 
+  it.each(['/social?tab=buddies', '/public-profile/123', '/u/example'])(
+    'hides retired %s from the inbox and badge while preserving active rows', (url) => {
+      state.notifications = [
+        createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
+        createMockNotification({ id: 'retired', title: 'Retired notification', url }),
+        createMockNotification({ id: 'celebration', title: 'Achievement earned', isRead: true }),
+        createMockNotification({ id: 'unknown', title: 'Unknown destination', url: '/unknown' }),
+      ]
+      state.unreadCount = 3
+      render(<><NotificationBell /><NotificationInbox /></>)
+      expect(screen.getByRole('button', { name: 'Alerts, 2 unread' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^Retired notification\./ })).not.toBeInTheDocument()
+      for (const title of ['Streak saved', 'Achievement earned', 'Unknown destination']) {
+        expect(screen.getByRole('button', { name: new RegExp(`^${title}\\.`) })).toBeInTheDocument()
+      }
+      fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+      fireEvent.click(screen.getByRole('menuitem', { name: en.notifications.markAllReadMenu }))
+      expect(state.markAll).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('shows the empty inbox and no unread badge when every row is retired', () => {
+    state.notifications = ['/social?tab=buddies', '/public-profile/123', '/u/example'].map(
+      (url, index) => createMockNotification({ id: `retired-${index}`, url }),
+    )
+    state.unreadCount = 3
+    const { container } = render(<><NotificationBell /><NotificationInbox /></>)
+    expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument()
+    expect(container.querySelector('[data-notification-count]')).toBeNull()
+    expect(screen.getByText(en.notifications.empty)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.notifications.options })).not.toBeInTheDocument()
+  })
+
   it.each(['dark', 'light'].flatMap((mode) =>
     ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
   ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {

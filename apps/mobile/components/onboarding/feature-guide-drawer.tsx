@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo, useState } from 'react'
 import {
   ScrollView,
@@ -168,16 +169,16 @@ export function FeatureGuideDrawer({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     tabBarWrap: {
-      paddingVertical: 8,
+      paddingVertical: SPACING.s8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
     tabBarContent: {
       gap: 8,
-      paddingRight: 12,
+      paddingRight: SPACING.s12,
     },
     sectionContent: {
-      paddingTop: 16,
+      paddingTop: SPACING.s16,
       gap: 16,
     },
     sectionItem: {

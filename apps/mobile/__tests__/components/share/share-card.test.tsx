@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   createMockRecap,
@@ -44,6 +45,20 @@ function render(props: { recap: Recap; variant?: 'progress' | 'wrapped' }) {
 }
 
 describe('ShareCard (mobile)', () => {
+  it('reads the shared card inset for progress sharing', () => {
+    const originalInset = PADDING.cardInset
+    try {
+      PADDING.cardInset = SPACING.s48
+      const tree = render({ recap: createMockRecap(), variant: 'progress' })
+      const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
+        props: { style: unknown }
+      }
+      expect(StyleSheet.flatten(card.props.style)).toMatchObject({ padding: PADDING.cardInset })
+    } finally {
+      PADDING.cardInset = originalInset
+    }
+  })
+
   it('restores active days and completion rate on the progress image', () => {
     const text = collectText(render({
       recap: createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) }),

@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -140,7 +143,7 @@ export function DeleteAccountModal({
       {!isOnline ? (
         <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
       ) : (
-        <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
+        <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: SPACING.s4 }}>
           <div
             aria-hidden="true"
             className="flex items-center justify-center rounded-full"

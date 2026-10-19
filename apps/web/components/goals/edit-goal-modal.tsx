@@ -185,13 +185,13 @@ export function EditGoalModal({
         )}
       >
         <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
-          <div className="t-eyebrow" style={{ padding: '12px 0' }}>
+          <div className="t-eyebrow" style={{ padding: "var(--orbit-space-12) var(--orbit-space-0)" }}>
             {isStreak
               ? t('goals.form.typeStreak')
               : `${t('goals.form.typeStandard')}${unitSuffix}`}
           </div>
 
-          <div style={{ padding: '8px 0 0' }}>
+          <div style={{ padding: "var(--orbit-space-8) var(--orbit-space-0) var(--orbit-space-0)" }}>
             <FieldWell
               label={t('goals.form.description')}
               id="edit-goal-description"

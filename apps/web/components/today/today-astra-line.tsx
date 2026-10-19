@@ -25,7 +25,7 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
       {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></> : text}
     </span>
   </>
-  return <div className="px-[16px]" data-today-astra-slot aria-busy={busy}>
+  return <div className="px-screen-gutter" data-today-astra-slot aria-busy={busy}>
     {href ? <Link className="today-astra-line" href={href} aria-describedby={destinationId}>{content}</Link>
       : <button type="button" className="today-astra-line" aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
     <span id={destinationId} className="sr-only">{destination}</span>

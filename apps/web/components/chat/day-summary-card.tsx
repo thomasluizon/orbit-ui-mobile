@@ -7,7 +7,7 @@ import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/c
 import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from '@/components/habits/habit-check'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Button } from '@/components/ui/pill-button'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
@@ -64,7 +64,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     return { id: item.id, wrapLabel: true, label: <button type="button" aria-label={t('chat.habitList.open', { name: title })} onClick={() => navigate(`/habits/${item.id}`)} className="flex min-h-[var(--touch-min)] w-full min-w-0 items-center gap-3 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{occurrence?.emoji ?? item.emoji ?? '•'}</span><PersonalText className="flex-1">{title}</PersonalText></button>,
       meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><StatusRing status={control.status} size={24} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
+      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
     }
   })
   return <div className="w-full">

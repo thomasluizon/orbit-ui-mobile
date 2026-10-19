@@ -142,6 +142,38 @@ afterEach(() => {
 })
 
 describe('mobile alerts', () => {
+  it.each(['/social?tab=buddies', '/public-profile/123', '/u/example'])(
+    'hides retired %s from the inbox and badge while preserving active rows', (url) => {
+      state.notifications = [
+        createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
+        createMockNotification({ id: 'retired', title: 'Retired notification', url }),
+        createMockNotification({ id: 'celebration', title: 'Achievement earned', isRead: true }),
+        createMockNotification({ id: 'unknown', title: 'Unknown destination', url: '/unknown' }),
+      ]
+      state.unreadCount = 3
+      const tree = render(<><NotificationBell /><NotificationInbox /></>)
+      expect(hosts(tree, 'Pressable', 'Alerts, 2 unread')).toHaveLength(1)
+      expect(text(tree, 'Retired notification')).toHaveLength(0)
+      for (const title of ['Streak saved', 'Achievement earned', 'Unknown destination']) {
+        expect(hosts(tree, 'Pressable').filter((node) => node.props.accessibilityLabel?.startsWith(`${title}.`))).toHaveLength(1)
+      }
+      press(tree, en.notifications.markAllReadMenu)
+      expect(state.markAll).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('shows the empty inbox and no unread badge when every row is retired', () => {
+    state.notifications = ['/social?tab=buddies', '/public-profile/123', '/u/example'].map(
+      (url, index) => createMockNotification({ id: `retired-${index}`, url }),
+    )
+    state.unreadCount = 3
+    const tree = render(<><NotificationBell /><NotificationInbox /></>)
+    expect(hosts(tree, 'Pressable', 'Alerts')).toHaveLength(1)
+    expect(testId(tree, 'notification-count')).toHaveLength(0)
+    expect(text(tree, en.notifications.empty)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', en.notifications.options)).toHaveLength(0)
+  })
+
   it.each(['dark', 'light'] as const)('keeps the bell transparent until hover, press or focus in %s', (mode) => {
     state.mode = mode
     state.unreadCount = 25

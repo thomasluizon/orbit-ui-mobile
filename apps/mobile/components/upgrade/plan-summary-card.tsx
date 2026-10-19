@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import { Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
@@ -19,7 +20,7 @@ export function PlanSummaryCard({
 }>) {
   const { width } = useWindowDimensions()
   return (
-    <View style={{ gap: 16, paddingVertical: 16 }}>
+    <View style={{ gap: 16, paddingVertical: SPACING.s16 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{planLabel}</Text>
         {badges}

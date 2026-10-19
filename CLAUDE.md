@@ -84,7 +84,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
-| `FEATURES.md` | Retained Astra and MCP tool-count inventory that no generated artifact carries; verify every count against its named `orbit-api` source. |
+| `FEATURES.md` | Retained Astra and MCP tool-count inventory and social compatibility references that no generated artifact carries; verify every count against its named `orbit-api` source. |
 | `.claude/skills/flag/SKILL.md` | Inspect and change production or staging feature flags through admin Orbit MCP, with before and after verification. |
 | `.claude/skills/flag/guide.md` | Plain and version flags, account targeting, flag lifecycle, build selection, and API versioning. |
 | `TESTING.md` | Test authoring rules, suite catalog, CI ownership and local verification commands. |

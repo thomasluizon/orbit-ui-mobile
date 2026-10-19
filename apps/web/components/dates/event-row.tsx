@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import type { EventRowProps } from '@orbit/shared/contracts/dates'
 
@@ -14,12 +15,12 @@ export function EventRow(props: Readonly<EventRowProps>) {
       {props.action}
     </div>
   </>
-  const style = { gap: 4, minHeight: 68, paddingBlock: 12 }
+  const style = { gap: 4, minHeight: 68, paddingBlock: SPACING.s12 }
   return props.onClick ? <button
     type="button" onClick={props.onClick} aria-label={accessibleLabel}
     data-all-day={props.time ? undefined : ''}
     className="flex min-w-0 flex-col justify-center overflow-hidden rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-    style={{ ...style, paddingInline: 16, }}
+    style={{ ...style, paddingInline: SPACING.s16, }}
   >{content}</button> : <div
     role={props.action ? 'group' : 'img'} aria-label={accessibleLabel} data-all-day={props.time ? undefined : ''}
     className="flex min-w-0 flex-col justify-center" style={style}

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
@@ -453,7 +454,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const clearance = useShellScrollerClearance()
-    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? 24 : 0) }
+    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
@@ -1785,7 +1786,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         data={flatItems}
         keyExtractor={keyExtractor}
         renderItem={({ item, index }) => <>
-          {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: 0 }]}>{groupHeadings.get(item.id)}</Text> : null}
+          {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
           {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
         </>}
         extraData={listExtraData}

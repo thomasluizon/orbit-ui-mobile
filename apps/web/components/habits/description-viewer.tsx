@@ -23,7 +23,7 @@ export function DescriptionViewer({
       <div
         className="min-w-0 rounded-[18px] bg-[var(--bg-card)]"
         style={{
-          padding: '16px',
+          padding: 'var(--orbit-space-16)',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >

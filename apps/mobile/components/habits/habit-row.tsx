@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
@@ -211,7 +212,7 @@ function buildRowStyle({
 }
 
 function habitRowSpacing(panelEnd: boolean): ViewStyle {
-  return { paddingBottom: panelEnd ? 12 : 4 }
+  return { paddingBottom: panelEnd ? SPACING.s12 : SPACING.s4 }
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -459,7 +460,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineC
     <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {largeText ? (
-        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? 4 : 8 }]}>
+        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8 }]}>
           {supportingMeta ? (
             <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
               style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>
@@ -471,7 +472,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineC
       ) : <>{primaryButton}{children}</>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 12, paddingLeft: 8, paddingBottom: 8 }}>
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: SPACING.s8, paddingBottom: SPACING.s8 }}>
           <View style={{ width: 48 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
@@ -485,7 +486,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, outlineC
 }
 
 function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
-  return { paddingVertical: largeText ? 0 : (isChild ? 4 : 8), paddingLeft: 8, alignItems: largeText ? 'flex-start' : 'center' }
+  return { paddingVertical: largeText ? SPACING.s0 : (isChild ? SPACING.s4 : SPACING.s8), paddingLeft: SPACING.s8, alignItems: largeText ? 'flex-start' : 'center' }
 }
 
 function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {

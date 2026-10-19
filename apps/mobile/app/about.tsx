@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
-  content: { gap: 24, paddingTop: 16 },
+  content: { gap: 24, paddingTop: SPACING.s16 },
   identity: { minWidth: 0, alignItems: 'flex-start', gap: 12 },
   appName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     columnGap: 12,
     rowGap: 4,
   },
-  accountRow: { minHeight: 48, paddingVertical: 8, position: 'relative', alignItems: 'center' },
+  accountRow: { minHeight: 48, paddingVertical: SPACING.s8, position: 'relative', alignItems: 'center' },
   accountFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
   accountText: { minWidth: 0, flexShrink: 1 },
   accountValue: { minWidth: 0, maxWidth: '100%', flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },

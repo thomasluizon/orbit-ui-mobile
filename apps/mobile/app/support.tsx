@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -442,7 +443,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
   formBlock: {
     width: '100%',
     maxWidth: 520,
@@ -454,7 +455,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  failureBlock: { gap: 8, padding: 16, borderRadius: radius.md },
+  failureBlock: { gap: 8, padding: SPACING.s16, borderRadius: radius.md },
   failureTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 23.8 },
   failureBody: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 },
   subjectField: { gap: 8 },
@@ -465,12 +466,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
+    padding: SPACING.s12,
     borderRadius: radius.md,
   },
   offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   successBlock: {
-    paddingVertical: 48,
+    paddingVertical: SPACING.s48,
     alignItems: 'flex-start',
     gap: 16,
   },

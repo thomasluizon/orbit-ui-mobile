@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '../../../../packages/shared/src/i18n/en.json'
 import ptBR from '../../../../packages/shared/src/i18n/pt-BR.json'
 import PrivacyScreen from '@/app/privacy'
@@ -43,6 +43,7 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 
 translations.messages = en
+afterEach(() => { translations.messages = en })
 
 const SECTION_METADATA_KEYS = new Set(['title', 'intro'])
 
@@ -59,6 +60,27 @@ function rendersText(root: TestNode, text: string) {
 }
 
 describe('PrivacyScreen disclosures', () => {
+  it.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ])('renders cookies, consent, and withdrawal alongside processors in %s', (_locale, messages) => {
+    translations.messages = messages
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(messages.privacy).toHaveProperty('cookies')
+    for (const disclosure of Object.values(messages.privacy.cookies)) {
+      expect(rendersText(tree!.root, disclosure)).toBe(true)
+    }
+    expect(rendersText(tree!.root, messages.privacy.thirdParty.sentry)).toBe(true)
+    const textNodes = tree!.root.findAll((node) => typeof node.props.children === 'string')
+    const text = textNodes.map((node) => node.props.children).join(' ')
+    expect(text.indexOf(messages.privacy.thirdParty.posthog)).toBeLessThan(text.indexOf(messages.privacy.cookies.title))
+    expect(text.indexOf(messages.privacy.cookies.title)).toBeLessThan(text.indexOf(messages.privacy.retention.title))
+  })
+
   it('renders the new processor and retention disclosures on mobile', () => {
     let tree: { root: TestNode } | undefined
     TestRenderer.act(() => {
@@ -84,8 +106,8 @@ describe('PrivacyScreen disclosures', () => {
     })
 
     expect(rendersText(tree!.root, en.privacy.thirdParty.admob)).toBe(true)
-    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
-    expect(ptBR.privacy.dataCollected.device).toBe('Dados do aparelho: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu aparelho, que o SDK de anúncios podia acessar')
+    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
+    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
     expect(rendersText(tree!.root, en.privacy.dataCollected.device)).toBe(true)
   })
 

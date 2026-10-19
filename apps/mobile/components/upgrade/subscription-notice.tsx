@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { ProBenefits } from './pro-benefits'
 import { Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
@@ -23,7 +24,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
   const endedKey = paymentFailed ? 'upgrade.billing.lapsed.payment_failed' : 'upgrade.billing.lapsed.ended'
   return (
     <View style={styles.billingStack}>
-      <View style={{ gap: 16, paddingVertical: 16 }}>
+      <View style={{ gap: 16, paddingVertical: SPACING.s16 }}>
         <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{t('upgrade.billing.lapsed.title')}</Text>
         {endedAt ? <Text style={[styles.billingMeta, { color: tokens.fg3 }]}>{t(endedKey, { date: endedAt })}</Text> : null}
         {paymentFailed ? <View style={{ gap: 4 }}>
@@ -41,7 +42,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
             <Text style={[styles.billingSecondary, { color: tokens.fg3, flex: 1 }]}>{label}</Text>
           </View>)}
         </View>
-        {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: 8 }}>
+        {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: SPACING.s8 }}>
           <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
         </View> : null}
       </View>

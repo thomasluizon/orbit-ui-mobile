@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -108,7 +109,7 @@ export function PricingSection({
           ) : null}
         </View>
 
-        <View style={[styles.reassurance, !inset && { paddingHorizontal: 0 }]}>
+        <View style={[styles.reassurance, !inset && { paddingHorizontal: SPACING.s0 }]}>
           {plans ? <View style={styles.reassuranceCopy}>
               <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
                 {t('upgrade.convert.cancelAnytime')}

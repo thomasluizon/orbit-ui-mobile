@@ -1,5 +1,6 @@
 'use client'
 
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -39,7 +40,7 @@ export function ShareCard({ recap, ref, variant = 'wrapped' }: Readonly<ShareCar
         flexDirection: 'column',
         gap: 24,
         overflow: 'hidden',
-        padding: variant === 'progress' ? 24 : 32,
+        padding: variant === 'progress' ? PADDING.cardInset : SPACING.s32,
         borderRadius: 20,
         background: variant === 'progress' ? 'var(--bg)' : 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
