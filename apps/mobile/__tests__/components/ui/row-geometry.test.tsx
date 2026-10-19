@@ -17,6 +17,7 @@ import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-as
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
 import { measureProfileRow } from '../../support/profile-row-geometry'
+import { measureInteractionFills } from '../../support/interaction-fill-geometry'
 
 vi.mock('react-i18next', async (importOriginal) => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key === 'common.proBadge' || key === 'habits.detail.proGate' ? 'Pro' : key, i18n: { language: 'en' } }) }))
 vi.mock('react-hook-form', async (importOriginal) => ({
@@ -149,7 +150,10 @@ describe('canonical row geometry in Yoga', () => {
       const measured = measureProfileRow(tree.toJSON(), width, scale)
       const body = measured.parts.find((part) => part.slot === 'list-row-body')!
       const checkbox = measured.parts.find((part) => part.slot === 'checkbox-box')!
-      expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 4, paddingVertical: 0, minHeight: 52, gap: 4 })
+      expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 4, paddingVertical: 0, minHeight: 52 })
+      const fills = measureInteractionFills(tree.toJSON(), width, false, scale).filter((part) => 'data-press-fill' in part.host.props)
+      expect(fills[1]!.left - fills[0]!.right).toBe(4)
+      expect(checkbox.left - measured.controls[0]!.right).toBe(12)
       expect(measured.texts[0]!.left - body.left).toBe(16)
       expect(body.right - checkbox.right).toBe(16)
       expect(checkbox).toMatchObject({ width: 24, height: 24 })

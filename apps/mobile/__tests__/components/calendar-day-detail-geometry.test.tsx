@@ -5,6 +5,7 @@ import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-da
 import { createTokensV2 } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
@@ -79,6 +80,7 @@ describe('Android day card geometry', () => {
         replayTextLayout(tree, Math.min(width, 740) - 32, scale)
         const hostRows = tree.toJSON().children[1].children
         const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+        const paints = measureInteractionFills(tree.toJSON(), Math.min(width, 740) - 32, false, scale)
         const title = measured.texts.find((text) => text.label === 'Hoje')!
         expect(title.left).toBe(24)
         expect(title.top).toBe(24)
@@ -102,7 +104,9 @@ describe('Android day card geometry', () => {
             expect(row.height).toBeCloseTo(body.height)
             expect(control.width).toBe(48)
             expect(control.height).toBe(48)
-            expect(control.left - row.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+            const target = paints.find((part) => part.host.type === 'Pressable' && part.left === control.left && part.top === control.top)!
+            const fill = paints.find((part) => part.ancestors.at(-1) === target.slot)!
+            expect(fill.left - row.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
             expect(control.top).toBeGreaterThanOrEqual(body.top)
             expect(control.bottom).toBeLessThanOrEqual(body.bottom)
           }
@@ -169,10 +173,10 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(copy.props.style)).toMatchObject({ gap: 4 })
       expect(StyleSheet.flatten(copy.props.style).paddingHorizontal).toBeUndefined()
       expect(StyleSheet.flatten(copy.children[1].props.style)).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, color: createTokensV2('purple', 'dark').fg3 })
-      expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(INTERACTION_FILL_CLEARANCE)
+      expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(0)
       if (loggable) {
         const target = host.children[1].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 4, gap: INTERACTION_FILL_CLEARANCE })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 4, gap: 0 })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
         expect(titleStyle.marginVertical ?? 0).toBe(0)

@@ -3,13 +3,20 @@ import { expect, type Locator, type Page } from '@playwright/test'
 export async function readOutlineVisibility(target: Locator, pseudo?: '::before') {
   return target.evaluate(async (element, settings) => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    const style = getComputedStyle(element, settings.pseudo)
+    const hasOutline = (style: CSSStyleDeclaration) => style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
+    const owners = [element, ...element.querySelectorAll('[data-press-fill]')]
+    const owner = settings.pseudo ? { element, pseudo: settings.pseudo } : owners.flatMap((candidate) => [null, '::before', '::after'].map((pseudo) => ({ element: candidate, pseudo })))
+      .find((candidate) => {
+        const style = getComputedStyle(candidate.element, candidate.pseudo)
+        return (!candidate.pseudo || !['none', 'normal'].includes(style.content)) && hasOutline(style)
+      }) ?? { element, pseudo: null }
+    const style = getComputedStyle(owner.element, owner.pseudo)
     const width = Number.parseFloat(style.outlineWidth)
     const offset = Number.parseFloat(style.outlineOffset)
     const extent = width + offset
-    const bounds = element.getBoundingClientRect()
-    const control = settings.pseudo ? { left: bounds.left + Number.parseFloat(style.left), right: bounds.right - Number.parseFloat(style.right), top: bounds.top + Number.parseFloat(style.top), bottom: bounds.bottom - Number.parseFloat(style.bottom) } : bounds
-    const radius = Math.max(0, Math.min(Number.parseFloat(style.borderTopLeftRadius), bounds.width / 2, bounds.height / 2) + extent)
+    const bounds = owner.element.getBoundingClientRect()
+    const control = owner.pseudo ? { left: bounds.left + Number.parseFloat(style.left), right: bounds.right - Number.parseFloat(style.right), top: bounds.top + Number.parseFloat(style.top), bottom: bounds.bottom - Number.parseFloat(style.bottom) } : bounds
+    const radius = Math.max(0, Math.min(Number.parseFloat(style.borderTopLeftRadius), (control.right - control.left) / 2, (control.bottom - control.top) / 2) + extent)
     const outer = { left: control.left - extent, right: control.right + extent, top: control.top - extent, bottom: control.bottom + extent }
     const points = [
       { x: outer.left + radius, y: outer.top }, { x: outer.right - radius, y: outer.top },
@@ -30,7 +37,7 @@ export async function readOutlineVisibility(target: Locator, pseudo?: '::before'
     }
     const clippedBy: string[] = []
     if (points.some(({ x, y }) => x < -0.5 || y < -0.5 || x > innerWidth + 0.5 || y > innerHeight + 0.5)) clippedBy.push('viewport')
-    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+    for (let ancestor = owner.pseudo ? owner.element : owner.element.parentElement; ancestor; ancestor = ancestor.parentElement) {
       const ancestorStyle = getComputedStyle(ancestor)
       const clipsX = ancestorStyle.overflowX !== 'visible'
       const clipsY = ancestorStyle.overflowY !== 'visible'
@@ -78,6 +85,7 @@ export async function readFieldIndicators(
     }
     const activeCell = root.querySelector('[data-otp-cell][data-active]')
     if (activeCell) perimeter.add(activeCell)
+    field.querySelectorAll('[data-press-fill]').forEach((element) => perimeter.add(element))
     if (settings.includeDescendants) root.querySelectorAll('*').forEach((element) => perimeter.add(element))
 
     const paintsNothing = (element: Element) => {
@@ -184,6 +192,7 @@ async function inspectControlRings(target: Locator, focusedControl: boolean) {
     const primary = getComputedStyle(control).getPropertyValue('--primary').trim()
     const probe = document.createElement('span')
     probe.style.color = primary
+    probe.style.setProperty('forced-color-adjust', 'none')
     document.body.appendChild(probe)
     const channels = getComputedStyle(probe).color.match(/[\d.]+/g)?.slice(0, 3).map(Number)
     probe.remove()

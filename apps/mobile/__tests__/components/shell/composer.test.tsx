@@ -3,6 +3,7 @@ import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle
 import { buildComposerChips } from '@orbit/shared/chat'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -748,6 +749,23 @@ describe('Composer (mobile)', () => {
     expect(StyleSheet.flatten(input.props.style).borderWidth).toBeUndefined()
     TestRenderer.act(() => input.props.onBlur())
     expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(1)
+  })
+
+  it('keeps each action focus ring primary and separates it from an accent fill', async () => {
+    const tree = await renderComposer(props({ value: 'Draft', onAttachFile: vi.fn(), attachWords }))
+    const tokens = createTokensV2('purple', 'dark')
+    for (const name of [words.actions, words.send]) {
+      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === name)[0]
+      const target = {}
+      TestRenderer.act(() => control.props.onFocus({ target, currentTarget: target }))
+      const ring = control.findAllByType('View').at(-1)
+      const style = StyleSheet.flatten(ring.props.style)
+      expect(style).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
+      expect(style.outlineOffset + style.outlineWidth).toBeLessThanOrEqual(0)
+      if (name === words.send) expect(style).toMatchObject({ borderWidth: 4, borderColor: tokens.bg })
+      expect(contrastOnSurface(tokens.primary, [tokens.bg])).toBeGreaterThanOrEqual(3)
+      TestRenderer.act(() => control.props.onBlur({ target, currentTarget: target }))
+    }
   })
 
   it.each(['', '   '])('does not send a blank value %j', async (value) => {

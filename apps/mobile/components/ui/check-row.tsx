@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
   labelFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
   calendarDayControlFill: { borderRadius: 24 },
   calendarDayTarget: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
-  controlFill: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s12 },
-  personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
+  controlFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
+  personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
   calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0 },
@@ -149,7 +149,7 @@ function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpande
   return (
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement)}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
-      <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={styles.labelFill} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
+      <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={{ ...styles.labelFill, ...(calendarDay ? { top: SPACING.s4, bottom: SPACING.s4 } : {}) }} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
       <PersonalCheckRowContent label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
       </View>
       {calendarDay ? <View collapsable={false} style={styles.calendarDayTarget}>{control}</View> : control}

@@ -224,7 +224,9 @@ export function CalendarDayDetail({
             }
 
             return (
-              <Pressable key={`${selectedDate}:${entry.habitId}`} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={({ pressed }) => [styles.habitDisclosure, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+              <Pressable key={`${selectedDate}:${entry.habitId}`} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={styles.habitDisclosure}>
+                {({ pressed, focused }) => <>
+                <View pointerEvents="none" accessible={false} style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }}>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                     <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
@@ -232,6 +234,7 @@ export function CalendarDayDetail({
                   </View>
                   <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
                 </View>
+                </>}
               </Pressable>
             )
           })}
@@ -275,8 +278,9 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: PADDING.cardInset, paddingVertical: PADDING.cardInset },
     copyBlock: { gap: 4 },
-    rowList: { gap: 4 },
+    rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
+    habitFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12 },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

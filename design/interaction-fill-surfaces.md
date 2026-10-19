@@ -18,9 +18,9 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Compact focus groups | Weekday pills, segmented controls, profile theme choices and explicit control focus utilities | Existing inset focus pressables on the corresponding surfaces | Explicit outward focus offsets become inset where adjacent controls can have a 4px gap |
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
 | Month and range day grids | `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; circular position rings and 34px status discs retain their size, and every state paints inside its column |
-| Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | A 4px row gap separates contained label and checkbox fills; the card retains 24px padding |
-| Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | 4px between previous, title group and next controls, and between the title and picker; every target remains at least 48px |
-| Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Add or Stop and Send share a 4px gap inside the field; each target remains 48px, with an inset focus indicator |
+| Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | Touching rows retain their drawn layout; paint sits 4px inside the block edges and checkbox target; the card retains 24px padding |
+| Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | Month targets keep their gapless layout; chevron and picker paint sits 4px inside each target, which remains at least 48px |
+| Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Add or Stop and Send share a 4px gap inside the field; each target remains 48px, with one inset primary focus indicator and an opaque canvas separator on accent fills |
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx` | Web-only navigation chrome | The 48px bell and collapse targets retain their 12px gap; a 4px trailing row inset reserves clearance from the lockup, and focus stays inset |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-row.tsx` | Web reserves 4px above the explanation; Android's existing row spacing already reserves the same clearance |
@@ -35,6 +35,9 @@ progress SVGs do not paint interaction fills. ActionRow's negative vertical marg
 transparent hit padding. Small pill hit pseudo-elements remain transparent in every interaction state. Habit rename and
 column rows retain separate transparent 16px inline hit extensions around their 12px paint.
 The row action boundary keeps the transparent extension inside its separate action gap.
+Geometry checks measure transparent reach separately from paint. Fill and focus inspectors follow
+the actual element or pseudo-element owner, including in forced colors, while row content keeps
+its drawn insets and calendar navigation keeps its drawn position.
 
 The web layout inventory visits destination, pushed, authentication, onboarding and public screens
 at 320, 412, 600, 1024 and 1352px in both locales. It checks hover, held press and focus-visible using

@@ -17,21 +17,21 @@ describe('InsetFocusPressable', () => {
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = TestRenderer.create(<Switch label="Switch" checked={checked} onChange={onChange} />) })
       const host = () => tree!.root.findByType('Pressable')
-      const resting = StyleSheet.flatten(host().props.style({ pressed: false }))
+      const resting = StyleSheet.flatten(host().props.style)
       const target = {}
       TestRenderer.act(() => host().props.onFocus({ target, currentTarget: target }))
-      const siblings = host().findAllByType('View').filter((view: { parent: { parent: unknown } }) => view.parent.parent === host())
+      const siblings = host().findAllByType('View').filter((view: { props: Record<string, unknown> }) => ['list-row-fill', 'list-row-content'].includes(String(view.props['data-slot'])))
       expect(siblings).toHaveLength(2)
-      const ring = siblings.at(-1)!
+      const ring = host().findAllByType('View').find((view: { props: Record<string, unknown> }) => view.props['data-slot'] === 'list-row-fill')!
       const track = tree!.root.findAll((node: { props: Record<string, unknown> }) => node.props['data-slot'] === 'switch-track')[0]!
       expect(StyleSheet.flatten(track.props.style)).toMatchObject({ width: 48, height: 28 })
-      expect(ring.props).toMatchObject({ pointerEvents: 'none', accessible: false, focusable: false })
-      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, outlineWidth: 2, outlineOffset: -2, outlineColor: createTokensV2('orange', mode).fg1 })
-      expect(StyleSheet.flatten(host().props.style({ pressed: false }))).toMatchObject({ ...resting, backgroundColor: createTokensV2('orange', mode).bgHover })
+      expect(ring.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
+      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ position: 'absolute', top: 4, right: 4, bottom: 4, left: 4, outlineWidth: 2, outlineOffset: -2, outlineColor: createTokensV2('orange', mode).fg1, backgroundColor: createTokensV2('orange', mode).bgHover })
+      expect(StyleSheet.flatten(host().props.style)).toMatchObject(resting)
       TestRenderer.act(() => host().props.onPress())
       expect(onChange).toHaveBeenCalledWith(!checked)
       TestRenderer.act(() => host().props.onBlur({ target, currentTarget: target }))
-      expect(host().findAllByProps({ pointerEvents: 'none' })).toHaveLength(0)
+      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ outlineWidth: 0, backgroundColor: 'transparent' })
       TestRenderer.act(() => tree!.unmount())
     }
   })

@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -66,15 +65,16 @@ describe('day card compact geometry', () => {
         const box = fill.getBoundingClientRect()
         const visible = icon.getBoundingClientRect()
         const fillStyle = getComputedStyle(fill)
-        return { width: box.width, height: box.height, radius: fillStyle.borderRadius,
+        return { width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, fillWidth: box.width, fillHeight: box.height, radius: fillStyle.borderRadius,
           iconWidth: visible.width, iconHeight: visible.height,
+          iconInsets: [visible.left - box.left, box.right - visible.right, visible.top - box.top, box.bottom - visible.bottom],
           focus: fillStyle.outlineWidth, offset: fillStyle.outlineOffset,
           buttonFocus: getComputedStyle(button).outlineStyle, shadow: fillStyle.boxShadow,
           pseudoRadius: getComputedStyle(button, '::before').borderRadius,
           hit: document.elementFromPoint(box.left + 1, box.top + box.height / 2) === button,
           focused: button.matches(':focus-visible') }
       })
-      expect(geometry).toEqual({ width: 48, height: 48, radius: '50%', iconWidth: 24, iconHeight: 24,
+      expect(geometry).toEqual({ width: 48, height: 48, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
         focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
@@ -121,7 +121,7 @@ describe('day card compact geometry', () => {
             expect(row.labelPadding).toEqual(['12px', '12px'])
             expect(row.labelMargins).toEqual(['0px', '0px'])
             expect(row.fillsRow).toBe(true)
-            expect(row.controlFill).toEqual({ width: 48, height: 48, separated: true, contained: true })
+            expect(row.controlFill).toEqual({ width: 40, height: 40, separated: true, contained: true })
           }
         })
         rows.forEach((row, index) => {
@@ -201,7 +201,7 @@ describe('day card compact geometry', () => {
               const content = target.parentElement?.hasAttribute('data-personal-text-action')
                 ? target.parentElement.querySelector('[data-personal-text-content]')!
                 : target
-              const box = (target.querySelector('[data-press-fill]') ?? target).getBoundingClientRect()
+              const box = target.getBoundingClientRect()
               const style = getComputedStyle(target)
               return { personalTitle: content.querySelector('[data-personal-text]')?.getAttribute('aria-label'), label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...content.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
@@ -215,7 +215,7 @@ describe('day card compact geometry', () => {
         expect(geometry.bottomInset).toBeCloseTo(24)
         geometry.groupGaps.forEach((gap) => expect(gap).toBeCloseTo(16))
         geometry.rowInsets.forEach((insets) => expect(insets).toEqual([24, 24]))
-        expect(geometry.dayGap).toBeCloseTo(INTERACTION_FILL_CLEARANCE)
+        expect(geometry.dayGap).toBeCloseTo(0)
         if (loggable) {
           expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
           expect(geometry.labelPadding).toEqual(['0px', '16px'])

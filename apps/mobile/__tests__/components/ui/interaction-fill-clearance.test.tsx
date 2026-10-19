@@ -132,10 +132,12 @@ describe('Android interaction fill clearance', () => {
         for (const gap of [fill.left - control.left, control.right - fill.right, fill.top - control.top, control.bottom - fill.bottom]) expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       }
       const neighbour = parts.find((part) => part.host.type === 'Pressable' && Number(part.slot) > Number(control.slot) && !part.ancestors.includes(control.slot))!
+      const neighbourPaints = parts.filter((part) => part.ancestors.includes(neighbour.slot) && (hasPaint(part.style) || Number(part.style.borderWidth) > 0))
+      const neighbourBounds = neighbourPaints.length ? { left: Math.min(...neighbourPaints.map((part) => part.left)), top: Math.min(...neighbourPaints.map((part) => part.top)) } : neighbour
       expect(control.right - control.left).toBeGreaterThanOrEqual(48)
       expect(control.bottom - control.top).toBeGreaterThanOrEqual(48)
       const horizontal = neighbour.left >= control.right
-      expect(horizontal ? neighbour.left - fill.right : neighbour.top - fill.bottom, label).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+      expect(horizontal ? neighbourBounds.left - fill.right : neighbourBounds.top - fill.bottom, label).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       if (surface === 'tabs') expect(fill.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
     } finally { await act(() => tree.unmount()) }
   })

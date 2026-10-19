@@ -42,7 +42,7 @@ for (const width of [320, 412, 1100, 1352]) {
           await controls.nth(1).evaluate(settleAnimations)
           await expect(controls.nth(1)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
           const geometry = await controls.evaluateAll((buttons) => buttons.map((button) => {
-            const bounds = button.getBoundingClientRect(); const style = getComputedStyle(button)
+            const bounds = button.getBoundingClientRect(); const style = getComputedStyle(button, button.matches('.orbit-calendar-nav-control') ? '::before' : null)
             const row = button.parentElement!.getBoundingClientRect()
             return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
               rowLeft: row.left, rowRight: row.right, shadow: style.boxShadow, radius: style.borderRadius }

@@ -130,13 +130,92 @@
   }
 }
 
-.orbit-list-row-body::before {
+.orbit-list-row-body {
+  transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-list-row-shell .orbit-list-row-body::before {
   content: '';
   position: absolute;
   inset: 4px;
   border-radius: inherit;
   pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-calendar-day-disclosure::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-calendar-day-disclosure:is(:active, :focus-visible)::before {
+  background-color: var(--bg-hover);
+}
+
+.orbit-calendar-day-disclosure:focus-visible {
+  outline: none;
+}
+
+.orbit-calendar-day-disclosure:focus-visible::before {
+  outline: 2px solid var(--fg-1);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-calendar-day-disclosure:hover::before {
+    background-color: var(--bg-hover);
+  }
+}
+
+.orbit-calendar-nav-control::before,
+.orbit-calendar-picker-control::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: background-color var(--dur-hover-control) var(--ease-standard);
+}
+
+.orbit-calendar-nav-control::before {
+  box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+}
+
+.orbit-calendar-nav-control:is(:active, :focus-visible),
+.orbit-calendar-picker-control:is(:active, :focus-visible) {
+  background-color: transparent;
+}
+
+.orbit-calendar-nav-control:is(:active, :focus-visible)::before,
+.orbit-calendar-picker-control:is(:active, :focus-visible)::before {
+  background-color: var(--bg-hover);
+}
+
+.orbit-calendar-nav-control:focus-visible,
+.orbit-calendar-picker-control:focus-visible {
+  outline: none;
+}
+
+.orbit-calendar-nav-control:focus-visible::before,
+.orbit-calendar-picker-control:focus-visible::before {
+  outline: 2px solid var(--fg-1);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-calendar-nav-control:hover,
+  .orbit-calendar-picker-control:hover {
+    background-color: transparent;
+  }
+
+  .orbit-calendar-nav-control:hover:not(:disabled)::before,
+  .orbit-calendar-picker-control:hover:not(:disabled)::before {
+    background-color: var(--bg-hover);
+  }
 }
 
 .orbit-personal-text-details:focus-visible {
@@ -183,6 +262,10 @@
   --orbit-list-row-secondary: var(--fg-2);
 }
 
+.orbit-list-row-body:not(.orbit-list-row-shell *, .orbit-list-row-column *):is(:active, :focus-visible):not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
 .orbit-list-row-body:is(:active, :focus-visible):not(:disabled):not(:has(> .orbit-list-row-outset))::before {
   background-color: var(--bg-hover);
 }
@@ -205,7 +288,8 @@
 }
 }
 
-.orbit-list-row-action:focus-visible {
+.orbit-list-row-action:focus-visible,
+.orbit-list-row-body:not(.orbit-list-row-shell *, .orbit-list-row-column *):focus-visible {
   outline: 2px solid var(--fg-1);
   outline-offset: -2px;
 }
@@ -333,6 +417,10 @@
 
   .orbit-list-row-body:hover:not(:disabled):not(:has(:is(button, a, [role="button"]):hover)) {
     --orbit-list-row-secondary: var(--fg-2);
+  }
+
+  .orbit-list-row-body:not(.orbit-list-row-shell *, .orbit-list-row-column *):hover:not(:disabled):not(:has(:is(button, a, [role="button"]):hover)) {
+    background-color: var(--bg-hover);
   }
 
   .orbit-list-row-body:hover:not(:disabled):not(:has(> .orbit-list-row-outset, :is(button, a, [role="button"]):hover))::before {
@@ -1754,11 +1842,18 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 
   .orbit-tab:focus-visible,
-  .orbit-list-row-body:focus-visible {
+  .orbit-calendar-nav-control:focus-visible,
+  .orbit-calendar-picker-control:focus-visible,
+  .orbit-calendar-day-disclosure:focus-visible,
+  .orbit-list-row-column .orbit-list-row-body:focus-visible,
+  .orbit-list-row-shell .orbit-list-row-body:focus-visible {
     outline: none !important;
   }
 
   .orbit-tab:focus-visible::after,
+  .orbit-calendar-nav-control:focus-visible::before,
+  .orbit-calendar-picker-control:focus-visible::before,
+  .orbit-calendar-day-disclosure:focus-visible::before,
   .orbit-list-row-body:focus-visible::before,
   .orbit-list-row-body:focus-visible > .orbit-list-row-outset {
     outline-color: Highlight;
@@ -2354,8 +2449,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-check-row-control > .orbit-check-row-fill {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 4px;
   border-radius: 12px;
+}
+
+.orbit-check-row-control::before {
+  inset: 0;
 }
 
 .orbit-check-row-control[data-variant="calendar-day"],
@@ -2365,11 +2464,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 @media (forced-colors: active) {
-  .orbit-check-row-control[data-variant="calendar-day"]:focus-visible {
+  .orbit-check-row-label:focus-visible,
+  .orbit-check-row-control:focus-visible {
     outline: none !important;
   }
 
-  .orbit-check-row-control[data-variant="calendar-day"]:focus-visible > .orbit-check-row-fill {
+  .orbit-check-row-label:focus-visible > .orbit-check-row-fill,
+  .orbit-check-row-control:focus-visible > .orbit-check-row-fill {
     outline: 2px solid CanvasText;
   }
 }
@@ -2379,9 +2480,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   padding-block: var(--orbit-space-12);
 }
 
-.orbit-check-row-label[data-variant="calendar-day"]::before,
-.orbit-check-row-label[data-variant="calendar-day"] > .orbit-check-row-fill {
+.orbit-check-row-label[data-variant="calendar-day"]::before {
   inset-block: 0;
+}
+
+.orbit-check-row-label[data-variant="calendar-day"] > .orbit-check-row-fill {
+  inset-block: 4px;
 }
 
 .orbit-check-row-label > :not(.orbit-check-row-fill),

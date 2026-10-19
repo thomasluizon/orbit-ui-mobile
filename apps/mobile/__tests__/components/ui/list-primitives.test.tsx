@@ -54,6 +54,14 @@ function actionContent(node: TestNode, pressed: boolean) {
   return render(children({ pressed })).root.findByType(View)
 }
 
+function rowContent(node: TestNode) {
+  return node.findAllByType(View).find((view) => view.props['data-slot'] === 'list-row-content')!
+}
+
+function rowFill(node: TestNode) {
+  return node.findAllByType(View).find((view) => view.props['data-slot'] === 'list-row-fill')!
+}
+
 describe('list primitives on mobile', () => {
   it('keeps ordinary row title, value and description available to the child-derived announcement', () => {
     const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" onClick={vi.fn()} />)
@@ -98,9 +106,10 @@ describe('list primitives on mobile', () => {
     const row = tree.root.findByType(View)
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 52 })
     const body = tree.root.findByType(Pressable)
-    const bodyStyle = body.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-    expect(StyleSheet.flatten(bodyStyle({ pressed: false }))).toMatchObject({ minHeight: 52, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
-    expect(StyleSheet.flatten(bodyStyle({ pressed: true }))).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(rowFill(body).props.style)).toMatchObject({ borderRadius: 12, backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
   })
 
   it('sets the rendered leading glyph from the row danger state', () => {
@@ -187,10 +196,10 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
     void act(() => { (body.props.onPressIn as () => void)() })
     expect(StyleSheet.flatten(resolvePressedStyle(body))).not.toHaveProperty('transform')
-    expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
+    expect(StyleSheet.flatten(rowContent(body).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
     press(body)
     void act(() => { (body.props.onPressOut as () => void)() })
-    expect(StyleSheet.flatten(body.findByType(View).props.style)).not.toHaveProperty('transform')
+    expect(StyleSheet.flatten(rowContent(body).props.style)).not.toHaveProperty('transform')
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onRemove).not.toHaveBeenCalled()
     press(action)
@@ -228,7 +237,7 @@ describe('list primitives on mobile', () => {
     press(bodyControl)
     press(actionControl)
     void act(() => { (bodyControl.props.onPressIn as () => void)() })
-    const bodyPressedStyle = StyleSheet.flatten(bodyControl.findByType(View).props.style)
+    const bodyPressedStyle = StyleSheet.flatten(rowContent(bodyControl).props.style)
     const actionPressedStyle = StyleSheet.flatten(actionContent(actionControl, true).props.style)
     expect(bodyPressedStyle).toMatchObject({
       transform: [{ scale: 0.96 }],
@@ -236,7 +245,8 @@ describe('list primitives on mobile', () => {
     expect(actionPressedStyle).toMatchObject({
       transform: [{ scale: 0.96 }],
     })
-    expect(StyleSheet.flatten(resolvePressedStyle(bodyControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, overflow: 'hidden' })
+    expect(StyleSheet.flatten(rowFill(bodyControl).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
+    expect(StyleSheet.flatten(resolvePressedStyle(bodyControl))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
     expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, overflow: 'hidden' })
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()

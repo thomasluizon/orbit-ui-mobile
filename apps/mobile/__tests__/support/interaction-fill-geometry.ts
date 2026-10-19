@@ -3,7 +3,7 @@ import { measureProfileRow } from './profile-row-geometry'
 
 type Host = Parameters<typeof measureProfileRow>[0]
 
-export function measureInteractionFills(host: Host, width: number, pressed: boolean) {
+export function measureInteractionFills(host: Host, width: number, pressed: boolean, scale = 1) {
   const hosts = new Map<string, { host: Host; ancestors: string[] }>()
   function mark(host: Host, ancestors: string[]): Host {
     const key = String(hosts.size)
@@ -13,7 +13,7 @@ export function measureInteractionFills(host: Host, width: number, pressed: bool
     return { ...host, props: { ...host.props, style, 'data-slot': key }, children: host.children?.map((child) => typeof child === 'string' ? child : mark(child, [...ancestors, key])) ?? null }
   }
   const marked = mark(host, [])
-  const measured = measureProfileRow(marked, width, 1)
+  const measured = measureProfileRow(marked, width, scale)
   return measured.parts.map((part) => ({ ...part, ...hosts.get(part.slot)! }))
 }
 

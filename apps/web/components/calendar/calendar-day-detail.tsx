@@ -189,8 +189,8 @@ function CalendarDayRows({
 
     return (
       // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
-      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2">
-        <span className="flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
+      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
+        <span className="relative flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
           <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
             <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{value}</span>
@@ -278,7 +278,7 @@ export function CalendarDayDetail({
         </div>
         <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
       </div> : filteredEntries.length > 0 ? (
-        <div className="flex flex-col" style={{ gap: 4 }}>
+        <div className="flex flex-col">
           <CalendarDayRows
             dateStr={dateStr}
             entries={filteredEntries}

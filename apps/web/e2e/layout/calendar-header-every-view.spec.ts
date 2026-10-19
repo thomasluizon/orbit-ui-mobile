@@ -26,7 +26,10 @@ async function expectNavigationPaint(navigation: Locator, header: Locator) {
   for (const control of await controls.all()) {
     await restPointerOutside(header)
     await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-    const paint = await control.evaluate((button) => ({ ring: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))
+    const paint = await control.evaluate((button) => {
+      const style = getComputedStyle(button, button.matches('.orbit-calendar-nav-control') ? '::before' : null)
+      return { ring: style.boxShadow, radius: style.borderRadius }
+    })
     const isChevron = await control.evaluate((button) => !button.textContent.trim() && !button.hasAttribute('aria-haspopup'))
     if (isChevron) {
       expect(paint.ring).toContain('1.5px')

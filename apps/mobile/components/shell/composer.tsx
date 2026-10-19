@@ -216,7 +216,8 @@ function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerPro
   return <View testID="composer-controls" style={styles.controls}>
     <MenuAnchorHost anchorRef={menu.anchorRef}>
       <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
-        focusColor={isRecording ? tokens.fgOnPrimary : tokens.fg1}
+        focusColor={tokens.primary}
+        focusContrastColor={isRecording ? tokens.bg : undefined}
         accessibilityState={{ disabled, ...(!voiceActive ? { expanded: menuOpen } : {}) }} disabled={disabled} onPress={voiceActive ? props.onVoice : menu.open}
         style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
         <ComposerActionIcon state={props.state} tokens={tokens} />
@@ -344,7 +345,8 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
 
       <InsetFocusPressable
         testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
-        focusColor={sendIsAccent ? tokens.fgOnPrimary : tokens.fg1}
+        focusColor={tokens.primary}
+        focusContrastColor={sendIsAccent ? tokens.bg : undefined}
         accessibilityRole="button"
         accessibilityLabel={props.words.send}
         accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}

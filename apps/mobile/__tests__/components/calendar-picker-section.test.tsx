@@ -8,6 +8,7 @@ import { ApiClientError } from '@orbit/shared'
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -70,6 +71,7 @@ type TestNode = { parent: TestNode | null; props: Record<string, unknown>; type?
 
 function render(enabled: boolean) {
   let tree: {
+    toJSON: () => Parameters<typeof measureInteractionFills>[0]
     root: {
       findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
     }
@@ -149,7 +151,9 @@ describe('mobile CalendarPickerSection', () => {
     expect(title.props.numberOfLines).toBe(1)
     const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
     const row = tree.root.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
-    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingStart: 16, paddingEnd: 4, gap: 4, marginHorizontal: -16 })
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingStart: 16, paddingEnd: 4, marginHorizontal: -16 })
+    const fills = measureInteractionFills(tree.toJSON(), 412, false).filter((part) => 'data-press-fill' in part.host.props)
+    expect(fills[1]!.left - fills[0]!.right).toBe(4)
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)
