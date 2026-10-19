@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -14,7 +14,7 @@ import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 function bundleConversation() {
-  const contents = `import React, { createRef, useState } from 'react';
+  const contents = `import React, { createRef, lazy, Suspense, useState } from 'react';
     import { createRoot } from 'react-dom/client';
     import { NextIntlClientProvider } from 'next-intl';
     import { createChatThreadScroll } from '@orbit/shared/hooks';
@@ -25,6 +25,7 @@ function bundleConversation() {
     import { Composer } from './components/shell/composer';
     import { useUIStore } from './stores/ui-store';
     const configuration = JSON.parse(document.getElementById('configuration').textContent);
+    const DeferredConversation = lazy(() => new Promise(resolve => setTimeout(() => resolve({ default: AstraConversation }), 500)));
     const messages = configuration.locale === 'en' ? en : ptBR;
     useUIStore.getState().setAstraConversationOpen(configuration.open);
     const threadScroll = createChatThreadScroll();
@@ -40,7 +41,7 @@ function bundleConversation() {
         scrollToBottom: () => {} };
       return <NextIntlClientProvider locale={configuration.locale} messages={messages} timeZone="UTC">
         <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra"
-          conversation={<AstraConversation chat={chat} />}
+          conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <AstraConversation chat={chat} />}
           composer={<Composer {...composerProps} onOpenConversation={onOpenConversation}
             conversationLabel={messages.todayAstra.openConversation} />}>
           <h1 className="p-4">Destination</h1>
@@ -104,12 +105,12 @@ describe('interaction fill guard with the mounted conversation owners', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string) {
+  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false) {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     page.setDefaultTimeout(2000)
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><div id="root"></div>
-      <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft })}</script></html>`)
+      <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft, delayed })}</script></html>`)
     await page.addScriptTag({ content: script })
     await page.locator('[data-shell]').waitFor()
     return page
@@ -120,12 +121,47 @@ describe('interaction fill guard with the mounted conversation owners', () => {
     'returns from a focus-opened layer at $route, $width in $locale with draft "$draft" and continues the inventory', async ({ width, locale, route, draft }) => {
       const page = await mount(width, locale, route, false, draft)
       try {
-        const controls = page.locator('[data-shell-pinned-slot] textarea, [data-shell-tab-bar] a[href]')
+        const heading = await page.getByRole('heading', { name: 'Destination' }).elementHandle()
+        const create = route === '/habits/habit-1' ? null : await page.locator('[data-shell-fab] button').elementHandle()
+        const controls = page.locator('[data-shell-pinned-slot] textarea, [data-shell-tab-bar] a[href], [data-shell-fab] button')
         const counts = await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE)
-        expect(counts).toEqual({ inspectedControls: 5, skippedSentinels: 0 })
+        expect(counts).toEqual({ inspectedControls: route === '/habits/habit-1' ? 5 : 6, skippedSentinels: 0 })
+        expect(await heading!.evaluate(element => element.isConnected)).toBe(true)
+        if (create) expect(await create.evaluate(element => element.isConnected)).toBe(false)
         expect(await page.getByRole('dialog').count()).toBe(0)
         expect(await page.getByRole('textbox').inputValue()).toBe(draft)
         expect(await page.getByRole('heading', { name: 'Destination' }).isVisible()).toBe(true)
+      } finally { await page.close() }
+    })
+
+  it.each([1024, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))(
+    'keeps the wide habit composer clear while the conversation loads at $width in $locale', async ({ width, locale }) => {
+      const page = await mount(width, locale, '/habits/habit-1', false, '', true)
+      try {
+        const inset = await page.locator('[data-shell-pinned-slot] [data-composer-input-row]').evaluate(element => {
+          const row = element.getBoundingClientRect()
+          const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+          const composer = element.closest('[data-composer-root]')!.getBoundingClientRect()
+          return { leading: row.left - composer.left, trailing: composer.right - row.right,
+            columnLeading: row.left - column.left, columnTrailing: column.right - row.right }
+        })
+        expect(inset.leading).toBe(PADDING.screenGutter)
+        expect(inset.trailing).toBe(PADDING.screenGutter)
+        expect(inset.columnLeading).toBeGreaterThanOrEqual(PADDING.screenGutter)
+        expect(inset.columnTrailing).toBeGreaterThanOrEqual(PADDING.screenGutter)
+        expect(await page.locator('[data-shell-pinned-slot] [data-composer-root]').evaluate(element => getComputedStyle(element).gap)).toBe('12px')
+        const counts = await inspectControls(page, page.locator('[data-shell-pinned-slot] textarea'), `/habits/habit-1, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE)
+        expect(counts).toEqual({ inspectedControls: 1, skippedSentinels: 0 })
+      } finally { await page.close() }
+    })
+
+  it.each([1024, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))(
+    'rejects a real collision after the wide habit conversation loads at $width in $locale', async ({ width, locale }) => {
+      const page = await mount(width, locale, '/habits/habit-1', false, '', true)
+      try {
+        await installConversationCollision(page)
+        await expect(inspectControls(page, page.locator('[data-shell-pinned-slot] textarea'), `/habits/habit-1, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE))
+          .rejects.toThrow(/press[\s\S]*span\[field-paint-neighbour\]/)
       } finally { await page.close() }
     })
 

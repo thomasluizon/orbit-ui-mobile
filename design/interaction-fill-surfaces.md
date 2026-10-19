@@ -43,13 +43,18 @@ The title's Chromium unit regression exercises the same inspector without an app
 Neighbours share the nearest fixed-position ancestor, including the control itself, or the
 document when there is none. Shell scroller content and pinned bottom chrome are separate paint
 regions. An aria-hidden, non-interactive SVG inside the same input wrapper belongs to that field.
-Only explicitly marked library focus guards are skipped. Captured control identities survive
-focus-opened overlays; the reached control is measured and the overlay dismissed before continuing.
+Only explicitly marked library focus guards are skipped. The inventory captures each control's
+role, accessible name and occurrence order. A control recreated after an overlay closes is rebound
+once against that inventory; a missing identity fails. Every captured control is visited once.
+The reached control is measured and the overlay dismissed before continuing.
 A new conversation closes through its localized header control, preserving the draft and underlying
 route; other entered overlays use Escape. Focus transfers wait for the reached control, and an
 off-screen skip link is measured at that destination rather than treated as still visible.
 Composer textareas measure their explicitly marked input-row paint owner, including after either
 focus transfer; the mounted-owner regression rejects a neighbour within 2px of that row.
+When the conversation loads on demand, its dialog temporarily holds focus. The guard waits for
+the focused composer input or disabled-state composer root before measuring its paint. The wait
+retains the bounded action timeout, and a collision after loading still fails.
 Graphics clipped by a screen-reader-only ancestor are not visible neighbours.
 Keyboard modality does not traverse an unrelated input. Each case reports the inspected-control
 and skipped-sentinel counts, and bounded active-control reads retry once before failing.
@@ -64,3 +69,6 @@ Android's style regression renders the actual habit header with its emoji select
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved
 pressed and focused styles, including their painted descendants and outlines. This proves the
 style layout contract; it does not claim device rendering evidence.
+The habit detail composer retains the screen gutter on both sides of its field at every width,
+including in the capped wide column. The mounted shell style cases cover both locales while
+pressed and focused, retain the field's size and measure its 12px gap to the retry action.

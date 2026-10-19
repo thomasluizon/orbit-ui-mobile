@@ -2,7 +2,7 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Text, View } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitDetailScopedParent } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
@@ -13,9 +13,11 @@ import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { Composer } from '@/components/shell/composer'
+import { Shell412 } from '@/components/shell/shell-412'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { hasPaint, measureInteractionFills, paintedExtent } from '@/__tests__/support/interaction-fill-geometry'
 import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
@@ -69,6 +71,41 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 }
 
 describe('Android interaction fill clearance', () => {
+  it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
+    (['pressed', 'focused'] as const).map(state => ({ width, messages, state })))))(
+    'insets the habit detail composer at $width while $state', async ({ width, messages, state }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      let tree!: GeometryTree
+      await act(() => {
+        tree = create(<Shell412 tabBar={<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
+          items={(['today', 'calendar', 'progress', 'profile'] as const).map(id => ({ id, label: messages.nav[id], icon: () => <View style={{ width: 24, height: 24 }} /> }))} />}
+          composer={<Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
+          onChangeValue={vi.fn()} onSend={vi.fn()} onRetry={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation} />}>
+          <HabitDetailScreen habitId="habit-1" />
+        </Shell412>) as GeometryTree
+      })
+      try {
+        if (state === 'pressed') await setInteraction(tree, messages.todayAstra.openConversation, state)
+        else {
+          const input = tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === messages.shell.composer.inputLabel)[0]!
+          await act(() => (input.props.onFocus as () => void)())
+        }
+        const pinned = findHost(tree.toJSON(), 'shell-pinned-slot')!
+        const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
+        const parts = measureInteractionFills(pinned, columnWidth, state === 'pressed')
+        const field = parts.find(part => part.host.props.testID === 'composer-field')!
+        const paint = fillBox(parts, field)
+        const retryText = parts.find(part => part.host.type === 'Text' && part.host.children?.includes(messages.shell.composer.retry))!
+        const retry = parts.find(part => part.host.type === 'Pressable' && retryText.ancestors.includes(part.slot))!
+        expect(paint.left).toBe(PADDING.screenGutter)
+        expect(columnWidth - paint.right).toBe(PADDING.screenGutter)
+        expect(paint.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(columnWidth - paint.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(field.bottom - field.top).toBeGreaterThanOrEqual(56)
+        expect(retry.top - field.bottom).toBe(12)
+      } finally { await act(() => tree.unmount()) }
+    })
+
   it.each(['rows', 'rowsWithAction', 'calendar', 'composer', 'tabs'].flatMap((surface) => (['pressed', 'focused'] as const).map((state) => ({ surface, state }))))('clears adjacent $surface paint while $state', async ({ surface, state }) => {
     const tokens = createTokensV2('orange', 'dark')
     const surfaces = {

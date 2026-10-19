@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { inspectInteractionFill } from './interaction-fill-geometry'
 import { settleAnimations } from './settle-animations'
+import { captureControlInventory, resolveCapturedControl } from './interaction-fill-inventory'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -30,6 +31,11 @@ async function reachedControl(page: Page, control: Locator, context: string) {
   expect(stillVisible, `${context} lost focus without entering another layer`).toBe(false)
   const focused = page.locator(':focus:visible')
   await runAction(context, 'wait for reached control', () => expect(focused, context).toHaveCount(1, { timeout: ACTION_TIMEOUT_MS }))
+  if (await runAction(context, 'read conversation loading focus', () => focused.evaluate(element => element.matches('[data-shell-conversation]'), undefined, { timeout: ACTION_TIMEOUT_MS }))) {
+    const composer = page.locator('[data-shell-conversation] [data-composer-input]:not([disabled]):focus, [data-shell-conversation] [data-composer-root]:focus')
+    await runAction(context, 'wait for conversation focus', () => expect(composer, context).toHaveCount(1, { timeout: ACTION_TIMEOUT_MS }))
+    return composer
+  }
   return focused
 }
 
@@ -108,21 +114,15 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
 
 export async function inspectControls(page: Page, controls: Locator, context: string, clearance: number,
   counts = { inspectedControls: 0, skippedSentinels: 0 }) {
-  const inventory = await runAction(context, 'capture control inventory', () => controls.evaluateAll((elements) => elements.map((element, index) => {
+  const inventory = await captureControlInventory(controls, context)
+  await runAction(context, 'mark control inventory', () => controls.evaluateAll((elements) => elements.forEach((element, index) => {
     element.setAttribute('data-interaction-fill-probe', String(index))
-    return String(index)
   })))
-  const captured = page.locator('[data-interaction-fill-probe]')
-  const inspect = async (control: Locator, label: string) => {
+  for (const entry of [...inventory.filter(control => control.title), ...inventory.filter(control => !control.title)]) {
+    const label = `${context}, control ${entry.index}`
+    const control = await resolveCapturedControl(page, controls, entry, label)
     if (await inspectControl(page, control, label, clearance)) counts.inspectedControls++
     else counts.skippedSentinels++
-  }
-  const title = captured.and(page.locator('.orbit-habit-rename'))
-  if (await runAction(context, 'find habit title', () => title.count())) await inspect(title, context)
-  for (const index of inventory) {
-    const control = page.locator(`[data-interaction-fill-probe="${index}"]`)
-    if (await runAction(context, 'read title priority', () => control.evaluate((element) => element.matches('.orbit-habit-rename'), undefined, { timeout: ACTION_TIMEOUT_MS }))) continue
-    await inspect(control, `${context}, control ${index}`)
   }
   return counts
 }
