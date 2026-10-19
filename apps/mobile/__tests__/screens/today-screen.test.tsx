@@ -2,7 +2,7 @@ import React from 'react'
 import { Shell412 } from '@/components/shell/shell-412'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
@@ -21,10 +21,32 @@ import { setAccountId } from '@/lib/account-scope'
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+const mountedTrees: { unmount: () => void }[] = []
+function createTestTree(node: React.ReactElement) {
+  const tree = TestRenderer.create(node)
+  mountedTrees.push(tree as typeof tree & { unmount: () => void })
+  return tree
+}
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
+
+it('announces whether inline search is open and offers its closing action', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+  const searchButton = (label: string) => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+  await TestRenderer.act(() => { (searchButton(en.habits.search.title).props.onPress as () => void)() })
+  expect(searchButton(en.habits.closeSearch).props.accessibilityState).toMatchObject({ expanded: true })
+  await TestRenderer.act(() => { (searchButton(en.habits.closeSearch).props.onPress as () => void)() })
+  expect(searchButton(en.habits.search.title).props.accessibilityState).toMatchObject({ expanded: false })
+})
+
 const mocks = vi.hoisted(() => ({
   scrollToOffset: vi.fn(),
   logHabitMutateAsync: vi.fn(),
   routerPush: vi.fn(),
+  routerReplace: vi.fn(),
   focusCallback: null as null | (() => void | (() => void)),
   clearSelection: vi.fn(),
   composerEnabled: [] as boolean[],
@@ -39,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   plan: 'trial',
   habitFilters: [] as HabitsFilter[],
   date: {
+    pinnedDateStr: null as string | null,
     today: '2026-04-08',
     selectedDate: new Date('2026-04-08T00:00:00'),
     dateStr: '2026-04-08',
@@ -63,7 +86,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 
 vi.mock('expo-router', () => ({
   usePathname: () => '/',
-  useRouter: () => ({ push: mocks.routerPush }),
+  useRouter: () => ({ push: mocks.routerPush, replace: mocks.routerReplace }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     mocks.focusCallbacks.push(callback)
     mocks.focusCallback = callback
@@ -156,7 +179,7 @@ vi.mock('@/components/habit-list', () => ({
       React.Fragment,
       null,
       props.listHeader as React.ReactNode,
-      React.createElement('HabitListProps', { showCompleted: props.showCompleted, onScroll: props.onScroll }),
+      React.createElement('HabitListProps', { view: props.view, selectedDate: props.selectedDate, showCompleted: props.showCompleted, onScroll: props.onScroll }),
       React.createElement('PendingRing', { onPress: pressPendingRing }),
       props.onSeeUpcoming
         ? React.createElement('UpcomingAction', { onPress: props.onSeeUpcoming })
@@ -168,6 +191,7 @@ vi.mock('@/components/habit-list', () => ({
 vi.mock('@/components/habits/selection-tray', () => ({
   SelectionTray: () => null,
 }))
+
 
 vi.mock('@/components/today/today-astra', () => ({
   TodayAstra: () => {
@@ -251,6 +275,34 @@ function todayMenu(tree: import('react-test-renderer').ReactTestRenderer): MenuP
 }
 
 describe('Hoje date boundaries', () => {
+  it.each(['all', 'general'] as const)('removes the stale date when choosing %s', async (activeView) => {
+    mocks.date.pinnedDateStr = '2026-04-01'
+    let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && typeof node.props.testID === 'string' && node.props.testID.startsWith(`segment-${activeView}-`))[0]!
+    await TestRenderer.act(() => { (radio.props.onPress as () => void)() })
+    expect(mocks.routerReplace).toHaveBeenCalledWith('/(tabs)')
+    expect(useUIStore.getState().activeView).toBe(activeView)
+    await TestRenderer.act(() => tree.unmount())
+    mocks.date.pinnedDateStr = null
+  })
+
+  it.each(['all', 'general'] as const)('offers the saved %s view above a hidden date pager', async (activeView) => {
+    useUIStore.setState({ activeView })
+    let tree!: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as typeof tree })
+    const radios = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(radios).toHaveLength(3)
+    expect(radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith(`segment-${activeView}-`))?.props.accessibilityState).toMatchObject({ checked: true })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-date-row')).toHaveLength(0)
+    const list = tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!
+    expect(list.props.view).toBe(activeView)
+    expect(list.props.selectedDate).toBeUndefined()
+    await TestRenderer.act(() => { (radios.find((radio) => typeof radio.props.testID === 'string' && radio.props.testID.startsWith('segment-today-'))!.props.onPress as () => void)() })
+    expect(useUIStore.getState().activeView).toBe('today')
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.focusCallback = null
@@ -267,12 +319,14 @@ describe('Hoje date boundaries', () => {
     setAccountId(null)
     asyncStorageState.values.clear()
     useUIStore.setState({
+      activeView: 'today',
       activeFilters: {},
       isSelectMode: false,
       selectedHabitIds: new Set<string>(),
       showCreateModal: false,
     })
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
+    mocks.date.pinnedDateStr = null
     mocks.date.dateStr = '2026-04-08'
     mocks.date.nextDisabled = false
   })
@@ -337,7 +391,7 @@ describe('Hoje date boundaries', () => {
   it.each(['loading', 'onboarding', 'today'])('starts first-use permission only on loaded Today: %s', async (state) => {
     mocks.profileReady = state !== 'loading'
     mocks.onboardingComplete = state !== 'onboarding'
-    await TestRenderer.act(() => { TestRenderer.create(<TodayScreen />) })
+    await TestRenderer.act(() => { createTestTree(<TodayScreen />) })
     let cleanup: void | (() => void)
     await TestRenderer.act(() => { cleanup = mocks.focusCallbacks.at(state === 'loading' ? -1 : -2)!() })
     if (state === 'today') {
@@ -354,14 +408,14 @@ describe('Hoje date boundaries', () => {
   it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', async (plan) => {
     mocks.plan = plan
     let tree!: import('react-test-renderer').ReactTestRenderer
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
     expect(tree.root.findAll((node) => node.props.testID === 'trial-banner')).toHaveLength(0)
   })
 
   it('withholds Today actions until the account day is known', async () => {
     mocks.profileReady = false
     let tree!: import('react-test-renderer').ReactTestRenderer
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
     expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(0)
     const headings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'header')
     const progressbar = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')[0]
@@ -379,7 +433,7 @@ describe('Hoje date boundaries', () => {
     asyncStorageState.values.set('orbit_show_general_on_today:account-b', 'false')
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -413,7 +467,7 @@ describe('Hoje date boundaries', () => {
   it('composes day and refetch motion without flattening either transform', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -434,7 +488,7 @@ describe('Hoje date boundaries', () => {
     })
 
     await TestRenderer.act(async () => {
-      TestRenderer.create(<TodayScreen />)
+      createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -457,7 +511,7 @@ describe('Hoje date boundaries', () => {
   it('keeps the Today list within the large-screen content column', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
     const contentColumn = tree.root.findAll(
@@ -474,7 +528,7 @@ describe('Hoje date boundaries', () => {
   it('releases the Astra composer and conversation owner when Today blurs', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -510,7 +564,7 @@ describe('Hoje date boundaries', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -530,7 +584,7 @@ describe('Hoje date boundaries', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -545,7 +599,7 @@ describe('Hoje date boundaries', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -571,7 +625,7 @@ describe('Hoje date boundaries', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -585,7 +639,7 @@ describe('Hoje date boundaries', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -602,7 +656,7 @@ describe('Hoje date boundaries', () => {
   })
   it('shows the Hoje pill only beyond a viewport while scrolling up, and both entries return to the top', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
-    await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
+    await TestRenderer.act(() => { tree = createTestTree(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
     let blur: void | (() => void)
     await TestRenderer.act(() => { blur = mocks.focusCallback?.() })
     let accessibilityTarget: unknown = null

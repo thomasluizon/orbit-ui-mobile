@@ -328,6 +328,7 @@ export {
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
+  isCalendarGridScrollMovement,
   orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
@@ -340,7 +341,7 @@ export {
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
-export { habitListQueryFilters, shouldFetchAllHabitPages } from './habit-list-pagination-core'
+export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
   buildHabitQueryString,
   buildUrlWithQuery,
@@ -441,6 +442,7 @@ export type { HabitPickerOption } from './habit-picker'
 export {
   computeHabitDayProgress,
   computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
@@ -449,6 +451,7 @@ export type {
   ParentPromptProgress,
   ParentPromptProgressOptions,
   ParentSettlementDecision,
+  ParentPromptDecision,
 } from './habit-list-progress'
 export {
   buildGoalTitle,
@@ -587,6 +590,7 @@ export {
   getTomorrowDateString,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  optimisticSetDatedCompletion,
   withChildren,
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'
@@ -796,5 +800,15 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
+
+export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
+
+export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
+
+export { filterHabitViewRoots } from './habit-visibility'
+
+export { formatHabitDateBucketLabel } from './habit-list-progress'
+
+export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'
 
 export { getSetupChecklist } from './setup-checklist'

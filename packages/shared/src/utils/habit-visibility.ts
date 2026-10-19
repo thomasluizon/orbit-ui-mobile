@@ -29,6 +29,19 @@ export interface HabitVisibilityHelpers {
   getVisibleChildren: (parentId: string, view: HabitVisibilityView) => NormalizedHabit[]
 }
 
+export function filterHabitViewRoots(
+  habits: NormalizedHabit[],
+  view: HabitVisibilityView,
+  showCompleted: boolean,
+  recentlyCompletedIds: ReadonlySet<string>,
+  visibility: HabitVisibilityHelpers,
+): NormalizedHabit[] {
+  if (view === 'all') return habits.filter((habit) => isHabitVisibleInAllView(habit, showCompleted))
+  if (view === 'general') return habits.filter((habit) => habit.isGeneral &&
+    (showCompleted || !habit.isCompleted || recentlyCompletedIds.has(habit.id)))
+  return habits.filter((habit) => visibility.hasSearchMatch(habit) && visibility.hasVisibleContent(habit))
+}
+
 /** A completed non-recurring (one-time) habit: it is done and has no future
  *  occurrence, so it drops out of the All view and out of destination pickers. */
 export function isCompletedOneTimeHabit(
@@ -164,6 +177,7 @@ export function createHabitVisibilityHelpers({
   }
 
   const hasSearchMatch = (habit: NormalizedHabit): boolean => {
+    if (!searchQuery.trim()) return true
     if (habit.searchMatches && habit.searchMatches.length > 0) return true
     const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
     return children.some((child) => hasSearchMatch(child))

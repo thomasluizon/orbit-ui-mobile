@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
   try {
     const response = await fetch(`${process.env.API_BASE ?? 'http://localhost:5000'}/api/auth/google/code`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language), [ORBIT_REQUEST_ID_HEADER]: requestId },
+      headers: { ...API_VERSION_HEADERS, 'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language), [ORBIT_REQUEST_ID_HEADER]: requestId },
       body: JSON.stringify(body),
     })
     const data: unknown = await response.json().catch(() => null)

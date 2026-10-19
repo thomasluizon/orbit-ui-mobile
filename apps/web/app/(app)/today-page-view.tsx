@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -12,6 +11,8 @@ import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { Input } from '@/components/ui/input'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import { useOffline } from '@/hooks/use-offline'
@@ -93,19 +94,22 @@ function useTodayRefetchMotion(isRefetching: boolean) {
 
 export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView; children?: React.ReactNode }>) {
   const t = useTranslations()
-  const router = useRouter()
-  const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
+  const searchId = useId()
+  const key = view.activeView === 'today' ? boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today)) : null
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
-        beforeDate={children}
+        beforeDate={<><div id={searchId} hidden={!view.search.open} className="px-4">{view.search.open ? <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /> : null}</div><HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</>}
+        showDate={view.activeView === 'today'}
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}
         menuHeading={t('common.options')}
-        searchLabel={t('habits.search.title')}
-        onSearch={() => router.push('/search')}
+        searchLabel={t(view.search.open ? 'habits.closeSearch' : 'habits.search.title')}
+        searchOpen={view.search.open}
+        searchControlsId={searchId}
+        onSearch={view.search.toggle}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         allCollapsed={view.habitListAllCollapsed}
@@ -147,7 +151,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     showCompleted,
     toggleSelectMode,
   } = view
-  const refetchMotion = useTodayRefetchMotion(data.isRefetching)
+  const refetchMotion = useTodayRefetchMotion(data.isRefetching && !view.search.open)
 
   return (
     <motion.div
@@ -156,8 +160,10 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     >
       <HabitList
         ref={habitListRef}
-        view="today"
-        selectedDate={nav.selectedDate}
+        view={view.activeView}
+        searchQuery={view.search.query}
+        onClearSearch={view.search.close}
+        selectedDate={view.activeView === 'today' ? nav.selectedDate : undefined}
         showCompleted={showCompleted}
         onShowCompleted={() => setShowCompleted(true)}
         isSelectMode={isSelectMode}
@@ -173,7 +179,8 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
           setShowCreateModal(true)
         }}
         createRefusal={showCreateRefusal && !isOnline}
-        onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
+        onSeeUpcoming={view.activeView === 'today' && !nav.dateNav.nextDisabled ? nav.goToNextDay : undefined}
+        onAllLoadedIdsChange={view.setAllLoadedIds}
         onAllCollapsedChange={setHabitListAllCollapsed}
         onSurfaceOpenChange={view.setListSurfaceOpen}
       />

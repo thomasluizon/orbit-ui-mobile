@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
-  applyCachedHabitSkip,
+  applyCachedHabitSkip, rollbackDatedHabitLists,
   updateHabitListsForDate, invalidateHabitDependents,
   clearCachedOptimisticSkip,
   restoreCachedHabitSkip,
@@ -26,7 +26,7 @@ import {
   buildChildrenIndex,
   plural,
   optimisticRemoveHabits,
-  optimisticSetCalendarHabitLog,
+  optimisticSetCalendarHabitLog, optimisticSetDatedCompletion,
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
   getFriendlyErrorMessage,
@@ -187,9 +187,7 @@ export function useLogHabit() {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 
-      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousLists = snapshotHabitLists(queryClient)
       const previousCalendars = date
         ? queryClient.getQueriesData<CalendarMonthResponse>({
             queryKey: habitKeys.calendarPrefix(),
@@ -200,6 +198,7 @@ export function useLogHabit() {
         const completed = intent === 'log'
         const optimisticLogId = `optimistic-log:${habitId}:${date}`
         const createdAtUtc = new Date().toISOString()
+        updateHabitListsForDate(queryClient, date, (items) => optimisticSetDatedCompletion(items, habitId, date, completed, optimisticLogId), { includeUnfiltered: false })
         queryClient.setQueriesData<CalendarMonthResponse>(
           { queryKey: habitKeys.calendarPrefix() },
           (old) => old
@@ -232,6 +231,7 @@ export function useLogHabit() {
       if (variables.date) {
         const date = variables.date
         const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+        rollbackDatedHabitLists(queryClient, context?.previousLists ?? [], variables.habitId, date, optimisticLogId)
         for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
           if (!previousCalendar) continue
           queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>

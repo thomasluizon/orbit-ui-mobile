@@ -18,6 +18,10 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }),
+  useLogHabit: () => ({ mutate: vi.fn() }),
+}))
 
 const summary = daySummaryCardSchema.parse({ date: '2026-09-29', due: 3, done: 2, completionRate: 67, overdueCount: 1, currentStreak: 4, surfaceId: 'today' })
 const pending = makePendingAgentOperation({ capabilityId: 'habits.write', displayName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', expiresAtUtc: '2099-01-01T00:00:00Z' })
