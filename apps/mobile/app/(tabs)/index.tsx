@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
@@ -265,44 +266,46 @@ function TodayScreenContent() {
   )
 
   const listHeader = (
-    <View style={styles.header}>
-      <TodayDateControl
-        showDate={activeView === 'today'}
-        beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
-          today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
-        headerActive={todayFocused}
-        shortDayName={date.shortDayName}
-        searchLabel={t(getSearchLabelKey(search.open))}
-        searchOpen={search.open}
-        onSearch={search.toggle}
-        dayName={date.dayName}
-        numericDate={date.numericDate}
-        isTodaySelected={date.dateStr === date.today}
-        nextDisabled={date.nextDisabled}
-        previousLabel={t('dates.previousDay')}
-        goToTodayLabel={t('dates.goToToday')}
-        nextLabel={t('dates.nextDay')}
-        moreLabel={t('habits.listOptions')}
-        menuHeading={t('common.options')}
-        selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
-        collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
-        allCollapsed={habitListAllCollapsed}
-        refreshLabel={t('habits.refresh')}
-        completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
-        showCompleted={showCompleted}
-        isFetching={habitsQuery.isFetching}
-        onToggleSelect={selection.handleToggleSelectMode}
-        onToggleCollapse={() => {
-          if (habitListAllCollapsed) habitListRef.current?.expandAll()
-          else habitListRef.current?.collapseAll()
-        }}
-        onRefresh={() => void habitsQuery.refetch()}
-        onToggleCompleted={() => setShowCompleted(!showCompleted)}
-        onGoToPreviousDay={date.goToPreviousDay}
-        onGoToToday={date.goToToday}
-        onGoToNextDay={date.goToNextDay}
-      />
+    <View testID="today-section-header" style={styles.header}>
+      <View testID="today-date-group" style={styles.viewHeader}>
+        <TodayDateControl
+          showDate={activeView === 'today'}
+          beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
+            today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
+            suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
+          headerActive={todayFocused}
+          shortDayName={date.shortDayName}
+          searchLabel={t(getSearchLabelKey(search.open))}
+          searchOpen={search.open}
+          onSearch={search.toggle}
+          dayName={date.dayName}
+          numericDate={date.numericDate}
+          isTodaySelected={date.dateStr === date.today}
+          nextDisabled={date.nextDisabled}
+          previousLabel={t('dates.previousDay')}
+          goToTodayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+          moreLabel={t('habits.listOptions')}
+          menuHeading={t('common.options')}
+          selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
+          collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+          allCollapsed={habitListAllCollapsed}
+          refreshLabel={t('habits.refresh')}
+          completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
+          showCompleted={showCompleted}
+          isFetching={habitsQuery.isFetching}
+          onToggleSelect={selection.handleToggleSelectMode}
+          onToggleCollapse={() => {
+            if (habitListAllCollapsed) habitListRef.current?.expandAll()
+            else habitListRef.current?.collapseAll()
+          }}
+          onRefresh={() => void habitsQuery.refetch()}
+          onToggleCompleted={() => setShowCompleted(!showCompleted)}
+          onGoToPreviousDay={date.goToPreviousDay}
+          onGoToToday={date.goToToday}
+          onGoToNextDay={date.goToNextDay}
+        />
+      </View>
       <SetupChecklistCard />
       {todayFocused && activeView === 'today' && date.dateStr === date.today && !isSelectMode && !showCreateModal && editHabit === null && !listSurfaceOpen && habitsQuery.data
         ? <TodayAISummary date={date.dateStr} /> : null}
@@ -373,11 +376,11 @@ function TodayScreenContent() {
 
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
-  profileLoading: { gap: 24, padding: 16 },
+  profileLoading: { gap: 24, padding: SPACING.s16 },
   profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
-  viewHeader: { gap: 24 },
-  header: { gap: 24, paddingBottom: 24 },
-  notice: { paddingHorizontal: 0 },
-  selectionTray: { paddingHorizontal: 16, paddingVertical: 12 },
+  viewHeader: { gap: PADDING.sectionGap },
+  header: { gap: PADDING.sectionGap, paddingBottom: PADDING.sectionGap },
+  notice: { paddingHorizontal: SPACING.s0 },
+  selectionTray: { paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
 })

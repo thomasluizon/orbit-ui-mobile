@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useId, useRef, useEffectEvent, type ReactNode } from 'react'
 import { X } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
@@ -107,7 +110,7 @@ export function WrappedPlayer({
       style={{ background: 'var(--bg)' }}
     >
       <div data-testid="wrapped-frame" className="mx-auto flex min-h-0 w-full max-w-[900px] flex-1 flex-col">
-        <div data-testid="wrapped-header" className="flex shrink-0 items-center gap-2" style={{ padding: '8px 8px 8px 16px' }}>
+        <div data-testid="wrapped-header" className="flex shrink-0 items-center gap-2" style={{ padding: "var(--orbit-space-8) var(--orbit-space-8) var(--orbit-space-8) var(--orbit-space-16)" }}>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <p style={coverEyebrowStyle}>{t(`wrapped.player.eyebrow.${period}`)}</p>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' }}>{windowLabel}</p>
@@ -223,7 +226,7 @@ interface PlayerPagerProps {
 
 function PlayerPager(props: Readonly<PlayerPagerProps>) {
   return (
-    <div data-testid="wrapped-pager" style={{ padding: 16 }}>
+    <div data-testid="wrapped-pager" style={{ padding: SPACING.s16 }}>
       {props.isLast ? (
         <Pager
           count={props.count}

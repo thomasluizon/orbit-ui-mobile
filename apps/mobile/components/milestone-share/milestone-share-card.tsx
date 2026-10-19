@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { forwardRef, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
@@ -96,7 +97,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     band: {
       backgroundColor: tokens.bgCard,
-      padding: 24,
+      padding: SPACING.s24,
     },
     brandRow: {
       flexDirection: 'row',
@@ -110,14 +111,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     eyebrow: {
-      marginTop: 16,
+      marginTop: SPACING.s16,
       fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
     },
     streakNumber: {
-      marginTop: 8,
+      marginTop: SPACING.s8,
       fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 60,
       lineHeight: 60,
@@ -126,7 +127,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     streakTitle: {
-      marginTop: 8,
+      marginTop: SPACING.s8,
       fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg2,
@@ -135,7 +136,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 16,
-      marginTop: 12,
+      marginTop: SPACING.s12,
     },
     achievementEmoji: {
       fontSize: 44,
@@ -151,9 +152,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     rarityPill: {
       alignSelf: 'flex-start',
-      marginTop: 8,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      marginTop: SPACING.s8,
+      paddingHorizontal: SPACING.s8,
+      paddingVertical: SPACING.s4,
       borderRadius: 8,
       backgroundColor: tokens.bgField,
     },
@@ -167,13 +168,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s16,
       borderTopWidth: 1,
       borderTopColor: tokens.hairline,
     },
     qrTile: {
-      padding: 4,
+      padding: SPACING.s4,
       borderRadius: 12,
       backgroundColor: '#ffffff',
     },
@@ -186,7 +187,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     shortLink: {
-      marginTop: 4,
+      marginTop: SPACING.s4,
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,

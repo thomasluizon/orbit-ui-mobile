@@ -71,7 +71,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   )
 
   return (
-    <div className="px-[16px]">
+    <div className="px-4">
       {line.notificationId ? (
         <button
           type="button"

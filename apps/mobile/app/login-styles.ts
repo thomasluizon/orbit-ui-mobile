@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { type AppTokensV2, radius } from '@/lib/theme'
 
@@ -7,10 +8,10 @@ export function createLoginStyles(tokens: AppTokensV2) {
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
     scrollKeyboardOpen: { justifyContent: 'flex-start' },
-    scrollWide: { justifyContent: 'center', padding: 32 },
-    formColumn: { width: '100%', paddingTop: 32, paddingHorizontal: 16, paddingBottom: 16, gap: 32 },
-    formCompact: { paddingTop: 16 },
-    panel: { width: 420, padding: 32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
+    scrollWide: { justifyContent: 'center', padding: SPACING.s32 },
+    formColumn: { width: '100%', paddingTop: SPACING.s32, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s16, gap: 32 },
+    formCompact: { paddingTop: SPACING.s16 },
+    panel: { width: 420, padding: SPACING.s32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
       borderWidth: 1, borderColor: tokens.hairlineGhost },
     step: { gap: 24 },
     titleBlock: { gap: 8 },
@@ -31,7 +32,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
     quietAction: { alignSelf: 'flex-start' },
     hiddenLiveRegion: { position: 'absolute', width: 1, height: 1 },
     error: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, color: tokens.statusBadText },
-    offlineNotice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12,
+    offlineNotice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12,
       backgroundColor: tokens.bgWell, borderRadius: radius.md },
     offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, color: tokens.fg2 },
     reason: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, color: tokens.fg3 },

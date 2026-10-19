@@ -1,11 +1,26 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { createTokensV2 } from '@/lib/theme'
-import { toWidgetColors, toWidgetThemePreferences } from '@/lib/orbit-widget'
+import { __setOrbitWidgetModuleForTests, syncWidgetData, toWidgetColors, toWidgetThemePreferences } from '@/lib/orbit-widget'
+
+const mocks = vi.hoisted(() => ({
+  getToken: vi.fn(),
+  fetch: vi.fn<typeof fetch>(),
+  refreshSession: vi.fn(),
+  syncWidgetData: vi.fn(),
+}))
+
+vi.mock('@/lib/secure-store', () => ({ getToken: mocks.getToken }))
+vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
+vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: () => ({ epoch: 1, credentialVersion: 0 }),
+  refreshSession: mocks.refreshSession,
+}))
 
 const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/
 const colorSchemes = Object.keys(schemes) as ColorScheme[]
@@ -14,6 +29,114 @@ const modes: ThemeMode[] = ['dark', 'light']
 function readWidgetSource(relativePath: string) {
   return readFileSync(`modules/orbit-widget/android/src/main/${relativePath}`, 'utf8')
 }
+
+describe('syncWidgetData', () => {
+  beforeEach(() => {
+    mocks.getToken.mockReset().mockResolvedValue('account-a-token')
+    mocks.fetch.mockReset().mockRejectedValue(new Error('Unexpected widget request'))
+    vi.stubGlobal('fetch', mocks.fetch)
+    mocks.refreshSession.mockReset()
+    mocks.syncWidgetData.mockReset().mockResolvedValue(undefined)
+    __setOrbitWidgetModuleForTests({
+      saveToken: vi.fn(), clearToken: vi.fn(), syncTheme: vi.fn(),
+      syncWidgetData: mocks.syncWidgetData,
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('pairs B payload with B credential when storage changes before request execution', async () => {
+    const payload = { habits: [{ id: 'account-b-habit' }] }
+    mocks.getToken.mockImplementationOnce(() => {
+      mocks.getToken.mockResolvedValue('account-b-token')
+      return Promise.resolve('account-a-token')
+    })
+    mocks.fetch.mockImplementation((url, options) => {
+      expect(url).toContain(API.habits.widget)
+      expect(options?.headers).toMatchObject({ Authorization: 'Bearer account-b-token' })
+      return Promise.resolve(new Response(JSON.stringify(payload)))
+    })
+
+    await syncWidgetData()
+
+    expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+      JSON.stringify(payload), 'account-b-token',
+    )
+  })
+
+  it.each(['account-b-token', 'account-a-token'])(
+    'pairs a successful B retry with B credential when %s is active at handoff', async (activeToken) => {
+      const payload = { habits: [{ id: 'account-b-habit' }] }
+      mocks.fetch.mockImplementation((_url, options) => {
+        const authorization = new Headers(options?.headers).get('Authorization')
+        if (authorization === 'Bearer account-a-token') {
+          mocks.getToken.mockResolvedValue('account-b-token')
+          return Promise.resolve(new Response(null, { status: 401 }))
+        }
+        expect(authorization).toBe('Bearer account-b-token')
+        mocks.getToken.mockResolvedValue(activeToken)
+        return Promise.resolve(new Response(JSON.stringify(payload)))
+      })
+
+      await syncWidgetData()
+
+      expect(mocks.fetch).toHaveBeenCalledTimes(2)
+      expect(mocks.refreshSession).not.toHaveBeenCalled()
+      expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+        JSON.stringify(payload), 'account-b-token',
+      )
+    },
+  )
+
+  it('keeps A ownership when an A-authorized response arrives after switching to B', async () => {
+    const payload = { habits: [{ id: 'account-a-habit' }] }
+    mocks.fetch.mockImplementation((_url, options) => {
+      expect(options?.headers).toMatchObject({ Authorization: 'Bearer account-a-token' })
+      mocks.getToken.mockResolvedValue('account-b-token')
+      return Promise.resolve(new Response(JSON.stringify(payload)))
+    })
+
+    await syncWidgetData()
+
+    expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+      JSON.stringify(payload), 'account-a-token',
+    )
+  })
+
+  it('does not send a payload to the native cache when signed out', async () => {
+    mocks.getToken.mockResolvedValue(null)
+
+    await syncWidgetData()
+
+    expect(mocks.fetch).not.toHaveBeenCalled()
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
+  })
+
+  it('does not hand off an anonymously fetched payload after the credential disappears', async () => {
+    mocks.getToken.mockResolvedValueOnce('account-a-token').mockResolvedValue(null)
+    mocks.fetch.mockImplementation((_url, options) => {
+      expect(new Headers(options?.headers).has('Authorization')).toBe(false)
+      return Promise.resolve(new Response(JSON.stringify({ habits: [] })))
+    })
+
+    await syncWidgetData()
+
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
+  })
+
+  it('does not write the native cache when the fetch fails', async () => {
+    const failure = new Error('Widget fetch failed')
+    mocks.fetch.mockRejectedValue(failure)
+
+    await expect(syncWidgetData()).rejects.toThrow(failure)
+
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
+  })
+})
 
 describe('toWidgetColors', () => {
   it('returns defined, non-empty colors for every scheme and mode', () => {

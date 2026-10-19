@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { PADDING, SPACING } from '@orbit/shared/theme'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -16,6 +17,17 @@ vi.mock('@/components/share/share-card-qr', () => ({
 import { ShareCard } from '@/components/share/share-card'
 
 describe('ShareCard', () => {
+  it('reads the shared card inset for progress sharing', () => {
+    const originalInset = PADDING.cardInset
+    try {
+      PADDING.cardInset = SPACING.s48
+      render(<ShareCard recap={createMockRecap()} variant="progress" />)
+      expect(screen.getByTestId('share-card')).toHaveStyle({ padding: `${PADDING.cardInset}px` })
+    } finally {
+      PADDING.cardInset = originalInset
+    }
+  })
+
   it('restores the progress figures while retaining the Wrapped figures', () => {
     const recap = createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 5, completionRate: 73.5 }) })
     render(<ShareCard recap={recap} variant="progress" />)

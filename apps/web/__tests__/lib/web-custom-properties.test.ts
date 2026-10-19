@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { extname, relative, resolve } from 'node:path'
+import { dirname, extname, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { applyThemeTokensToDOM, resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -125,7 +125,13 @@ function productionSources(): ScannedSource[] {
   const webFiles = WEB_SOURCE_DIRECTORIES.flatMap((directory) =>
     sourceFiles(resolve(process.cwd(), directory)),
   )
-  return [...webFiles, ...webReachableSharedSources(webFiles)]
+  const importedStylesheets = webFiles.filter(({ path }) => extname(path) === '.css').flatMap((file) =>
+    [...file.contents.matchAll(/@import\s+["'](\.[^"']+\.css)["']/g)].map((match) => {
+      const filename = resolve(process.cwd(), dirname(file.path), match[1]!)
+      return { path: relative(process.cwd(), filename).replaceAll('\\', '/'), contents: readFileSync(filename, 'utf8') }
+    }),
+  )
+  return [...webFiles, ...importedStylesheets, ...webReachableSharedSources(webFiles)]
 }
 
 function globalsStylesheet(files: ScannedSource[]): string {
@@ -141,7 +147,10 @@ function declaredCustomProperties(files: ScannedSource[]): Set<string> {
       declarations.add(property)
     }
   }
-  for (const { contents } of files) {
+  for (const { path, contents } of files) {
+    if (extname(path) === '.css') {
+      for (const property of matchingValues(contents, CSS_DECLARATION)) declarations.add(property)
+    }
     for (const property of matchingValues(contents, LOCAL_RUNTIME_DECLARATION)) {
       declarations.add(property)
     }

@@ -50,6 +50,7 @@ it('writes the retained displayed day after account midnight while it is still d
   expect(formatAPIDateInTimeZone(new Date(), 'Asia/Tokyo')).toBe('2026-10-18')
   const date = formatAPIDate(new Date())
   const { client, key, view } = mountDay(createMockHabitScheduleItem({ id: 'habit-1', title: 'Habit 1', dueDate: date }), date)
+  expect(screen.getByRole('img', { name: 'chat.habitList.pending' })).toHaveStyle({ width: '28px', height: '28px', boxShadow: 'inset 0 0 0 1px var(--status-empty)' })
   fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' }))
   await waitFor(() => expect(logHabit).toHaveBeenCalledWith('habit-1', { date }, 'account-a'))
   await waitFor(() => expect(screen.getByRole('button', { name: 'chat.habitList.unlog:{"name":"Habit 1"}' })).toBeInTheDocument())

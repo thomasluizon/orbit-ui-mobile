@@ -1,5 +1,7 @@
 'use client'
 
+import { PADDING, } from '@orbit/shared/theme'
+
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 
@@ -141,7 +143,7 @@ function CalendarMonthFeedback({
 }
 
 function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
-  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: 16, paddingBlockStart: 24 }}>{children}</div>
+  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
 }
 
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
@@ -190,7 +192,7 @@ function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRet
   children: ReactNode
 }>) {
   if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} />
-  if (profileReady && error) return <div style={{ padding: '0 16px 16px' }}><CalendarLoadError onRetry={onRetry} /></div>
+  if (profileReady && error) return <div style={{ padding: "var(--orbit-space-0) var(--orbit-space-16) var(--orbit-space-16)" }}><CalendarLoadError onRetry={onRetry} /></div>
   return children
 }
 
@@ -666,7 +668,7 @@ function CalendarPageContent({
                         onEntryChange={changeSelectedEntry}
                       />
                   </CalendarDayCardSlot>
-                  <div style={{ paddingBlockStart: 24 }}><CalendarStats
+                  <div style={{ paddingBlockStart: PADDING.sectionGap }}><CalendarStats
                     stats={monthStatTiles}
                     state={calendarStatState(monthDisplayState)}
                     loadingLabel={t('calendar.loading')}

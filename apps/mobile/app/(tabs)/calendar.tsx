@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars';
@@ -109,7 +110,7 @@ function CalendarImportActions({ state, onImport, t }: {
 }
 
 const calendarLayoutStyles = StyleSheet.create({
-  inlineDay: { paddingHorizontal: 16, paddingTop: 24 },
+  inlineDay: { paddingHorizontal: PADDING.screenGutter, paddingTop: PADDING.sectionGap },
 });
 
 function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loading: boolean; selected: boolean; children: ReactNode }>) {
@@ -830,18 +831,18 @@ function createStyles() {
     container: { flex: 1 },
 
     listFooter: {
-      paddingTop: 24,
+      paddingTop: PADDING.sectionGap,
     },
 
     errorWrap: {
-      paddingHorizontal: 16,
-      paddingBottom: 12,
+      paddingHorizontal: PADDING.screenGutter,
+      paddingBottom: SPACING.s12,
     },
     emptyMonth: {
       alignItems: 'flex-start',
       gap: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: PADDING.screenGutter,
+      paddingVertical: SPACING.s16,
     },
     emptyMonthText: {
       fontFamily: 'Geist_400Regular',
@@ -851,8 +852,8 @@ function createStyles() {
     errorCard: {
       alignItems: "center",
       gap: 12,
-      paddingVertical: 24,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s24,
+      paddingHorizontal: PADDING.screenGutter,
       borderRadius: 18,
       borderWidth: 1,
     },

@@ -1,4 +1,4 @@
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
@@ -325,11 +325,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingTop: SPACING.s16,
+    paddingBottom: SPACING.s32,
   },
   padBlock: {
-    paddingVertical: 16,
+    paddingVertical: SPACING.s16,
     gap: 8,
     alignItems: 'stretch',
   },

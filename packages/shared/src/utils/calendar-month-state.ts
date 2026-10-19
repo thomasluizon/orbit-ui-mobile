@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
+import { PADDING } from '../theme/spacing'
 import { MONTH_GRID_TARGET_MIN } from '../theme/breakpoints'
 import { capitalizeFirstLetter, formatLocaleDate } from './locale-format'
 
@@ -8,7 +9,7 @@ export const CALENDAR_MONTH_GRID_GEOMETRY = {
   maximumRows: 6,
   cell: MONTH_GRID_TARGET_MIN,
   gap: 4,
-  inlineInset: 16,
+  inlineInset: PADDING.screenGutter,
 } as const
 
 export const CALENDAR_GRID_GAP_CONTENT_BREAKPOINT =

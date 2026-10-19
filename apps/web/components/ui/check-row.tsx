@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { PersonalText } from '@/components/ui/personal-text'
 
@@ -32,7 +35,7 @@ export function CheckRow({
   return (
     <button
       data-slot="list-row-body"
-      style={{ ...wrapStyles.row, minHeight: error || description ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}
+      style={{ ...wrapStyles.row, minHeight: error || description ? 68 : 52, paddingInline: SPACING.s16, paddingBlock: SPACING.s12, gap: 12 }}
       type="button"
       role="checkbox"
       aria-checked={checked}
@@ -69,7 +72,7 @@ export function CheckRow({
 
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   return <div className="orbit-list-row-column">
-    <button type="button" role="checkbox" aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} data-error={error ? '' : undefined} className="orbit-list-row-body orbit-hover-text relative flex w-full items-center rounded-[12px] border-0 bg-transparent text-left disabled:opacity-60" style={{ minHeight: error || description ? 68 : 52, paddingInline: 0, paddingBlock: 12, gap: 8 }}>
+    <button type="button" role="checkbox" aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} data-error={error ? '' : undefined} className="orbit-list-row-body orbit-hover-text relative flex w-full items-center rounded-[12px] border-0 bg-transparent text-left disabled:opacity-60" style={{ minHeight: error || description ? 68 : 52, paddingInline: SPACING.s0, paddingBlock: SPACING.s12, gap: 8 }}>
       <span aria-hidden="true" data-slot="list-row-body" data-press-fill="" className="orbit-list-row-outset" />
       <span data-slot="list-row-content" className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span className="text-[var(--fg-1)]" style={{ fontSize: '1.0625rem', fontWeight: 400, lineHeight: 1.4 }}>{label}</span>
@@ -84,7 +87,7 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
 }
 
 function personalLabelContentStyle(calendarDay: boolean) {
-  return { gap: 4, minHeight: calendarDay ? 68 : 24, paddingBlock: calendarDay ? 12 : undefined }
+  return { gap: 4, minHeight: calendarDay ? 68 : 24, paddingBlock: calendarDay ? SPACING.s12 : undefined }
 }
 
 function PersonalCheckRow({ label, selection = false, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
@@ -93,7 +96,7 @@ function PersonalCheckRow({ label, selection = false, placement, variant, onOpen
   return (
     <div data-slot="list-row-body" className="flex min-w-0 items-center" style={personalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <PersonalTextAction label={label} className="flex-1" contentClassName="flex flex-col justify-center" contentStyle={personalLabelContentStyle(calendarDay)} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" />} control={<button type="button" disabled={disabled} data-variant={variant} onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
-        <PersonalText id={labelControls} expanded={(selection || placement === 'column') && labelExpanded} style={{ paddingInline: placement === 'column' ? 0 : undefined, lineHeight: selection ? 1.4 : undefined }} className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} ${checkRowLabelClass(selection, false, checked, true)}`}>{label}</PersonalText>
+        <PersonalText id={labelControls} expanded={(selection || placement === 'column') && labelExpanded} style={{ paddingInline: placement === 'column' ? SPACING.s0 : undefined, lineHeight: selection ? 1.4 : undefined }} className={`text-base ${calendarDay ? 'font-normal' : 'font-medium'} ${checkRowLabelClass(selection, false, checked, true)}`}>{label}</PersonalText>
         {error || description ? <span data-slot="check-row-description" className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
       </button>} />
@@ -121,5 +124,5 @@ function checkRowLabelClass(selection: boolean, proposed: boolean, checked: bool
 }
 
 function personalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement'], selection: boolean) {
-  return { minHeight: calendarDay || supportingText ? 68 : 52, paddingInline: 16, marginInline: placement === 'column' ? -16 : undefined, paddingBlock: calendarDay ? 0 : 12, gap: 12, alignItems: selection ? 'flex-start' as const : undefined }
+  return { minHeight: calendarDay || supportingText ? 68 : 52, paddingInline: SPACING.s16, marginInline: placement === 'column' ? -SPACING.s16 : undefined, paddingBlock: calendarDay ? SPACING.s0 : SPACING.s12, gap: 12, alignItems: selection ? 'flex-start' as const : undefined }
 }

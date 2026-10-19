@@ -17,7 +17,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 |---|---|
 | App shell + nav | `app/(app)/layout.tsx` + `components/shell/destination-shell.tsx` + `components/shell/flow-shell.tsx` |
 | Design tokens (navy+violet system, 6 schemes × dark/light) | `app/globals.css` (Tailwind v4 CSS-first) |
-| Auth middleware | `proxy.ts` |
+| Auth proxy and public root files | `proxy.ts` |
 | BFF catch-all proxy | `app/api/[...path]/route.ts` |
 | Server Actions (mutations) | `app/actions/*.ts` |
 | TanStack Query hooks | `hooks/use-*.ts` |
