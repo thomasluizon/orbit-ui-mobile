@@ -7,35 +7,17 @@ type IsExactWidth<T, U> =
       : false
     : false
 type Assert<T extends true> = T
+type RequiredKeys<T> = { [TKey in keyof T]-?: object extends Pick<T, TKey> ? never : TKey }[keyof T]
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type WritableFields<T> = { -readonly [TKey in keyof T]: T[TKey] }
 
 type ReadOnlyVariant = Extract<ListRowProps, { readOnly: true }>
 type ActionVariant = Extract<ListRowProps, { readOnly?: false }>
-type ExpectedBase = {
-  icon?: React.ReactNode
-  textMode?: 'label' | 'personal'
-  valueTextMode?: 'personal'
-  personalExpanded?: boolean
-  title: string
-  wrapTitle?: boolean
-  accessibilityLabel?: string
-  expanded?: boolean
-  controls?: string
-  description?: string
-  value?: string | React.ReactElement
-  wrapValue?: boolean
-  trailing?: React.ReactNode
-  danger?: boolean
-  chevron?: boolean
-  href?: string
-  onClick?: () => void
-  disabled?: boolean
-  placement?: 'column'
-  toggle?: { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean }
-  compact?: boolean
-}
-type ExpectedReadOnlyVariant = ExpectedBase & { readOnly: true; action?: never }
-type ExpectedActionVariant = ExpectedBase & { readOnly?: false; action?: ListRowAction }
+type ExpectedKeys =
+  | 'icon' | 'textMode' | 'valueTextMode' | 'personalExpanded' | 'title'
+  | 'wrapTitle' | 'accessibilityLabel' | 'expanded' | 'controls' | 'description'
+  | 'value' | 'wrapValue' | 'trailing' | 'danger' | 'chevron' | 'href'
+  | 'onClick' | 'disabled' | 'placement' | 'toggle' | 'compact' | 'readOnly' | 'action'
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
@@ -63,8 +45,20 @@ type UnlabelledAction = Accepts<{ icon: 'trash'; onPress: () => void }, ListRowA
 type NodeValue = Accepts<{ title: 'Reminder'; value: { type: 'badge' } }, ListRowProps>
 
 export type ListRowTypeAssertionsWidthAssertions = [
-  Assert<IsExactWidth<Fields<ReadOnlyVariant>, Fields<ExpectedReadOnlyVariant>>>,
-  Assert<IsExactWidth<Fields<ActionVariant>, Fields<ExpectedActionVariant>>>,
+  Assert<IsExactWidth<keyof ReadOnlyVariant, ExpectedKeys>>,
+  Assert<IsExactWidth<keyof ActionVariant, ExpectedKeys>>,
+  Assert<IsExactWidth<Omit<ReadOnlyVariant, 'readOnly' | 'action'>, Omit<ActionVariant, 'readOnly' | 'action'>>>,
+  Assert<IsExactWidth<RequiredKeys<ReadOnlyVariant>, 'title' | 'readOnly'>>,
+  Assert<IsExactWidth<RequiredKeys<ActionVariant>, 'title'>>,
+  Assert<IsExactWidth<Fields<ReadOnlyVariant>, WritableFields<ReadOnlyVariant>>>,
+  Assert<IsExactWidth<Fields<ActionVariant>, WritableFields<ActionVariant>>>,
+  Assert<IsExactWidth<Pick<ReadOnlyVariant, 'readOnly' | 'action'>, { readOnly: true; action?: never }>>,
+  Assert<IsExactWidth<Pick<ActionVariant, 'readOnly' | 'action'>, { readOnly?: false; action?: ListRowAction }>>,
+  Assert<IsExactWidth<ListRowProps['textMode'], 'label' | 'personal' | undefined>>,
+  Assert<IsExactWidth<ListRowProps['valueTextMode'], 'personal' | undefined>>,
+  Assert<IsExactWidth<ListRowProps['personalExpanded'], boolean | undefined>>,
+  Assert<IsExactWidth<ListRowProps['placement'], 'column' | undefined>>,
+  Assert<IsExactWidth<ListRowProps['toggle'], { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean } | undefined>>,
   Assert<IsExactWidth<ListRowAction['icon'], string>>,
   Assert<IsExactWidth<ListRowAction['label'], string>>,
   Assert<IsExactWidth<ListRowAction['onPress'], () => void>>,

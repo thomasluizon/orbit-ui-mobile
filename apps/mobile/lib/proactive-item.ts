@@ -1,42 +1,17 @@
-import { onlineManager, type QueryClient } from '@tanstack/react-query'
-import { proactiveKeys } from '@orbit/shared/query'
-import type { ProactiveItem } from '@orbit/shared/types'
+import { createProactiveItemController } from '@orbit/shared/hooks'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
-import { proactiveItemSchema } from '@orbit/shared/types'
+import { proactiveItemSchema, type ProactiveItem } from '@orbit/shared/types'
 import { apiClient } from '@/lib/api-client'
 
+export const proactiveItemController = createProactiveItemController({
+  requestCurrent: (signal) => apiClient<ProactiveItem | undefined>(API.proactive.current, { signal }, proactiveItemSchema),
+  reportOpened: (id) => apiClient(API.proactive.opened(id), { method: 'POST', silent: true, skipAuthRecovery: true }),
+  getChat: useChatStore.getState,
+  openConversation: () => useUIStore.getState().setAstraConversationOpen(true),
+  getSessionEpoch,
+})
 
-export const currentProactiveOptions = {
-  queryKey: proactiveKeys.current(),
-  queryFn: async ({ signal }: { signal: AbortSignal }) => {
-    const item = await apiClient<ProactiveItem | undefined>(API.proactive.current, { signal }, proactiveItemSchema)
-    if (signal.aborted) throw new Error('Proactive request cancelled')
-    return item ?? null
-  },
-  staleTime: 30_000,
-}
-
-export function openProactiveItem(item: ProactiveItem) {
-  if (useChatStore.getState().openProactiveItem(item)) {
-    void apiClient(API.proactive.opened(item.id), { method: 'POST', silent: true, skipAuthRecovery: true }).catch(() => undefined)
-  }
-  useUIStore.getState().setAstraConversationOpen(true)
-}
-
-export async function openCurrentProactiveItem(queryClient: QueryClient) {
-  const epoch = getSessionEpoch()
-  let item: ProactiveItem | null
-  try {
-    item = onlineManager.isOnline()
-      ? await queryClient.fetchQuery({ ...currentProactiveOptions, staleTime: 0 })
-      : queryClient.getQueryData<ProactiveItem | null>(proactiveKeys.current()) ?? null
-  } catch {
-    item = queryClient.getQueryData<ProactiveItem | null>(proactiveKeys.current()) ?? null
-  }
-  if (epoch !== getSessionEpoch()) return
-  if (item) openProactiveItem(item)
-  else useUIStore.getState().setAstraConversationOpen(true)
-}
+export const { openCurrentProactiveItem } = proactiveItemController

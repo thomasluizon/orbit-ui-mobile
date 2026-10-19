@@ -120,7 +120,7 @@ export {
   validateApiResponse,
   validateApiRequest,
 } from './error-utils'
-export { isFeatureEnabled } from './config'
+export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
@@ -794,7 +794,7 @@ export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
 
-export { proactiveActionLabelKey, getProactiveActionReason } from './proactive'
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
 export { getSetupChecklist } from './setup-checklist'
 
 export { getSummaryFirstSentence } from './summary-sentence'

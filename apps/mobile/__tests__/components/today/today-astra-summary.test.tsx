@@ -98,6 +98,7 @@ describe('Hoje single summary slot', () => {
   it.each(['loading', 'error', 'retrying', 'refreshing', 'free', 'disabled', 'none', 'no profile', 'past', 'suppressed'])('keeps %s in the same slot', async (state) => {
     const { absent, sentence } = configureSummaryState(state)
     const tree = await mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
+    if (['past', 'suppressed'].includes(state)) expect(mocks.query).not.toHaveBeenCalled()
     expect(slot(tree)).toHaveLength(absent ? 0 : 1)
     if (!absent) {
       expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(state === 'loading' ? 1 : 0)

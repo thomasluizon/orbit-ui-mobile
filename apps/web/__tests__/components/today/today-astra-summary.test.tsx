@@ -85,6 +85,7 @@ describe('Hoje single summary slot', () => {
   it.each(['loading', 'error', 'retrying', 'refreshing', 'free', 'disabled', 'none', 'no profile', 'past', 'suppressed'])('keeps %s in the same slot', async (state) => {
     const { absent, sentence } = configureSummaryState(state)
     const { container } = mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
+    if (['past', 'suppressed'].includes(state)) expect(mocks.query).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-today-astra-slot]')).toHaveLength(absent ? 0 : 1)
     if (!absent) {
       expect(container.querySelectorAll('[data-summary-skeleton]')).toHaveLength(state === 'loading' ? 1 : 0)
