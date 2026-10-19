@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -53,11 +53,6 @@ interface PlacedEntry {
   top: number
   lane: number
   laneCount: number
-}
-
-function isScrollMovement(offset: number, openingOffset: number, maximumTravel: number): boolean {
-  const isNativeClamp = offset < openingOffset && Math.abs(maximumTravel - offset) <= 1
-  return offset !== openingOffset && !isNativeClamp
 }
 
 function parseMinutes(time: string | null): number | null {
@@ -232,8 +227,8 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      if (isScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-        || isScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+      if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+        || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
       openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
@@ -307,8 +302,8 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onScroll={(event) => {
             const node = event.currentTarget
-            if (isScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
-              || isScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+            if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+              || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
             openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
           }}
           onWheel={() => { hasMovedGrid.current = true }}

@@ -327,6 +327,7 @@ export {
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
+  isCalendarGridScrollMovement,
   orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
