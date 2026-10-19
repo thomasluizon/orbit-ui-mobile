@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Static surface for list rows so an item is never fully transparent before/if
-     the programmatic bitmap (setImageViewBitmap on item_bg) is applied.
-     Mirrors OrbitWidgetFactory.FALLBACK_COLORS: surface #111526, borderMuted #2e3241. -->
+<!-- Static generated well and hairline so an item is never transparent before/if
+     the programmatic theme bitmap is applied. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#FF111526" />
-    <stroke android:width="1dp" android:color="#FF2E3241" />
+    <solid android:color="@color/widget_well" />
+    <stroke android:width="1dp" android:color="@color/widget_hairline" />
     <corners android:radius="16dp" />
 </shape>
