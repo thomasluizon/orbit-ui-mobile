@@ -34,7 +34,7 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
       </span> : null}
   </>
   return onClick ? <button type="button" aria-label={label}
-    className={`transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] relative min-h-[48px] shrink-0 cursor-pointer touch-manipulation border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] ${layout}`}
+    className={`transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] relative min-h-[48px] shrink-0 cursor-pointer touch-manipulation border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] ${layout}`}
     onClick={onClick}>{content}</button>
     : <span role="img" aria-label={label}
       className={`relative min-h-[48px] shrink-0 ${layout}`}>{content}</span>

@@ -94,13 +94,41 @@ describe('root bell count geometry in Chromium', () => {
         expect(geometry.control.bottom - content.bottom).toBeGreaterThanOrEqual(4)
       }
       const button = page.getByRole('button')
-      for (const state of ['hover', 'press', 'focus'] as const) {
+      for (const state of ['hover', 'press'] as const) {
         if (state === 'hover') await button.hover()
         if (state === 'press') await page.mouse.down()
-        if (state === 'focus') { await page.mouse.up(); await page.mouse.move(0, 900); await page.keyboard.press('Tab'); await button.focus() }
         await expect.poll(() => button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)')
         expect(await button.boundingBox()).toMatchObject({ width: geometry.control.width, height: geometry.control.height })
       }
+    } finally { await page.close() }
+  })
+
+  it.each((['corner', 'inline'] as const).flatMap(countPlacement =>
+    (['dark', 'light'] as const).flatMap(mode =>
+      (['reduce', 'no-preference'] as const).map(reducedMotion => ({ countPlacement, mode, reducedMotion })),
+    ),
+  ))('draws only the keyboard focus ring for $countPlacement in $mode with motion=$reducedMotion', async ({ countPlacement, mode, reducedMotion }) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <NotificationBellDisplay count={12} countPlacement={countPlacement} onClick={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 600, height: 915 }, reducedMotion })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet}:root{${theme}}</style><div class="${mode}">${container.innerHTML}</div>`)
+      const button = page.getByRole('button')
+      const restingBackground = await button.evaluate(element => getComputedStyle(element).backgroundColor)
+      await page.keyboard.press('Tab')
+      expect(await button.evaluate(element => element.matches(':focus-visible'))).toBe(true)
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+      await expect.poll(() => button.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(restingBackground)
+      const focus = await button.evaluate(element => {
+        const style = getComputedStyle(element)
+        return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineColor: style.outlineColor, outlineOffset: style.outlineOffset, boxShadow: style.boxShadow, borderRadius: style.borderRadius, height: element.getBoundingClientRect().height }
+      })
+      expect(focus).toMatchObject({ outlineStyle: 'solid', outlineWidth: '2px', outlineOffset: '2px', boxShadow: 'none' })
+      expect(focus.outlineColor).not.toBe('rgba(0, 0, 0, 0)')
+      if (countPlacement === 'corner') expect(focus.borderRadius).toBe('12px')
+      else expect(parseFloat(focus.borderRadius)).toBeGreaterThanOrEqual(focus.height / 2)
     } finally { await page.close() }
   })
 })
