@@ -2534,6 +2534,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-content-frame {
   width: 100%;
   min-width: 0;
+  margin-inline: auto;
   padding-inline: var(--padding-screen-gutter);
 }
 

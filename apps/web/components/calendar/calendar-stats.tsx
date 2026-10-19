@@ -19,7 +19,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
       style={{ containerType: 'inline-size', containerName: 'calendar-figures', paddingInline: SPACING.s16, fontSize: 14 }}>
       <div data-testid="calendar-figures" className="orbit-calendar-figures" style={{ display: 'grid', gap: 16 }}>
         {stats.map((stat) => (
-          <div key={stat.key} data-state={state} className="flex min-w-0 flex-col items-start gap-2 text-start">
+          <div key={stat.key} data-state={state} className="flex min-w-0 flex-col items-center gap-2 text-center">
             {isLoading ? <div role="status" aria-label={loadingLabel} className="relative" style={{ minWidth: 64, fontSize: 22, lineHeight: '30.8px', fontFamily: 'var(--font-display)' }}>
               <span aria-hidden="true" className="invisible">0</span><span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
             </div>

@@ -46,15 +46,15 @@ function ShellBottomChrome({
       ]}
     >
       <View style={[styles.bottomColumn, { minHeight: actionMinimum }]}>
+        {fab !== undefined ? (
+          <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+            <View testID="shell-fab" style={styles.fab}>{fab}</View>
+          </View>
+        ) : null}
         {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
           <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
             <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
-          </View>
-        ) : null}
-        {fab !== undefined ? (
-          <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-            <View testID="shell-fab" style={styles.fab}>{fab}</View>
           </View>
         ) : null}
       </View>
@@ -249,17 +249,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   fabBand: {
-    position: 'absolute',
-    top: 0,
-    height: 0,
-    left: 0,
-    right: 0,
+    flexShrink: 0,
+    alignItems: 'flex-end',
+    padding: PADDING.screenGutter,
   },
-  fab: {
-    bottom: 16,
-    position: 'absolute',
-    right: 16,
-  },
+  fab: { flexShrink: 0 },
   conversation: {
     alignSelf: 'center',
     maxWidth: SHELL_CONTENT_MAX_WIDTH,

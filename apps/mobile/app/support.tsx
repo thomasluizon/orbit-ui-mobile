@@ -443,11 +443,11 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
+  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
   formBlock: {
     width: '100%',
     maxWidth: 520,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     gap: 24,
   },
   formDescription: {
