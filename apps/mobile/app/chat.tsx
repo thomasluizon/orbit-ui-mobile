@@ -1,15 +1,15 @@
 import { useEffect } from 'react'
 import { useRouter } from 'expo-router'
-import { useUIStore } from '@/stores/ui-store'
+import { queryClient } from '@/lib/query-client'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
 
 export default function ChatRedirect() {
   const router = useRouter()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
 
   useEffect(() => {
-    setAstraConversationOpen(true)
+    void openCurrentProactiveItem(queryClient)
     router.replace('/')
-  }, [router, setAstraConversationOpen])
+  }, [router])
 
   return null
 }

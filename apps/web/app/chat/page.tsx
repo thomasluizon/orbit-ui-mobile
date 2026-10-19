@@ -6,5 +6,5 @@ export function generateMetadata() {
 }
 
 export default function ChatRedirect() {
-  redirect('/?astra=open')
+  redirect('/?astra=proactive')
 }

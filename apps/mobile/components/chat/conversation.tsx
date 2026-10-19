@@ -1,3 +1,4 @@
+import { ProactiveAction } from './proactive-action'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
@@ -17,7 +18,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -150,8 +151,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     pendingReplyRef.current = reply;
     reply?.setVisible(pendingVisible.current);
   }, []);
-  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit;
-  const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0;
+  const { showPendingReply, replyWorking } = getChatReplyState({ isTyping, streamingMessageId, activeStepCount: activeSteps.length, atMessageLimit: chat.atMessageLimit });
   const [announcingWork, setAnnouncingWork] = useState(false)
   useEffect(() => {
     let mounted = true
@@ -160,16 +160,28 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, [replyWorking])
 
   const keyboardScroll = useConversationKeyboardScroll(flatListRef, threadScroll.isFollowing);
+  const proactiveEntryId = useChatStore((state) => state.proactiveEntryId);
   const initialScrollPending = useRef(true);
-  useEffect(() => { threadScroll.followLatest(); }, [threadScroll]);
+  const showProactiveEntry = useCallback(() => {
+    const entryId = useChatStore.getState().proactiveEntryId;
+    if (!entryId || !flatListRef.current) return false;
+    threadScroll.stopFollowing();
+    flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+    initialScrollPending.current = false;
+    useChatStore.getState().clearProactiveEntry(entryId);
+    return true;
+  }, [flatListRef, threadScroll]);
+  useEffect(() => { if (!useChatStore.getState().proactiveEntryId) threadScroll.followLatest(); }, [threadScroll]);
+  useEffect(() => { showProactiveEntry(); }, [proactiveEntryId, showProactiveEntry]);
 
   const onContentSizeChange = useCallback(() => {
+    if (showProactiveEntry()) return;
     if (!threadScroll.isFollowing()) return;
     if (initialScrollPending.current) {
       flatListRef.current?.scrollToEnd({ animated: false });
       initialScrollPending.current = false;
     } else scrollToBottom();
-  }, [flatListRef, scrollToBottom, threadScroll]);
+  }, [flatListRef, scrollToBottom, showProactiveEntry, threadScroll]);
 
   const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
     threadScroll.followLatest();
@@ -270,12 +282,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
+      {item.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={item.proactiveItem} acted={item.proactiveActed ?? false} onSend={sendMessage} /> : null}
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>
       </View>
     ),
     [
+      chat.isOnline,
       confirmAndExecutePendingOperation,
       claimAnnouncement,
       handleActionChipClick,
@@ -349,16 +363,16 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
+              ListFooterComponent={<>{showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
                 {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
                   <AstraGlyph size={24} />
                 </View> : null}
                 <View style={styles.messageContent}>
                   {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={activeSteps} running />}
                 </View>
-              </View> : null}
+              </View> : null}<Text testID="astra-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
               accessibilityLabel={t("chat.title")}
-              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
+              accessibilityState={{ busy: replyWorking || isPendingOperationBusy }}
             />
           </View>
         )}

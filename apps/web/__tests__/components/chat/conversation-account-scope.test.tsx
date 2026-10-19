@@ -18,6 +18,7 @@ vi.mock('@/app/actions/chat', () => ({
   verifyPendingOperationStepUp: operationsApi.verify,
   executePendingOperation: vi.fn(), issuePendingOperationStepUp: vi.fn(),
   revisePendingOperation: vi.fn(), refreshPendingOperation: vi.fn(),
+  getProactiveItemStatus: vi.fn(), reportProactiveActed: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({

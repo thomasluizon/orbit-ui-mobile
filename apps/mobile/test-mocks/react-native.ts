@@ -165,6 +165,7 @@ function createHostComponent(name: string) {
         focusedNativeTag = null
       },
       scrollTo: scrollToImpl,
+      scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
       scrollToEnd: () => {},
     }), [nativeTag])
 

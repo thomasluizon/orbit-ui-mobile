@@ -77,7 +77,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
-| `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking. |
+| `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking; NOT committed. Run `git fetch origin main && node tools/check-feature-parity.mjs --write` to create it locally; CI regenerates and uploads the evidence artifact. |
 | `tools/feature-parity-rules.json` | Exact capability relocations, owner removal citations and restoration tickets; the checker derives completion from source. |
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |

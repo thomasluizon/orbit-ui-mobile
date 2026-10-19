@@ -3,6 +3,7 @@ import {
   STEP_UP_ATTEMPT_WINDOW_MS,
   STEP_UP_CHALLENGE_DURATION_MS,
   STEP_UP_RESEND_COOLDOWN_MS,
+  createStepUpTimingRecord,
   extractStepUpAttemptsRemaining,
   formatStepUpCountdown,
   getStepUpCooldownSeconds,
@@ -14,6 +15,15 @@ import {
 } from '../utils/step-up'
 
 describe('step-up core', () => {
+  it('retains an active exhausted window across resends and resets attempt counts', () => {
+    const previous = { operation: 'keys' as const, sentAt: 1_000, exhaustedAt: 2_000, failedAttempts: 3 }
+    expect(createStepUpTimingRecord('keys', 3_000, previous)).toEqual({
+      operation: 'keys', sentAt: 3_000, exhaustedAt: 2_000,
+    })
+    const sentAt = 2_000 + STEP_UP_ATTEMPT_WINDOW_MS
+    expect(createStepUpTimingRecord('keys', sentAt, previous)).toEqual({ operation: 'keys', sentAt })
+    expect(createStepUpTimingRecord('delete', 1_000, null)).toEqual({ operation: 'delete', sentAt: 1_000 })
+  })
   it('isolates the verification timer by operation and account', () => {
     expect(getStepUpStorageKey('delete', 'account-1')).not.toBe(getStepUpStorageKey('keys', 'account-1'))
     expect(getStepUpStorageKey('delete', 'account-1')).not.toBe(getStepUpStorageKey('delete', 'account-2'))

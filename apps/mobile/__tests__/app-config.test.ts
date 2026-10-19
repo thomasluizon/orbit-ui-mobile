@@ -56,6 +56,15 @@ describe('Android app variant', () => {
     expect(application.$['android:allowBackup']).toBe('false')
   })
 
+  it('disables updates for the staging embedded bundle without changing production', () => {
+    const production = JSON.stringify(createConfig())
+    process.env.ORBIT_APP_VARIANT = 'staging'
+    expect(createConfig().updates.enabled).toBe(false)
+    expect(createConfig().updates.checkAutomatically).toBe('NEVER')
+    process.env.ORBIT_APP_VARIANT = 'production'
+    expect(JSON.stringify(createConfig())).toBe(production)
+  })
+
   it('rejects an unknown variant', () => {
     process.env.ORBIT_APP_VARIANT = 'unknown'
     expect(() => createConfig()).toThrow('Unknown Orbit app variant')

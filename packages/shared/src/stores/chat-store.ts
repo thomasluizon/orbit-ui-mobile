@@ -1,3 +1,4 @@
+import type { ProactiveItem } from '../types/proactive'
 import type { ChatMessage } from '../types/chat'
 
 type ChatStoreSet = {
@@ -7,6 +8,12 @@ type ChatStoreSet = {
 
 export interface ChatStoreState {
   messages: ChatMessage[]
+  proactiveEntryId: string | null
+  clearProactiveEntry: (id: string) => void
+  proactiveOutcomes: Record<string, 'opened' | 'acted'>
+  openDailySummary: (date: string, summary: string) => void
+  openProactiveItem: (item: ProactiveItem) => boolean
+  claimProactiveAction: (id: string) => boolean
   isTyping: boolean
   streamingMessageId: string | null
   draft: string
@@ -42,6 +49,50 @@ export function prepareChatRequest(
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
     messages: [],
+    proactiveEntryId: null,
+    clearProactiveEntry: (id) => set((state) => state.proactiveEntryId === id ? { proactiveEntryId: null } : {}),
+    proactiveOutcomes: {},
+    openProactiveItem: (item) => {
+      let added = false
+      set((state) => {
+        const existing = state.messages.find((message) => message.proactiveItem?.id === item.id)
+        const proactiveContextAfterMessageId = state.messages.filter((message) => message.role === 'user').at(-1)?.id ?? null
+        if (existing) return { proactiveEntryId: item.id, messages: [{ ...existing, proactiveContextAfterMessageId }, ...state.messages.filter((message) => message !== existing)] }
+        added = !state.proactiveOutcomes[item.id]
+        return { proactiveEntryId: item.id, proactiveOutcomes: { ...state.proactiveOutcomes, [item.id]: state.proactiveOutcomes[item.id] ?? 'opened' }, messages: [{
+          id: `proactive-${item.id}`,
+          role: 'ai',
+          content: item.text,
+          proactiveItem: item,
+          proactiveContextAfterMessageId,
+          proactiveActed: state.proactiveOutcomes[item.id] === 'acted',
+          timestamp: new Date(),
+        }, ...state.messages] }
+      })
+      return added
+    },
+    openDailySummary: (date, summary) => set((state) => {
+      const id = `daily-summary-${date}`
+      const existing = state.messages.find((message) => message.id === id)
+      return {
+        proactiveEntryId: null,
+        messages: existing ? state.messages : [...state.messages,
+          { id, role: 'ai', content: summary, timestamp: new Date() }],
+      }
+    }),
+    claimProactiveAction: (id) => {
+      let claimed = false
+      set((state) => {
+        if (state.proactiveOutcomes[id] === 'acted') return {}
+        const messages = state.messages.map((message) => {
+          if (message.proactiveItem?.id !== id || message.proactiveActed) return message
+          claimed = true
+          return { ...message, proactiveActed: true }
+        })
+        return claimed ? { messages, proactiveOutcomes: { ...state.proactiveOutcomes, [id]: 'acted' } } : {}
+      })
+      return claimed
+    },
     isTyping: false,
     streamingMessageId: null,
     draft: '',

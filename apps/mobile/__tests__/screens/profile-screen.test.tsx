@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
@@ -15,7 +16,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { StepUpTimingRecord } from '@orbit/shared/utils'
-import { beginStepUpChallenge, bindStepUpStateToAccount, clearStepUpState, readApiKeyExpiryDraft } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, bindStepUpStateToAccount, clearStepUpState, readApiKeyExpiryDraft, retainApiKeyExpiryDraft } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
@@ -473,6 +474,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           hint: description,
           value,
           hasTrailing: Boolean(trailing || toggle),
+          hasValue: Boolean(value),
           onPress: toggle ? () => toggle.onChange(!toggle.checked) : readOnly ? undefined : onClick,
           chevron,
           accessibilityRole: roleOf(props),
@@ -487,6 +489,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           onPress: action.onPress,
         }) : null,
         trailing ?? null,
+        typeof value === 'string' ? null : value ?? null,
         description ? React.createElement('Text', {}, description) : null,
       )
     },
@@ -510,6 +513,7 @@ interface SettingsRowStubNode {
     hint?: string
     value?: string
     hasTrailing?: boolean
+    hasValue?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -554,6 +558,15 @@ function nodeText(node: unknown): string {
   return (node as { children: unknown[] }).children.map(nodeText).join('')
 }
 
+async function nameAndCreateApiKey(tree: ReturnType<typeof TestRenderer.create>) {
+  TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('Personal key'))
+  await TestRenderer.act(async () => {
+    findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
 function findButtonByText(
   tree: ReturnType<typeof TestRenderer.create>,
   label: string,
@@ -566,6 +579,26 @@ function findButtonByText(
 
 
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+
+function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
+  const leadingIcons = ['User', 'Crown', 'Settings', 'MessageCircle', 'Bell']
+  const contents = row.findAll((node: { type: unknown }) =>
+    typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
+  const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+  const navigates = !(index === 1 && isLifetimePro)
+  expect(icons, String(row.props.title)).toHaveLength(navigates ? 2 : 1)
+  expect(contents[0]!.type).toBe(leadingIcons[index])
+  expect(contents[1]!.type).toBe('Text')
+  expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
+  if (navigates) {
+    expect(contents.at(-1)!.type).toBe('ChevronRight')
+  }
+  const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string; 'data-slot'?: string } }) =>
+    node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props['data-slot'] !== 'list-row-fill')
+  expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+  const fills = row.findAll((node: { type: unknown; props: { 'data-slot'?: string } }) => node.type === 'View' && node.props['data-slot'] === 'list-row-fill')
+  expect(fills).toHaveLength(Number(navigates))
+}
 
 describe('ProfileScreen', () => {
   it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((screen) => ({ locale, screen }))))('renders the drawn subscreen row glyphs in $screen in $locale', async ({ locale, screen }) => {
@@ -900,25 +933,7 @@ describe('ProfileScreen', () => {
       const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
       const rows = group.findAllByType(ListRow)
       expect(rows).toHaveLength(5)
-      const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
-      for (const [index, row] of rows.entries()) {
-        const contents = row.findAll((node: { type: unknown }) =>
-          typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
-        const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
-        const navigates = !(index === 1 && plan.isLifetimePro)
-        expect(icons, row.props.title).toHaveLength(navigates ? 2 : 1)
-        expect(contents[0].type).toBe(leadingIcons[index])
-        expect(contents[1].type).toBe('Text')
-        expect(icons[0].props.size ?? icons[0].props.width).toBe(24)
-        if (navigates) {
-          expect(contents.at(-1).type).toBe('ChevronRight')
-        }
-        const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string; 'data-slot'?: string } }) =>
-          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props['data-slot'] !== 'list-row-fill')
-        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
-        const fills = row.findAll((node: { type: unknown; props: { 'data-slot'?: string } }) => node.type === 'View' && node.props['data-slot'] === 'list-row-fill')
-        expect(fills).toHaveLength(Number(navigates))
-      }
+      for (const [index, row] of rows.entries()) expectProfileRowIcons(row, index, plan.isLifetimePro)
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
       expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))
@@ -1197,10 +1212,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
-    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
-    ['en', false, 'Check-ins', 'Daily recap'],
-    ['en', true, 'Check-ins', 'Daily recap'],
+    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
+    ['en', false, 'Astra notifications', 'Daily recap'],
+    ['en', true, 'Astra notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
@@ -1226,7 +1241,7 @@ describe('ProfileScreen', () => {
       for (const label of [proactive, summary]) {
         const row = findRowByLabel(tree, label)
         expect(row.props.accessibilityRole).toBe('button')
-        expect(row.props.hasTrailing).toBe(true)
+        expect(row.props.hasValue).toBe(true)
         expect(row.props.chevron).toBe(false)
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())
@@ -1490,28 +1505,30 @@ describe('ProfileScreen', () => {
     mockStepUpVerified.current = true
     mockApiClient.mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
     const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
     expect(field.props.placeholder).toBe('common.never')
     TestRenderer.act(() => field.props.onChangeText(expiry))
-    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.create').props.onPress(); await Promise.resolve() })
+    await nameAndCreateApiKey(tree)
     expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', expiresAtUtc }),
+      body: JSON.stringify({ name: 'Personal key', expiresAtUtc, isReadOnly: false }),
     }))
     expect(nodeText(tree.root)).toContain('orb_secret')
   })
 
-  it.each(['tomorrow', '2099-02-30T12:00', '2000-01-01T00:00'])('rejects invalid API key expiry %j before using a grant', async (expiry) => {
+  it.each(['simple', 'scoped'].flatMap((mode) => ['tomorrow', '2099-02-30T12:00', '2000-01-01T00:00'].map((expiry) => ({ mode, expiry }))))('rejects invalid API key expiry $expiry before using a grant ($mode)', async ({ mode, expiry }) => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
     const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => findButtonByText(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped').props.onPress())
+    if (mode === 'scoped') TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText(expiry))
-    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.create').props.onPress(); await Promise.resolve() })
+    await nameAndCreateApiKey(tree)
     expect(nodeText(tree.root)).toContain('orbitMcp.invalidExpiry')
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
-    await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress(); await Promise.resolve() })
-    expect(tree.root.findAllByProps({ title: 'profile.apiKeys.scopeTitle' })).toHaveLength(0)
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('Personal key')
     expect(mockApiClient).not.toHaveBeenCalled()
     expect(mockCreateGrant.consumed).toBe(false)
   })
@@ -1522,13 +1539,13 @@ describe('ProfileScreen', () => {
     }
     mockStepUpVerified.current = true
     const tree = await renderProfileSubscreen('astra')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('habits:read'))
     const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
     try {
-      await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress(); await Promise.resolve() })
-      expect(tree.root.findAllByProps({ title: 'profile.apiKeys.scopeTitle' })).toHaveLength(0)
+      await nameAndCreateApiKey(tree)
+      expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === 'profile.apiKeys.scopeTitle')).toHaveLength(1)
       const field = tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' })
       expect(field.props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
       expect(field.props.value).toBe('2099-12-31T23:59')
@@ -1548,6 +1565,7 @@ describe('ProfileScreen', () => {
     mockApiClient.mockReturnValueOnce(new Promise((resolve) => { finish = () => resolve({ id: 'key-2', key: 'orb_secret' }) }))
     const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
+    await nameAndCreateApiKey(tree)
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.editable).toBe(false)
     expect(findButtonByText(tree, 'profile.apiKeys.create').props.accessibilityState.disabled).toBe(true)
     expect(findButtonByText(tree, 'profile.apiKeys.createScoped').props.accessibilityState.disabled).toBe(true)
@@ -1564,16 +1582,19 @@ describe('ProfileScreen', () => {
     mockApiClient
       .mockRejectedValueOnce(new Error('failed'))
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
-    const tree = await renderProfileSubscreen('astra')
+    retainApiKeyExpiryDraft('2099-12-31T23:59')
+    let tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
       await Promise.resolve()
     })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     const firstInput = tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' })
     await TestRenderer.act(async () => {
       firstInput.props.onChangeText('stale:scope')
+      tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('First key')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
@@ -1583,12 +1604,20 @@ describe('ProfileScreen', () => {
     })
     expect(nodeText(tree.root)).toContain('orbitMcp.createKeyError')
     TestRenderer.act(() => findButtonByText(tree, 'common.cancel').props.onPress())
+    TestRenderer.act(() => findButtonByText(tree, 'common.discardChangesAction').props.onPress())
+    tree.unmount()
+    tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
     expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('')
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
     await TestRenderer.act(async () => {
       tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('fresh:scope')
+      tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('Second key')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
@@ -1597,7 +1626,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Second key', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: true}),
     }))
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
@@ -1629,12 +1658,11 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+    await nameAndCreateApiKey(tree)
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
     expect(nodeText(tree.root)).toContain('orbitMcp.copied')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
-    TestRenderer.act(() => {
-      tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59')
-    })
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped').props.onPress()
@@ -1649,19 +1677,15 @@ describe('ProfileScreen', () => {
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
     const secondTree = await renderProfileSubscreen('astra')
-    expect(secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
     TestRenderer.act(() => findButtonByText(secondTree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped').props.onPress())
+    expect(secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
     if (mode === 'scoped') {
       TestRenderer.act(() => secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
     }
-    await TestRenderer.act(async () => {
-      if (mode === 'scoped') findButtonByText(secondTree, 'profile.apiKeys.scopeAction').props.onPress()
-      await Promise.resolve()
-      await Promise.resolve()
-    })
+    await nameAndCreateApiKey(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: false}),
     }))
     expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
     expect(readApiKeyExpiryDraft()).toBe('')
@@ -1680,17 +1704,14 @@ describe('ProfileScreen', () => {
       errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
     }, 'Challenge required'))
     const tree = await renderProfileSubscreen('astra')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     const submit = async (view: Awaited<ReturnType<typeof renderProfileSubscreen>>) => {
       TestRenderer.act(() => findButtonByText(view, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped').props.onPress())
       if (mode === 'scoped') {
         TestRenderer.act(() => view.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
       }
-      await TestRenderer.act(async () => {
-        if (mode === 'scoped') findButtonByText(view, 'profile.apiKeys.scopeAction').props.onPress()
-        await Promise.resolve()
-        await Promise.resolve()
-      })
+      if (view === tree) TestRenderer.act(() => view.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
+      else expect(view.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
+      await nameAndCreateApiKey(view)
     }
     await submit(tree)
     expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
@@ -1703,7 +1724,7 @@ describe('ProfileScreen', () => {
     await submit(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'Personal key', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' , isReadOnly: false}),
     }))
   })
 
@@ -1722,12 +1743,12 @@ describe('ProfileScreen', () => {
         })
       : Promise.resolve(undefined))
     const tree = await renderProfileSubscreen('astra')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     TestRenderer.act(() => findButtonByText(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     if (mode === 'scoped') {
       TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
-      TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress())
     }
+    await nameAndCreateApiKey(tree)
     expect(mockApiClient).toHaveBeenCalledTimes(1)
     TestRenderer.act(() => {
       mockAuthState.user.userId = 'user-2'
@@ -1743,6 +1764,9 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(mockCreateGrant.consumed).toBe(false)
     expect(readApiKeyExpiryDraft()).toBe('')
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'orbitMcp.keyName' })).toHaveLength(0)
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.value).toBe('')
     expect(tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.value).toBe('')
   })
 
@@ -1751,14 +1775,11 @@ describe('ProfileScreen', () => {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
-    mockCreateGrant.consumed = true
+    mockApiClient.mockRejectedValueOnce(createApiClientError(428, { errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED' }, 'Challenge required'))
     const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
-    await TestRenderer.act(async () => {
-      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
-      await Promise.resolve()
-      await Promise.resolve()
-    })
+    await nameAndCreateApiKey(tree)
     expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
     tree.unmount()
     mockCreateGrant.consumed = false
@@ -1767,18 +1788,15 @@ describe('ProfileScreen', () => {
     try {
       const secondTree = await renderProfileSubscreen('astra')
       TestRenderer.act(() => findButtonByText(secondTree, 'profile.apiKeys.create').props.onPress())
+      await nameAndCreateApiKey(secondTree)
       expect(secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
       expect(mockApiClient).not.toHaveBeenCalled()
       TestRenderer.act(() => secondTree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText(''))
       mockApiClient.mockResolvedValueOnce({ id: 'key-1', key: 'orb_secret' })
-      await TestRenderer.act(async () => {
-        findButtonByText(secondTree, 'profile.apiKeys.create').props.onPress()
-        await Promise.resolve()
-        await Promise.resolve()
-      })
+      await nameAndCreateApiKey(secondTree)
       expect(nodeText(secondTree.root)).toContain('orb_secret')
       expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-        body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', expiresAtUtc: null }),
+        body: JSON.stringify({ name: 'Personal key', expiresAtUtc: null , isReadOnly: false}),
       }))
     } finally {
       clock.mockRestore()
@@ -1885,6 +1903,20 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile/astra' },
     })
+  })
+
+  it.each([false, true])('shows the effective notifications value for Pro with trial=%s', async (isTrialActive) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
+      isLoading: false, error: null,
+    }
+    const tree = await renderProfileSubscreen('astra')
+    const toggle = tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'profile.proactiveAstra.title' })
+    expect(toggle.props.accessibilityState.checked).toBe(true)
+    TestRenderer.act(() => toggle.props.onPress())
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setProactiveAstra', endpoint: API.profile.proactiveAstra, method: 'PUT', payload: { enabled: false },
+    }))
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', async () => {

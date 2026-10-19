@@ -10,7 +10,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
-import { useUIStore } from '@/stores/ui-store'
+import { useQueryClient } from '@tanstack/react-query'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
@@ -33,7 +34,7 @@ export function NotificationDetailModal({
   const wide = useIsWideDesktop()
   const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const queryClient = useQueryClient()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
   const { sheetRef, closeSheet } = useSheetHost()
 
@@ -43,7 +44,7 @@ export function NotificationDetailModal({
     closeSheet(() => {
       onOpenChange(false)
       router.push(destination.url)
-      if (destination.opensAstra) setAstraConversationOpen(true)
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
     })
   }
 

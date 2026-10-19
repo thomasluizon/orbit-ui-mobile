@@ -31,6 +31,8 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
     forgetStoredDraft()
     set({
       messages: [],
+      proactiveEntryId: null,
+      proactiveOutcomes: {},
       isTyping: false,
       streamingMessageId: null,
       draft: '',

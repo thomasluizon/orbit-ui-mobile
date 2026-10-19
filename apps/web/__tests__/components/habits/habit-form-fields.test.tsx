@@ -1010,6 +1010,7 @@ describe('habit tag suggestions', () => {
     formLocale.language = 'pt-BR'
     renderTagForm('Run', '   ')
     const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
@@ -1021,6 +1022,7 @@ describe('habit tag suggestions', () => {
     await act(async () => resolve({ tags: [] }))
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
     expect(action).toBeEnabled()
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toBeNull()
   })
 
   it('shows request failure inline and permits a successful retry', async () => {

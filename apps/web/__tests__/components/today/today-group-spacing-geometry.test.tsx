@@ -7,7 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
@@ -21,15 +21,14 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams({ date: state.date }),
 }))
-const state = vi.hoisted(() => ({ lineVisible: true, profileReady: true, surface: 'list', date: '2026-09-04' }))
+const state = vi.hoisted(() => ({ lineVisible: true, summaryAvailable: true, profileReady: true, surface: 'list', date: '2026-09-04' }))
 vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => '2026-09-04' }))
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-profile')>(),
-  useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null }) : undefined }),
+  useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null, hasProAccess: !state.summaryAvailable, aiSummaryEnabled: false }) : undefined }),
 }))
-vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: state.lineVisible ? [createMockNotification({ url: '/chat', body: 'Você pode beber um copo de água agora mesmo.', createdAtUtc: '2026-09-04T12:00:00Z' })] : [] }),
-  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+vi.mock('@/hooks/use-proactive-item', () => ({
+  useProactiveItem: () => ({ item: state.lineVisible ? createMockProactiveItem({ text: 'Você pode beber um copo de água agora mesmo.', localDate: '2026-09-04' }) : null, openItem: vi.fn() }),
 }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
@@ -91,24 +90,26 @@ describe('Hoje group spacing', () => {
     }
     try {
       state.profileReady = true
+      state.summaryAvailable = true
       state.lineVisible = true
       state.surface = 'list'
       state.date = '2026-09-04'
       await load()
-      const spacing = await page.evaluate((summaryTitle) => {
+      const measureGroups = () => page.evaluate(() => {
         const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
         const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
-        const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)!.getBoundingClientRect()
-        return { viewsToLine: line.top - views.bottom, lineToDate: date.top - line.bottom, dateToSummary: summary.top - date.bottom, summaryToList: list.top - summary.bottom,
+        return { viewsToLine: line.top - views.bottom, lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
+          slots: document.querySelectorAll('[data-today-astra-slot]').length,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
-      }, messages.summary.title)
+      })
+      const spacing = await measureGroups()
       expect.soft(spacing.viewsToLine).toBeCloseTo(24, 1)
       expect.soft(spacing.lineToDate).toBeCloseTo(24 * textScale, 1)
-      expect(spacing.dateToSummary).toBeCloseTo(24, 1)
-      expect(spacing.summaryToList).toBeCloseTo(24, 1)
+      expect(spacing.dateToList).toBeCloseTo(24, 1)
+      expect(spacing.slots).toBe(1)
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
       const line = page.locator('.today-astra-line')
       await line.focus()
@@ -143,18 +144,20 @@ describe('Hoje group spacing', () => {
       expect(perimeter.blockStart).toBeGreaterThanOrEqual(4)
       expect(perimeter.blockEnd).toBeGreaterThanOrEqual(4)
       state.lineVisible = false
+      await load()
+      expect(await measureGroups()).toMatchObject({ viewsToLine: 24, lineToDate: 24 * textScale, dateToList: 24, slots: 1 })
+      state.summaryAvailable = false
       for (const surface of ['list', 'empty', 'loading']) {
         state.surface = surface
         await load()
-        const spacing = await page.evaluate((summaryTitle) => {
+        const spacing = await page.evaluate(() => {
           const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
-          const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)?.getBoundingClientRect()
-          return { viewsToDate: date.top - views.bottom, dateToNext: (summary ?? list).top - date.bottom,
-            summaryToList: summary ? list.top - summary.bottom : null, hasLine: Boolean(document.querySelector('.today-astra-line')) }
-        }, messages.summary.title)
-        expect(spacing).toMatchObject({ viewsToDate: 24, dateToNext: 24, summaryToList: surface === 'loading' ? null : 24, hasLine: false })
+          return { viewsToDate: date.top - views.bottom, dateToList: list.top - date.bottom,
+            hasLine: Boolean(document.querySelector('.today-astra-line')) }
+        })
+        expect(spacing).toMatchObject({ viewsToDate: 24, dateToList: 24, hasLine: false })
       }
       state.date = '2026-09-03'
       await load()

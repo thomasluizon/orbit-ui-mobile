@@ -30,7 +30,8 @@ import {
 } from '@/lib/push-notification-permissions'
 import { useAuthStore } from '@/stores/auth-store'
 import { hasPushSubscriptionCapacity } from '@/hooks/use-push-subscriptions'
-import { useUIStore } from '@/stores/ui-store'
+import { openCurrentProactiveItem } from '@/lib/proactive-item'
+import { proactiveKeys } from '@orbit/shared/query'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 
@@ -352,7 +353,6 @@ function getPushDisabledStorageKey(userId: string | null): string {
 
 function usePushNotificationsController(): UsePushNotificationsReturn {
   const router = useRouter()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -691,6 +691,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     })
 
     const routeNotificationResponse = (response: ExpoNotificationResponse) => {
+      if (!useAuthStore.getState().isAuthenticated) return
       const maybeUrl = response.notification.request.content?.data?.url
       if (typeof maybeUrl !== 'string') return
       const destination = getNotificationDestination(maybeUrl)
@@ -701,7 +702,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       handledNotificationResponseIdentifiers.current.add(responseIdentifier)
       activeNotificationsModule.clearLastNotificationResponse()
       router.push(destination.url)
-      if (destination.opensAstra) setAstraConversationOpen(true)
+      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
     }
 
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
@@ -711,6 +712,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     if (initialResponse) routeNotificationResponse(initialResponse)
     const receivedSubscription = activeNotificationsModule.addNotificationReceivedListener(() => {
       void invalidateNotificationList(queryClient)
+      void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
     })
 
     return () => {
@@ -718,7 +720,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       responseSubscription.remove()
       receivedSubscription.remove()
     }
-  }, [isSupported, router, setAstraConversationOpen, syncGrantedPermission])
+  }, [isAuthenticated, isSupported, router, syncGrantedPermission])
 
   return {
     expoPushToken,

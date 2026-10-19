@@ -6,6 +6,9 @@ export interface StepUpSessionState {
   clearStepUpState: () => void
   readApiKeyExpiryDraft: () => string
   retainApiKeyExpiryDraft: (expiresAt: string) => void
+  rememberApiKeyCreationPermission: (isReadOnly: boolean) => void
+  readPendingApiKeyPermission: () => boolean
+  clearPendingApiKeyPermission: () => void
   markStepUpVerified: (operation: StepUpOperation) => void
   isStepUpVerified: (operation: StepUpOperation) => boolean
   hasApiKeyCreationGrant: () => boolean
@@ -17,12 +20,14 @@ export function createStepUpSessionState(): StepUpSessionState {
   const visibleManagementOperations = new Set<StepUpOperation>()
   let apiKeyCreationGrantAvailable = false
   let apiKeyExpiryDraft = API_KEY_EXPIRY_DEFAULT
+  let pendingApiKeyReadOnly: boolean | null = null
   let accountId: string | null = null
 
   function clearStepUpState(): void {
     visibleManagementOperations.clear()
     apiKeyCreationGrantAvailable = false
     apiKeyExpiryDraft = API_KEY_EXPIRY_DEFAULT
+    pendingApiKeyReadOnly = null
     accountId = null
   }
 
@@ -41,6 +46,11 @@ export function createStepUpSessionState(): StepUpSessionState {
     retainApiKeyExpiryDraft: (expiresAt) => {
       if (accountId !== null) apiKeyExpiryDraft = expiresAt
     },
+    rememberApiKeyCreationPermission: (isReadOnly) => {
+      pendingApiKeyReadOnly = isReadOnly
+    },
+    readPendingApiKeyPermission: () => apiKeyCreationGrantAvailable && pendingApiKeyReadOnly === true,
+    clearPendingApiKeyPermission: () => { pendingApiKeyReadOnly = null },
     markStepUpVerified: (operation) => {
       visibleManagementOperations.add(operation)
       if (operation === 'keys') apiKeyCreationGrantAvailable = true

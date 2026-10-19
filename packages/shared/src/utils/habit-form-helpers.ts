@@ -78,7 +78,14 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
   }
 }
 
-export function getHabitFormFlags(values: HabitFormData) {
+export function getHabitFormFlags(values: HabitFormData): {
+  isOneTime: boolean
+  isGeneral: boolean
+  isFlexible: boolean
+  isRecurring: boolean
+  showDayPicker: boolean
+  showEndDate: boolean
+} {
   const isGeneral = values.isGeneral
   const isFlexible = values.isFlexible
   const frequencyUnit = values.frequencyUnit

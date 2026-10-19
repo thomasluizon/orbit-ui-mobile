@@ -15,5 +15,5 @@
   "apps/mobile/modules/orbit-widget/src/OrbitWidget.types.ts": "7f08018f89e009da43c8a299b3d4a8185bb5a456fafbd897a40ee4fc5926bba3",
   "apps/mobile/plugins/with-android-release-build-fixes.js": "756baf0813356d915b153bf4cd85b61f48be4d5430800e2f0d56c675053bea2e",
   "apps/mobile/plugins/with-react-native-imperative-focus.js": "1bd049c35b36c671584779aa1d46dc639b3c6b4dd0499a917412e37ff7d6ca89",
-  "apps/mobile/plugins/with-design-bundle-launch.js": "fdbea9f9f732b6f1913855374046a7ec94936e5bdc07919b08bac723c9ddbe9b"
+  "apps/mobile/plugins/with-design-bundle-launch.js": "3fa8c0618567b38f47e3d8dbcfe72c906c79002f1ab82cca0827eb30ef8b3180"
 }

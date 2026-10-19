@@ -8,7 +8,8 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '@orbit/shared'
-import { serverAuthMutate } from '@/lib/server-fetch'
+import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
+import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export type PendingOperationActionResult<T> = ServerActionResult<T>
@@ -125,4 +126,20 @@ export async function resolveClarification(
       body: JSON.stringify({ value }),
     }, intendedAccountId),
   )
+}
+
+export async function getCurrentProactiveItem() {
+  return serverAuthFetch(API.proactive.current, undefined, proactiveItemSchema.nullable())
+}
+
+export async function getProactiveItemStatus(id: string) {
+  return serverAuthFetch(API.proactive.status(proactiveItemSchema.shape.id.parse(id)), undefined, proactiveItemStatusSchema)
+}
+
+export async function reportProactiveOpened(id: string, intendedAccountId: string | null) {
+  return serverAuthMutate(API.proactive.opened(proactiveItemSchema.shape.id.parse(id)), { method: 'POST', skipAuthRecovery: true }, intendedAccountId)
+}
+
+export async function reportProactiveActed(id: string, intendedAccountId: string | null) {
+  return serverAuthMutate(API.proactive.acted(proactiveItemSchema.shape.id.parse(id)), { method: 'POST', skipAuthRecovery: true }, intendedAccountId)
 }

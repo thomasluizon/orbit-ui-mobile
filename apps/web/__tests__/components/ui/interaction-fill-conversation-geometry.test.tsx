@@ -61,6 +61,7 @@ function bundleConversation() {
     '@/components/goals/goal-detail-drawer': 'export const GoalDetailDrawer = () => null;',
     '@/components/chat/message-bubble': 'export const MessageBubble = () => null;',
     '@/components/chat/prompt-library': 'export const PromptLibrary = () => null;',
+    './proactive-action': 'export const ProactiveAction = () => null;',
   }
   const options = { stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } }
   return execFileSync(process.execPath, ['--input-type=module', '-e', `

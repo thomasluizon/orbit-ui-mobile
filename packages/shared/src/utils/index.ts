@@ -483,8 +483,6 @@ export {
   RETIRED_NOTIFICATION_URL_PREFIXES,
   isViewableNotificationUrl,
   resolveNotificationUrl,
-  selectNewestUnreadProactiveCheckin,
-  shouldShowTodayAstraLine,
   shouldShowTodayAstraSurface,
 } from './notification-actions'
 export {
@@ -803,6 +801,7 @@ export { formatWeekdaySchedule } from './weekday-schedule'
 
 export { resolveHabitAccessibleStatus } from './habit-row-status'
 
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
 export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
 
 export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
@@ -814,3 +813,5 @@ export { formatHabitDateBucketLabel } from './habit-list-progress'
 export { loadHabitListSchedule, mergeHabitListSchedule } from './habit-list-schedule'
 
 export { getSetupChecklist } from './setup-checklist'
+
+export { getSummaryFirstSentence } from './summary-sentence'
