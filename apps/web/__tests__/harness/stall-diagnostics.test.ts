@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, expect, it } from 'vitest'
@@ -19,7 +19,7 @@ async function runFixture(source: string, environment?: string, reporterOverride
   }`)
   await writeFile(path.join(directory, 'vitest.config.mts'), `
     import webConfig from ${JSON.stringify(path.join(webRoot, 'vitest.config.ts'))}
-    import { createStallDiagnostics } from ${JSON.stringify(path.join(webRoot, '__tests__/support/stall-diagnostics.ts'))}
+    import { createStallDiagnostics } from ${JSON.stringify(path.join(webRoot, 'vitest/stall-diagnostics.ts'))}
     const diagnostics = createStallDiagnostics(${phaseTimeoutMs})
     export default {
       ...webConfig,
@@ -47,6 +47,36 @@ async function runFixture(source: string, environment?: string, reporterOverride
 afterEach(async () => {
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
 })
+
+it('loads the web config through tsx for tooling without starting a worker', async () => {
+  const result = await execute(process.execPath, [
+    '--import', 'tsx', '--input-type=module', '-e',
+    `import config from './apps/web/vitest.config.ts';
+      if ((config.default ?? config).test.pool.name !== 'bounded-forks') process.exitCode = 1`,
+  ], { cwd: repositoryRoot, timeout: 10_000 }).catch((failure: { stdout: string; stderr: string }) => {
+    throw new Error(failure.stdout + failure.stderr)
+  })
+  expect(result.stderr).toBe('')
+}, 15_000)
+
+it('type-checks the config and its harness without the Docker-excluded tests', async () => {
+  const directory = await mkdtemp(path.join(webRoot, '.tmp-vitest-stall-'))
+  directories.push(directory)
+  for (const entry of await readdir(webRoot)) {
+    if (entry === 'vitest.config.ts' || entry === 'vitest') {
+      await cp(path.join(webRoot, entry), path.join(directory, entry), { recursive: true })
+    }
+  }
+  const result = await execute(process.execPath, [
+    path.join(repositoryRoot, 'node_modules/typescript/bin/tsc'),
+    '--ignoreConfig', '--noEmit', '--skipLibCheck', '--module', 'esnext',
+    '--moduleResolution', 'bundler', '--target', 'es2022', '--esModuleInterop',
+    path.join(directory, 'vitest.config.ts'),
+  ], { cwd: directory, timeout: 20_000 }).catch((failure: { stdout: string; stderr: string }) => {
+    throw new Error(failure.stdout + failure.stderr)
+  })
+  expect(result.stdout).toBe('')
+}, 25_000)
 
 it('bounds a module import stall and names its unfinished phase', async () => {
   const result = await runFixture(`import { it } from 'vitest'

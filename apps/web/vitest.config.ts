@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
-import { createStallDiagnostics } from './__tests__/support/stall-diagnostics'
+import { createStallDiagnostics } from './vitest/stall-diagnostics'
 
 function findChromiumTests(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
