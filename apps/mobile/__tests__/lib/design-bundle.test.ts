@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRequire } from 'node:module'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { captureError } from '@/lib/sentry'
 import { launchAccountDesign, rememberAccountDesign } from '@/lib/design-bundle'
+
+const require = createRequire(import.meta.url)
+const createConfig = require('../../app.config.js') as () => typeof import('../../app.json')['expo']
 
 const updates = vi.hoisted(() => ({
   enabled: true,
@@ -38,7 +42,28 @@ beforeEach(async () => {
   await rememberAccountDesign('account-b', false)
 })
 
+afterEach(() => { vi.unstubAllEnvs() })
+
 describe('account design at launch', () => {
+  it.each([
+    { design: 'redesign', accountId: null, redesign: false },
+    { design: 'redesign', accountId: 'account-a', redesign: false },
+    { design: 'legacy', accountId: null, redesign: false },
+    { design: 'legacy', accountId: 'account-a', redesign: true },
+  ])('keeps the staging $design bundle for account $accountId', async ({ design, accountId, redesign }) => {
+    vi.stubEnv('ORBIT_APP_VARIANT', 'staging')
+    updates.enabled = createConfig().updates.enabled
+    updates.design = design
+    if (accountId) await rememberAccountDesign(accountId, redesign)
+
+    expect(await launchAccountDesign(accountId)).toBe(false)
+    expect(updates.headers).not.toHaveBeenCalled()
+    expect(updates.fetch).not.toHaveBeenCalled()
+    expect(updates.reload).not.toHaveBeenCalled()
+    expect(captureError).not.toHaveBeenCalled()
+    expect(updates.claimed).toBe(false)
+  })
+
   it('fetches the redesign channel and reloads once when the saved flag is on', async () => {
     await rememberAccountDesign('account-a', true)
     expect(await launchAccountDesign('account-a')).toBe(true)

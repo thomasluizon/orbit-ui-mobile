@@ -22,21 +22,24 @@ runs only after the user confirms the exact inputs.
 | `validate_expo_dependencies` | no | boolean, default `false` |
 | `message` | no | free text recorded in the run log and summary |
 
-The workflow builds `internal` as `org.useorbit.app.staging` ("Orbit Staging") against
-`https://api-staging.useorbit.org` and records it in the `staging` GitHub environment.
+The workflow builds `internal` from the selected branch as `org.useorbit.app.staging` ("Orbit Staging")
+against `https://api-staging.useorbit.org` and records it in the `staging` GitHub environment.
+This variant runs only the embedded bundle: updates are disabled, the design startup plugin is
+inactive, and account flags never trigger a design fetch or reload. It can test the selected
+branch's sign-in and onboarding as well as its signed-in screens.
 It builds `open` and `production` as `org.useorbit.app` ("Orbit") against
 `https://api.useorbit.org` in the `production` environment. The `android-internal`
 GitHub environment supplies the Firebase config containing both Android app clients;
 the other tracks use the repository secret.
 Each successful Play upload records an Android GitHub Deployment with the commit, version and
 versionCode. The workflow derives each new versionCode from the last run across tracks;
-Play enforces uniqueness within each package. Every track builds the native union from `main`.
-A binary is never promoted
-between tracks because its API base is fixed when it is built.
+Play enforces uniqueness within each package. The open and production tracks build the native union
+from `main`. A binary is never promoted between tracks because its API base is fixed when it is built.
 
 ## Design bundles
 
-One binary contains the native union for both designs and embeds the legacy JavaScript from `main`.
+For open and production, one binary contains the native union for both designs and embeds the legacy
+JavaScript from `main`.
 The `publish-design-bundles` job checks out that exact release commit and `redesign/main`, installs
 both lockfiles, and runs `apps/mobile/scripts/check-design-bundles.js`. It refuses publication until
 the redesign branch contains the same native bridge, local modules, plugins, and switching adapter.
@@ -48,14 +51,15 @@ build job builds and uploads the union binary. Both updates use the release vers
 The checked-out commits appear in the workflow summary. EAS CLI is pinned in the workflow; do not
 replace it with an unversioned invocation.
 
-Production uses runtime `orbit-android-designs-1`; the internal staging variant appends `-staging`.
-Both designs share the same fixed runtime within a variant. When native code or native dependencies
-change, advance the runtime in both branches and build another binary before targeting it with updates.
+Production uses runtime `orbit-android-designs-1`; the internal staging variant appends `-staging`
+and does not request updates. Both production designs share the same fixed runtime. When native code
+or native dependencies change, advance the runtime in both branches and build another binary before
+targeting it with updates.
 Keep `expo-linear-gradient` in the union even when the redesign does not call it. Keep the widget
 bridge backward compatible with one-argument and two-argument `syncWidgetData` and both theme maps.
 
-Each cold process starts on the embedded legacy bundle. The startup plugin clears Expo's persisted
-request override before constructing the controller, restoring the declared `orbit-design-launch`
+Each production cold process starts on the embedded legacy bundle. The startup plugin clears Expo's
+persisted request override before constructing the controller, restoring the declared `orbit-design-launch`
 header's `embedded` value; fetched updates use `selected`. Expo captures startup configuration during
 construction, so its public header setter cannot perform this initial reset. The native adapter uses
 the installed `UpdatesConfigurationOverride` preference keys, and a compatibility test checks them
@@ -81,8 +85,8 @@ for internal. In the EAS project's **Environment variables** screen, keep public
 Sentry and PostHog settings equal to the corresponding GitHub release values. In particular,
 `EXPO_PUBLIC_API_BASE` must be `https://api.useorbit.org` in `production` and
 `https://api-staging.useorbit.org` in `preview`. Keep `ORBIT_APP_VARIANT` equal to `production` and
-`staging`, respectively. Verify an internal update retains the staging runtime
-and API target before using it.
+`staging`, respectively. Internal builds do not consume design updates; verify the embedded staging
+build retains the selected branch and staging API target before using it.
 
 Device verification belongs to the release coordinator. Use a disposable AVD and a release APK built
 with `npm run android:apk:emulator`, without Metro. Verify flag off, on, and off again across cold

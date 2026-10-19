@@ -33,6 +33,7 @@ module.exports = () => {
   return {
     ...productionConfig,
     runtimeVersion: `${productionConfig.runtimeVersion}-staging`,
+    updates: { ...productionConfig.updates, enabled: false },
     name: 'Orbit Staging',
     scheme: 'orbit-staging',
     android: {
