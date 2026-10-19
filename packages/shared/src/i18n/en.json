@@ -330,6 +330,7 @@
   "command": {
     "title": "What do you want to do",
     "placeholder": "Search or run",
+    "loadFailed": "Search could not open. Try again.",
     "empty": "Nothing by that name.",
     "logHabit": "Log a habit",
     "skipHabit": "Skip a habit",
@@ -764,6 +765,21 @@
       "titleRequired": "Give the habit a title",
       "titleTooLong": "Shorten the habit title to 200 characters or fewer.",
       "descriptionTooLong": "Shorten the habit description to 10,000 characters or fewer.",
+      "frequency": "Frequency",
+      "flexibleDescription": "{unit, select, Day {{n, plural, =0 {Complete # times a day} one {Complete once a day} other {Complete # times a day}}} Week {{n, plural, =0 {Complete # times a week} one {Complete once a week} other {Complete # times a week}}} Month {{n, plural, =0 {Complete # times a month} one {Complete once a month} other {Complete # times a month}}} Year {{n, plural, =0 {Complete # times a year} one {Complete once a year} other {Complete # times a year}}} other {{n, plural, =0 {Complete # times} one {Complete once} other {Complete # times}}}}",
+      "timesPerUnit": "Times per",
+      "every": "Every",
+      "unit": "Unit",
+      "understoodEveryNDays": "Every {count} days",
+      "understoodEveryNDaysAt": "Every {count} days at {time}",
+      "understoodEveryWeek": "Every week",
+      "understoodEveryWeekAt": "Every week at {time}",
+      "understoodEveryNWeeks": "Every {count} weeks",
+      "understoodEveryNWeeksAt": "Every {count} weeks at {time}",
+      "understoodDayOnce": "Once a day",
+      "understoodDayOnceAt": "Once a day at {time}",
+      "understoodDayCount": "{count} times a day",
+      "understoodDayCountAt": "{count} times a day at {time}",
       "frequencyRequired": "Set the frequency to 1 or higher",
       "unitDay": "Day",
       "unitWeek": "Week",
@@ -1229,6 +1245,172 @@
       "reviewing": "Preparing the preview",
       "proposed": "Suggested by Astra",
       "position": "{position} of {total}"
+    },
+    "templates": {
+      "title": "Ideas",
+      "browse": "Browse ideas",
+      "back": "Back to conversation",
+      "search": "Search ideas",
+      "forYou": "For you now",
+      "noMatches": "No ideas for “{query}”.",
+      "clearSearch": "Clear search",
+      "more": "More ideas",
+      "previous": "Previous ideas",
+      "draftKept": "Your draft is kept. Clear it to edit this idea.",
+      "categories": {
+        "start": "Start",
+        "remember": "Remember",
+        "many": "Many at once",
+        "restart": "Restart",
+        "understand": "Understand",
+        "calendar": "Calendar"
+      },
+      "items": {
+        "morning": {
+          "label": "Plan my morning",
+          "prompt": "Help me set up a simple morning routine."
+        },
+        "evening": {
+          "label": "Plan my evening",
+          "prompt": "Help me set up a simple evening routine."
+        },
+        "oneHabit": {
+          "label": "Start one habit",
+          "prompt": "Help me start one small habit."
+        },
+        "goalHabits": {
+          "label": "Habits for a goal",
+          "prompt": "Turn my goal of '{'goal'}' into small habits."
+        },
+        "habitReminder": {
+          "label": "Habit with a reminder",
+          "prompt": "Create a habit to '{'habit'}' with a reminder at '{'time'}'."
+        },
+        "smallSteps": {
+          "label": "Break a habit into steps",
+          "prompt": "Break my habit of '{'habit'}' into small steps."
+        },
+        "setReminder": {
+          "label": "Set a reminder",
+          "prompt": "Remind me to '{'habit'}' at '{'time'}'."
+        },
+        "changeReminder": {
+          "label": "Change a reminder",
+          "prompt": "Move the reminder for '{'habit'}' to '{'time'}'."
+        },
+        "dueToday": {
+          "label": "What's still due today?",
+          "prompt": "Which habits are still due today?"
+        },
+        "tonight": {
+          "label": "Plan tonight",
+          "prompt": "Help me plan tonight around my remaining habits."
+        },
+        "reviewReminders": {
+          "label": "Review my reminders",
+          "prompt": "Show me my habit reminders."
+        },
+        "busyReminders": {
+          "label": "Remember on busy days",
+          "prompt": "Help me choose reminders that fit my busy days."
+        },
+        "moveToday": {
+          "label": "Move today's habits",
+          "prompt": "Move today's remaining habits to tomorrow."
+        },
+        "changeTimes": {
+          "label": "Change several times",
+          "prompt": "Help me change the times of several habits together."
+        },
+        "skipToday": {
+          "label": "Skip what's left today",
+          "prompt": "Skip today's remaining habits."
+        },
+        "logMany": {
+          "label": "Log several habits",
+          "prompt": "Log '{'habits'}' as done today."
+        },
+        "tagGroup": {
+          "label": "Tag a group",
+          "prompt": "Add the tag '{'tag'}' to '{'habits'}'."
+        },
+        "pauseMany": {
+          "label": "Pause several habits",
+          "prompt": "Help me pause several habits for this week."
+        },
+        "afterDay": {
+          "label": "Return after a day away",
+          "prompt": "Help me restart after missing a day."
+        },
+        "afterWeek": {
+          "label": "Return after a hard week",
+          "prompt": "Help me restart after a difficult week."
+        },
+        "smallerHabit": {
+          "label": "Make a habit smaller",
+          "prompt": "Help me make my habit of '{'habit'}' smaller."
+        },
+        "keepOne": {
+          "label": "Keep just one habit",
+          "prompt": "Help me choose one habit to return to today."
+        },
+        "lighterWeek": {
+          "label": "Lighten this week",
+          "prompt": "Help me make this week's routine lighter."
+        },
+        "easierTime": {
+          "label": "Find an easier time",
+          "prompt": "Help me find an easier time for '{'habit'}'."
+        },
+        "reviewWeek": {
+          "label": "Review my week",
+          "prompt": "Help me review how my habits went this week."
+        },
+        "missedHabit": {
+          "label": "See what gets missed",
+          "prompt": "Which habit have I been missing most often?"
+        },
+        "streak": {
+          "label": "Understand my streak",
+          "prompt": "Explain how my streak works."
+        },
+        "freezes": {
+          "label": "Understand freezes",
+          "prompt": "Explain how streak freezes work."
+        },
+        "whatWorks": {
+          "label": "See what works for me",
+          "prompt": "Which habits have been easier for me to keep?"
+        },
+        "reviewGoals": {
+          "label": "Review my goals",
+          "prompt": "Help me review progress toward my goals."
+        },
+        "aroundEvents": {
+          "label": "Plan around events",
+          "prompt": "Help me fit today's habits around my calendar events."
+        },
+        "importWeek": {
+          "label": "Import this week",
+          "prompt": "Import this week's Google Calendar events."
+        },
+        "todayEvents": {
+          "label": "Review today's events",
+          "prompt": "Show me today's calendar events."
+        },
+        "findTime": {
+          "label": "Find time for a habit",
+          "prompt": "Find a time for '{'habit'}' around today's events."
+        },
+        "tomorrow": {
+          "label": "Plan tomorrow",
+          "prompt": "Help me plan tomorrow's habits around my calendar events."
+        },
+        "busyDay": {
+          "label": "Ease a busy day",
+          "prompt": "Help me lighten my habits on days with many calendar events."
+        }
+      }
     },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
@@ -3422,6 +3604,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
+    "copyError": "Couldn't copy the URL. Try again or select the text and copy it by hand.",
     "copied": "Copied",
     "done": "Done",
     "connectionInstructions": "Connection Instructions",

@@ -1000,6 +1000,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     toggleRecording,
     recordingTime,
     hasProAccess,
+    hasGoogleConnection: profile?.hasGoogleConnection ?? false,
     aiMessagesUsed,
     aiMessagesLimit,
     atMessageLimit,

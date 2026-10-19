@@ -3,6 +3,7 @@ export interface RadioRowBase {
   selection?: boolean
   hideMeta?: boolean
   label: string
+  proposed?: boolean
   wrapLabel?: boolean
   textMode?: 'personal'
   description?: string

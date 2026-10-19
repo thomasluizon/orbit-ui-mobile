@@ -235,8 +235,11 @@ describe('configKeys', () => {
     expect(configKeys.all).toEqual(['config'])
   })
 
-  it('detail returns detail key', () => {
-    expect(configKeys.detail()).toEqual(['config', 'detail'])
+  it('detail scopes config to the account and session generation', () => {
+    expect(configKeys.detail()).toEqual(['config', 'detail', null, 0])
+    expect(configKeys.detail('account-a', 2)).toEqual(['config', 'detail', 'account-a', 2])
+    expect(configKeys.detail('account-a', 2)).not.toEqual(configKeys.detail('account-b', 2))
+    expect(configKeys.detail('account-a', 2)).not.toEqual(configKeys.detail('account-a', 3))
   })
 })
 
