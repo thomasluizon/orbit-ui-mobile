@@ -1,3 +1,5 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
+import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import React from 'react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -57,7 +59,7 @@ vi.mock('react-hook-form', async (importOriginal) => ({
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: formLocale.language } }) }))
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,

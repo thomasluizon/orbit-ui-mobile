@@ -25,7 +25,7 @@ const renderers: MountedRenderer[] = []
 function mount() {
   const result = { current: undefined as unknown as ProbeResult }
   function Probe() {
-    result.current = { ...useConfig(), enabled: useFlag('analytics'), unknown: useFlag('unknown'), defaultFlag: useFlag('habits.create') }
+    result.current = { ...useConfig(), enabled: useFlag('redesign'), unknown: useFlag('ai_summary'), defaultFlag: useFlag('offline_mode') }
     return null
   }
   let renderer!: MountedRenderer
@@ -35,7 +35,7 @@ function mount() {
 }
 const waitFor = vi.waitFor
 function respond(enabled: boolean) {
-  mocks.fetch.mockResolvedValue(createMockConfigResponse({ analytics: { enabled, planRequirement: null } }))
+  mocks.fetch.mockResolvedValue(createMockConfigResponse({ redesign: { enabled, planRequirement: null } }))
 }
 
 beforeEach(async () => {
@@ -119,14 +119,14 @@ describe('mobile config and flags', () => {
     void act(() => { void result.current.refetch() })
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
 
-    await act(() => { finishNewer(createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })) })
+    await act(() => { finishNewer(createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } })) })
     await waitFor(() => { expect(result.current.enabled).toBe(false); expect(result.current.isFetching).toBe(false) })
     const expectedStorage = JSON.stringify({ accountId: 'account-a', config: result.current.resolvedConfig })
     await waitFor(async () => expect(await SecureStore.getItemAsync('account_config')).toBe(expectedStorage))
-    await act(() => { finishOlder(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } })) })
+    await act(() => { finishOlder(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })) })
 
     expect(result.current.enabled).toBe(false)
-    expect(result.current.resolvedConfig?.features.analytics?.enabled).toBe(false)
+    expect(result.current.resolvedConfig?.features.redesign?.enabled).toBe(false)
     await expect(SecureStore.getItemAsync('account_config')).resolves.toBe(expectedStorage)
   })
 
@@ -185,7 +185,7 @@ describe('mobile config and flags', () => {
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalled())
     mocks.fetch.mockRejectedValue(new Error('offline'))
     void act(() => { setAccountId('account-b') })
-    await act(() => { finish(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } })) })
+    await act(() => { finish(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })) })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.enabled).toBe(false)
   })
@@ -202,7 +202,7 @@ describe('mobile config and flags', () => {
   })
 
   it('restores the same account from SecureStore while launch refresh is pending', async () => {
-    const config = appConfigSchema.parse(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+    const config = appConfigSchema.parse(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
     await SecureStore.setItemAsync('account_config', JSON.stringify({ accountId: 'account-a', config }))
     mocks.fetch.mockReturnValue(new Promise(() => {}))
     const { result } = mount()
@@ -211,7 +211,7 @@ describe('mobile config and flags', () => {
   })
 
   it.each([0, 1])('restores persisted flags on a disconnected cold start and refreshes on reconnect with %s retries', async (retry) => {
-    const config = appConfigSchema.parse(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+    const config = appConfigSchema.parse(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
     await SecureStore.setItemAsync('account_config', JSON.stringify({ accountId: 'account-a', config }))
     queryClient.setDefaultOptions({ queries: { retry, retryDelay: 0 } })
     mocks.fetch.mockRejectedValue(new Error('offline'))
@@ -233,7 +233,7 @@ describe('mobile config and flags', () => {
   })
 
   it('retains a persisted last good value after a failed launch refresh', async () => {
-    const config = appConfigSchema.parse(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+    const config = appConfigSchema.parse(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
     await SecureStore.setItemAsync('account_config', JSON.stringify({ accountId: 'account-a', config }))
     mocks.fetch.mockRejectedValue(new Error('offline'))
     const { result } = mount()
@@ -242,7 +242,7 @@ describe('mobile config and flags', () => {
   })
 
   it('rejects a persisted value owned by another account', async () => {
-    const config = appConfigSchema.parse(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+    const config = appConfigSchema.parse(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
     await SecureStore.setItemAsync('account_config', JSON.stringify({ accountId: 'account-b', config }))
     mocks.fetch.mockRejectedValue(new Error('offline'))
     const { result } = mount()

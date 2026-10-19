@@ -1,7 +1,7 @@
 {
   "analytics": { "enabled": false, "planRequirement": null },
   "habits.create": { "enabled": true, "planRequirement": null },
-  "habits.subHabits": { "enabled": true, "planRequirement": "Pro" },
+  "sub_habits": { "enabled": true, "planRequirement": "Pro" },
   "habits.bulk": { "enabled": true, "planRequirement": null },
   "goals": { "enabled": true, "planRequirement": null },
   "chat": { "enabled": true, "planRequirement": null },

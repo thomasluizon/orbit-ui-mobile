@@ -3,7 +3,7 @@ import { createConfigCache } from '../query/config-cache'
 import { resolveFlag } from '../utils/config'
 import { createMockConfigResponse } from './factories'
 
-const enabledResponse = () => createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } })
+const enabledResponse = () => createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })
 function createStorage() {
   let stored: string | null = null
   return {
@@ -27,7 +27,7 @@ describe('account config cache', () => {
     const restored = createConfigCache(vi.fn(), storage)
     restored.setAccount('account-a')
     await expect(restored.fetch(restored.getSnapshot(), async () => { throw new Error('offline') })).rejects.toThrow('offline')
-    expect(resolveFlag(restored.getSnapshot().config, 'analytics')).toBe(true)
+    expect(resolveFlag(restored.getSnapshot().config, 'redesign')).toBe(true)
   })
 
   it('cannot restore the old account when a switch returns to it', async () => {
@@ -38,7 +38,7 @@ describe('account config cache', () => {
     cache.setAccount('account-b')
     cache.setAccount('account-a')
     await expect(cache.fetch(cache.getSnapshot(), async () => { throw new Error('offline') })).rejects.toThrow('offline')
-    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(false)
+    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(false)
     await expect(storage.read()).resolves.toBeNull()
   })
 
@@ -58,7 +58,7 @@ describe('account config cache', () => {
   it.each(['abort', 'supersede'])('keeps the latest config when an older response completes after %s', async (invalidation) => {
     const storage = createStorage()
     const cache = createConfigCache(vi.fn(), storage)
-    const disabled = createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })
+    const disabled = createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } })
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => disabled)
     const olderResponse = deferred<unknown>()
@@ -71,7 +71,7 @@ describe('account config cache', () => {
     olderResponse.resolve(enabledResponse())
     await olderFetch
 
-    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(false)
+    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(false)
     await expect(storage.read()).resolves.toBe(JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config }))
   })
 
@@ -82,7 +82,7 @@ describe('account config cache', () => {
       ...storage,
       write: async (value) => { await pendingSave.promise; await storage.write(value) },
     })
-    const disabled = createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } })
+    const disabled = createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } })
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => disabled)
     const lastGood = JSON.stringify({ accountId: 'account-a', config: cache.getSnapshot().config })
@@ -144,7 +144,7 @@ describe('account config cache', () => {
     const cache = createConfigCache(report, storage)
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
-    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
     expect(report).toHaveBeenCalled()
   })
 
@@ -156,7 +156,7 @@ describe('account config cache', () => {
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
     await vi.waitFor(() => expect(report).toHaveBeenCalled())
-    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
   })
 
   it('fetches valid config even when both persistent reads and deletion fail', async () => {
@@ -167,7 +167,7 @@ describe('account config cache', () => {
     const cache = createConfigCache(report, storage)
     cache.setAccount('account-a')
     await cache.fetch(cache.getSnapshot(), async () => enabledResponse())
-    expect(resolveFlag(cache.getSnapshot().config, 'analytics')).toBe(true)
+    expect(resolveFlag(cache.getSnapshot().config, 'redesign')).toBe(true)
     expect(report).toHaveBeenCalled()
   })
 

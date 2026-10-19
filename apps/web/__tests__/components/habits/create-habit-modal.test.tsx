@@ -1,3 +1,5 @@
+import { appConfigSchema } from '@orbit/shared/types/config'
+import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -107,7 +109,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse({ sub_habits: { enabled: true, planRequirement: 'Pro' } })) }),
 }))
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({
