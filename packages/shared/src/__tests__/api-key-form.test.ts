@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
+import { apiKeyFormSchema, getApiKeyNameError, API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
+
+describe('getApiKeyNameError', () => {
+  it.each(['', '   ', '\n\t'])('requires a name for %j', (name) => {
+    expect(getApiKeyNameError(name)).toBe('orbitMcp.keyNameRequired')
+  })
+
+  it('validates the trimmed name at the production length boundary', () => {
+    expect(getApiKeyNameError(`  ${'x'.repeat(50)}  `)).toBeNull()
+    expect(getApiKeyNameError('x'.repeat(51))).toBe('orbitMcp.keyNameMaxLength')
+  })
+})
 
 describe('parseApiKeyExpiryUtc', () => {
   it('interprets a minute-precision value as UTC', () => {
@@ -68,5 +79,16 @@ describe('validateApiKeyExpiry', () => {
       valid: true, expiresAtUtc: '2099-12-31T23:59:01.000Z',
     })
     expect(validateApiKeyExpiry(value, now + 1000)).toEqual({ valid: false })
+  })
+})
+
+
+describe('apiKeyFormSchema', () => {
+  it('validates the chosen name together with the optional expiry', () => {
+    expect(apiKeyFormSchema.safeParse({ name: '   ', expiresAt: '' }).success).toBe(false)
+    expect(apiKeyFormSchema.safeParse({ name: 'x'.repeat(51), expiresAt: '' }).success).toBe(false)
+    expect(apiKeyFormSchema.safeParse({ name: 'Personal key', expiresAt: 'tomorrow' }).success).toBe(false)
+    expect(apiKeyFormSchema.parse({ name: '  Personal key  ', expiresAt: '' })).toEqual({ name: 'Personal key', expiresAt: null })
+    expect(apiKeyFormSchema.parse({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59' })).toEqual({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59:00.000Z' })
   })
 })

@@ -1,3 +1,26 @@
+import { z } from 'zod'
+import { MAX_API_KEY_NAME_LENGTH } from './constants'
+
+const apiKeyNameSchema = z.string().trim().min(1, 'orbitMcp.keyNameRequired').max(MAX_API_KEY_NAME_LENGTH, 'orbitMcp.keyNameMaxLength')
+
+export function getApiKeyNameError(name: string): 'orbitMcp.keyNameRequired' | 'orbitMcp.keyNameMaxLength' | null {
+  const result = apiKeyNameSchema.safeParse(name)
+  if (result.success) return null
+  return name.trim() ? 'orbitMcp.keyNameMaxLength' : 'orbitMcp.keyNameRequired'
+}
+
+export const apiKeyFormSchema = z.object({
+  name: apiKeyNameSchema,
+  expiresAt: z.string().transform((value, context) => {
+    const expiry = validateApiKeyExpiry(value)
+    if (!expiry.valid) {
+      context.addIssue({ code: 'custom', message: 'orbitMcp.invalidExpiry' })
+      return z.NEVER
+    }
+    return expiry.expiresAtUtc
+  }),
+})
+
 const API_KEY_EXPIRY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
 
 export const API_KEY_EXPIRY_DEFAULT = ''

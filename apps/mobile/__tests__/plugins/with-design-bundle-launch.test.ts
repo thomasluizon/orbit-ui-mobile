@@ -12,9 +12,13 @@ const template = execFileSync('/usr/bin/tar', [
   'package/android/app/src/main/java/com/helloworld/MainApplication.kt',
 ], { encoding: 'utf8' })
 
-async function apply(contents: string): Promise<string> {
-  const config = withDesignBundleLaunch({ name: 'Orbit', slug: 'orbit' })
+async function apply(contents: string, enabled = true): Promise<string> {
+  const config = withDesignBundleLaunch({ name: 'Orbit', slug: 'orbit', updates: { enabled } })
   const mod = config.mods?.android?.mainApplication
+  if (!enabled) {
+    expect(mod).toBeUndefined()
+    return contents
+  }
   if (!mod) throw new Error('Missing application mod')
   const request: ExportedConfigWithProps<AndroidConfig.Paths.ApplicationProjectFile> = {
     ...config,
@@ -43,6 +47,10 @@ describe('embedded design startup', () => {
     expect(contents.indexOf('prepareEmbeddedLaunch(this)')).toBeLessThan(contents.indexOf('loadReactNative(this)'))
     expect(contents).toContain('if (!BuildConfig.DEBUG)')
     expect(await apply(contents)).toBe(contents)
+  })
+
+  it('leaves startup to Expo when updates are disabled', async () => {
+    expect(await apply(template, false)).toBe(template)
   })
 
   it('rejects a template with no supported startup anchor', async () => {

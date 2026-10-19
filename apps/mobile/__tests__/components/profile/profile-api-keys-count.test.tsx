@@ -7,14 +7,14 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { i18n } from '@/lib/i18n'
 import { ListRow } from '@/components/ui/list-row'
-import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { Input } from '@/components/ui/input'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 import StepUpScreen from '@/app/step-up'
 import { OtpInput } from '@/components/ui/otp-input'
 import { API } from '@orbit/shared/api'
-import { bindStepUpStateToAccount, clearApiKeyCreationGrant, clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/lib/step-up-storage'
+import { bindStepUpStateToAccount, clearApiKeyCreationGrant, clearStepUpState, hasApiKeyCreationGrant, retainApiKeyExpiryDraft, markStepUpVerified } from '@/lib/step-up-storage'
 
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), apiClient: vi.fn(), accountId: 'user-1', create: vi.fn(), canCreate: true, grantAvailable: true, error: null as string | null, localize: false, apiKeys: [] as ApiKey[], loading: false, loadError: null as Error | null, retry: vi.fn() }))
@@ -94,21 +94,21 @@ it.each([
   mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
-  const expiryField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')!
-  TestRenderer.act(() => expiryField.props.onChange(expiry))
   const scoped = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.createScoped')!
   TestRenderer.act(() => scoped.props.onClick())
+  const expiryField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.expiresAtLabel')!
+  TestRenderer.act(() => expiryField.props.onChange(expiry))
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.keyName')!.props.onChange('Personal key'))
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.apiKeys.scopeAction'])
   expectSmallSheetActions(tree.root)
   const createAction = () => tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
   expect(createAction().props.disabled).toBe(true)
-  const scopeField = tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'profile.apiKeys.scopeLabel')!
-  TestRenderer.act(() => scopeField.props.onChange('habits:read'))
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((input: { props: { label: string } }) => input.props.label === 'profile.apiKeys.scopeLabel')!.props.onChange('habits:read'))
   expect(createAction().props.disabled).toBe(false)
   expect(expiryField.props.value).toBe(expiry)
   await TestRenderer.act(async () => { createAction().props.onClick(); await Promise.resolve() })
   expect(mocks.create).toHaveBeenCalledExactlyOnceWith({
-    name: 'profile.apiKeys.newKeyName', scopes: ['habits:read'], isReadOnly: false, expiresAtUtc,
+    name: 'Personal key', scopes: ['habits:read'], isReadOnly: false, expiresAtUtc,
   }, expect.any(Function))
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
   TestRenderer.act(() => tree.unmount())
@@ -119,7 +119,10 @@ it('uses a small intrinsic acknowledgement for the revealed key', async () => {
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
   const create = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.create')!
-  await TestRenderer.act(async () => { await create.props.onClick() })
+  TestRenderer.act(() => create.props.onClick())
+  TestRenderer.act(() => tree.root.findAllByType(Input).find((field: { props: { label: string } }) => field.props.label === 'orbitMcp.keyName')!.props.onChange('Personal key'))
+  const submit = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.scopeAction')!
+  await TestRenderer.act(async () => { await submit.props.onClick() })
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
   expectSmallSheetActions(tree.root)
 })
@@ -152,6 +155,64 @@ it('keeps key metadata legible on the pressed card surface', () => {
   TestRenderer.act(() => tree.unmount())
 })
 
+it.each([false, true])('asks for a name before creating a key with scoped=%s', async (scoped) => {
+  mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const button = (label: string) => tree.root.findAllByType(PillButton).find((node: { props: { children: string } }) => node.props.children === label)!
+  TestRenderer.act(() => button(scoped ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick())
+  expect(mocks.create).not.toHaveBeenCalled()
+  const name = () => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'orbitMcp.keyName')!
+  expect(name().props.placeholder).toBe('orbitMcp.keyNamePlaceholder')
+  expect(name().props.required).toBe(true)
+  if (scoped) TestRenderer.act(() => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'profile.apiKeys.scopeLabel')!.props.onChange(' habits:read '))
+  TestRenderer.act(() => name().props.onChange('   '))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(name().props.error).toBe('orbitMcp.keyNameRequired')
+  expect(name().props.focusRequest).toBeGreaterThan(0)
+  expect(mocks.create).not.toHaveBeenCalled()
+  TestRenderer.act(() => name().props.onChange('x'.repeat(51)))
+  await TestRenderer.act(async () => { await name().props.onSubmit() })
+  expect(name().props.error).toBe('orbitMcp.keyNameMaxLength')
+  expect(mocks.create).not.toHaveBeenCalled()
+  TestRenderer.act(() => name().props.onChange(`  ${'x'.repeat(50)}  `))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(mocks.create).toHaveBeenCalledWith({ name: 'x'.repeat(50), ...(scoped ? { scopes: ['habits:read'] } : {}), isReadOnly: false, expiresAtUtc: null }, expect.any(Function))
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
+  TestRenderer.act(() => tree.unmount())
+})
+
+it('keeps the name after a failed request and disables repeat submissions while pending', async () => {
+  let finish!: () => void
+  mocks.create.mockImplementationOnce(() => new Promise((resolve) => {
+    finish = () => { mocks.error = 'orbitMcp.createKeyError'; resolve(null) }
+  }))
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const button = (label: string) => tree.root.findAllByType(PillButton).find((node: { props: { children: string } }) => node.props.children === label)!
+  const name = () => tree.root.findAllByType(Input).find((node: { props: { label: string } }) => node.props.label === 'orbitMcp.keyName')!
+  TestRenderer.act(() => button('profile.apiKeys.create').props.onClick())
+  TestRenderer.act(() => name().props.onChange('Home automation'))
+  await TestRenderer.act(async () => { await button('profile.apiKeys.scopeAction').props.onClick() })
+  expect(button('profile.apiKeys.scopeAction').props.loading).toBe(true)
+  expect(name().props.disabled).toBe(true)
+  expect(button('common.cancel').props.disabled).toBe(true)
+  await TestRenderer.act(async () => { await name().props.onSubmit() })
+  expect(mocks.create).toHaveBeenCalledTimes(1)
+  await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+  expect(tree.root.findAllByType(Text).some((node: { props: { children: string } }) => node.props.children === 'orbitMcp.createKeyError')).toBe(true)
+  expect(name().props.value).toBe('Home automation')
+  expect(button('profile.apiKeys.scopeAction').props.loading).toBe(false)
+  mocks.error = null
+  TestRenderer.act(() => button('common.cancel').props.onClick())
+  TestRenderer.act(() => button('common.keepEditing').props.onClick())
+  expect(name().props.value).toBe('Home automation')
+  TestRenderer.act(() => button('common.cancel').props.onClick())
+  TestRenderer.act(() => button('common.discardChangesAction').props.onClick())
+  TestRenderer.act(() => button('profile.apiKeys.create').props.onClick())
+  expect(name().props.value).toBe('')
+  TestRenderer.act(() => tree.unmount())
+})
 beforeEach(() => {
   clearStepUpState()
   mocks.accountId = 'user-1'
@@ -169,6 +230,11 @@ beforeEach(() => {
   mocks.loadError = null
   mocks.retry.mockReset()
 })
+
+async function submitNamedKey(tree: ReturnType<typeof TestRenderer.create>) {
+  TestRenderer.act(() => tree.root.findByProps({ label: 'orbitMcp.keyName' }).props.onChange('Personal key'))
+  await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
+}
 
 function renderUnlockedKeys() {
   let tree!: ReturnType<typeof TestRenderer.create>
@@ -193,12 +259,16 @@ it.each([true, false])('submits read-only permission %s for simple and scoped ke
   if (!readOnly) TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   expect(permissionSwitch(tree).props.accessibilityState.checked).toBe(readOnly)
   await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.create').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
+  await submitNamedKey(tree)
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
+  TestRenderer.act(() => buttonByLabel(tree, 'common.cancel').props.onClick())
+  TestRenderer.act(() => buttonByLabel(tree, 'common.discardChangesAction').props.onClick())
+  expect(permissionSwitch(tree).props.accessibilityState.checked).toBe(readOnly)
   TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.createScoped').props.onClick())
   expect(buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.disabled).toBe(true)
   TestRenderer.act(() => tree.root.findByProps({ label: 'profile.apiKeys.scopeLabel' }).props.onChange('  habits:read  '))
-  await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', scopes: ['habits:read'], isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
+  await submitNamedKey(tree)
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'Personal key', scopes: ['habits:read'], isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
   TestRenderer.act(() => tree.unmount())
 })
 
@@ -208,9 +278,11 @@ it('freezes permission and both create entries while a read-only request is pend
   const tree = renderUnlockedKeys()
   TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.create').props.onClick())
+  await submitNamedKey(tree)
   expect(permissionSwitch(tree).props.accessibilityState.disabled).toBe(true)
   expect(buttonByLabel(tree, 'profile.apiKeys.createScoped').props.disabled).toBe(true)
-  expect(buttonByLabel(tree, 'profile.apiKeys.create').props.loading).toBe(true)
+  expect(buttonByLabel(tree, 'profile.apiKeys.create').props.disabled).toBe(true)
+  expect(buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.loading).toBe(true)
   await TestRenderer.act(async () => { finish(); await Promise.resolve() })
   expect(permissionSwitch(tree).props.disabled).toBe(false)
   TestRenderer.act(() => tree.unmount())
@@ -221,6 +293,7 @@ it('preserves the read-only choice when creation fails', async () => {
   const tree = renderUnlockedKeys()
   TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.create').props.onClick() })
+  await submitNamedKey(tree)
   mocks.error = 'orbitMcp.createKeyError'
   TestRenderer.act(() => tree.update(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />))
   expect(tree.root.findAllByType(Text).some((node: { props: { accessibilityRole?: string; children?: string } }) =>
@@ -240,12 +313,13 @@ it('hides permission at key capacity', () => {
 async function submitScopedKey(tree: ReturnType<typeof TestRenderer.create>) {
   TestRenderer.act(() => buttonByLabel(tree, 'profile.apiKeys.createScoped').props.onClick())
   TestRenderer.act(() => tree.root.findByProps({ label: 'profile.apiKeys.scopeLabel' }).props.onChange('habits:read'))
-  await TestRenderer.act(async () => { await buttonByLabel(tree, 'profile.apiKeys.scopeAction').props.onClick() })
+  await submitNamedKey(tree)
 }
 
 it.each([
   ['missing', 'simple'], ['missing', 'scoped'], ['expired', 'simple'], ['expired', 'scoped'],
 ] as const)('keeps read-only intent after %s-grant authentication for %s creation', async (grant, mode) => {
+  retainApiKeyExpiryDraft('2099-12-31T23:59')
   markStepUpVerified('keys')
   if (grant === 'missing') clearApiKeyCreationGrant()
   mocks.grantAvailable = grant === 'expired'
@@ -255,10 +329,12 @@ it.each([
     return null
   })
   const tree = renderUnlockedKeys()
-  TestRenderer.act(() => tree.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.onChange('2099-12-31T23:59'))
   TestRenderer.act(() => permissionSwitch(tree).props.onPress())
   if (mode === 'scoped' && grant === 'expired') await submitScopedKey(tree)
-  else await TestRenderer.act(async () => { await buttonByLabel(tree, mode === 'scoped' ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick() })
+  else {
+    await TestRenderer.act(async () => { await buttonByLabel(tree, mode === 'scoped' ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create').props.onClick() })
+    if (grant === 'expired') await submitNamedKey(tree)
+  }
   expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=keys')
   expect(hasApiKeyCreationGrant()).toBe(false)
   TestRenderer.act(() => tree.unmount())
@@ -275,10 +351,13 @@ it.each([
   mocks.grantAvailable = true
   mocks.create.mockReset().mockResolvedValue(null)
   const returned = renderUnlockedKeys()
-  expect(returned.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
   if (mode === 'scoped') await submitScopedKey(returned)
-  else await TestRenderer.act(async () => { await buttonByLabel(returned, 'profile.apiKeys.create').props.onClick() })
-  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'profile.apiKeys.newKeyName', isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
+  else {
+    TestRenderer.act(() => buttonByLabel(returned, 'profile.apiKeys.create').props.onClick())
+    await submitNamedKey(returned)
+  }
+  expect(returned.root.findByProps({ label: 'orbitMcp.expiresAtLabel' }).props.value).toBe('2099-12-31T23:59')
+  expect(mocks.create).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
   TestRenderer.act(() => returned.unmount())
   const fresh = renderUnlockedKeys()
   expect(permissionSwitch(fresh).props.accessibilityState.checked).toBe(false)
