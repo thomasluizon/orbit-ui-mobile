@@ -160,9 +160,10 @@ own entry, opens this same layer. Closing it restores the underlying surface and
 Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
 all open these owners through the conversation store; no entry owns a separate header.
 
-**Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
-control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
-with its neutral count pill, one filled create action, and the account row.
+**Each composer pins to the bottom of its content column.** The sidebar carries the brand row with
+the lockup at the start and the Avisos bell with its neutral count pill followed by the collapse
+control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
+destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
 12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
