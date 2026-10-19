@@ -89,9 +89,9 @@ export async function syncWidgetTheme(tokens: AppTokensV2): Promise<void> {
 
 /**
  * Fetches today's widget habits through the authenticated API client and pushes
- * them into the native widget cache, so the home-screen widget renders from
- * app-fed data instead of relying on its own background network fetch. No-ops
- * when signed out or off Android.
+ * them with the fetching account's token into the native widget cache, so the
+ * home-screen widget renders from app-fed data instead of relying on its own
+ * background network fetch. No-ops when signed out or off Android.
  */
 export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()
@@ -106,6 +106,6 @@ export async function syncWidgetData(): Promise<void> {
 
   const { apiClient } = await import('./api-client')
   const data = await apiClient<unknown>(API.habits.widget)
-  await widgetModule.syncWidgetData(JSON.stringify(data))
+  await widgetModule.syncWidgetData(JSON.stringify(data), token)
   await refreshPersistentReminder(data)
 }
