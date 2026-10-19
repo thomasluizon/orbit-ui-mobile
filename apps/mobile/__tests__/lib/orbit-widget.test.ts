@@ -297,17 +297,12 @@ describe('toWidgetColors', () => {
     )
     expect(widgetServiceSource).toContain('getThemeColorModes(context)')
     expect(widgetServiceSource).toContain(
-      'setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)',
+      'setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textPrimary }',
     )
     expect(widgetServiceSource).toContain(
       'R.id.item_time, "setTextColor", colorModes',
     )
-    expect(widgetServiceSource).toContain(
-      'Build.VERSION.SDK_INT < Build.VERSION_CODES.S',
-    )
-    expect(widgetServiceSource).toContain(
-      'views.setImageViewResource(R.id.item_bg, backgroundResource)',
-    )
+    expect(widgetItemLayout).not.toContain('item_bg')
     expect(widgetLayout).toContain('android:src="@drawable/widget_bg_fallback"')
     expect(widgetItemLayout).toContain('android:textColor="@color/widget_item_title"')
     expect(lightResources).toContain('<color name="widget_bg">#FAFAFA</color>')

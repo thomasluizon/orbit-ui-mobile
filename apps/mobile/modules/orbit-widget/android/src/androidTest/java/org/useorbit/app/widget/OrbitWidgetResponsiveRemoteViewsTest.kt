@@ -10,7 +10,6 @@ import android.content.res.Configuration
 import android.graphics.Rect
 import android.util.SizeF
 import android.view.ViewGroup
-import android.view.LayoutInflater
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -19,6 +18,8 @@ import android.widget.ListView
 import android.widget.TextView
 import com.google.gson.Gson
 import kotlin.math.floor
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
@@ -33,7 +34,17 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OrbitWidgetResponsiveRemoteViewsTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val appWidgetHost = AppWidgetHost(context, HOST_ID)
+    @Volatile
+    private var updateLatch: CountDownLatch? = null
+    private val appWidgetHost = object : AppWidgetHost(context, HOST_ID) {
+        override fun onCreateView(context: Context, id: Int, provider: android.appwidget.AppWidgetProviderInfo) =
+            object : AppWidgetHostView(context) {
+                override fun updateAppWidget(views: RemoteViews?) {
+                    super.updateAppWidget(views)
+                    updateLatch?.countDown()
+                }
+            }
+    }
     private val widgetService = ComponentName(context, OrbitWidgetService::class.java)
     private var previousServiceState: Int? = null
     private lateinit var hostView: AppWidgetHostView
@@ -212,28 +223,28 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     @Test
-    fun fourByOneKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 96f, 24f)
+    fun fourByOneKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 96f, 0f)
 
     @Test
-    fun fourByTwoKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 192f, 24f)
+    fun fourByTwoKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 192f, 0f)
 
     @Test
-    fun fourByThreeKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 288f, 24f)
+    fun fourByThreeKeepsCardInsetAndRefreshTarget() = assertSpacing(336f, 288f, 0f)
 
     @Test
-    fun twoByTwoStepsInsetAndKeepsRefreshTarget() = assertSpacing(160f, 192f, 12f)
+    fun twoByTwoStepsInsetAndKeepsRefreshTarget() = assertSpacing(160f, 192f, 0f)
 
     @Test
     fun shortWidthsKeepTheCompleteDayCountAndStreak() {
-        assertSpacing(200f, 96f, 12f)
-        assertSpacing(201f, 96f, 24f)
-        assertSpacing(250f, 96f, 24f)
+        assertSpacing(200f, 96f, 0f)
+        assertSpacing(201f, 96f, 0f)
+        assertSpacing(250f, 96f, 0f)
     }
 
     @Test
     fun tallWidthsKeepTheCompleteDayCountAndStreak() {
         for (width in listOf(201f, 202f, 208f, 216f, 224f, 250f)) {
-            assertSpacing(width, 192f, 24f)
+            assertSpacing(width, 192f, 0f)
         }
     }
 
@@ -241,7 +252,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     @SdkSuppress(maxSdkVersion = 30)
     fun legacyTallResizesExposeEveryAllocatedRowIncludingTheRemainder() {
         val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        for ((widthDp, heightDp, habitCount) in listOf(Triple(160f, 288f, 3), Triple(336f, 384f, 5))) {
+        for ((widthDp, heightDp, habitCount) in listOf(Triple(160f, 288f, 8), Triple(336f, 384f, 12))) {
             val habits = (1..habitCount).map {
                 ApiHabit("habit-$it", "Habit $it", false, false, null, null, null, false, null)
             }
@@ -252,8 +263,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                 .putLong("habits_updated_at", System.currentTimeMillis()).commit())
             val factory = OrbitWidgetFactory(context, appWidgetId, heightDp, widthDp)
             factory.onDataSetChanged()
-            val geometry = calculateWidgetGeometry(heightDp, prepareWidgetDay(habits, 0).habits.size,
-                WidgetSpacing.read(context, widthDp, heightDp))
+            val geometry = calculateWidgetGeometry(heightDp, prepareWidgetDay(habits, 0).habits.size)
             assertTrue(geometry.canStateRemainder)
             assertEquals(geometry.visibleRowCount + 1, factory.count)
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
@@ -290,36 +300,124 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     @Test
-    fun compactHabitNameAppearsOnlyWhenItsWholeLineFits() {
+    fun providerFirstUpdateWithoutPayloadShowsLoadingAtEverySize() {
+        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE).edit().clear().commit()
+        assertProviderUpdateAtEverySize { tree ->
+            assertEquals(View.VISIBLE, tree.findViewById<View>(R.id.widget_loading).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_empty).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_list).visibility)
+            assertEquals("", tree.findViewById<TextView>(R.id.widget_subtitle).text.toString())
+            assertTrue(tree.findViewById<View>(R.id.widget_skeleton_1).height > 0)
+        }
+    }
+
+    @Test
+    fun providerFirstUpdateSignedOutShowsTheInstructionAtEverySize() {
+        OrbitWidgetModule.getEncryptedPrefs(context).edit().remove(AUTH_TOKEN_KEY).commit()
+        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE).edit().clear().commit()
+        assertProviderUpdateAtEverySize { tree ->
+            assertEquals(View.VISIBLE, tree.findViewById<View>(R.id.widget_empty).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_loading).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_header_right).visibility)
+            assertTrue(tree.findViewById<TextView>(R.id.widget_empty_text).text.isNotBlank())
+        }
+    }
+
+    @Test
+    fun providerFirstUpdateWithPayloadShowsRowsAtEverySize() {
+        val habits = (1..7).map {
+            ApiHabit("habit-$it", "Habit $it", false, false, "09:00", null, null, false, null)
+        }
+        val response = HabitWidgetResponse(0, "en", true, 12, habits)
         val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        for (title in listOf("Ler", "Um nome de hábito que ocupa mais espaço do que a linha do widget permite")) {
-            val habit = ApiHabit("habit", title, false, false, "21:00", null, null, false, null)
-            val nextTitle = prepareWidgetDay(listOf(habit), 0).habits.first().title
-            preferences.edit().putString("next_habit_title", nextTitle)
-                .putString("header_label", "Hoje").putString("lang", "pt-BR").putInt("user_streak", 1).commit()
+        preferences.edit()
+            .putString("habits_json", Gson().toJson(response))
+            .putString("habits_session", OrbitWidgetModule.sessionKey(SIGNED_IN_TOKEN))
+            .putLong("habits_updated_at", System.currentTimeMillis()).commit()
+        for ((width, height) in SUPPORTED_SIZES) {
+            val factory = OrbitWidgetFactory(context, appWidgetId, height, width)
+            factory.onDataSetChanged()
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
                 val density = context.resources.displayMetrics.density
                 val views = OrbitWidgetProvider.buildWidgetRemoteViews(
-                    context, appWidgetId, (336 * density).toInt(), (96 * density).toInt(), false,
-                    listOf(SizeF(336f, 96f))
+                    context, appWidgetId, (width * density).toInt(), (height * density).toInt(),
+                    false, listOf(SizeF(width, height))
                 )
-                hostView.updateAppWidgetSize(Bundle(), 336, 96, 336, 96)
-                layoutHost((336 * density).toInt(), (96 * density).toInt())
                 hostView.updateAppWidget(views)
-                layoutHost((336 * density).toInt(), (96 * density).toInt())
-                val nextHabit = hostView.findViewById<TextView>(R.id.widget_next_habit)
-                assertEquals(if (title == "Ler") View.VISIBLE else View.GONE, nextHabit.visibility)
-                if (nextHabit.visibility == View.VISIBLE) {
-                    assertEquals(title, nextHabit.text.toString())
-                    val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
-                    val titleBounds = Rect(0, 0, nextHabit.width, nextHabit.height)
-                    root.offsetDescendantRectToMyCoords(nextHabit, titleBounds)
-                    val refresh = root.findViewById<View>(R.id.widget_refresh)
-                    val refreshBounds = Rect(0, 0, refresh.width, refresh.height)
-                    root.offsetDescendantRectToMyCoords(refresh, refreshBounds)
-                    assertTrue(titleBounds.right + (8 * density).toInt() <= refreshBounds.left)
+                layoutHost((width * density).toInt(), (height * density).toInt())
+                val list = hostView.findViewById<ListView>(R.id.widget_list)
+                list.adapter = object : BaseAdapter() {
+                    override fun getCount() = factory.count
+                    override fun getItem(position: Int) = position
+                    override fun getItemId(position: Int) = position.toLong()
+                    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                        factory.getViewAt(position).apply(context, parent)
                 }
+                layoutHost((width * density).toInt(), (height * density).toInt())
+                val geometry = calculateWidgetGeometry(height, habits.size)
+                assertEquals(View.VISIBLE, list.visibility)
+                assertEquals(geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0, list.childCount)
+                assertEquals(View.GONE, hostView.findViewById<View>(R.id.widget_loading).visibility)
+                assertEquals((48 * density).toInt(), list.getChildAt(0).height)
+                val row = list.getChildAt(0)
+                assertEquals(if (width <= 200f) View.GONE else View.VISIBLE,
+                    row.findViewById<View>(R.id.item_time).visibility)
+                assertEquals("Habit 1", row.findViewById<TextView>(R.id.item_title).text.toString())
             }
+            factory.onDestroy()
+        }
+        assertProviderUpdateAtEverySize { tree ->
+            assertEquals(View.VISIBLE, tree.findViewById<View>(R.id.widget_list).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_loading).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_empty).visibility)
+        }
+    }
+
+    @Test
+    fun providerUpdateWithAnEmptyPayloadShowsTheEmptyMessageAtEverySize() {
+        val response = HabitWidgetResponse(0, "pt-BR", true, 0, emptyList(), "nothing-scheduled")
+        val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        preferences.edit()
+            .putString("habits_json", Gson().toJson(response))
+            .putString("habits_session", OrbitWidgetModule.sessionKey(SIGNED_IN_TOKEN))
+            .putLong("habits_updated_at", System.currentTimeMillis()).commit()
+        for ((width, height) in SUPPORTED_SIZES) {
+            OrbitWidgetFactory(context, appWidgetId, height, width).onDataSetChanged()
+        }
+        assertProviderUpdateAtEverySize { tree ->
+            assertEquals(View.VISIBLE, tree.findViewById<View>(R.id.widget_empty).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_loading).visibility)
+            assertEquals(View.GONE, tree.findViewById<View>(R.id.widget_streak_group).visibility)
+            assertEquals("Nada agendado", tree.findViewById<TextView>(R.id.widget_empty_text).text.toString())
+        }
+    }
+
+    private fun assertProviderUpdateAtEverySize(assertBody: (ViewGroup) -> Unit) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val manager = AppWidgetManager.getInstance(context)
+        for ((width, height) in SUPPORTED_SIZES) {
+            instrumentation.runOnMainSync {
+                hostView.updateAppWidgetSize(Bundle(), width.toInt(), height.toInt(), width.toInt(), height.toInt())
+                layoutHost((width * context.resources.displayMetrics.density).toInt(),
+                    (height * context.resources.displayMetrics.density).toInt())
+            }
+            instrumentation.waitForIdleSync()
+            updateLatch = CountDownLatch(1)
+            OrbitWidgetProvider().onUpdate(context, manager, intArrayOf(appWidgetId))
+            assertTrue("provider did not publish its first update", updateLatch!!.await(5, TimeUnit.SECONDS))
+            instrumentation.runOnMainSync {
+                val density = context.resources.displayMetrics.density
+                layoutHost((width * density).toInt(), (height * density).toInt())
+                val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
+                val content = root.findViewById<View>(R.id.widget_content)
+                assertEquals(View.VISIBLE, content.visibility)
+                assertTrue(content.height >= (48 * density).toInt())
+                val visible = Rect()
+                assertTrue(content.getLocalVisibleRect(visible))
+                assertTrue(visible.height() >= (48 * density).toInt())
+                assertBody(root)
+            }
+            updateLatch = null
         }
     }
 
@@ -330,85 +428,41 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                 uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
             }
             val themedContext = context.createConfigurationContext(configuration)
-            for ((language, units) in listOf("en" to listOf("day", "days"), "pt-BR" to listOf("dia", "dias"))) {
-                for (streak in listOf(1, 2, 365)) {
+            for (language in listOf("en", "pt-BR")) {
+                for (streak in listOf(0, 1, 365)) {
+                    preferences.edit().putString("lang", language).putInt("user_streak", streak)
+                        .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã").commit()
                     InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                        // The periodic worker can change refresh state before this render (#1404).
-                        preferences.edit().putString("lang", language).putInt("user_streak", streak)
-                            .putString("header_label", if (language == "en") "Tomorrow" else "Amanhã")
-                            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false).commit()
                         val manager = AppWidgetManager.getInstance(themedContext)
-                        val provider = manager.getAppWidgetInfo(appWidgetId)
-                        hostView = appWidgetHost.createView(themedContext, appWidgetId, provider)
+                        hostView = appWidgetHost.createView(themedContext, appWidgetId, manager.getAppWidgetInfo(appWidgetId))
                         val density = themedContext.resources.displayMetrics.density
                         val views = OrbitWidgetProvider.buildWidgetRemoteViews(
-                            themedContext, appWidgetId, (widthDp * density).toInt(),
-                            (heightDp * density).toInt(), false, listOf(SizeF(widthDp, heightDp))
+                            themedContext, appWidgetId, (widthDp * density).toInt(), (heightDp * density).toInt(),
+                            false, listOf(SizeF(widthDp, heightDp))
                         )
-                        hostView.updateAppWidgetSize(Bundle(), widthDp.toInt(), heightDp.toInt(),
-                            widthDp.toInt(), heightDp.toInt())
-                        layoutHost((widthDp * density).toInt(), (heightDp * density).toInt())
+                        hostView.updateAppWidgetSize(Bundle(), widthDp.toInt(), heightDp.toInt(), widthDp.toInt(), heightDp.toInt())
                         hostView.updateAppWidget(views)
                         layoutHost((widthDp * density).toInt(), (heightDp * density).toInt())
                         val root = hostView.findViewById<ViewGroup>(R.id.widget_root)
-                        val insetResource = if (insetDp == 24f) R.dimen.widget_inset_card else R.dimen.widget_inset_compact
-                        val insetPx = themedContext.resources.getDimensionPixelSize(insetResource)
-                        val touchTargetPx = themedContext.resources.getDimensionPixelSize(R.dimen.widget_touch_target)
-                        assertEquals(listOf(insetPx, insetPx, insetPx, insetPx),
-                            listOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom))
-                        val refresh = hostView.findViewById<View>(R.id.widget_refresh)
-                        assertEquals(View.VISIBLE, refresh.visibility)
-                        assertEquals(touchTargetPx, refresh.width)
-                        assertEquals(touchTargetPx, refresh.height)
-                        val refreshBounds = Rect(0, 0, refresh.width, refresh.height)
-                        root.offsetDescendantRectToMyCoords(refresh, refreshBounds)
-                        assertTrue(refreshBounds.left >= insetPx)
-                        assertTrue(refreshBounds.top >= insetPx)
-                        assertTrue(refreshBounds.right <= root.width - insetPx)
-                        assertTrue(refreshBounds.bottom <= root.height - insetPx)
-                        assertEquals(units[if (streak == 1) 0 else 1], text(R.id.widget_streak_unit))
-                        for (viewId in listOf(R.id.widget_subtitle, R.id.widget_streak, R.id.widget_streak_unit)) {
-                            val figure = root.findViewById<TextView>(viewId)
-                            if (figure.visibility != View.VISIBLE) continue
-                            assertEquals(1, figure.layout.lineCount)
-                            assertEquals(0, figure.layout.getEllipsisCount(0))
-                            assertTrue(figure.layout.getLineWidth(0) <= figure.width + 1f)
-                        }
-                        if (widthDp > OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP && heightDp > 96f) {
-                            val ring = root.findViewById<View>(R.id.widget_progress_ring)
-                            val ringBounds = Rect(0, 0, ring.width, ring.height)
-                            root.offsetDescendantRectToMyCoords(ring, ringBounds)
-                            val summary = root.findViewById<View>(R.id.widget_subtitle)
-                            val summaryBounds = Rect(0, 0, summary.width, summary.height)
-                            root.offsetDescendantRectToMyCoords(summary, summaryBounds)
-                            assertTrue(ringBounds.bottom <= summaryBounds.top)
-                            assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_streak_unit).visibility)
-                        }
-                        val dayLabel = root.findViewById<TextView>(R.id.widget_header)
-                        assertEquals(0, dayLabel.layout.getEllipsisCount(0))
-                        for (viewId in listOf(R.id.widget_header, R.id.widget_subtitle, R.id.widget_streak, R.id.widget_streak_unit)) {
-                            val label = root.findViewById<TextView>(viewId)
-                            if (label.visibility != View.VISIBLE) continue
-                            assertTrue(label.paint.measureText(label.text.toString()) <= label.width + 1f)
-                            val bounds = Rect(0, 0, label.width, label.height)
-                            root.offsetDescendantRectToMyCoords(label, bounds)
-                            assertTrue(bounds.left >= insetPx)
-                            assertTrue(bounds.right <= refreshBounds.left)
-                            assertTrue(bounds.top >= insetPx)
-                            assertTrue(bounds.bottom <= root.height - insetPx)
-                        }
+                        assertEquals(insetDp.toInt(), root.paddingLeft)
+                        assertEquals(insetDp.toInt(), root.paddingTop)
+                        val header = root.findViewById<View>(R.id.widget_header_container)
                         val content = root.findViewById<View>(R.id.widget_content)
-                        assertEquals(if (heightDp == 96f) View.GONE else View.VISIBLE, content.visibility)
-                        if (heightDp > 96f) {
-                            val header = root.findViewById<View>(R.id.widget_header_container)
-                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_header_list_gap), content.top - header.bottom)
-                            val row = LayoutInflater.from(themedContext).inflate(R.layout.widget_item, root, false)
-                            row.measure(View.MeasureSpec.makeMeasureSpec(root.width - 2 * insetPx, View.MeasureSpec.EXACTLY),
-                                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-                            val rowContent = row.findViewById<View>(R.id.widget_item_content)
-                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_height), row.measuredHeight)
-                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_inset_inline), rowContent.paddingLeft)
-                            assertEquals(themedContext.resources.getDimensionPixelSize(R.dimen.widget_row_inset_block), rowContent.paddingTop)
+                        assertEquals((48 * density).toInt(), header.height)
+                        assertEquals(header.bottom, content.top)
+                        assertEquals(View.VISIBLE, content.visibility)
+                        val refresh = root.findViewById<View>(R.id.widget_refresh)
+                        assertEquals((48 * density).toInt(), refresh.width)
+                        assertEquals((48 * density).toInt(), refresh.height)
+                        assertEquals(if (streak == 0) View.GONE else View.VISIBLE,
+                            root.findViewById<View>(R.id.widget_streak_group).visibility)
+                        for (id in listOf(R.id.widget_header, R.id.widget_subtitle, R.id.widget_streak, R.id.widget_streak_unit)) {
+                            val label = root.findViewById<TextView>(id)
+                            if (!label.isShown) continue
+                            assertEquals(1, label.layout.lineCount)
+                            assertEquals(0, label.layout.getEllipsisCount(0))
+                            assertTrue(label.paint.measureText(label.text.toString()) <= label.width + 1f)
+                            assertTrue(label.bottom <= header.height)
                         }
                     }
                 }
@@ -472,6 +526,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     companion object {
+        private val SUPPORTED_SIZES = listOf(336f to 96f, 336f to 192f, 336f to 288f, 160f to 192f)
         private const val AUTH_TOKEN_KEY = "auth_token"
         private const val SIGNED_IN_TOKEN = "widget-instrumentation-session"
         private const val HOST_ID = 490

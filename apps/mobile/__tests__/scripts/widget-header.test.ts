@@ -1,7 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
-import { Resvg } from '@resvg/resvg-js'
 import { SaxesParser } from 'saxes'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
@@ -212,51 +210,31 @@ function rootAttributes(relativePath: string) {
   return attributes ?? {}
 }
 
-describe('Android widget content sizing', () => {
-  it.each(['days', 'dias'])('keeps the tall header summary whole with %s immediately above 200dp', unit => {
+describe('Android widget first paint', () => {
+  it('renders a body before the provider or adapter has supplied a payload', () => {
     const views = layoutViews()
-    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const paddingTarget = kotlinFunctionBody(provider, 'buildWidgetViews')
-      .match(/views.setViewPadding\(R.id.(widget_header\w*), ringInset, 0, 0, 0\)/)?.[1]
-    const dimension = (view: string, attribute: string) => {
-      const value = views.get(view)?.[`android:${attribute}`]
-      if (!value?.endsWith('dp')) throw new Error(`Missing dimension: ${view}.${attribute}`)
-      return Number.parseFloat(value)
-    }
-    const require = createRequire(import.meta.url)
-    const summary = new Resvg(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="48">' +
-      '<text x="0" y="24" font-family="Roboto" font-size="12">3/7' +
-      '<tspan dx="8" font-size="15" font-weight="500">365</tspan>' +
-      `<tspan dx="4" font-size="12" font-weight="400">${unit}</tspan></text></svg>`,
-      { font: { loadSystemFonts: false, fontFiles: [
-        require.resolve('@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf'),
-        require.resolve('@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf'),
-      ] } },
-    ).innerBBox()
-    expect(summary).toBeDefined()
-    const ringOffset = dimension('widget_progress_ring', 'layout_width')
-      + dimension('widget_header_left', 'layout_marginEnd')
-    for (const width of [201, 202, 208, 216, 224, 250, 336]) {
-      const available = width - 2 * dimension('widget_root', 'padding')
-        - dimension('widget_refresh', 'layout_width')
-        - dimension('widget_header_left', 'layout_marginEnd')
-        - (paddingTarget === 'widget_header_left' ? ringOffset : 0)
-      expect(summary?.width, `${width}x192dp: 3/7 and 365 ${unit}`).toBeLessThanOrEqual(available)
-    }
-    expect(paddingTarget).toBe('widget_header')
-    expect(views.get('widget_progress_ring')?.['android:layout_alignTop']).toBe('@id/widget_header_left')
-    expect(dimension('widget_header', 'layout_height')).toBeGreaterThanOrEqual(
-      dimension('widget_progress_ring', 'layout_height'),
-    )
+    expect(views.get('widget_content')?.['android:visibility']).not.toBe('gone')
+    expect(views.get('widget_loading')?.['android:visibility']).toBe('visible')
+    expect(views.get('widget_content')?.['android:minHeight']).toBe('48dp')
   })
 
-  it('insets the complete card and separates its header and rows with named resources', () => {
-    const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
-    expect(layoutViews('layout/widget_layout.xml', false).get('widget_root')?.['android:padding']).toBe('@dimen/widget_inset_card')
-    expect(layoutViews('layout/widget_layout.xml', false).get('widget_content')?.['android:layout_marginTop']).toBe('@dimen/widget_header_list_gap')
-    expect(layoutViews('layout/widget_layout.xml', false).get('widget_list')?.['android:dividerHeight']).toBe('@dimen/widget_row_gap')
-    expect(layout).not.toMatch(/android:(?:padding\w*|layout_margin\w*)="[1-9]\d*dp"/)
+  it('reserves one drawn body row even in the shortest supported size', () => {
+    const dimensions = readFileSync(resolve(widgetRoot, 'values/widget_dimens.xml'), 'utf8')
+    expect(dimensions).toContain('<dimen name="widget_row_height">48dp</dimen>')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    expect(kotlinFunctionBody(provider, 'buildWidgetViews')).not.toContain('if (compact) View.GONE')
+  })
+})
+
+describe('Android widget content sizing', () => {
+  it('uses a 48dp header followed immediately by full-width rows', () => {
+    const views = layoutViews()
+    expect(views.get('widget_root')?.['android:padding']).toBe('0dp')
+    expect(views.get('widget_content')?.['android:layout_marginTop']).toBe('0dp')
+    expect(views.get('widget_list')?.['android:dividerHeight']).toBe('0dp')
+    expect(views.get('widget_header_container')?.['android:layout_height']).toBe('48dp')
+    expect(views.has('widget_header_divider')).toBe(true)
+    expect(views.has('widget_progress_ring')).toBe(false)
   })
 
   it.each([
@@ -271,66 +249,34 @@ describe('Android widget content sizing', () => {
     expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('OrbitWidgetFactory.streakUnit(context, lang, streak)')
   })
 
-  it.each([
-    ['4x1', 'layout/widget_layout_compact.xml', 24],
-    ['4x2', 'layout/widget_layout.xml', 24],
-    ['4x3', 'layout/widget_layout.xml', 24],
-    ['2x2', 'layout/widget_layout_narrow.xml', 12],
-  ])('keeps named inset steps and a 48dp refresh target for %s', (_size, layout, inset) => {
-    const dimensions = readFileSync(resolve(widgetRoot, 'values/widget_dimens.xml'), 'utf8')
-    for (const step of [24, 16, 12]) expect(dimensions).toContain(`>${step}dp</dimen>`)
-    expect(dimensions).toContain(`>${inset}dp</dimen>`)
-    const views = layoutViews(String(layout))
+  it('keeps the same row vocabulary and a 48dp refresh target at every size', () => {
+    const views = layoutViews()
     for (const control of ['widget_refresh', 'widget_refresh_loading']) {
       expect(views.get(control)).toMatchObject({
-        'android:layout_width': '48dp',
-        'android:layout_height': '48dp',
+        'android:layout_width': '48dp', 'android:layout_height': '48dp',
       })
     }
-    if (layout !== 'layout/widget_layout.xml') {
-      expect(views.get('widget_header_right')).toMatchObject({
-        'android:layout_width': '48dp',
-        'android:layout_height': '48dp',
-        'android:layout_alignParentEnd': 'true',
-      })
-      expect(views.get('widget_header_left')?.['android:layout_toStartOf']).toBe('@id/widget_header_right')
-    }
-    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('WidgetSpacing.read(context, widgetWidthDp, widgetHeightDp)')
-    expect(kotlinFunctionBody(provider, 'buildWidgetViews')).toContain('views.setViewPadding(R.id.widget_root, inset, inset, inset, inset)')
-    const item = layoutViews('layout/widget_item.xml').get('widget_item_content')
-    expect(item).toMatchObject({
-      'android:paddingStart': '16dp', 'android:paddingEnd': '16dp',
-      'android:paddingTop': '12dp', 'android:paddingBottom': '12dp',
+    expect(layoutViews('layout/widget_item.xml').get('widget_item_content')).toMatchObject({
+      'android:paddingStart': '12dp', 'android:paddingEnd': '12dp',
+      'android:paddingTop': '0dp', 'android:paddingBottom': '0dp',
     })
-  })
-
-  it('publishes the compact name from the owned row producer', () => {
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    expect(kotlinFunctionBody(service, 'loadWidgetData')).toContain('.putString("next_habit_title", habits.firstOrNull()?.title)')
-    expect(kotlinFunctionBody(provider, 'applyNextHabit')).toContain('if (ownsRows) preferences.getString("next_habit_title", null) else null')
-    expect(kotlinFunctionBody(provider, 'applyNextHabit')).toContain('paint.measureText(title) <= availableWidth')
+    expect(provider).not.toContain('widget_layout_compact')
+    expect(provider).not.toContain('widget_layout_narrow')
+    expect(provider).not.toContain('widget_next_habit')
   })
 
-  it('lets the visible card hug the rows instead of filling the launcher slot', () => {
-    const root = rootAttributes('layout/widget_layout.xml')
-    expect(root['android:layout_height']).toBe('wrap_content')
-    expect(layoutViews().get('widget_root')?.['android:layout_height']).toBe('wrap_content')
+  it('fills the launcher slot with the drawn card', () => {
+    expect(rootAttributes('layout/widget_layout.xml')['android:layout_height']).toBe('match_parent')
   })
 
-  it('shows a progress ring beside the day summary', () => {
-    expect(layoutViews().get('widget_progress_ring')).toMatchObject({
-      'android:layout_width': '24dp',
-      'android:layout_height': '24dp',
-      'android:importantForAccessibility': 'no',
-    })
-  })
-
-  it('keeps the due time on the narrow widget', () => {
+  it('drops due times in the narrow widget as drawn', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
-    expect(kotlinFunctionBody(service, 'applyDueTime')).not.toContain('showTime')
+    expect(kotlinFunctionBody(service, 'applyDueTime')).toContain(
+      'widgetWidthDp <= OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP',
+    )
   })
+
 })
 
 describe('Android widget header', () => {
@@ -389,7 +335,6 @@ describe('Android widget header', () => {
       'android:textSize': '13sp',
     })
     expect(views.get('widget_subtitle')).toMatchObject({
-      'android:ellipsize': 'end',
       'android:maxLines': '1',
       'android:textColor': '@color/widget_fg_3',
       'android:textSize': '12sp',
@@ -554,17 +499,15 @@ describe('Android widget header', () => {
   })
 
   it('derives row capacity and remainder space from the drawing geometry', () => {
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const views = layoutViews()
 
-    expect.soft(service).toContain('internal fun calculateWidgetGeometry(')
-    expect.soft(service).toContain('heightDp - 2 * spacing.insetDp - spacing.headerHeightDp - spacing.headerGapDp')
-    expect.soft(service).toContain('floor((availableHeightDp + spacing.rowGapDp) / stride)')
-    expect.soft(service).toContain('val stride = spacing.rowHeightDp + spacing.rowGapDp')
-    expect.soft(service).toContain('if (canStateRemainder) fit - 1')
+    const geometry = readFileSync(resolve(widgetSourceRoot, 'WidgetGeometry.kt'), 'utf8')
+    expect(geometry).toContain('heightDp - headerHeightDp')
+    expect(geometry).toContain('floor(contentHeight / rowHeightDp)')
+    expect(geometry).toContain('if (canStateRemainder) fit - 1')
     for (const index of [1, 2, 3, 4, 5]) {
       expect.soft(views.get(`widget_skeleton_${index}`)).toMatchObject({
-        'android:layout_height': '68dp',
+        'android:layout_height': '48dp',
         'android:gravity': 'center_vertical',
         'android:orientation': 'horizontal',
       })
@@ -599,7 +542,7 @@ describe('Android widget header', () => {
 
     expect(layout.match(/@drawable\/widget_skeleton_mark/g)).toHaveLength(5)
     expect(layout.match(/@drawable\/widget_skeleton_bar/g)).toHaveLength(5)
-    for (const [index, width] of [160, 128, 96, 64, 48].entries()) {
+    for (const [index, width] of [150, 126, 102, 78, 54].entries()) {
       expect(views.get(`widget_skeleton_bar_${index + 1}`)).toMatchObject({
         'android:layout_width': `${width}dp`,
         'android:layout_height': '12dp',
@@ -651,12 +594,12 @@ describe('Android widget header', () => {
     const remainder = layoutViews('layout/widget_remainder.xml')
 
     expect.soft(remainder.get('widget_remainder')).toMatchObject({
-      'android:layout_height': '68dp',
+      'android:layout_height': '48dp',
     })
     expect.soft(remainder.get('widget_remainder_text')).toMatchObject({
       'android:layout_height': '24dp',
-      'android:paddingStart': '16dp',
-      'android:paddingEnd': '16dp',
+      'android:paddingStart': '12dp',
+      'android:paddingEnd': '12dp',
       'android:textColor': '@color/widget_fg_3',
       'android:textSize': '12sp',
     })
@@ -1132,7 +1075,8 @@ describe('Android widget header', () => {
     const signedInRender = kotlinFunctionBody(provider, 'buildWidgetViews')
     const signedOutRender = kotlinFunctionBody(provider, 'applySignedOutCard')
 
-    expect(signedInRender).toContain(
+    expect(signedInRender).toContain('applyProgressSummary(context, views, lang, widgetWidthDp, syncedOnce,')
+    expect(kotlinFunctionBody(provider, 'applyProgressSummary')).toContain(
       'views.setContentDescription(R.id.widget_subtitle, subtitleText)',
     )
     expect(signedInRender).toContain('applySignedOutCard(context, views)')
@@ -1195,14 +1139,14 @@ describe('Android widget header', () => {
 })
 
 describe('Android widget habit rows', () => {
-  it('pads the two-line rows above the 48dp widget touch minimum', () => {
+  it('uses the drawn 48dp row with room for a title and time', () => {
     const views = layoutViews('layout/widget_item.xml')
 
     expect(views.get('widget_item_container')).toMatchObject({
-      'android:layout_height': '68dp',
+      'android:layout_height': '48dp',
     })
     expect(views.get('widget_item_content')).toMatchObject({
-      'android:layout_height': '68dp',
+      'android:layout_height': '48dp',
     })
     expect(views.get('item_title')).toMatchObject({
       'android:textSize': '15sp',
