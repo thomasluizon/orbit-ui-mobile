@@ -37,3 +37,19 @@ recount that source and update this total plus both guide locales in a paired UI
 
 Synchronization trigger: after an `[McpServerTool]` method reaches deployed `orbit-api` `main`,
 recount every tool class and update this table, its total, and both guide locales in a paired UI pull request.
+
+## Retained social references
+
+The social hub, feed, friends, cheers, cooperative challenges, and accountability pairs
+have no client screens or actions on either platform. Sharing and referrals remain available.
+The generated server contract and optional `socialOptIn` profile field remain for API
+compatibility; neither exposes a social capability in the clients.
+
+Earned achievements remain viewable after a capability is retired. The `team_player`,
+`mission_accomplished`, and `battle_buddy` achievement names and descriptions stay in both
+`en` and `pt-BR`, and the `Social` category remains supported. Both achievement screens resolve
+copy by achievement ID, so removing these keys would break the display of earned badges.
+
+Notifications targeting `/social`, `/public-profile`, or `/u/` are hidden from both inboxes
+and their unread badges. The retired URLs remain in regression fixtures to verify that
+stored notifications cannot restore removed destinations and that bulk mark-read still works.
