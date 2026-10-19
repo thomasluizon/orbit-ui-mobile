@@ -39,7 +39,7 @@ vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: {
 vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false, useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/hooks/use-tags', () => ({ useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useAssignTags: () => ({ isPending: false, mutateAsync: vi.fn() }) }))
+vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }), useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useAssignTags: () => ({ isPending: false, mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-checklist-templates', () => ({ useChecklistTemplates: () => ({ data: [], isLoading: false }), useCreateChecklistTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }), useDeleteChecklistTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 type Tree = ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }

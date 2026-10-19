@@ -201,3 +201,16 @@ describe('TagPickerField', () => {
   })
 
 })
+
+it('keeps the suggestions footer anchored when scrolling beyond the tag rows', () => {
+  render(<TagPickerField tags={buildTags(25)} selectedIds={[]} atLimit={false} disabled={false} onToggle={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} editLabel="Edit" deleteLabel="Delete" suggestions={<div data-testid="suggestion-footer" style={{ height: 1200 }}>Proposals</div>} />)
+  fireEvent.click(screen.getByText('habits.form.tags'))
+  const search = screen.getByPlaceholderText('habits.form.searchTags')
+  const scroller = search.nextElementSibling!
+  fireEvent.scroll(scroller, { target: { scrollTop: 35 * 120 } })
+  const leadingSpacer = scroller.firstElementChild as HTMLElement
+  expect(parseFloat(leadingSpacer.style.height)).toBeLessThanOrEqual(25 * 120)
+  expect(scroller).toContainElement(screen.getByTestId('suggestion-footer'))
+  fireEvent.scroll(scroller, { target: { scrollTop: 0 } })
+  expect(screen.getByRole('button', { name: 'Tag 0', pressed: false })).toBeEnabled()
+})
