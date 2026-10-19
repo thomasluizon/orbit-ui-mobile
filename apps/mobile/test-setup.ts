@@ -11,6 +11,8 @@ vi.mock('@/components/ui/icons', async (importOriginal) => {
   )
 })
 
+vi.mock('@sentry/react-native', () => ({ captureException: vi.fn() }))
+
 vi.mock('posthog-react-native', () => ({
   PostHog: class {
     identify = vi.fn()

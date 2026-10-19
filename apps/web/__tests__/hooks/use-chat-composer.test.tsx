@@ -104,7 +104,8 @@ vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => 
 vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
 vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => mocks.queryClient,
   useQuery: () => ({ data: undefined, error: null, isLoading: false, isError: false }),
   useMutation: (options: { mutationFn?: (value: unknown) => unknown }) => ({
