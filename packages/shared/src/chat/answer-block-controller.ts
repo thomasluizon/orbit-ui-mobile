@@ -1,7 +1,8 @@
 import {
-  blockAnswerErrorKey, blockAnswerOptions, formatBlockAnswer, hasBlockAnswer,
+  blockAnswerErrorKey, blockAnswerOptions, formatBlockAnswer, hasBlockAnswer, isSameBlockAnswer,
   type AnswerBlockProps,
 } from './block-answer'
+import type { BlockAnswer } from '../types/chat'
 
 type AnswerTranslationKey = 'answered' | 'closed' | 'alreadyAnswered' | 'invalid' | 'error' |
   'acting' | 'reviewing' | 'offline' | 'limit' | 'position' | 'proposed' | 'freeText' | 'submit' | 'review'
@@ -14,10 +15,16 @@ export interface AnswerBlockState {
   acting: boolean
   settled: { text: string; answered: boolean } | null
   error: string | null
+  uncertainAnswer: BlockAnswer | null
+}
+
+function answerSnapshot(props: AnswerBlockProps, state: AnswerBlockState): BlockAnswer {
+  const freeText = state.freeText.trim()
+  return { blockId: props.definition.block.blockId, selectedIds: [...state.selectedIds], ...(freeText ? { freeText } : {}) }
 }
 
 export class AnswerBlockController {
-  private state: AnswerBlockState = { selectedIds: [], freeText: '', expandedIds: [], acting: false, settled: null, error: null }
+  private state: AnswerBlockState = { selectedIds: [], freeText: '', expandedIds: [], acting: false, settled: null, error: null, uncertainAnswer: null }
   private readonly listeners = new Set<() => void>()
   readonly focusWhenClosed: boolean
 
@@ -49,13 +56,14 @@ export class AnswerBlockController {
   async submit(props: AnswerBlockProps, t: AnswerTranslator, locale: string): Promise<void> {
     const { definition, interaction } = props
     const { selectedIds, freeText, acting } = this.state
+    const answer = answerSnapshot(props, this.state)
+    const recovery = isSameBlockAnswer(answer, this.state.uncertainAnswer)
     if (acting || !interaction || !interaction.isOnline || interaction.isSending ||
-      (definition.kind === 'choice' && interaction.atMessageLimit) || !hasBlockAnswer(definition, selectedIds, freeText)) return
-    this.update({ acting: true, error: null })
+      (definition.kind === 'choice' && interaction.atMessageLimit && !recovery) || !hasBlockAnswer(definition, selectedIds, freeText)) return
+    this.update({ acting: true, error: null, uncertainAnswer: answer })
     const labels = blockAnswerOptions(definition).filter(option => selectedIds.includes(option.id)).map(option => option.label)
     try {
-      const result = await interaction.send({ kind: definition.kind, labels,
-        answer: { blockId: definition.block.blockId, selectedIds, ...(freeText.trim() ? { freeText: freeText.trim() } : {}) } })
+      const result = await interaction.send({ kind: definition.kind, labels, answer })
       if (result.ok) this.update({ settled: { text: t('answered', { options: formatBlockAnswer(labels, freeText, locale) }), answered: true } })
       else {
         const key = blockAnswerErrorKey(result.status)
@@ -70,10 +78,11 @@ export class AnswerBlockController {
   }
 }
 
-function getAnswerStatus({ definition, interaction }: AnswerBlockProps, state: AnswerBlockState, t: AnswerTranslator) {
+function getAnswerStatus(props: AnswerBlockProps, state: AnswerBlockState, t: AnswerTranslator) {
+  const { definition, interaction } = props
   if (state.acting) return { text: t(definition.kind === 'choice' ? 'acting' : 'reviewing'), error: false, blocked: true }
   if (interaction && !interaction.isOnline) return { text: t('offline'), error: false, blocked: true }
-  if (definition.kind === 'choice' && interaction?.atMessageLimit) return { text: t('limit', { allowance: interaction.allowance }), error: false, blocked: true }
+  if (definition.kind === 'choice' && interaction?.atMessageLimit && !isSameBlockAnswer(answerSnapshot(props, state), state.uncertainAnswer)) return { text: t('limit', { allowance: interaction.allowance }), error: false, blocked: true }
   return { text: state.error ?? '', error: Boolean(state.error), blocked: false }
 }
 

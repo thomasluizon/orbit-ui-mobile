@@ -24,6 +24,11 @@ export type AnswerBlockProps = Readonly<{
   expired?: boolean
 }>
 
+export function isSameBlockAnswer(answer: BlockAnswer, uncertain: BlockAnswer | null): boolean {
+  return uncertain !== null && answer.blockId === uncertain.blockId && answer.freeText === uncertain.freeText &&
+    answer.selectedIds.length === uncertain.selectedIds.length && answer.selectedIds.every((id, index) => id === uncertain.selectedIds[index])
+}
+
 export function formatBlockAnswer(labels: readonly string[], freeText: string | undefined, locale: string): string {
   const words = freeText?.trim() ? [...labels, freeText.trim()] : [...labels]
   return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(words)

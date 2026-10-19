@@ -578,11 +578,54 @@ describe('web useChatComposer streaming send', () => {
       expect(screen.getByText(/chat.choice.answered/)).toBeInTheDocument()
       expect(screen.getByText(replyText, { selector: 'p' })).toBeInTheDocument()
     }
-    expect(mocks.queryClient.setQueryData).toHaveBeenCalledTimes(scenario === 'conflicting retry' ? 0 : 1)
-    if (scenario !== 'conflicting retry') {
-      const updateProfile = mocks.queryClient.setQueryData.mock.calls[0]![1] as (profile: ReturnType<typeof createMockProfile>) => ReturnType<typeof createMockProfile>
-      expect(updateProfile(createMockProfile({ aiMessagesUsed: 2 })).aiMessagesUsed).toBe(3)
-    }
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    if (scenario !== 'conflicting retry') expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it.each([
+    { scenario: 'lost final at the limit', initial: 4, refreshed: 5, authoritative: 5 },
+    { scenario: 'stored replay after a profile refresh', initial: 3, refreshed: 4, authoritative: 4 },
+    { scenario: 'refunded failure with a new reservation', initial: 3, refreshed: 3, authoritative: 4 },
+  ])('reconciles recovery usage for $scenario', async ({ scenario, initial, refreshed, authoritative }) => {
+    const { QueryClient, QueryObserver } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let serverUsage = initial
+    const profileQuery = { queryKey: profileKeys.detail(), queryFn: () => Promise.resolve(createMockProfile({ aiMessagesUsed: serverUsage, aiMessagesLimit: 5 })) }
+    const observer = new QueryObserver(cache, profileQuery)
+    const unsubscribe = observer.subscribe(() => {})
+    onTestFinished(() => { unsubscribe(); cache.clear(); mocks.queryClient.setQueryData.mockReset() })
+    mocks.queryClient.setQueryData.mockImplementation(cache.setQueryData.bind(cache))
+    mocks.queryClient.invalidateQueries.mockImplementation(cache.invalidateQueries.bind(cache))
+    mocks.state.profile = await cache.fetchQuery(profileQuery)
+    mocks.fetch.mockResolvedValueOnce(scenario === 'refunded failure with a new reservation'
+      ? Response.json({ error: 'Reply failed' }, { status: 500 })
+      : sseResponse(frame('{"type":"started"}')))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' }, labels: ['Evening'] }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toMatchObject({ ok: false }) })
+    serverUsage = refreshed
+    mocks.state.profile = await cache.fetchQuery(profileQuery)
+    await act(async () => { rerender(); await Promise.resolve() })
+    expect(result.current.atMessageLimit).toBe(refreshed === 5)
+    serverUsage = authoritative
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' }))))
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toEqual({ ok: true }) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(authoritative)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('blocks a changed recovery answer at the limit', async () => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 4, aiMessagesLimit: 5 })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"started"}')))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => { await result.current.blockAnswerInteraction.send(request) })
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    await act(async () => { rerender(); await Promise.resolve() })
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] } })).toEqual({ ok: false, status: null }) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the answered summary after the thread remounts', async () => {

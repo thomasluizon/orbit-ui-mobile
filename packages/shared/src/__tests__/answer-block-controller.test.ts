@@ -12,6 +12,48 @@ function props(overrides: Partial<BlockAnswerInteraction> = {}): AnswerBlockProp
 }
 
 describe('shared answer controller', () => {
+  it.each(['choice', 'pickList'] as const)('keeps an identical %s recovery reachable after a limit refresh', async kind => {
+    const send = vi.fn().mockResolvedValueOnce({ ok: false, status: null }).mockResolvedValueOnce({ ok: true })
+    const input: AnswerBlockProps = { ...props({ send }), definition: kind === 'choice'
+      ? { kind, block: { ...choiceBlockFixture, multiSelect: true } }
+      : { kind, block: pickListBlockFixture } }
+    const controller = new AnswerBlockController(input)
+    const ids = kind === 'choice' ? ['morning', 'evening'] : ['1', '3']
+    ids.forEach(id => controller.check(id, true))
+    controller.setFreeText('After work')
+    await controller.submit(input, t, 'en')
+    const refreshed = { ...input, interaction: { ...input.interaction!, atMessageLimit: true } }
+    expect(getAnswerBlockView(refreshed, controller.getSnapshot(), t).submitDisabled).toBe(false)
+    expect(getAnswerBlockView(refreshed, controller.getSnapshot(), t).status).toBe('error')
+    await controller.submit(refreshed, t, 'en')
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1]).toEqual(send.mock.calls[0])
+  })
+
+  it.each(['selection', 'order', 'free text', 'block'] as const)('gates a changed %s at the limit and preserves the uncertain snapshot', async change => {
+    const input = { ...props({ send: vi.fn(async () => ({ ok: false as const, status: null })) }),
+      definition: { kind: 'choice' as const, block: { ...choiceBlockFixture, multiSelect: true } } }
+    const controller = new AnswerBlockController(input)
+    controller.check('morning', true)
+    controller.check('evening', true)
+    controller.setFreeText('After work')
+    await controller.submit(input, t, 'en')
+    let refreshed = { ...input, interaction: { ...input.interaction!, atMessageLimit: true } }
+    if (change === 'selection') controller.check('evening', false)
+    if (change === 'order') { controller.check('morning', false); controller.check('morning', true) }
+    if (change === 'free text') controller.setFreeText('Before work')
+    if (change === 'block') refreshed = { ...refreshed, definition: { ...refreshed.definition, block: { ...choiceBlockFixture, multiSelect: true, blockId: 'another-block' } } }
+    expect(getAnswerBlockView(refreshed, controller.getSnapshot(), t)).toMatchObject({ submitDisabled: true, status: 'limit' })
+    await controller.submit(refreshed, t, 'en')
+    expect(input.interaction!.send).toHaveBeenCalledTimes(1)
+    controller.check('morning', false)
+    controller.check('evening', false)
+    controller.check('morning', true)
+    controller.check('evening', true)
+    controller.setFreeText('After work')
+    expect(getAnswerBlockView({ ...refreshed, definition: input.definition }, controller.getSnapshot(), t).submitDisabled).toBe(false)
+  })
+
   it('submits one snapshot, rejects duplicate presses and notifies subscribers', async () => {
     let finish!: (result: BlockAnswerResult) => void
     const send = vi.fn(() => new Promise<BlockAnswerResult>(resolve => { finish = resolve }))
@@ -51,7 +93,7 @@ describe('shared answer controller', () => {
     } else {
       expect(view).toMatchObject({ closed: null, status: status === 400 ? 'invalid' : 'error', statusError: true, submitDisabled: false })
       expect(getAnswerBlockView({ ...input, interaction: { ...input.interaction!, isOnline: false } }, controller.getSnapshot(), t)).toMatchObject({ status: 'offline', statusError: false, submitDisabled: true })
-      expect(getAnswerBlockView({ ...input, interaction: { ...input.interaction!, atMessageLimit: true } }, controller.getSnapshot(), t)).toMatchObject({ status: 'limit', statusError: false, submitDisabled: true })
+      expect(getAnswerBlockView({ ...input, interaction: { ...input.interaction!, atMessageLimit: true } }, controller.getSnapshot(), t)).toMatchObject({ status: status === 400 ? 'invalid' : 'error', statusError: true, submitDisabled: false })
     }
   })
 

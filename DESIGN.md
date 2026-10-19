@@ -394,7 +394,10 @@ locale and ids carried separately in `blockAnswer`. An answered block collapses 
 409 says it was already answered; 400 retains the selection with an inline error. Terminal lines
 receive focus without a focus ring and announce through focus alone. Only the status line is a polite live region. Offline retains
 selection and disables submission with a reason. The daily message limit disables choice Send
-with a reason; pick list Review stays available because it spends no message.
+with a reason; an identical retry of a failed or uncertain answer stays available. Recovery keeps
+the same block id, selected ids in the same order and free text, and refreshes profile usage from
+the server instead of adding a local charge. A changed answer keeps the limit gate. Pick list
+Review stays available because it spends no message.
 
 The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
 

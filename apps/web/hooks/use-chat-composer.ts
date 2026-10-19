@@ -370,7 +370,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
     scrollToBottom()
 
-    queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
+    if (messageCost) queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
       current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
     )
 
@@ -596,9 +596,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       isOnline, atMessageLimit, locale, intendedAccountId: getHeldAccountId(),
       getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(),
       conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
+      refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, isOnline, locale, runStreamingSend, t])
+    }), [atMessageLimit, beginSend, blockSubmission, isOnline, locale, queryClient, runStreamingSend, t])
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(
