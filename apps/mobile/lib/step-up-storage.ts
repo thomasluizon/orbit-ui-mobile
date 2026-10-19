@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  STEP_UP_ATTEMPT_WINDOW_MS,
+  createStepUpTimingRecord,
   createStepUpSessionState,
   getStepUpStorageKey,
   parseStepUpTimingRecord,
@@ -13,6 +13,9 @@ export const {
   clearStepUpState,
   readApiKeyExpiryDraft,
   retainApiKeyExpiryDraft,
+  rememberApiKeyCreationPermission,
+  readPendingApiKeyPermission,
+  clearPendingApiKeyPermission,
   markStepUpVerified,
   isStepUpVerified,
   hasApiKeyCreationGrant,
@@ -54,16 +57,7 @@ export async function beginStepUpChallenge(
   sentAt = Date.now(),
 ): Promise<StepUpTimingRecord> {
   const previous = await readStepUpTiming(operation, accountId)
-  const exhaustedAt =
-    previous?.exhaustedAt !== undefined &&
-    sentAt < previous.exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
-      ? previous.exhaustedAt
-      : undefined
-  const record: StepUpTimingRecord = {
-    operation,
-    sentAt,
-    ...(exhaustedAt !== undefined ? { exhaustedAt } : {}),
-  }
+  const record = createStepUpTimingRecord(operation, sentAt, previous)
   return persistStepUpTiming(record, accountId)
 }
 
