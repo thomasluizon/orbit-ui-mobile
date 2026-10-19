@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToastLifecycle } from '@/hooks/use-toast-lifecycle'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   PanResponder,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     rowGap: 0,
     borderWidth: 1,
     borderRadius: radius.xl,
-    padding: 16,
+    padding: SPACING.s16,
     ...shadowsV2.shadow2,
   },
   workingMark: { flexDirection: 'row', gap: 4 },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  action: { padding: 8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
+  action: { padding: SPACING.s8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
   actionText: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,

@@ -54,10 +54,9 @@ async function readFill(control: Locator) {
     const pseudoElements = ['::before', '::after']
     pseudoElements.forEach((pseudo) => {
       const pseudoStyle = getComputedStyle(element, pseudo)
-      const extendsTarget = !['none', 'normal'].includes(pseudoStyle.content) && pseudoStyle.position === 'absolute'
-        && pseudoStyle.pointerEvents !== 'none'
+      const extendsLayer = !['none', 'normal'].includes(pseudoStyle.content) && pseudoStyle.position === 'absolute'
         && [pseudoStyle.left, pseudoStyle.right, pseudoStyle.top, pseudoStyle.bottom].some((offset) => pixels(offset) < 0)
-      if (!extendsTarget) return
+      if (!extendsLayer) return
       const target = { left: controlBounds.left + pixels(pseudoStyle.left), right: controlBounds.right - pixels(pseudoStyle.right), top: controlBounds.top + pixels(pseudoStyle.top), bottom: controlBounds.bottom - pixels(pseudoStyle.bottom) }
       const painted = fill !== element && Object.entries(target).every(([edge, value]) => Math.abs(value - bounds[edge as 'left' | 'right' | 'top' | 'bottom']) <= 1)
       if (painted) Object.assign(extendedBounds, target)

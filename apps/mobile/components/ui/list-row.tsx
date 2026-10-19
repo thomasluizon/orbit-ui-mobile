@@ -1,6 +1,6 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
-import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
@@ -171,7 +171,7 @@ function accessoryLineStyle(props: ListRowProps, labelWrapped: boolean, firstLin
 function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   if (!action) return null
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: hasDescription ? 8 : 4, marginEnd: 16 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       {({ pressed }) => (
         <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
@@ -220,14 +220,14 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
 
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
-  body: { position: 'relative', minHeight: 52, paddingVertical: 12, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
+  body: { position: 'relative', minHeight: 52, paddingVertical: PADDING.rowBlock, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
   insetFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
-  insetBody: { paddingHorizontal: 16, overflow: 'hidden' },
+  insetBody: { paddingHorizontal: PADDING.rowInline, overflow: 'hidden' },
   columnBody: { position: 'relative' },
-  outset: { minHeight: 52, paddingVertical: 12, position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
+  outset: { minHeight: 52, paddingVertical: PADDING.rowBlock, position: 'absolute', top: 0, bottom: 0, left: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, right: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
-  action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
+  action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: SPACING.s0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },

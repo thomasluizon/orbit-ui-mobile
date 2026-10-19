@@ -1,6 +1,8 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendCodeRequestSchema } from '@orbit/shared/types/auth'
+import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
@@ -33,8 +35,10 @@ export async function POST(request: NextRequest) {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
+        ...buildBffForwardingHeaders(request),
         'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language),
         [ORBIT_REQUEST_ID_HEADER]: requestId,
+        ...API_VERSION_HEADERS,
       },
       body: JSON.stringify(body),
     })

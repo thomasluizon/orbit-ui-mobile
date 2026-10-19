@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { createHash } from 'node:crypto'
 
@@ -10,6 +11,8 @@ vi.mock('@/lib/auth-api', async (importOriginal) => ({
 import { GET } from '@/app/api/auth/google/start/route'
 import { DELETE, POST } from '@/app/api/auth/google/code/route'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+
+const api = vi.fn()
 
 const origin = 'https://staging.useorbit.org'
 const loginResponse = {
@@ -48,6 +51,8 @@ describe('Google OAuth BFF', () => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', origin)
     setSessionCookies.mockReset()
+    api.mockReset()
+    vi.stubGlobal('fetch', api)
   })
 
   it('uses the configured production origin for the authorize URL and exchange', async () => {
@@ -56,8 +61,7 @@ describe('Google OAuth BFF', () => {
     expect(url.searchParams.get('redirect_uri')).toBe('https://app.useorbit.org/auth-callback')
     expect(session.redirectUri).toBe('https://app.useorbit.org/auth-callback')
 
-    const api = vi.fn().mockResolvedValue(new Response(JSON.stringify(loginResponse)))
-    vi.stubGlobal('fetch', api)
+    api.mockResolvedValue(new Response(JSON.stringify(loginResponse)))
     await POST(requestWithCookie(cookie.value, {
       code: 'google-code', state: session.state, language: 'en',
     }))
@@ -91,8 +95,7 @@ describe('Google OAuth BFF', () => {
 
   it('exchanges a matching code, forwards referral and language, and sets cookies', async () => {
     const { session, cookie } = await start('signin')
-    const api = vi.fn().mockResolvedValue(new Response(JSON.stringify(loginResponse)))
-    vi.stubGlobal('fetch', api)
+    api.mockResolvedValue(new Response(JSON.stringify(loginResponse)))
     const response = await POST(requestWithCookie(cookie.value, {
       code: 'google-code', state: session.state, language: 'pt-BR', referralCode: 'REF123',
     }))
@@ -108,8 +111,6 @@ describe('Google OAuth BFF', () => {
 
   it('rejects a state mismatch before calling the API', async () => {
     const { cookie } = await start('signin')
-    const api = vi.fn()
-    vi.stubGlobal('fetch', api)
     const response = await POST(requestWithCookie(cookie.value, { code: 'google-code', state: 'wrong', language: 'en' }))
     expect(response.status).toBe(400)
     expect(api).not.toHaveBeenCalled()
@@ -120,8 +121,6 @@ describe('Google OAuth BFF', () => {
   it('preserves a newer attempt after a stale callback and Google error', async () => {
     const first = await start('signin')
     const second = await start('calendar')
-    const api = vi.fn()
-    vi.stubGlobal('fetch', api)
     const stale = await POST(requestWithCookie(second.cookie.value, {
       code: 'old-code', state: first.session.state, language: 'en',
     }))
@@ -142,8 +141,6 @@ describe('Google OAuth BFF', () => {
 
   it('rejects a callback after another login replaces the owning session', async () => {
     const { session, cookie } = await start('signin', accountToken('account-a', 'initial'))
-    const api = vi.fn()
-    vi.stubGlobal('fetch', api)
     const response = await POST(requestWithCookie(cookie.value, {
       code: 'google-code', state: session.state, language: 'en',
     }, accountToken('account-b', 'replacement')))
@@ -155,8 +152,7 @@ describe('Google OAuth BFF', () => {
 
   it('accepts a callback after the same account rotates its access token', async () => {
     const { session, cookie } = await start('calendar', accountToken('account-a', 'initial'))
-    const api = vi.fn().mockResolvedValue(new Response(JSON.stringify(loginResponse)))
-    vi.stubGlobal('fetch', api)
+    api.mockResolvedValue(new Response(JSON.stringify(loginResponse)))
     const response = await POST(requestWithCookie(cookie.value, {
       code: 'google-code', state: session.state, language: 'en',
     }, accountToken('account-a', 'rotated')))
@@ -167,7 +163,7 @@ describe('Google OAuth BFF', () => {
 
   it('leaves the session unset when the API rejects the code', async () => {
     const { session, cookie } = await start('signin')
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'bad code' }), { status: 401 })))
+    api.mockResolvedValue(new Response(JSON.stringify({ error: 'bad code' }), { status: 401 }))
     const response = await POST(requestWithCookie(cookie.value, { code: 'bad', state: session.state, language: 'en' }))
     expect(response.status).toBe(401)
     expect(setSessionCookies).not.toHaveBeenCalled()
@@ -183,3 +179,5 @@ describe('Google OAuth BFF', () => {
     expect(setSessionCookies).not.toHaveBeenCalled()
   })
 })
+
+afterEach(() => expectApiVersion2Requests(api.mock.calls))

@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { act, render, waitFor } from '@testing-library/react'
@@ -92,6 +93,7 @@ it.each(['en', 'pt-BR'])('requests replay in selected %s after a closed stream a
   const view = render(<AccountEventConnection />)
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4), { timeout: 3000 })
   expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe('epoch.1')
+  expectApiVersion2Requests(fetchMock.mock.calls)
   for (const [, init] of fetchMock.mock.calls) expect(new Headers((init as RequestInit).headers).get('Accept-Language')).toBe(language)
   await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits'] }))
   view.unmount()

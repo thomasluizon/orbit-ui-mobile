@@ -1,11 +1,14 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -139,7 +142,7 @@ function TimedBlock({
         left: `calc(${(block.lane / block.laneCount) * 100}% + ${BLOCK_HORIZONTAL_INSET / 2}px)`,
         width: `calc(${100 / block.laneCount}% - ${BLOCK_HORIZONTAL_INSET}px)`,
         minWidth: BLOCK_MIN_WIDTH,
-        padding: 4,
+        padding: SPACING.s4,
         borderRadius: 8,
         border: 0,
         appearance: 'none',
@@ -161,8 +164,8 @@ function TimedBlock({
 function AllDayChip({ label, accessibilityLabel, onSelect, more = false }: Readonly<{ label: string; accessibilityLabel: string; onSelect: () => void; more?: boolean }>) {
   return <button type="button" data-testid={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} onClick={onSelect} aria-label={accessibilityLabel}
     className="flex min-w-0 items-center bg-transparent cursor-pointer rounded-[8px] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-    style={{ minHeight: 48, height: '2.8rem', minWidth: 48, padding: 0, border: 0 }}>
-    <span className="flex w-full min-w-0 items-center" style={{ height: '1.75rem', paddingInline: 8, borderRadius: 8, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-2)' }}>
+    style={{ minHeight: 48, height: '2.8rem', minWidth: 48, padding: SPACING.s0, border: 0 }}>
+    <span className="flex w-full min-w-0 items-center" style={{ height: '1.75rem', paddingInline: SPACING.s8, borderRadius: 8, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-2)' }}>
       <span className="truncate">{label}</span>
     </span>
   </button>
@@ -222,10 +225,14 @@ export function CalendarTimeGrid({
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
   const hasMovedGrid = useRef(false)
+  const openingScroll = useRef({ top: 0, left: 0 })
   useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const open = () => {
+      if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+        || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -249,6 +256,7 @@ export function CalendarTimeGrid({
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
         node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
       }
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) hasMovedGrid.current = true
@@ -280,7 +288,7 @@ export function CalendarTimeGrid({
     perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" style={{ padding: '0 16px 16px' }}>
+    <div className="flex min-h-0 flex-1 flex-col" style={{ padding: "var(--orbit-space-0) var(--orbit-space-16) var(--orbit-space-16)" }}>
       <div
         data-testid="calendar-time-grid"
         data-focus-inset="grid"
@@ -295,11 +303,17 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
+          onScroll={(event) => {
+            const node = event.currentTarget
+            if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+              || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+            openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+          }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div
@@ -327,7 +341,7 @@ export function CalendarTimeGrid({
                     borderLeft: '1px solid var(--hairline)',
                     borderBottom: '1px solid var(--hairline)',
                     cursor: 'pointer',
-                    padding: '8px 4px',
+                    padding: "var(--orbit-space-8) var(--orbit-space-4)",
                     gap: 4,
                   }}
                 >
@@ -377,7 +391,7 @@ export function CalendarTimeGrid({
               <div
                 className="sticky left-0 z-[1] flex items-start justify-end"
                 style={{
-                  padding: 8,
+                  padding: SPACING.s8,
                   borderBottom: '1px solid var(--hairline)',
                   ...pinnedPaneBackground,
                 }}
@@ -394,7 +408,7 @@ export function CalendarTimeGrid({
                     style={{
                       gap: 4,
                       minHeight: 64,
-                      padding: '8px 4px',
+                      padding: "var(--orbit-space-8) var(--orbit-space-4)",
                       borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                       borderBottom: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                     }}
@@ -417,9 +431,9 @@ export function CalendarTimeGrid({
                 <span
                   key={hour}
                   data-testid="time-grid-hour-label"
-                  className="absolute right-2"
+                  className="absolute right-2 translate-y-[2px]"
                   style={{
-                    top: `calc(${hour * 3}rem + 2px)`,
+                    top: `${hour * 3}rem`,
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.75rem',
                     color: 'var(--fg-2)',
@@ -473,7 +487,7 @@ export function CalendarTimeGrid({
                   >
                     <span
                       className="shrink-0 rounded-full"
-                      style={{ width: 7, height: 7, marginLeft: -4, background: 'var(--primary)' }}
+                      style={{ width: 7, height: 7, marginLeft: -SPACING.s4, background: 'var(--primary)' }}
                     />
                     <span style={{ height: 1.5, flex: 1, background: 'var(--primary)' }} />
                   </div>
@@ -487,7 +501,7 @@ export function CalendarTimeGrid({
           <div
             data-testid="time-grid-empty"
             className="absolute inset-0 flex items-center justify-center"
-            style={{ pointerEvents: 'none', padding: 24 }}
+            style={{ pointerEvents: 'none', padding: SPACING.s24 }}
           >
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', color: 'var(--fg-2)' }}>
               {t('calendar.timeGrid.empty')}

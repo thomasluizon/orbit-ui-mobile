@@ -1,3 +1,4 @@
+import { SPACING } from "@orbit/shared/theme";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { DescriptionCopyButton } from "./description-copy-button";
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     borderRadius: 18,
     borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
+      paddingVertical: SPACING.s16,
+      paddingHorizontal: SPACING.s16,
   },
 });

@@ -14,7 +14,7 @@ describe('Android app variant', () => {
     const expected = {
       ...appJson.expo,
       android: { ...appJson.expo.android, allowBackup: false },
-      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus'],
+      plugins: [...appJson.expo.plugins, './plugins/with-android-release-build-fixes', './plugins/with-react-native-imperative-focus', './plugins/with-design-bundle-launch'],
     }
     expect(JSON.stringify(createConfig())).toBe(JSON.stringify(expected))
   })
@@ -22,6 +22,7 @@ describe('Android app variant', () => {
   it('sets the staging package, launcher name, scheme, and App Link host', () => {
     process.env.ORBIT_APP_VARIANT = 'staging'
     const config = createConfig()
+    expect(config.runtimeVersion).toBe(`${appJson.expo.runtimeVersion}-staging`)
     expect(config.name).toBe('Orbit Staging')
     expect(config.scheme).toBe('orbit-staging')
     expect(config.android.package).toBe('org.useorbit.app.staging')

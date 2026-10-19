@@ -1,3 +1,6 @@
+import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/shared/__tests__/habit-view-fixtures'
+import { buildHabitDateBuckets, canLogHabitOnDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
@@ -98,6 +101,23 @@ beforeEach(() => {
 })
 
 describe('useHabits (mobile query hook)', () => {
+  it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
+    const today = '2026-09-12'
+    mocks.apiClient.mockImplementation((url: string) => {
+      const items = url.includes('dateFrom=') ? createHabitViewScheduleItems(today) : createHabitViewItems(today, 'all')
+      return Promise.resolve({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 })
+    })
+    renderHookCapture(() => useHabits({}, { scheduleDate: today }))
+    const items = await lastQuery().queryFn() as HabitScheduleItem[]
+    const habits = normalizeHabitQueryData(items)
+    expect(habits.habitsById.has('future')).toBe(true)
+    expect(habits.childrenByParent.get('parent')).toEqual(['future-child', 'today-child'])
+    const overdue = habits.habitsById.get('overdue')!
+    expect(buildHabitDateBuckets([overdue], today)[0]?.key).toBe('__overdue__')
+    expect(canLogHabitOnDate(overdue, today, today)).toBe(true)
+    expect(canLogHabitOnDate(habits.habitsById.get('parent')!, today, today)).toBe(true)
+  })
+
   it('keys the query on the filters and defaults to a large page size', async () => {
     mocks.apiClient.mockResolvedValue({ items: [], page: 1, pageSize: 200, totalCount: 0, totalPages: 1 })
 

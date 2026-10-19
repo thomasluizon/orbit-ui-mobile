@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useTranslations } from 'next-intl'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { GoalGroupLabel } from '../../goals/goal-group-label'
@@ -44,7 +47,7 @@ export function GoalTypeSelector({
         ]}
         onChange={onTypeChange}
       />
-      <div style={{ padding: '12px 0' }}>
+      <div style={{ padding: "var(--orbit-space-12) var(--orbit-space-0)" }}>
         <div
           style={{
             fontFamily: 'var(--font-sans)',
@@ -58,7 +61,7 @@ export function GoalTypeSelector({
         {'hintKey' in activeTypeOption && (
           <div
             style={{
-              marginTop: 4,
+              marginTop: SPACING.s4,
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               color: 'var(--fg-3)',

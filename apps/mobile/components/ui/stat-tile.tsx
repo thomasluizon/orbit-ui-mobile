@@ -1,3 +1,4 @@
+import { PADDING, } from '@orbit/shared/theme'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
+    padding: PADDING.recordInset,
   },
   value: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

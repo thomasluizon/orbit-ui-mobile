@@ -37,7 +37,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <div
-      className="flex min-w-0 flex-1 flex-col items-start gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 text-start"
+      className="flex min-w-0 flex-1 flex-col items-start gap-2 rounded-[20px] bg-[var(--bg-card)] p-record-inset text-start"
       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minWidth: 'max-content' }}
       data-state={state}
       data-variant={isLoading ? 'stat-tile' : undefined}

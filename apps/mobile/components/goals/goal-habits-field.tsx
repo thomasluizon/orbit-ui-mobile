@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -57,6 +58,6 @@ export function GoalHabitsPicker({ selectedIds, onChange, disabled, onClose }: R
 
 const styles = StyleSheet.create({
   list: { flexShrink: 1, gap: 4 },
-  count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
+  count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 },
   virtualList: { maxHeight: 320 },
 })

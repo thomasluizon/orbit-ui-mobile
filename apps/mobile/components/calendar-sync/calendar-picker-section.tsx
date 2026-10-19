@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { useState } from 'react'
@@ -55,7 +56,7 @@ export function CalendarPickerSection({
 
   return (
     <View>
-      <Text accessibilityRole="header" style={{ paddingBottom: 12, fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, color: tokens.fg1 }}>{t('calendar.calendars.readFrom')}</Text>
+      <Text accessibilityRole="header" style={{ paddingBottom: SPACING.s12, fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, color: tokens.fg1 }}>{t('calendar.calendars.readFrom')}</Text>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText, display: saveError ? undefined : 'none' }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}

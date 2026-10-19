@@ -3,7 +3,7 @@ name: PR Tests
 on:
   pull_request:
     branches: [main, redesign/main]
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -100,7 +100,7 @@ jobs:
       - run: npm ci
 
       - name: Test CI workflow behavior
-        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs
+        run: node --test tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/unit-tests-workflow.test.mjs
 
       # The unit suite's contrast scan is skipped on a Turbo cache hit, so this step runs the
       # full-tree scan on every pull request. Findings stay advisory; a scanner error fails.
@@ -127,10 +127,27 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    needs: build
+    if: ${{ always() }}
+    needs: [build, web-tests, workspace-tests]
     runs-on: ubuntu-latest
 
     steps:
+      - name: Require every test job
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          WEB_RESULT: ${{ needs.web-tests.result }}
+          WORKSPACE_RESULT: ${{ needs.workspace-tests.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          if [ "$BASE_REF" = redesign/main ]; then
+            test "$WEB_RESULT" = success
+            test "$WORKSPACE_RESULT" = success
+          else
+            test "$WEB_RESULT" = skipped
+            test "$WORKSPACE_RESULT" = skipped
+          fi
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
@@ -141,6 +158,7 @@ jobs:
       - run: npm ci
 
       - name: Cache turbo
+        if: github.base_ref != 'redesign/main'
         uses: actions/cache@v6
         with:
           path: .turbo
@@ -149,7 +167,46 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
 
       - name: Run tests with coverage thresholds
+        if: github.base_ref != 'redesign/main'
         run: npx turbo run test --concurrency=1 -- --coverage
+
+      - name: Download web shard reports
+        if: github.base_ref == 'redesign/main'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: web-unit-shard-*
+          path: apps/web/.artifacts/unit-tests
+          merge-multiple: true
+
+      - name: Download workspace coverage
+        if: github.base_ref == 'redesign/main'
+        uses: actions/download-artifact@v8
+        with:
+          name: workspace-unit-coverage
+
+      - name: Verify every web report arrived
+        if: github.base_ref == 'redesign/main'
+        run: |
+          test -s apps/web/.artifacts/unit-tests/blobs/jsdom-1.json
+          for shard in $(seq 1 8); do
+            test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
+          done
+
+      - name: Merge web reports and enforce coverage thresholds
+        if: github.base_ref == 'redesign/main'
+        working-directory: apps/web
+        run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
+
+      - name: Upload web test timings
+        if: ${{ always() && github.base_ref == 'redesign/main' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-unit-timings
+          path: |
+            apps/web/.artifacts/unit-tests/timings
+            apps/web/.artifacts/unit-tests/merged.json
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Verify coverage reports
         run: |
@@ -163,6 +220,74 @@ jobs:
           name: unit-test-coverage
           path: |
             apps/web/coverage/lcov.info
+            apps/mobile/coverage/lcov.info
+            packages/shared/coverage/lcov.info
+          if-no-files-found: error
+
+  web-tests:
+    name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
+    if: github.base_ref == 'redesign/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total: [8]
+        include:
+          - project: jsdom
+            shard: 1
+            total: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
+      - name: Run web shard with coverage
+        working-directory: apps/web
+        run: >-
+          npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
+          --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+          --reporter=default --reporter=blob --reporter=json
+          --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
+          --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
+      - name: Upload web shard reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}
+          path: apps/web/.artifacts/unit-tests
+          include-hidden-files: true
+          if-no-files-found: error
+
+  workspace-tests:
+    name: Workspace unit tests
+    if: github.base_ref == 'redesign/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run remaining workspaces with coverage thresholds
+        run: npx turbo run test --filter='!@orbit/web' --concurrency=1 -- --coverage
+      - name: Verify workspace coverage
+        run: |
+          test -s apps/mobile/coverage/lcov.info
+          test -s packages/shared/coverage/lcov.info
+      - name: Upload workspace coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: workspace-unit-coverage
+          path: |
             apps/mobile/coverage/lcov.info
             packages/shared/coverage/lcov.info
           if-no-files-found: error

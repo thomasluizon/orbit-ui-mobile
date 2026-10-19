@@ -1,4 +1,7 @@
 import type { ChatMessage } from '../types/chat'
+import { buildChatFinalMessageFields } from '../chat/final-message'
+import { createChatSseParser } from '../chat/sse-stream'
+import partsFixture from './chat-parts.fixture.json'
 import {
   apiStatusCardsFinalFixture,
   breakdownSubHabits,
@@ -44,4 +47,17 @@ export function makeChatBlockLayoutMessage(scenario: typeof chatBlockLayoutCases
   return makeHeldHabitMessage({
     id: 'blocks', content: prose ? 'Review the routine. '.repeat(20) : '', pendingOperations: [], ...scenario.fields,
   })
+}
+
+export const chatPartsLayoutCases = [
+  { kind: 'ordered', parts: partsFixture.response.parts, order: ['text', 'habitList', 'text', 'metrics'] },
+  { kind: 'unknown', parts: partsFixture.response.parts.map((part, index) => index === 1 ? { ...part, kind: 'futureKind' } : part), order: ['text', 'text', 'metrics'] },
+  { kind: 'malformed', parts: partsFixture.response.parts.map((part, index) => index === 1 ? { ...part, block: {} } : part), order: ['text', 'text', 'metrics'] },
+  { kind: 'all skipped', parts: [{ type: 'block', kind: 'futureKind', block: {} }], order: ['text'] },
+]
+
+export function makeChatPartsLayoutMessage(scenario = chatPartsLayoutCases[0]!): ChatMessage {
+  const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { ...partsFixture.response, parts: scenario.parts } })}\n\n`)
+  if (event?.type !== 'final') throw new Error('Expected a final event')
+  return makeHeldHabitMessage({ pendingOperations: [], ...buildChatFinalMessageFields(event.response, []) })
 }

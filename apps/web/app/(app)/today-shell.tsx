@@ -14,7 +14,10 @@ const DATE_ICON_BUTTON_CLASS_NAME =
   'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2'
 
 export interface TodayDateControlProps extends SharedTodayDateControlProps {
+  showDate?: boolean
   beforeDate?: ReactNode
+  searchOpen?: boolean
+  searchControlsId?: string
 }
 
 function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
@@ -26,10 +29,11 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   return <DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
+
     <div className="flex-1" />
     <div className="flex shrink-0 items-center gap-[4px]">
-      <button type="button" aria-label={props.searchLabel} onClick={props.onSearch}
-        className={`${DATE_ICON_BUTTON_CLASS_NAME} lg:hidden`}><Search size={20} aria-hidden="true" /></button>
+      <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
+        className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={() => { setFrequencyMenu(false); setMenuOpen((open) => !open) }}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -50,15 +54,15 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   return <div>
     <ShellHeader><TodayHeaderActions {...props} /></ShellHeader>
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="today-proactive-date-group flex min-w-0 flex-col">
       {props.beforeDate}
-      <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
+      {props.showDate !== false ? <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-4 py-1">
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
           <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
         <button type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
           aria-disabled={props.isTodaySelected} onClick={() => { if (!props.isTodaySelected) props.onGoToToday() }}
-          className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-[8px] py-[4px] text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-2 py-1 text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2"
           title={`${props.dayName}, ${props.numericDate}`}>
           <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
             {props.shortDayName ? <>
@@ -72,7 +76,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
-      </div>
+      </div> : null}
     </div>
   </div>
 }

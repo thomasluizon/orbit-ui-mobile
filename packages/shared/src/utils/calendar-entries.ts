@@ -10,6 +10,11 @@ export type CalendarEventsDisplayState =
 export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
 export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
 
+export function isCalendarGridScrollMovement(offset: number, openingOffset: number, maximumTravel: number): boolean {
+  const isNativeClamp = offset < openingOffset && Math.abs(maximumTravel - offset) <= 1
+  return offset !== openingOffset && !isNativeClamp
+}
+
 /**
  * Filters a day's calendar entries by the "show recurring" toggle. When the
  * toggle is off, only one-time entries remain (recurring habits are hidden).

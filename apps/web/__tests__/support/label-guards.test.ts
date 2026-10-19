@@ -482,6 +482,20 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
+  it.each([false, true])('measures compact checkbox paint independently of transparent reach (partial=%s)', async (partial) => {
+    const page = await browser.newPage()
+    try {
+      const row = renderToStaticMarkup(createElement(CheckRow, { placement: 'column', label: en.calendar.showRecurring, checked: true, onChange: () => {} }))
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}${partial ? '.orbit-list-row-outset { inset-inline: -8px }' : ''}</style><main style="padding:24px">${row}</main></html>`)
+      const control = page.getByRole('checkbox')
+      await control.hover()
+      const assertion = expectFillShape(control, 'hover')
+      if (partial) await expect(assertion).rejects.toThrow(/fill.*control/)
+      else await assertion
+    } finally { await page.close() }
+  })
+
   it.each([
     { name: 'centered partial fill', inset: '12px', passes: false },
     { name: 'full control fill', inset: '0', passes: true },

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import '@/components/shell/destination-shell'
 
 const route = vi.hoisted(() => ({ pathname: '/wrapped' }))
 

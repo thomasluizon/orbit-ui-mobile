@@ -3,7 +3,7 @@
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and progress rings and rounded-square habit checks. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
-> - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
+> - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`; the shared padding contract names screen, card, section, row and sheet roles on the spacing scale.
 > - **Read `## Information architecture` FIRST.** It says what each surface IS, and it decides whether a surface should exist before any other section decides how it looks.
 > - Sections (exact `##` names, so this line is greppable): Information architecture · Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Overlay · Buttons · Surface rules · Habit list · Listing · States · Voice · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces · External component sources · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
@@ -185,9 +185,10 @@ own entry, opens this same layer. Closing it restores the underlying surface and
 Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
 all open these owners through the conversation store; no entry owns a separate header.
 
-**Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
-control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
-with its neutral count pill, one filled create action, and the account row.
+**Each composer pins to the bottom of its content column.** The sidebar carries the brand row with
+the lockup at the start and the Avisos bell with its neutral count pill followed by the collapse
+control at the trailing edge, then the search control, the Astra row directly above Hoje, the four
+destinations in tab order, one filled create action, and the account row.
 The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
 12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
 The list gap is 4. While the conversation is open, only the Astra row draws the current-position
@@ -232,6 +233,22 @@ for, and building that instead is the defect.
 | **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
+
+### Hoje habit views
+
+Hoje keeps one full-width SegmentedControl at the top of its content, below the shell header
+actions and above the date pager, on web and Android at every width. Its labels are Hoje, Todos
+and Geral in pt-BR, each one word on one line at the default text size. The chosen view persists
+in `activeView`. Only Hoje shows the date pager and its date-bound notices and proactive line.
+
+Hoje lists the selected day's habits and overdue work when viewing today. Todos keeps scheduled
+habits across dates, grouped with overdue work first and then by due date; completed one-time
+habits appear through Show completed. Geral lists habits with no set day, with completed habits
+behind the same control. Showing general habits on Hoje is a separate preference. Every view
+retains sub-habits, row actions, search, selection and creation. At every width, the header search control expands
+an Input above the view switch and filters the current view in place, preserving its date and frequency scope.
+Wide web keeps the global command palette in the sidebar separately. Todos and Geral act on the current
+account day regardless of the day last visited in Hoje; creation in Geral defaults to no set day.
 
 ### Perfil settings navigation
 
@@ -333,6 +350,10 @@ The first block set, in build order: the **preview** block for anything Astra is
 tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
 frequency control.
 
+The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
+
+A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
+
 Six rules govern all of them:
 
 1. **Three-way state split.** Business data is server owned and re-fetched. UI state, meaning
@@ -344,7 +365,7 @@ Six rules govern all of them:
    are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
    reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
    per row.
-4. **Text streams, the block arrives whole.** Never animate a block's own reveal, and never gate the
+4. **Text streams, the block arrives whole.** Text above a block keeps its position when the final parts replace streamed text, and the scroll position stays put. Never animate a block's own reveal, and never gate the
    screen-reader announcement on a visual typing effect.
 5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
    block states it and offers a refresh.
@@ -494,12 +515,37 @@ It drops 20, 28, 40 and 56, which are the values the 1,436 existing violations c
 
 **12 and 24 survive** because those are the measured control clearances below.
 
-**Two padding roles sit on top of the scale**, because a card that hugs its text reads as cramped no matter how correct the gaps around it are:
+**Shared padding contract.** `packages/shared/src/theme/spacing.json` owns the existing scale
+and its role aliases. Both platforms read `SPACING` and `PADDING` from `@orbit/shared/theme`.
+Web's generated `spacing.css` exposes the same aliases to Tailwind and plain CSS. Regenerate it
+with `npm run spacing:generate -w @orbit/eslint-rules`; `spacing:check` rejects drift and off-scale
+CSS padding or margins across the complete source tree. `local/spacing-scale` rejects off-scale
+style literals, including style factories and conditional values, without a violation baseline.
 
-| role | value |
-|---|---|
-| card and panel padding | **24** |
-| list-row padding | **16** |
+| role | shared alias | scale token | value |
+|---|---|---|---|
+| screen gutter, inside the centred content column at every width | `PADDING.screenGutter` | `SPACING.s16` | 16 |
+| card and panel inner padding | `PADDING.cardInset` | `SPACING.s24` | 24 |
+| drawn compact records: goal cards, achievement cards, StatTile and allowance card | `PADDING.recordInset` | `SPACING.s16` | 16 |
+| section title to content | `PADDING.sectionTitleGap` | `SPACING.s12` | 12 |
+| sections on Hoje and Calendário | `PADDING.sectionGap` | `SPACING.s24` | 24 |
+| sections on Progresso and Perfil | `PADDING.sectionStackGap` | `SPACING.s32` | 32 |
+| list row inline / block padding | `PADDING.rowInline` / `PADDING.rowBlock` | `SPACING.s16` / `SPACING.s12` | 16 / 12 |
+| sheet body inline / top / bottom | `PADDING.sheetInline` / `PADDING.sheetTop` / `PADDING.sheetBottom` | `SPACING.s24` / `SPACING.s8` / `SPACING.s24` | 24 / 8 / 24 |
+| sheet header top / inline / bottom | `PADDING.sheetHeaderTop` / `PADDING.sheetInline` / `PADDING.sheetHeaderBottom` | `SPACING.s16` / `SPACING.s24` / `SPACING.s8` | 16 / 24 / 8 |
+| sheet footer top / inline / bottom | `PADDING.sheetFooterTop` / `PADDING.sheetInline` / `PADDING.sheetBottom` | `SPACING.s16` / `SPACING.s24` / `SPACING.s24` | 16 / 24 / 24 |
+
+These roles preserve the granted Hoje, Calendário, Progresso and Perfil drawings rather than
+enlarging every compact record to the panel inset. A padded column owns its gutter once; a
+column-placed ListRow shares that content edge and extends only its interaction fill. Sheet
+callers leave the outer content inset to the primitive; the stepped date-grid adapter remains
+defined in Overlay. Safe areas and scroll clearance are added by their platform owners.
+The proactive line's gap to the Hoje date row follows text enlargement: `PADDING.sectionGap`
+times Android font scale or web root text scale. Its 16px outer gutter and 8px minimum fill
+inset stay fixed. This web text-scale adapter converts the shared pixel value with the ratio
+of `1rem` to the 16px default text size; it does not redefine the shared spacing scale.
+Habit-family panels are unpadded wrappers in the Hoje drawing; their body and trailing controls
+own the inset, so the wrapper does not add the panel inset again.
 
 | between | clearance |
 |---|---|
@@ -1216,12 +1262,14 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.**
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
-- **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
+- **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge with a 12px gap between their icon-only targets. In the collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
 - **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
+
+The sidebar surface inventory covers four compositions: (1) the expanded brand row with its bell and collapse control; (2) the collapsed rail header with the toggle above the bell; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
 
 ### The allowed shell divergences, enumerated
 

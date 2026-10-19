@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -105,7 +106,7 @@ export function NotificationDetailModal({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: {
-      paddingBottom: 8,
+      paddingBottom: SPACING.s8,
       gap: 12,
     },
     timestamp: {

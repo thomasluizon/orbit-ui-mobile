@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
@@ -5,6 +6,7 @@ import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 import { normalizeUpstreamResponse } from '@/lib/upstream-starting-response'
+import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import {
   SESSION_REFRESH_FAILED_VALUE,
   SESSION_REFRESH_HEADER,
@@ -105,7 +107,7 @@ async function proxyRequest(
     : `${apiBase}/api/${apiPath}`
 
   const method = request.method
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...API_VERSION_HEADERS }
   const eventOrigin = request.headers.get('x-orbit-event-origin')
   if (eventOrigin && eventOrigin.length <= 128 && method !== 'GET' && method !== 'HEAD') {
     headers['X-Orbit-Event-Origin'] = eventOrigin
@@ -121,6 +123,9 @@ async function proxyRequest(
   }
 
   Object.assign(headers, buildForwardedClientHeaders(request))
+  if (apiPath.toLowerCase().startsWith('auth/')) {
+    Object.assign(headers, buildBffForwardingHeaders(request))
+  }
 
   const hasBody =
     method === 'POST' ||

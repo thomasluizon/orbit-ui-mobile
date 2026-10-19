@@ -31,8 +31,8 @@ function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, 
   </div>
 }
 
-const monthTitleStyle = { padding: '8px', flexShrink: 0, maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)', fontVariantNumeric: 'tabular-nums' } as const
-const periodTitleStyle = { padding: '8px 16px', flexShrink: 1, maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', lineHeight: 1.4, fontWeight: 400, color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' } as const
+const monthTitleStyle = { padding: 'var(--orbit-space-8)', flexShrink: 0, maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)', fontVariantNumeric: 'tabular-nums' } as const
+const periodTitleStyle = { padding: 'var(--orbit-space-8) var(--orbit-space-16)', flexShrink: 1, maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', lineHeight: 1.4, fontWeight: 400, color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' } as const
 
 function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, period, pickerId, pickerOpen, onReturn, onOpenPicker }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'todayKey' | 'isTodaySelected' | 'period'> & { pickerId: string; pickerOpen: boolean; onReturn: () => void; onOpenPicker: () => void }>) {
   const t = useTranslations()

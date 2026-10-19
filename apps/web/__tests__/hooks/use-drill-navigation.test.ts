@@ -136,6 +136,45 @@ describe('useDrillNavigation', () => {
     mockFetch.mockReset()
   })
 
+  it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {
+    mockFetch.mockResolvedValue(Response.json(makeDetailResponse()))
+    const { result, rerender } = renderHook(
+      ({ view, habits }) => useDrillNavigation(habits, 0, undefined, view),
+      { initialProps: { view: 'all' as 'all' | 'today' | 'general', habits: habitsById } },
+    )
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.currentParent?.id).toBe('parent1')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+    rerender({ view, habits: new Map() })
+    expect({ parent: result.current.currentParent, children: result.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(result.current.drillStack).toEqual([])
+    rerender({ view: 'all', habits: habitsById })
+    expect(result.current.currentParentId).toBeNull()
+    expect(result.current.getDrillChildren('parent1')).toEqual([])
+  })
+
+  it.each(['today', 'general'] as const)('cancels a pending all drill when changing to %s', async (view) => {
+    let resolveDetail = (_response: Response) => {}
+    mockFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveDetail = resolve }))
+    const { result, rerender } = renderHook(
+      ({ view }) => useDrillNavigation(habitsById, 0, undefined, view),
+      { initialProps: { view: 'all' as 'all' | 'today' | 'general' } },
+    )
+    let pending = Promise.resolve()
+    act(() => { pending = result.current.drillInto('parent1') })
+    expect(result.current.drillLoading).toBe(true)
+    rerender({ view })
+    expect(result.current.drillLoading).toBe(false)
+    await act(async () => {
+      resolveDetail(Response.json(makeDetailResponse()))
+      await pending
+    })
+    expect({ parent: result.current.currentParent, children: result.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(result.current.drillError).toBe('')
+    rerender({ view: 'all' })
+    expect(result.current.getDrillChildren('parent1')).toEqual([])
+  })
+
   it.each([429, 503])('keeps children loading until a %s recovery read returns', async (status) => {
     vi.useFakeTimers()
     mockFetch.mockResolvedValueOnce(Response.json(status === 503 ? { errorCode: 'UPSTREAM_STARTING' } : null, { status, headers: { 'Retry-After': '60' } }))
