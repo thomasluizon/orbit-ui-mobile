@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /
+
+Allow: /terms
+Allow: /privacy
+Allow: /delete-account

@@ -10,7 +10,7 @@ import { accountEventApiBase } from '@/lib/account-event-api-base'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
-const PUBLIC_ROOT_FILES = new Set(['/sw.js'])
+const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
 
 const PUBLIC_PATHS = [
   '/login',
