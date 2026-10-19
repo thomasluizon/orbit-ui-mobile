@@ -60,6 +60,7 @@ jobs:
         with:
           name: production-feature-parity
           path: .claude/manifests/feature-parity.json
+          include-hidden-files: true
       - id: timeless__1
         name: "Timeless Text: Check text"
         run: |
