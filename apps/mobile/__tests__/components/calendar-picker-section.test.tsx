@@ -149,7 +149,7 @@ describe('mobile CalendarPickerSection', () => {
     expect(title.props.numberOfLines).toBe(1)
     const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
     const row = tree.root.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
-    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingHorizontal: 16, marginHorizontal: -16 })
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingStart: 16, paddingEnd: 4, gap: 4, marginHorizontal: -16 })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)

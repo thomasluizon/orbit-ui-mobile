@@ -169,8 +169,8 @@ describe('About destination geometry in Chromium', () => {
         return {
           left: bounds.left, right: bounds.right, versionLeft: version.left, versionRight: version.right,
           fillLeft: fill.left, fillRight: fill.right,
-          leftHit: document.elementFromPoint(version.left - 11, bounds.top + bounds.height / 2) === button,
-          rightHit: document.elementFromPoint(version.right + 11, bounds.top + bounds.height / 2) === button,
+          leftHit: document.elementFromPoint(version.left - 15, bounds.top + bounds.height / 2) === button,
+          rightHit: document.elementFromPoint(version.right + 15, bounds.top + bounds.height / 2) === button,
         }
       })
       expect(measured.left).toBe(measured.versionLeft)

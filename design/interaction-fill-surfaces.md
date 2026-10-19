@@ -24,7 +24,9 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 
 Owners are relative to each app. Negative offsets on calendar time markers and decorative habit
 progress SVGs do not paint interaction fills. ActionRow's negative vertical margin compensates its
-transparent hit padding. Small pill hit pseudo-elements remain transparent in every interaction state.
+transparent hit padding. Small pill hit pseudo-elements remain transparent in every interaction state. Habit rename and
+column rows retain separate transparent 16px inline hit extensions around their 12px paint.
+The row action boundary keeps the transparent extension inside its separate action gap.
 
 The web layout inventory visits destination, pushed, authentication, onboarding and public screens
 at 320, 412, 600, 1024 and 1352px in both locales. It checks hover, held press and focus-visible using

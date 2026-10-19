@@ -206,10 +206,18 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-list-row-column .orbit-list-row-body::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -16px;
+}
+
 .orbit-list-row-shell:has(> .orbit-list-row-action) {
   gap: 4px;
 }
 
+.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-body::after,
 .orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-outset,
 .orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-body::before {
   inset-inline-end: 0;

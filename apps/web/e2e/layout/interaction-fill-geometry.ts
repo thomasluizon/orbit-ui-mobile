@@ -4,7 +4,7 @@ export function inspectInteractionFill(element: Element, clearance: number) {
   const painted = (style: CSSStyleDeclaration) => !transparent(style.backgroundColor) || style.backgroundImage !== 'none'
     || style.outlineStyle !== 'none' && pixels(style.outlineWidth) > 0 && !transparent(style.outlineColor)
     || ['Top', 'Right', 'Bottom', 'Left'].some((side) => pixels(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && !transparent(style.getPropertyValue(`border-${side.toLowerCase()}-color`)))
-    || style.boxShadow.split(/,(?![^()]*\))/).some((shadow) => shadow !== 'none' && !transparent(shadow.match(/rgba?\([^)]*\)/)?.[0] ?? 'black'))
+    || style.boxShadow.split(/,(?![^()]*\))/).some((shadow) => shadow !== 'none' && !transparent(shadow.match(/(?:rgba?|hsla?|color|oklch|oklab)\([^)]*\)/)?.[0] ?? 'black'))
   const visible = (node: Element) => {
     if (!node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false
     const box = node.getBoundingClientRect()
@@ -17,7 +17,7 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     const outline = style.outlineStyle === 'none' ? 0 : Math.max(0, pixels(style.outlineWidth) + pixels(style.outlineOffset))
     const extent = { left: box.left - outline, right: box.right + outline, top: box.top - outline, bottom: box.bottom + outline }
     for (const shadow of style.boxShadow.split(/,(?![^()]*\))/)) {
-      if (shadow === 'none' || shadow.includes('inset')) continue
+      if (shadow === 'none' || shadow.includes('inset') || transparent(shadow.match(/(?:rgba?|hsla?|color|oklch|oklab)\([^)]*\)/)?.[0] ?? 'black')) continue
       const lengths = shadow.replace(/(?:rgba?|hsla?|color|oklch|oklab)\([^)]*\)/g, '').trim().split(/\s+/).map(pixels)
       const [x = 0, y = 0, blur = 0, spread = 0] = lengths
       const radius = spread + blur * 1.5
