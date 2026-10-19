@@ -145,12 +145,12 @@ export function Proposed({ proposed, scope, label, children, inset = false, keep
   return (
     <div
       aria-label={proposed ? label : undefined}
-      className={proposed ? inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]" : undefined}
+      className={!proposed ? undefined : inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]"}
       data-proposed={proposed ? '' : undefined}
       role={proposed ? 'group' : undefined}
       style={{ borderRadius: PROPOSED_RADIUS[scope] }}
     >
-      {proposed ? tintProposedChildren(children, tintAdapter) : Children.map(children, (child) => child)}
+      {proposed ? tintProposedChildren(children, tintAdapter) : Children.toArray(children)}
     </div>
   )
 }
