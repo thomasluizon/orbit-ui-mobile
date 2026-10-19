@@ -130,6 +130,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     streamingMessageId,
     showSuggestions,
     sendMessage,
+    blockAnswerInteraction,
     activeSteps,
     canShowFollowUps,
     handleBreakdownConfirmed,
@@ -347,6 +348,8 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
+            laterMessages={messages.slice(index + 1)}
+            blockAnswerInteraction={blockAnswerInteraction}
             animateEntry={msg.role === 'user' && !initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}

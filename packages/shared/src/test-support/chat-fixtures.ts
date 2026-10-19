@@ -230,3 +230,5 @@ export const apiStatusCardsFinalFixture = {
     ],
   },
 }
+
+export { choiceBlockFixture, pickListBlockFixture } from './choice-fixtures'

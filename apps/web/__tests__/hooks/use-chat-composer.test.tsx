@@ -1,3 +1,4 @@
+import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
@@ -516,6 +517,151 @@ describe('web useChatComposer streaming send', () => {
     vi.useRealTimers()
   })
 
+
+  it('sends a localized block answer once and retains the preview in the existing message path', async () => {
+    mocks.locale = 'pt-BR'
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    mocks.fetch.mockResolvedValue(sseResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Nothing has been saved.', actions: [], pendingOperations: makeHeldHabitMessage().pendingOperations } })}\n\n`))
+    const { result } = renderHook(() => useChatComposer())
+    const request = { kind: 'pickList' as const, answer: { blockId: pickListBlockFixture.blockId, selectedIds: ['1', '3'] }, labels: ['Caminhar', 'Ler'] }
+    await act(async () => {
+      const answers = await Promise.all([result.current.blockAnswerInteraction.send(request), result.current.blockAnswerInteraction.send(request)])
+      expect(answers).toEqual([{ ok: true }, { ok: false, status: null }])
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    const body = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(JSON.parse(body.get('blockAnswer') as string)).toEqual(request.answer)
+    expect(body.get('message')).toBe('Caminhar e Ler')
+    expect(JSON.parse(body.get('clientContext') as string).partKinds).toEqual(expect.arrayContaining(['choice', 'pickList']))
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['Caminhar e Ler'])
+    expect(useChatStore.getState().messages.at(-1)?.pendingOperations).toEqual(makeHeldHabitMessage().pendingOperations)
+  })
+
+  it.each(['reply failure', 'lost final response', 'conflicting retry'] as const)('retries the same block answer after %s and keeps one selected-label summary', async scenario => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'question', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    function Harness() { const chat = useChatComposer(); return <AstraConversation chat={chat} /> }
+    render(<Harness />)
+    fireEvent.click(screen.getAllByRole('radio')[2]!)
+    fireEvent.change(screen.getByLabelText('freeText'), { target: { value: 'After work' } })
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    await waitFor(() => expect(useChatStore.getState().messages.some(message => message.role === 'user')).toBe(true))
+    await act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Preparing"}'))
+      if (scenario !== 'lost final response') stream.enqueue(frame('{"type":"error","error":"Reply failed","status":500}'))
+      stream.close()
+    })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('error'))
+    expect(screen.getAllByRole('radio')[2]).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByText('closed')).not.toBeInTheDocument()
+    const replyText = scenario === 'lost final response' ? 'Stored reply.' : 'Retried reply.'
+    const reply = makeChatResponse({ aiMessage: replyText })
+    mocks.fetch.mockResolvedValueOnce(scenario === 'conflicting retry'
+      ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
+      : sseResponse(finalFrame(reply)))
+    await act(async () => {
+      const submit = screen.getByRole('button', { name: 'submit' })
+      fireEvent.click(submit); fireEvent.click(submit)
+    })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    const userMessages = useChatStore.getState().messages.filter(message => message.role === 'user')
+    expect(userMessages.map(message => message.content)).toEqual([new Intl.ListFormat('en', { type: 'conjunction' }).format([choiceBlockFixture.options[2]!.label, 'After work'])])
+    expect(userMessages[0]?.answerToBlockId).toBe(choiceBlockFixture.blockId)
+    const answers = mocks.fetch.mock.calls.map(([, options]) => JSON.parse((options.body as FormData).get('blockAnswer') as string))
+    expect(answers).toEqual(Array.from({ length: 2 }, () => ({ blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' })))
+    if (scenario === 'conflicting retry') {
+      expect(screen.getByText('chat.choice.alreadyAnswered')).toBeInTheDocument()
+      expect(screen.queryByText(/chat.choice.answered/)).not.toBeInTheDocument()
+      expect(screen.queryByText('Stored reply.')).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByText(/chat.choice.answered/)).toBeInTheDocument()
+      expect(screen.getByText(replyText, { selector: 'p' })).toBeInTheDocument()
+    }
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    if (scenario !== 'conflicting retry') expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it.each([
+    { scenario: 'lost final at the limit', initial: 4, refreshed: 5, authoritative: 5 },
+    { scenario: 'stored replay after a profile refresh', initial: 3, refreshed: 4, authoritative: 4 },
+    { scenario: 'refunded failure with a new reservation', initial: 3, refreshed: 3, authoritative: 4 },
+  ])('reconciles recovery usage for $scenario', async ({ scenario, initial, refreshed, authoritative }) => {
+    const { QueryClient, QueryObserver } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let serverUsage = initial
+    const profileQuery = { queryKey: profileKeys.detail(), queryFn: () => Promise.resolve(createMockProfile({ aiMessagesUsed: serverUsage, aiMessagesLimit: 5 })) }
+    const observer = new QueryObserver(cache, profileQuery)
+    const unsubscribe = observer.subscribe(() => {})
+    onTestFinished(() => { unsubscribe(); cache.clear(); mocks.queryClient.setQueryData.mockReset() })
+    mocks.queryClient.setQueryData.mockImplementation(cache.setQueryData.bind(cache))
+    mocks.queryClient.invalidateQueries.mockImplementation(cache.invalidateQueries.bind(cache))
+    mocks.state.profile = await cache.fetchQuery(profileQuery)
+    mocks.fetch.mockResolvedValueOnce(scenario === 'refunded failure with a new reservation'
+      ? Response.json({ error: 'Reply failed' }, { status: 500 })
+      : sseResponse(frame('{"type":"started"}')))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'], freeText: 'After work' }, labels: ['Evening'] }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toMatchObject({ ok: false }) })
+    serverUsage = refreshed
+    mocks.state.profile = await cache.fetchQuery(profileQuery)
+    await act(async () => { rerender(); await Promise.resolve() })
+    expect(result.current.atMessageLimit).toBe(refreshed === 5)
+    serverUsage = authoritative
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Recovered reply.' }))))
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toEqual({ ok: true }) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(authoritative)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('blocks a changed recovery answer at the limit', async () => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 4, aiMessagesLimit: 5 })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(frame('{"type":"started"}')))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => { await result.current.blockAnswerInteraction.send(request) })
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    await act(async () => { rerender(); await Promise.resolve() })
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] } })).toEqual({ ok: false, status: null }) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the answered summary after the thread remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'choice', block: choiceBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(sseResponse(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: 'Continue.', actions: [] } })}\n\n`))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.blockAnswerInteraction.send({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }) })
+    const view = render(<AstraConversation chat={result.current} />)
+    expect(screen.getByText('chat.choice.answered:{"options":"Evening"}')).toBeInTheDocument()
+    view.unmount()
+    render(<AstraConversation chat={result.current} />)
+    expect(screen.getByText('chat.choice.answered:{"options":"Evening"}')).toBeInTheDocument()
+  })
+
+  it.each([400, 404, 409, 410])('returns block status %s without inserting a later turn or a global retry', async status => {
+    mocks.fetch.mockResolvedValue(Response.json({ error: 'Invalid answer' }, { status }))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => {
+      expect(await result.current.blockAnswerInteraction.send({ kind: 'choice', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] })).toEqual({ ok: false, status })
+    })
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(result.current.canRetryLastSend).toBe(false)
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it('blocks a choice answer at quota and any answer while offline', async () => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    const { result } = renderHook(() => useChatComposer())
+    const request = { kind: 'choice' as const, answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['evening'] }, labels: ['Evening'] }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send(request)).toEqual({ ok: false, status: null }) })
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    onTestFinished(() => network.mockRestore())
+    await act(async () => { globalThis.dispatchEvent(new Event('offline')) })
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ ...request, kind: 'pickList' })).toEqual({ ok: false, status: null }) })
+    expect(mocks.fetch).not.toHaveBeenCalled()
+  })
   it('reveals streaming text before coalesced final blocks can move the reply below the viewport', async () => {
     vi.useFakeTimers()
     const stream = controlledSseResponse()
@@ -947,7 +1093,7 @@ describe('web useChatComposer streaming send', () => {
     expect(remountedComposer.result.current.streamingMessageId).toBeNull()
   })
 
-  it('keeps a newer stream active when the finalized request finishes invalidating', async () => {
+  it.each(['pending', 'step', 'delta'] as const)('keeps a newer stream active when the finalized request finishes invalidating (%s)', async phase => {
     let resolveInvalidations!: () => void
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
@@ -984,9 +1130,13 @@ describe('web useChatComposer streaming send', () => {
     let secondSendPromise!: Promise<void>
     act(() => {
       secondSendPromise = result.current.sendMessage('start another')
-      secondStream.enqueue(frame('{"type":"delta","text":"Still [[or"}'))
+      if (phase === 'delta') secondStream.enqueue(frame('{"type":"delta","text":"Still [[or"}'))
+      if (phase === 'step') secondStream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}'))
     })
-    await waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    if (phase === 'delta') await waitFor(() => expect(useChatStore.getState().streamingMessageId).not.toBeNull())
+    if (phase === 'step') await waitFor(() => expect(result.current.activeSteps).toEqual([{ domain: 'habits', access: 'read' }]))
+    expect(result.current.isSending).toBe(true)
     const secondDraftId = useChatStore.getState().streamingMessageId
 
     await act(async () => {
@@ -994,6 +1144,11 @@ describe('web useChatComposer streaming send', () => {
       await sendPromise
     })
     expect(useChatStore.getState().streamingMessageId).toBe(secondDraftId)
+    expect(result.current.isSending).toBe(true)
+    expect(result.current.isTyping).toBe(phase !== 'delta')
+    if (phase === 'step') expect(result.current.activeSteps).toEqual([{ domain: 'habits', access: 'read' }])
+    await act(async () => { await result.current.sendMessage('overlapping third request') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
 
     await act(async () => {
       secondStream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Second final' })))
@@ -1115,6 +1270,24 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.composerProps.value).toBe('')
     expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
+  })
+
+  it('keeps the authoritative allowance when a reply refreshes completed writes', async () => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 4 })
+    mocks.queryClient.setQueryData.mockImplementationOnce((_key, update: (profile: Profile) => Profile) => {
+      mocks.state.profile = update(mocks.state.profile!)
+    })
+    mocks.queryClient.invalidateQueries.mockImplementation(() => {
+      mocks.state.profile = createMockProfile({ aiMessagesUsed: 5 })
+      return Promise.resolve()
+    })
+    const reply = makeChatResponse({ operations: [{
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded',
+    }] })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(reply)))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('log water') })
+    expect(mocks.state.profile.aiMessagesUsed).toBe(5)
   })
 
   it('keeps a same-valued newer edit while a successful retry finishes invalidating', async () => {

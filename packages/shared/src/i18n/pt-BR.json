@@ -1232,6 +1232,22 @@
     }
   },
   "chat": {
+    "choice": {
+      "submit": "Enviar",
+      "review": "Revisar",
+      "freeText": "Sua resposta",
+      "answered": "Você escolheu {options}",
+      "closed": "Essa pergunta foi encerrada.",
+      "alreadyAnswered": "Essa pergunta já foi respondida.",
+      "invalid": "Confira sua seleção e tente de novo.",
+      "error": "Não foi possível enviar sua resposta. Tente de novo.",
+      "offline": "Você está sem conexão. Sua seleção foi mantida.",
+      "limit": "Você usou suas {allowance} mensagens de hoje.",
+      "acting": "Enviando sua resposta",
+      "reviewing": "Preparando a prévia",
+      "proposed": "Sugestão da Astra",
+      "position": "{position} de {total}"
+    },
     "liveBlock": {
       "stale": "Não foi possível atualizar este bloco. Recarregue para ver como está agora.",
       "error": "Não foi possível atualizar este bloco. Tente de novo."
@@ -1415,6 +1431,7 @@
         "profile-preferences-write": "Configurações do perfil",
         "profile-ai-memory-write": "Memória da Astra",
         "profile-ai-summary-write": "Resumo diário",
+        "profile-proactive-astra-write": "Notificações da Astra",
         "notifications-write": "Notificações",
         "checklist-templates-write": "Modelos de checklist",
         "referrals-write": "Dados de indicação",
@@ -1950,7 +1967,26 @@
         "manageCalendarSync": "Alterar sincronização",
         "linkGoalsToHabit": "Alterar vínculos",
         "markAllNotificationsRead": "Marcar lidos",
-        "unsubscribePush": "Desativar avisos"
+        "unsubscribePush": "Desativar avisos",
+        "setProactiveAstra": "Alterar notificações"
+      },
+      "toggleApprove": {
+        "turnOn": "Ativar",
+        "turnOff": "Desativar"
+      },
+      "toggleSource": {
+        "setProactiveAstra": {
+          "turnOn": "Ativar notificações da Astra",
+          "turnOff": "Desativar notificações da Astra"
+        },
+        "setAiSummary": {
+          "turnOn": "Ativar o resumo diário",
+          "turnOff": "Desativar o resumo diário"
+        },
+        "setAiMemory": {
+          "turnOn": "Ativar a memória da Astra",
+          "turnOff": "Desativar a memória da Astra"
+        }
       },
       "approveCount": {
         "createHabits": "Criar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
@@ -2033,6 +2069,7 @@
         "updateProfilePreferences": "Alterar preferências",
         "setAiMemory": "Alterar memória da Astra",
         "setAiSummary": "Alterar resumo da Astra",
+        "setProactiveAstra": "Alterar notificações da Astra",
         "markNotificationRead": "Marcar aviso como lido",
         "markAllNotificationsRead": "Marcar todos os avisos como lidos",
         "subscribePush": "Ativar avisos no aparelho",

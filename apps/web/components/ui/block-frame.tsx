@@ -12,7 +12,7 @@ import type {
   ResolvedBlockFrameRow,
 } from '@orbit/shared/contracts/blocks'
 import {
-  findMissingBlockFrameLabels,
+  resolveBlockFrameState,
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
@@ -166,14 +166,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
   useEffect(() => {
     if (props.focusTitleOnMount) titleRef.current?.focus({ preventScroll: true })
   }, [props.focusTitleOnMount])
-  const missingLabels = findMissingBlockFrameLabels(props)
+  const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
   if (process.env.NODE_ENV !== 'production' && missingLabels.length > 0) {
     throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
   }
 
-  const hasIrreversibleItem = props.items.some((item) => item.irreversible === true)
-  // WHY: An unsafe batch must not remain one tap from running when consequence labels are missing. https://github.com/thomasluizon/orbit-tickets/issues/349
-  const canRenderActions = missingLabels.length === 0 && props.state !== 'stale'
 
   return (
     <section
@@ -194,15 +191,13 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
         </div>
       </header>
-      <p role="status" aria-live="polite" className={props.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
-        {props.state === 'stale' ? props.staleMessage : ''}
-      </p>
+      <FrameStaleMessage frameProps={props} />
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (
         <>
           {props.body}
-          <div aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+          <div aria-live={props.items.length ? 'polite' : undefined} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
             <FrameRows frameProps={props} />
           </div>
           <FrameFooter
@@ -214,4 +209,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       )}
     </section>
   )
+}
+
+function FrameStaleMessage({ frameProps }: Readonly<{ frameProps: BlockFrameProps }>) {
+  const live = frameProps.items.length > 0 || frameProps.state === 'stale'
+  return <p role={live ? 'status' : undefined} aria-live={live ? 'polite' : undefined} className={frameProps.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
+    {frameProps.state === 'stale' ? frameProps.staleMessage : ''}
+  </p>
 }

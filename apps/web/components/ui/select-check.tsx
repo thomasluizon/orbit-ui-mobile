@@ -14,6 +14,7 @@ const ROW_INDENTS = [SPACING.s16, SPACING.s24, SPACING.s32, SPACING.s48, SPACING
 export function RadioGlyph({ selected, size, proposed = false }: Readonly<{ selected: boolean; size: number; proposed?: boolean }>) {
   return (
     <span
+      data-slot="list-row-trailing"
       aria-hidden="true"
       className="inline-flex items-center justify-center rounded-full shrink-0"
       style={{
@@ -37,25 +38,31 @@ export function RadioGlyph({ selected, size, proposed = false }: Readonly<{ sele
   )
 }
 
-function RadioRowContent({ label, textMode, description, selected = false, leading, meta, tag, disabled, reason, secondaryColor, contentId, disclosed, proposed }: Readonly<Pick<RadioRowProps, 'label' | 'textMode' | 'description' | 'selected' | 'leading' | 'meta' | 'tag' | 'disabled' | 'reason' | 'proposed'> & { secondaryColor: string; contentId: string; disclosed: boolean }>) {
+function RadioRowContent({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, leading, meta, tag, disabled, reason, secondaryColor, contentId, disclosed, proposed }: Readonly<Pick<RadioRowProps, 'label' | 'selection' | 'hideMeta' | 'wrapLabel' | 'textMode' | 'description' | 'selected' | 'leading' | 'meta' | 'tag' | 'disabled' | 'reason' | 'proposed'> & { secondaryColor: string; contentId: string; disclosed: boolean }>) {
+  const personalColor = proposed ? 'var(--radio-row-secondary,var(--fg-3))' : 'var(--fg-1)'
+  const selectionColor = selection && !selected ? 'var(--fg-2)' : 'var(--fg-1)'
+  const optionColor = proposed ? 'var(--radio-row-secondary,var(--fg-3))' : selectionColor
   return (
     <>
-      {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
+      {leading ? <span data-slot="list-row-icon" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
-        {textMode === 'personal' ? <PersonalText id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: proposed ? 'var(--radio-row-secondary,var(--fg-3))' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span style={{ color: proposed ? 'var(--radio-row-secondary,var(--fg-3))' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.3 }}>{label}</span>}
+        {textMode === 'personal' ? <PersonalText data-slot="list-row-title" id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: personalColor, fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span data-slot="list-row-title" style={{ color: optionColor, fontFamily: 'var(--font-sans)', ...radioLabelStyle(wrapLabel) }}>{label}</span>}
         {description ? <span className="orbit-radio-row-secondary" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
         {disabled && reason ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
       </span>
-      {meta ? <span className="orbit-radio-row-secondary shrink-0" style={{ color: secondaryColor, fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
+      {meta && !hideMeta ? <span className="orbit-radio-row-secondary shrink-0" style={{ color: secondaryColor, fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
       {tag ? <span className="orbit-radio-row-secondary shrink-0 uppercase" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
-      <RadioGlyph selected={selected} size={24} proposed={proposed} />
+      {wrapLabel ? <span className="flex shrink-0 items-center" style={{ minHeight: 'calc(var(--fs-base) * 1.4)' }}>
+        <RadioGlyph selected={selected} size={24} proposed={proposed} />
+      </span> : <RadioGlyph selected={selected} size={24} proposed={proposed} />}
     </>
   )
 }
 
-function radioRowStyle(depth: number, selected: boolean, disabled: boolean, proposed = false): CSSProperties {
+function radioRowStyle(depth: number, selected: boolean, disabled: boolean, wrapLabel: boolean | undefined, proposed = false): CSSProperties {
   return {
     gap: 12,
+    alignItems: wrapLabel ? 'flex-start' : undefined,
     minHeight: 52,
     paddingBlock: SPACING.s8,
     paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
@@ -72,14 +79,14 @@ function radioRowFill(selected: boolean, proposed: boolean): string {
   return proposed ? 'bg-[var(--bg-well)]' : 'bg-[rgba(var(--primary-rgb),0.10)]'
 }
 
-export function RadioRow({ label, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
   const contentId = useId()
   const [disclosed, setDisclosed] = useState(false)
   const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const secondaryColor = selected ? 'var(--fg-2)' : 'var(--radio-row-secondary,var(--fg-3))'
-  const content = <RadioRowContent label={label} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
-  const style = radioRowStyle(depth, selected, disabled, proposed)
-  const accessibilityLabel = textMode === 'personal'
+  const content = <RadioRowContent label={label} selection={selection} hideMeta={hideMeta} wrapLabel={wrapLabel} textMode={textMode} description={description} selected={selected} leading={leading} meta={meta} tag={tag} disabled={disabled} reason={reason} secondaryColor={secondaryColor} contentId={contentId} disclosed={disclosed} proposed={proposed} />
+  const style = radioRowStyle(depth, selected, disabled, wrapLabel, proposed)
+  const accessibilityLabel = textMode === 'personal' || hideMeta
     ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
     : undefined
   const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
@@ -88,6 +95,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     ref={elementRef}
     type="button"
     role="radio"
+    data-slot="list-row-body"
     aria-label={accessibilityLabel}
     aria-checked={selected}
     tabIndex={tabIndex}
@@ -117,12 +125,19 @@ function DisabledRadioRow({ label, textMode, accessibilityLabel, contentId, sele
   children: ReactNode
 }>) {
   const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
-  if (textMode !== 'personal') return <div role="radio" aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin flex min-w-0 items-center" style={style}>{children}</div>
+  if (textMode !== 'personal') return <div data-slot="list-row-body" role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin flex min-w-0 items-center" style={style}>{children}</div>
   return <div className="flex min-w-0 items-center">
     <div className="relative min-w-0 flex-1">
-      <div role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin absolute inset-0" style={{ ...style, padding: SPACING.s0 }} />
+      <div data-slot="list-row-body" role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="orbit-selection-ring orbit-selection-ring-thin absolute inset-0" style={{ ...style, padding: SPACING.s0 }} />
       <div ref={contentRef} className="flex min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{children}</div>
     </div>
     <button type="button" aria-label={label} aria-expanded={disclosed} aria-controls={contentId} onClick={onToggle} className="orbit-hover-text flex min-h-12 min-w-12 items-center justify-center rounded-[12px] p-2 hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><ChevronDown aria-hidden="true" size={20} strokeWidth={2} className={disclosed ? 'rotate-180' : undefined} /></button>
   </div>
+}
+
+function radioLabelStyle(wrapLabel: boolean | undefined) {
+  return {
+    fontSize: wrapLabel ? 'var(--fs-base)' : 16,
+    lineHeight: wrapLabel ? 1.4 : 1.3,
+  }
 }

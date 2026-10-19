@@ -7,7 +7,7 @@ import type {
   BlockFrameProps,
 } from '@orbit/shared/contracts/blocks'
 import {
-  findMissingBlockFrameLabels,
+  resolveBlockFrameState,
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
@@ -244,14 +244,11 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const missingLabels = findMissingBlockFrameLabels(props)
+  const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
   if (__DEV__ && missingLabels.length > 0) {
     throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
   }
 
-  const hasIrreversibleItem = props.items.some((item) => item.irreversible === true)
-  // WHY: An unsafe batch must not remain one tap from running when consequence labels are missing. https://github.com/thomasluizon/orbit-tickets/issues/349
-  const canRenderActions = missingLabels.length === 0 && props.state !== 'stale'
 
   return (
     <View
@@ -262,7 +259,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
-      <Text accessibilityLiveRegion="polite" style={[styles.staleMessage, { color: tokens.fg2 }]}>
+      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
       {props.state === 'loading' ? (
@@ -275,7 +272,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         <>
           {props.body}
           <ScrollView
-            accessibilityLiveRegion="polite"
+            accessibilityLiveRegion={props.items.length ? 'polite' : undefined}
             contentContainerStyle={styles.rows}
             style={styles.body}
             testID="block-frame-body"

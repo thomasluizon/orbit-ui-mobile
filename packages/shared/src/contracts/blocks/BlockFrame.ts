@@ -93,6 +93,20 @@ export function findMissingBlockFrameLabels(
   return missingLabels
 }
 
+export function resolveBlockFrameState(props: BlockFrameProps): {
+  missingLabels: readonly MissingBlockFrameLabel[]
+  hasIrreversibleItem: boolean
+  canRenderActions: boolean
+} {
+  const missingLabels = findMissingBlockFrameLabels(props)
+  return {
+    missingLabels,
+    hasIrreversibleItem: props.items.some(item => item.irreversible === true),
+    // WHY: Missing consequence labels must prevent execution. https://github.com/thomasluizon/orbit-tickets/issues/349
+    canRenderActions: missingLabels.length === 0 && props.state !== 'stale',
+  }
+}
+
 function resolveStatusLabel(
   item: BlockFrameItem,
   frameState: BlockFrameState,

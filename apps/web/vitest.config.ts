@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
+import { createStallDiagnostics } from './vitest/stall-diagnostics'
 
 function findChromiumTests(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
@@ -17,10 +18,13 @@ function findChromiumTests(directory: string): string[] {
 const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
   .sort((left, right) => left.localeCompare(right))
 
+const stallDiagnostics = createStallDiagnostics()
+
 export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    ...stallDiagnostics,
     setupFiles: ['./__tests__/setup.ts'],
     globals: true,
     /** CI runs workspace suites one at a time; local suites share the host. */
