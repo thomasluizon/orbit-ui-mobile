@@ -62,6 +62,31 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
+**Ideas library:** a second full view inside the conversation layer, with no route, URL or sheet. A 48 icon control labelled `Browse ideas` (`Ver ideias`) in the conversation header and one ghost action with that label in the empty thread open it. Its `AppBar` back control is labelled `Back to conversation` (`Voltar à conversa`). Escape on web and Android back return to the thread before closing the layer; opening focuses the library heading and returning focuses the entry control. The thread and composer draft stay mounted. A quiet 12px push at the standard duration shows the hierarchy; reduced motion keeps only the opacity fade. A persistent search searches the current language across permitted categories, while one horizontally scrolling, non-wrapping chip row selects one category at a time, starting with Start. Template results paginate at eight rows. SectionLabel headings and ListRow actions carry the live composer suggestions under `For you now` and the selected category. Calendar ideas require Pro access and a Google Calendar connection. Offline and daily-limit reasons appear above disabled rows. A complete idea sends once; an idea with slots returns to the composer with the first slot selected. An existing draft uses `prepareChatRequest` to keep the draft and retain the idea above the composer until the draft is cleared. A search miss names the query and offers `Clear search` (`Limpar busca`).
+
+#### Ideas library surface inventory
+
+| # | Surface and states | Web owner | Android owner |
+|---|---|---|---|
+| 1 | Conversation header browse control, enabled and keyboard focus | `chat/conversation.tsx` | `chat/conversation.tsx` |
+| 2 | Empty-thread ghost browse action, short and scrolling viewports | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` |
+| 3 | Library AppBar, named back control and initial heading focus | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 4 | Persistent localized search, resting, focused and populated | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 5 | Category strip, initial selection, changed selection and horizontal overflow | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 6 | Category rows and search pages, first, middle and last page | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 7 | Live composer suggestions as rows, populated and absent | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 8 | Calendar category with Pro and Google, absent without either | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 9 | Offline and daily capacity, including concurrent voice activity | `chat/conversation.tsx` and `chat/prompt-library.tsx` | `chat/conversation.tsx` and `chat/prompt-library.tsx` |
+| 10 | Search miss, query announcement and clear action | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 11 | Escape or Android back, trigger focus and disappearing-trigger fallback | `chat/conversation.tsx` | `chat/conversation.tsx` |
+| 12 | Editable slot selection and retained draft with a deferred idea | `chat/conversation.tsx` and `shell/composer.tsx` | `chat/conversation.tsx` and `shell/composer.tsx` |
+| 13 | Complete idea sends once and returns to the thread | `chat/conversation.tsx` | `chat/conversation.tsx` |
+| 14 | Pushed entrance, return and reduced-motion cross-fade | `chat/prompt-library.tsx` | `chat/prompt-library.tsx` |
+| 15 | Shared catalog, both locales, slot parser and layout coverage | Shared prompt tests, component tests and CI layout case | Shared prompt tests and native component tests |
+| 16 | On-demand library load failure, retry, reopen and retained conversation controls | `chat/conversation.tsx` | Bundled library, no chunk load |
+
+Owners above are under each app's `components/` directory. Both languages and both appearances use the same owners. The catalog is local. Web loads the library code and catalog when the view opens, with no visible loading indicator. A failed load shows the existing error state and retry action inside the library, retaining its AppBar back control and the mounted conversation. Returning and opening again retries the import without reloading the app. Android bundles the library. Live suggestions can be absent while their existing producer loads or fails.
+
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
 **Conversation participants:** the first message in each consecutive run of Astra messages starts

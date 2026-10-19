@@ -8,7 +8,12 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/app/actions/chat', () => ({ refreshPendingOperation: mutations.refresh, revisePendingOperation: mutations.revise }))
+vi.mock('@/app/actions/chat', () => ({
+  refreshPendingOperation: mutations.refresh,
+  revisePendingOperation: mutations.revise,
+  getProactiveItemStatus: vi.fn(),
+  reportProactiveActed: vi.fn(),
+}))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => open ? <button onClick={onConfirm}>Confirm breakdown</button> : null }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 
