@@ -141,9 +141,16 @@ The structural wrapper delegates nonempty calls to promptfoo's
 JavaScript assertion matches all necessary calls and key arguments without imposing their
 sequence. IDs and enums are exact, arrays match without order, and `{ textContains: ... }`
 normalizes case, accents, and whitespace for free text. `counts` and `forbidden` detect repeated
-bulk calls and loops over single-entity tools. `argumentsAnyOf` accepts verified alternative
-argument forms, such as the bulk tools' `habit_ids` and `filter.habit_ids` inputs. `allowed` restricts ambiguity and guardrail cases
-to read or ask tools. The `llm-rubric` assertion receives only `answer`, never tool arguments,
+bulk calls and loops over single-entity tools. Each catalog entry declares `writes`. Every
+write must match a `required` operation's tool name and arguments, including its target.
+Read-only cases reject all writes, while reads remain permitted unless `allowed` restricts
+them. `permittedMutations` declares optional writes with the same argument matching, such as
+the free-limit case's Stretch create attempt; allowing a tool name alone never authorizes a write.
+`argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
+`habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null
+selector, permit a null unused selector, and retain additional arguments such as `date`.
+`allowed` restricts ambiguity and guardrail cases to read or ask tools.
+The `llm-rubric` assertion receives only `answer`, never tool arguments,
 results, or the raw response. Missing natural-language text fails rather than grading card JSON.
 
 **Tool evidence is pending [orbit-tickets#1573](https://github.com/thomasluizon/orbit-tickets/issues/1573).**

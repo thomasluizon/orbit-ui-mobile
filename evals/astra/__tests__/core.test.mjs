@@ -6,6 +6,7 @@ import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
 
 const catalog = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
 const call = (name, arguments_, overrides = {}) => ({ name, arguments: arguments_, resultStatus: 'ok', result: {}, ...overrides })
 // This envelope belongs to this harness. It is not a fixture for an unshipped API field.
 const envelope = (calls) => ({ answer: 'Done.', trace: {
@@ -17,6 +18,78 @@ const context = (expectations) => ({
 const attempt = (id, success = true, skipped = false) => ({
   testCase: { metadata: { id } }, success,
   gradingResult: { componentResults: [{ metadata: { skipped } }] },
+})
+
+function exampleArguments(expected) {
+  if (Array.isArray(expected)) return expected.map(exampleArguments)
+  if (expected && typeof expected === 'object') {
+    if ('textContains' in expected) return expected.textContains
+    return Object.fromEntries(Object.entries(expected).map(([key, value]) => [key, exampleArguments(value)]))
+  }
+  return expected
+}
+
+describe('production scenario mutation scope', () => {
+  it('classifies every catalog tool explicitly', () => {
+    for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
+  })
+
+  it.each(scenarios.map((scenario) => [scenario.metadata.id, scenario.vars]))(
+    '%s accepts its operations and rejects an extra valid write', async (_, vars) => {
+      const calls = (vars.expectations.required ?? []).map((required) => call(required.name,
+        exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {})))
+      const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }
+      const scenarioContext = { ...context(vars.expectations), vars }
+      expect(behavior(output, scenarioContext).pass).toBe(true)
+      const extra = vars.expectations.required?.some((required) => required.name === 'update_habit')
+        ? call('log_habit', { habit_id: '{secondHabitId}' })
+        : call('update_habit', { habit_id: '{secondHabitId}', title: 'Unrequested rename' })
+      expect((await structural(envelope([extra]), scenarioContext)).pass).toBe(true)
+      expect(behavior({ ...output, trace: { ...output.trace, calls: [...calls, extra] } }, scenarioContext).pass).toBe(false)
+    },
+  )
+
+  it('rejects every catalog mutation in a production read scenario', async () => {
+    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
+    for (const tool of catalog.filter((tool) => tool.writes)) {
+      const extra = call(tool.function.name, { title: 'Unrequested', habit_id: 'other', habit_ids: ['other'] })
+      expect((await structural(envelope([extra]), context(expectations))).pass).toBe(true)
+      expect(behavior(envelope([call('query_habits', { date: 'today' }), extra]), context(expectations)).pass).toBe(false)
+    }
+  })
+
+  it('permits reads but rejects another target for the same mutation without relying on counts', () => {
+    const expectations = { required: [{ name: 'log_habit', arguments: { habit_id: 'first' } }] }
+    const calls = [call('query_habits', {}), call('log_habit', { habit_id: 'first' })]
+    expect(behavior(envelope(calls), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([...calls, call('log_habit', { habit_id: 'second' })]), context(expectations)).pass).toBe(false)
+  })
+
+  it('scopes an optional free-limit create without requiring the refused write', () => {
+    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'edge-free-limit-en').vars
+    expect(behavior(envelope([]), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([call('create_habit', { title: 'Stretch', frequency_unit: 'Day' })]), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([call('create_habit', { title: 'Unrequested', frequency_unit: 'Day' })]), context(expectations)).pass).toBe(false)
+  })
+
+  it.each(['bulk_log_habits', 'bulk_skip_habits'])(
+    '%s rejects conflicting selectors while permitting either selector and extra date', async (name) => {
+      const habitIds = ['first', 'second']
+      for (const arguments_ of [
+        { habit_ids: habitIds }, { filter: { habit_ids: habitIds } },
+        { habit_ids: habitIds, date: '2026-01-01' }, { filter: { habit_ids: habitIds }, date: '2026-01-01' },
+        { habit_ids: habitIds, filter: null }, { filter: { habit_ids: habitIds }, habit_ids: null },
+      ]) {
+        expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(true)
+      }
+      for (const filter of [{ habit_ids: habitIds }, { all: true }]) {
+        expect((await structural(envelope([call(name, { habit_ids: habitIds, filter })]), context({}))).pass).toBe(false)
+      }
+      for (const arguments_ of [{}, { habit_ids: null }, { filter: null }, { habit_ids: null, filter: null }]) {
+        expect((await structural(envelope([call(name, arguments_)]), context({}))).pass).toBe(false)
+      }
+    },
+  )
 })
 
 describe('tool evidence', () => {

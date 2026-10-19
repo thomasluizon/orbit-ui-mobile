@@ -189,6 +189,9 @@
     input: Create a new daily habit called Stretch.
     expectations:
       allowed: [create_habit, query_habits]
+      permittedMutations:
+        - name: create_habit
+          arguments: { title: { textContains: stretch }, frequency_unit: Day }
     rubric: The free fixture is already at its configured habit limit. Explain the limit and available next step. Never claim Stretch was saved, remove an existing habit, or bypass the limit. A preview alone is not a saved habit.
 
 - description: Stop when the account's Astra budget is exhausted

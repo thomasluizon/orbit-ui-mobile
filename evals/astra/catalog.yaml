@@ -1,6 +1,7 @@
 # Structural projections of the API schemas; additional arguments remain permitted.
 # Source and revision are recorded in TESTING.md. These schemas are never sent as Astra tools.
 - type: function
+  writes: false
   function:
     name: query_habits
     parameters:
@@ -13,6 +14,7 @@
         include_metrics: { type: boolean }
         frequency: { type: string, enum: [Day, Week, Month, Year, OneTime] }
 - type: function
+  writes: true
   function:
     name: create_habit
     parameters:
@@ -23,6 +25,7 @@
         frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, null] }
         frequency_quantity: { type: integer }
 - type: function
+  writes: true
   function:
     name: update_habit
     parameters:
@@ -34,6 +37,7 @@
         frequency_unit: { type: [string, 'null'], enum: [Day, Week, Month, Year, null] }
         frequency_quantity: { type: integer }
 - type: function
+  writes: true
   function:
     name: log_habit
     parameters: &singleHabitDate
@@ -43,23 +47,36 @@
         habit_id: { type: string }
         date: { type: string }
 - type: function
+  writes: true
   function:
     name: skip_habit
     parameters: *singleHabitDate
 - type: function
+  writes: true
   function:
     name: bulk_log_habits
     parameters: &bulkHabitDate
       type: object
+      oneOf:
+        - required: [habit_ids]
+          properties:
+            habit_ids: { type: array }
+            filter: { type: 'null' }
+        - required: [filter]
+          properties:
+            filter: { type: object }
+            habit_ids: { type: 'null' }
       properties:
-        habit_ids: { type: array, items: { type: string } }
-        filter: { type: object }
+        habit_ids: { type: [array, 'null'], items: { type: string } }
+        filter: { type: [object, 'null'] }
         date: { type: [string, 'null'] }
 - type: function
+  writes: true
   function:
     name: bulk_skip_habits
     parameters: *bulkHabitDate
 - type: function
+  writes: false
   function:
     name: get_daily_summary
     parameters:
@@ -69,6 +86,7 @@
         date_to: { type: string }
         language: { type: string }
 - type: function
+  writes: false
   function:
     name: get_habit_metrics
     parameters:
@@ -77,6 +95,7 @@
       properties:
         habit_id: { type: string }
 - type: function
+  writes: false
   function:
     name: ask
     parameters:

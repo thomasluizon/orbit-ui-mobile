@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
 const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -52,6 +53,23 @@ function matchesArguments(actual, expected) {
   return actual === expected
 }
 
+function matchesOperation(call, expected) {
+  return call.name === expected.name
+    && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
+      .some((arguments_) => matchesArguments(call.arguments, arguments_))
+}
+
+function checkMutationScope(calls, expectations) {
+  const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
+  for (const call of calls) {
+    const writes = toolWrites.get(call.name)
+    if (typeof writes !== 'boolean') return result(false, `Tool lacks a catalog write classification: ${call.name}`)
+    if (writes && !scope.some((operation) => matchesOperation(call, operation))) {
+      return result(false, `Mutation outside the declared operation scope: ${call.name}`)
+    }
+  }
+}
+
 export function behavior(output, context) {
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
@@ -64,12 +82,12 @@ export function behavior(output, context) {
   if (expectations.allowed && trace.calls.some((call) => !expectations.allowed.includes(call.name))) {
     return result(false, 'A tool acted outside the allowed set.')
   }
+  const scopeFailure = checkMutationScope(trace.calls, expectations)
+  if (scopeFailure) return scopeFailure
   // Match distinct calls without imposing a sequence on independent operations.
   const unmatched = [...trace.calls]
   for (const required of expectations.required ?? []) {
-    const argumentChoices = required.argumentsAnyOf ?? [required.arguments ?? {}]
-    const index = unmatched.findIndex((call) => call.name === required.name
-      && argumentChoices.some((arguments_) => matchesArguments(call.arguments, arguments_))
+    const index = unmatched.findIndex((call) => matchesOperation(call, required)
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
       && (required.result === undefined || matchesArguments(call.result, required.result)))
     if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name}`)
