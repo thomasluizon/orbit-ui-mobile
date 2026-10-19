@@ -87,6 +87,18 @@ describe('MessageBubble', () => {
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
   })
 
+  it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const).flatMap(missing => [false, true].map(earlier => ({ missing, earlier }))))('keeps a clarification visible when $missing is absent (earlier=$earlier)', ({ missing, earlier }) => {
+    const message = makeClarificationPreviewMessage()
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+    message.pendingOperations = [operation]
+    const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn(), [missing]: undefined }
+    const { container } = render(<MessageBubble message={message} earlierMessages={earlier ? [makeHeldHabitMessage({ pendingOperations: [operation] })] : []} {...callbacks} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(screen.getByText(message.actions![0]!.clarificationRequest!.question)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.clarification.quickAction.daily' })).toBeInTheDocument()
+  })
+
   it('renders an operation id once and retains the original reply state', () => {
     const message = makeHeldHabitMessage()
     message.pendingOperations = [message.pendingOperations![0]!, message.pendingOperations![0]!]

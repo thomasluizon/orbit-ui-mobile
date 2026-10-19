@@ -88,6 +88,23 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 
+  it.each(['done', 'failed'] as const)('keeps an empty operation settled as %s with its recovery', async status => {
+    const operation = { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] }
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn() }
+    let tree!: ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={operation} savedState={{ status, canRetry: status === 'failed' }} {...handlers} />) })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.empty')
+    if (status === 'done') {
+      expect(renderedText(tree.root)).toContain('blockFrame.status.done')
+      expect(press(tree, 'common.retry')).toBeUndefined()
+    } else {
+      expect(renderedText(tree.root)).toContain('chat.operationFailed')
+      handlers.onConfirmExecute.mockReturnValue(new Promise(() => {}))
+      await TestRenderer.act(() => { press(tree, 'common.retry').props.onPress() })
+      expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+    }
+  })
+
   it.each([null, undefined])('keeps plain confirmation when the producer has no item preview: %s', items => {
     const { tree } = renderCard({ ...makeCreateHabitsPreview(1), items, changes: null, changeTargetCount: null })
     expect(press(tree, 'chat.operation.approveCount')).toBeDefined()
@@ -101,19 +118,22 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'blockFrame.status.acting')).toHaveLength(10)
     const actions = tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => (typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('chat.operation.remove')) || renderedText(node.props.children).includes('chat.operation.reject') || renderedText(node.props.children).includes('chat.operation.approveCount'))
     for (const action of actions) expect(action.props.disabled).toBe(true)
-    expect(tree.root.findByProps({ testID: 'block-frame-acting' }).props.accessibilityState).toEqual({ busy: true })
+    expect(tree.root.findByProps({ testID: 'block-frame-body' }).props.accessibilityState).toEqual({ busy: true })
+    expect(tree.root.findByProps({ testID: 'block-frame-body' }).props.accessibilityLiveRegion).toBe('polite')
     expect(handlers.onConfirmExecute).toHaveBeenCalledOnce()
   })
 
-  it('shows only the stale explanation after execution and refresh fail', async () => {
+  it('replaces the stale explanation with one refresh failure sentence', async () => {
     const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
     const { tree, handlers } = renderCard(preview, undefined, refresh)
     handlers.onConfirmExecute.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
-    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.stale')
-    expect(renderedText(tree.toJSON())).not.toContain('chat.operationFailed')
+    expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'chat.operation.stale')).toHaveLength(1)
     expect(renderedText(tree.toJSON())).not.toContain('chat.operation.refreshFailed')
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).not.toContain('chat.operation.stale')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.operationFailed')
+    expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === 'chat.operation.refreshFailed')).toHaveLength(1)
   })
 
   describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {

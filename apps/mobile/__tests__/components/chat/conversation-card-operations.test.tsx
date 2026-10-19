@@ -81,7 +81,7 @@ function CardConversation({ operations }: { operations: CardOperation[] }) {
   const tracked = usePendingOperationExecution({ handleExecutedOperation: onExecuted })
   const [threadScroll] = useState(createChatThreadScroll)
   const [flatListRef] = useState(() => ({ current: null }))
-  const chat = { flatListRef, threadScroll, messages: messagesFor(operations).flatMap(message => [{ ...message, role: 'user' as const, content: 'My request', pendingOperations: [], id: `${message.id}-user` }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
+  const chat = { flatListRef, threadScroll, messages: messagesFor(operations).flatMap(message => [{ id: `${message.id}-user`, role: 'user' as const, content: 'My request', timestamp: message.timestamp, imageUrl: null }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: false,
     canShowFollowUps: false, composerProps: { suggestions: [] }, scrollToBottom: () => scrollToEnd(), handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController

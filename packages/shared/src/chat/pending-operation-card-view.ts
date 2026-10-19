@@ -347,7 +347,7 @@ function previewFrame<Node>(
   }
   if (revision?.stale && !revision.busy) return render.blockFrame({
     ...frameBase, state: 'stale',
-    staleMessage: revision.canRefresh ? labels.stale : labels.staleUnavailable,
+    staleMessage: revision.error ? labels.refreshFailed : revision.canRefresh ? labels.stale : labels.staleUnavailable,
     refreshLabel: labels.refresh,
     onRefresh: revision.canRefresh ? () => void revision.refresh() : undefined,
   })
@@ -370,8 +370,8 @@ export function renderPendingOperationCard<Node>({
   const revision = card.revision
   if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(targetCount(pendingOperation))))
 
-  if (pendingOperation.changeTargetCount === 0 || (pendingOperation.changeTargetCount == null
-    && pendingOperation.items?.length === 0 && !pendingOperation.changes?.length)) return render.notice(labels.empty)
+  if (card.status == null && (pendingOperation.changeTargetCount === 0 || (pendingOperation.changeTargetCount == null
+    && pendingOperation.items?.length === 0 && !pendingOperation.changes?.length))) return render.notice(labels.empty)
 
   const deletionCount = pendingOperation.items?.filter((item) => item.removesData === true).length ?? 0
   const presentation = getPendingOperationCardPresentation(

@@ -72,3 +72,14 @@ it.each([
   const clarified = makeClarificationPreviewMessage({ clarificationPreviews: { 'clarification-id': operation } })
   expect(getMessageBubbleOperations({ message: later, earlierMessages: [clarified], ...callbacks }, vi.fn()).pendingOperations).toHaveLength(0)
 })
+
+it.each((['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const).flatMap(missing => [false, true].map(earlier => ({ missing, earlier }))))('leaves clarification ownership available without $missing (earlier=$earlier)', ({ missing, earlier }) => {
+  const operation = makeHeldHabitMessage().pendingOperations![0]!
+  const message = makeClarificationPreviewMessage({ pendingOperations: [operation] })
+  message.clarificationPreviews = { [message.actions![0]!.clarificationRequest!.operationId]: operation }
+  const callbacks = { onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn(), [missing]: undefined }
+  const owned = getMessageBubbleOperations({ message, earlierMessages: earlier ? [makeHeldHabitMessage({ pendingOperations: [operation] })] : [], ...callbacks }, vi.fn())
+  expect(owned.pendingOperations).toHaveLength(0)
+  expect(owned.clarifications).toHaveLength(1)
+  expect(owned.clarifications[0]?.pendingOperation).toEqual(operation)
+})

@@ -15,8 +15,8 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Revised preview | Removal and editing update the action count, irreversible marks and deletion count from the returned items. |
 | Terminal operation outcomes | Failed, denied and policy-blocked outcomes retain their status and recovery without pending deletion marks or notes. |
 | Busy, saved and failed preview | Every mutation action disables during work, every row shows progress and the frame announces busy. Completed-target navigation and retry remain available. |
-| Stale preview | One stale explanation replaces failure feedback, with Refresh while the intent can still be previewed. |
-| Empty preview | An explicit zero target count or an empty item list without a count renders one localized notice without a frame or approval action. Previews without item details retain their plain confirmation. |
+| Stale preview | One sentence describes staleness, a failed refresh or an unavailable preview, with Refresh while the intent can still be previewed. |
+| Empty preview | An unsettled preview with an explicit zero target count or an empty item list without a count renders one localized notice without a frame or approval action. Settled operations retain their outcome and recovery. Previews without item details retain their plain confirmation. |
 | Repeated operation | One operation id renders once, with its original reply and saved operation state. |
 | Legacy action labels | Checklist updates, parent changes and goal links use localized labels with the habit name for PascalCase and snake_case tool names. |
 | Tool trace | Completed steps stay after their request and above their own reply blocks. |

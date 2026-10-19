@@ -455,7 +455,9 @@ describe('BlockFrame on mobile', () => {
     void act(() => {
       tree.update(<BlockFrame {...frame({ state: 'acting' })} />)
     })
-    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toEqual({ busy: true })
+    const body = tree.root.findByProps({ testID: 'block-frame-body' })
+    expect(prop(body, 'accessibilityLiveRegion')).toBe('polite')
+    expect(prop(body, 'accessibilityState')).toEqual({ busy: true })
     expect(textValues(tree).filter((value) => value === 'In progress')).toHaveLength(items.length)
   })
 

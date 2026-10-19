@@ -83,6 +83,21 @@ describe('PendingOperationCard', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 
+  it.each(['done', 'failed'] as const)('keeps an empty operation settled as %s with its recovery', async status => {
+    const operation = { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] }
+    render(<PendingOperationCard pendingOperation={operation} savedState={{ status, canRetry: status === 'failed' }} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByText('chat.operation.empty')).not.toBeInTheDocument()
+    if (status === 'done') {
+      expect(screen.getByText('status.done')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByText('chat.operationFailed')).toBeInTheDocument()
+      confirm.mockReturnValue(new Promise(() => {}))
+      fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+      await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
+    }
+  })
+
   it.each([null, undefined])('keeps plain confirmation when the producer has no item preview: %s', items => {
     const operation = { ...makeCreateHabitsPreview(1), items, changes: null, changeTargetCount: null }
     render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
@@ -100,16 +115,19 @@ describe('PendingOperationCard', () => {
     expect(confirm).toHaveBeenCalledOnce()
   })
 
-  it('shows only the stale explanation after execution and refresh fail', async () => {
+  it('replaces the stale explanation with one refresh failure sentence', async () => {
     confirm.mockResolvedValue({ ok: false, stale: true, error: 'stale_preview' })
     const refresh = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
     render(<PendingOperationCard pendingOperation={preview} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'chat.operation.refresh' }))
-    await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
-    await screen.findByText('chat.operation.stale')
+    await screen.findByRole('button', { name: 'chat.operation.refresh' })
+    expect(screen.getAllByText('chat.operation.stale')).toHaveLength(1)
+    expect(screen.queryByText('chat.operation.refreshFailed')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.refresh' }))
+    await screen.findByText('chat.operation.refreshFailed')
+    expect(screen.getAllByText('chat.operation.refreshFailed')).toHaveLength(1)
+    expect(screen.queryByText('chat.operation.stale')).not.toBeInTheDocument()
     expect(screen.queryByText('chat.operationFailed')).not.toBeInTheDocument()
-    expect(screen.queryByText(/chat.operation.refreshFailed/)).not.toBeInTheDocument()
   })
 
 

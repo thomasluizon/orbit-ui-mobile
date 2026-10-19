@@ -398,6 +398,35 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it.each(['done', 'failed'] as const)('retains a settled empty operation with status %s', status => {
+    const card = { ...createCard(), status, canRetry: status === 'failed' }
+    const { record, render } = createRenderers()
+    const result = renderPendingOperationCard({ card, labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: { ...makeCreateHabitsPreview(0), changeTargetCount: null, changes: [] } })
+    expect(result).not.toBe(labels.empty)
+    expect(record.frame?.items[0]?.status).toBe(status === 'done' ? 'done' : undefined)
+    if (status === 'failed') {
+      expect(record.frame?.body).toBe(labels.failed)
+      record.buttons.find(button => button.label === labels.retry)!.onClick()
+      expect(card.execute).toHaveBeenCalledOnce()
+    }
+  })
+
+  it.each([undefined, 'network_error'])('renders one stale sentence with refresh error %s', error => {
+    const operation = makeCreateHabitsPreview(1)
+    const card = createCard()
+    card.revision = {
+      operation, canRevise: true, items: operation.items!, editingItem: undefined,
+      draft: {}, editedItemIds: [], busy: false, stale: true, canRefresh: true, refresh: vi.fn(), rejected: false, error,
+      setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+    }
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card, labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame).toMatchObject({ state: 'stale', staleMessage: error ? labels.refreshFailed : labels.stale })
+    expect(record.frame?.body).toBeUndefined()
+    expect(record.frame?.actions).toBeUndefined()
+  })
+
   it('keeps the complete capability title visible in a narrow preview', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({

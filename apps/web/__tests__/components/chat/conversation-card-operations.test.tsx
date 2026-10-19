@@ -76,7 +76,7 @@ function CardConversation({ operations, scrollOwner }: { operations: CardOperati
     const feed = chatContainerRef.current
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }
-  const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations).flatMap(message => [{ ...message, role: 'user' as const, content: 'My request', pendingOperations: [], id: `${message.id}-user` }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
+  const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations).flatMap(message => [{ id: `${message.id}-user`, role: 'user' as const, content: 'My request', timestamp: message.timestamp, imageUrl: null }, { ...message, toolSteps: [{ domain: 'habits', access: 'write' }] }]),
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: operations.length === 0,
     canShowFollowUps: false, composerProps: { suggestions: [] }, handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController

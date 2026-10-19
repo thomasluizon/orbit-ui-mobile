@@ -257,10 +257,9 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
       ]}
       testID={`block-frame-${props.state}`}
-      accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
     >
       <FrameHeader props={props} tokens={tokens} />
-      <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
+      <Text accessibilityState={!props.items.length && props.state === 'acting' ? { busy: true } : undefined} accessibilityLiveRegion={props.items.length || props.state === 'stale' || props.state === 'acting' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
       {props.state === 'loading' ? (
@@ -273,7 +272,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         <>
           {props.body}
           {props.items.length > 0 ? <ScrollView
-            accessibilityLiveRegion={props.items.length ? 'polite' : undefined}
+            accessibilityLiveRegion="polite"
+            accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
             contentContainerStyle={styles.rows}
             style={styles.body}
             testID="block-frame-body"

@@ -77,15 +77,18 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
   }
 }
 
-function messageOperationIds(message: ChatMessage): string[] {
-  return [...(message.pendingOperations ?? []), ...Object.values(message.clarificationPreviews ?? {})].map(operation => operation.id)
+function messageOperationIds(message: ChatMessage, canRenderPending: boolean): string[] {
+  const pendingOperations = canRenderPending ? message.pendingOperations ?? [] : []
+  return [...pendingOperations, ...Object.values(message.clarificationPreviews ?? {})].map(operation => operation.id)
 }
 
 function selectOwnedOperationBlocks(props: MessageBubbleProps) {
-  const previousIds = new Set(props.earlierMessages?.flatMap(messageOperationIds))
+  const canRenderPending = Boolean(props.onPendingOperationConfirmExecute && props.onPendingOperationPrepareStepUp && props.onPendingOperationVerifyStepUp)
+  const previousIds = new Set(props.earlierMessages?.flatMap(message => messageOperationIds(message, canRenderPending)))
   const pendingOperations = [...new Map((props.message.pendingOperations ?? []).map(operation => [operation.id, operation])).values()]
     .filter(operation => !previousIds.has(operation.id))
-  const claimedIds = new Set([...previousIds, ...pendingOperations.map(operation => operation.id)])
+  const renderedOperations = canRenderPending ? pendingOperations : []
+  const claimedIds = new Set([...previousIds, ...renderedOperations.map(operation => operation.id)])
   const clarifications = partitionMessageActions(selectMessageOperationBlocks(props.message).actions, props.message.policyDenials).clarificationActions
     .filter(action => {
       const preview = props.message.clarificationPreviews?.[action.clarificationRequest.operationId]

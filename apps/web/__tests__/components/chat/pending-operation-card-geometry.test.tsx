@@ -122,7 +122,8 @@ describe('Pending preview geometry in Chromium', () => {
       const geometry = await page.evaluate(() => {
         const frame = document.querySelector<HTMLElement>('section[data-state]')!
         const header = frame.querySelector('header')!
-        const next = [...frame.children].find(child => child !== header && child.getBoundingClientRect().height > 1)!
+        const next = [...frame.querySelectorAll('[role="status"], div[aria-live="polite"]')]
+          .find(region => region.textContent.trim())!
         const row = frame.querySelector<HTMLElement>('[data-proposed] > div, [data-status]') ?? frame.querySelector<HTMLElement>('div[aria-live="polite"] > div')!
         const style = getComputedStyle(frame)
         return { inset: parseFloat(style.paddingLeft), gap: next.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
