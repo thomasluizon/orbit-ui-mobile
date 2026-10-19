@@ -160,9 +160,9 @@ class OrbitWidgetModule : Module() {
       // Label the payload with the caller's account, since sign-out can occur during the fetch.
       // Compare accounts so a token refresh keeps the same account's cache.
       synchronized(accountRenderLock) {
-        val authorizingToken = token ?: getToken(context)
-        if (authorizingToken != null) {
-          val session = sessionKey(authorizingToken)
+        // WHY: #1419 tokenless legacy calls request a native refresh, never claim payload ownership.
+        if (token != null) {
+          val session = sessionKey(token)
           if (getToken(context)?.let { sessionKey(it) } == session) {
             context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
               .edit()

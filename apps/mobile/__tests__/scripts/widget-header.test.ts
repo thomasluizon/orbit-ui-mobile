@@ -971,13 +971,18 @@ describe('Android widget header', () => {
     expect(widgetModule).toMatch(
       /AsyncFunction\("syncWidgetData"\) \{ json: String, token: String\? ->/,
     )
-    expect(widgetModule).toContain('val authorizingToken = token ?: getToken(context)')
+    expect(widgetModule).not.toMatch(/token\s*\?:\s*getToken\(context\)/)
     expect(widgetModule).toMatch(
-      /val session = sessionKey\(authorizingToken\)\s*if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", session\)/,
+      /if \(token != null\) \{\s*val session = sessionKey\(token\)\s*if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", session\)/,
     )
     expect(widgetModule).toMatch(
       /\.digest\(\(accountId\(token\) \?: token\)\.toByteArray\(Charsets\.UTF_8\)\)/,
     )
+    const nativeSync = widgetModule.slice(
+      widgetModule.indexOf('AsyncFunction("syncWidgetData")'),
+      widgetModule.indexOf('OnActivityEntersBackground'),
+    )
+    expect(nativeSync).toMatch(/\n      \}\n      refreshWidgets\(context\)/)
 
     const caller = readFileSync(resolve(process.cwd(), 'lib/orbit-widget.ts'), 'utf8')
     const sync = caller.slice(caller.indexOf('export async function syncWidgetData'))
