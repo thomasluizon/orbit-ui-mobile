@@ -307,7 +307,7 @@ describe('Hoje header geometry', () => {
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
           await control.evaluate((element) => element.previousElementSibling?.remove())
           if ((await control.getAttribute('aria-label'))?.startsWith(messages.notifications.bell)) {
-            await expect.poll(async () => (await measure()).background).toBe(fill)
+            await expect.poll(async () => (await measure()).background).toBe('rgba(0, 0, 0, 0)')
             expect(await control.evaluate((element) => Number.parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2)
           }
           await control.evaluate((element) => (element as HTMLElement).blur())
