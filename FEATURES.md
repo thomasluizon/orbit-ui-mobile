@@ -1,6 +1,6 @@
-# Orbit tool inventory
+# Orbit tool and compatibility references
 
-> **At a glance** - counts for deployed Astra and MCP tools.
+> **At a glance** - counts for deployed Astra and MCP tools, and retained social compatibility references.
 > Counts are pinned to `thomasluizon/orbit-api` commit
 > `fb61d9214db8919d5b80ece4cb885f8788ceaae9`; recount after API changes.
 
