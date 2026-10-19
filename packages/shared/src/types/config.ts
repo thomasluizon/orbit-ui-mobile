@@ -2,19 +2,34 @@ import { z } from 'zod'
 
 export const featureFlagSchema = z.object({
   enabled: z.boolean(),
-  planRequirement: z.enum(['Pro']).nullable(),
+  planRequirement: z.string().nullable(),
 })
 export type FeatureFlag = z.infer<typeof featureFlagSchema>
 
+const configLimitsSchema = z.object({
+  maxHabitDepth: z.number(),
+  maxTagsPerHabit: z.number(),
+  maxReferrals: z.number(),
+  referralRewardDays: z.number(),
+  freeAiMessagesPerMonth: z.number(),
+})
+
+const storedConfigLimitsSchema = z.object({
+  MaxHabitDepth: z.string().pipe(z.coerce.number<string>()).default(5),
+  MaxTagsPerHabit: z.string().pipe(z.coerce.number<string>()).default(5),
+  MaxReferrals: z.string().pipe(z.coerce.number<string>()).default(10),
+  ReferralRewardDays: z.string().pipe(z.coerce.number<string>()).default(10),
+}).catchall(z.string()).transform((limits) => ({
+  maxHabitDepth: limits.MaxHabitDepth,
+  maxTagsPerHabit: limits.MaxTagsPerHabit,
+  maxReferrals: limits.MaxReferrals,
+  referralRewardDays: limits.ReferralRewardDays,
+  freeAiMessagesPerMonth: 15,
+}))
+
 export const appConfigSchema = z.object({
-  limits: z.object({
-    maxHabitDepth: z.number(),
-    maxTagsPerHabit: z.number(),
-    maxReferrals: z.number(),
-    referralRewardDays: z.number(),
-    freeAiMessagesPerMonth: z.number(),
-  }),
-  features: z.record(z.string(), featureFlagSchema),
+  limits: z.union([configLimitsSchema, storedConfigLimitsSchema]),
+  features: z.record(z.string(), featureFlagSchema).default({}),
   settings: z.object({
     syncIntervalSeconds: z.number(),
     syncMaxBatchSize: z.number(),

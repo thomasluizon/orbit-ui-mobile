@@ -7,6 +7,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 interface PickerRowProps {
   name: string
   selected: boolean
+  proposed?: boolean
   disabled: boolean
   onToggle: () => void
   value: ReactNode
@@ -17,11 +18,11 @@ interface PickerRowProps {
   children?: ReactNode
 }
 
-export function PickerRow({ name, selected, disabled, onToggle, value, valueClassName, valueHidden, controlClassName, actionsClassName, children }: Readonly<PickerRowProps>) {
+export function PickerRow({ name, selected, proposed = false, disabled, onToggle, value, valueClassName, valueHidden, controlClassName, actionsClassName, children }: Readonly<PickerRowProps>) {
   return (
     <div data-picker-row="" className="flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
-      <button type="button" aria-label={name} aria-pressed={selected} disabled={disabled} className={controlClassName} onClick={onToggle}>
-        <PersonalText className="w-full leading-[1.4]">{name}</PersonalText>
+      <button type="button" aria-label={name} aria-pressed={selected} disabled={disabled} className={`${controlClassName} group/picker`} onClick={onToggle}>
+        <PersonalText className={`w-full leading-[1.4]${proposed ? ' text-[var(--fg-3)] group-hover/picker:text-[var(--fg-2)] group-active/picker:text-[var(--fg-2)]' : ''}`}>{name}</PersonalText>
       </button>
       <div className={actionsClassName}>
         <span aria-hidden={valueHidden || undefined} className={valueClassName}>{value}</span>

@@ -22,6 +22,7 @@
       "block-chat-operation-outcomes",
       "block-chat-pending-operation-card",
       "block-chat-period-insight-card",
+      "block-chat-prompt-library",
       "block-chat-record-list-card",
       "block-chat-streak-card",
       "m-block-chat-account-rows-card",
@@ -44,6 +45,7 @@
       "m-block-chat-pending-operation-card",
       "m-block-chat-pending-reply",
       "m-block-chat-period-insight-card",
+      "m-block-chat-prompt-library",
       "m-block-chat-record-list-card",
       "m-block-chat-streak-card",
       "m-overlay-chat-breakdown-suggestion",
@@ -61,7 +63,7 @@
     ],
     "Orbit Busca": [
       "m-route-search",
-      "overlay-command-command-palette",
+      "overlay-command-command-palette-dialog",
       "route-search"
     ],
     "Orbit Calendario": [
@@ -171,6 +173,7 @@
       "m-overlay-profile-notion-connection-sheet",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
+      "m-overlay-profile-profile-mcp-guide",
       "m-route-profile-account",
       "m-route-profile-astra",
       "m-route-profile-notifications",
@@ -184,6 +187,7 @@
       "overlay-marketing-consent-marketing-consent-prompt",
       "overlay-profile-notion-connection-sheet",
       "overlay-profile-profile-api-keys",
+      "overlay-profile-profile-mcp-guide",
       "route-delete-account",
       "route-profile",
       "route-profile-account",
