@@ -76,13 +76,19 @@ function findPressable(tree: TestTree, label: string) {
 }
 
 function pressedFill(node: StyledNode, pressed: boolean) {
+  renderer.act(() => { if (pressed) node.props.onPressIn?.(); else node.props.onPressOut?.() })
   const style = node.props.style
-  if (typeof style !== 'function') throw new Error('The control does not style itself from Pressable state')
-  return StyleSheet.flatten(style({ pressed }))
+  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
 }
 
 function pressedStyle(element: React.ReactElement, label: string) {
   return withTree(element, (tree) => pressedFill(findPressable(tree, label), true))
+}
+
+function rowFill(node: StyledNode, pressed: boolean) {
+  expect(pressedFill(node, pressed)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  const fill = node.findAllByProps({ 'data-slot': 'list-row-fill' })[0]!
+  return StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)
 }
 
 function discFill(node: StyledNode) {
@@ -142,9 +148,13 @@ describe('pressed hit area shapes', () => {
     })
   })
 
-  it('fills the whole rounded ListRow body and its round action', () => {
+  it('insets the rounded ListRow fill and fills its round action', () => {
     const row = <ListRow title="Account" accessibilityLabel="Account" onClick={() => {}} action={{ icon: 'download', label: 'More', onPress: () => {} }} />
-    expect(pressedStyle(row, 'Account')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    withTree(row, (tree) => {
+      const control = findPressable(tree, 'Account')
+      expect(rowFill(control, true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+      expect(rowFill(control, false).backgroundColor).toBe('transparent')
+    })
     expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
   })
 
@@ -164,9 +174,11 @@ describe('pressed hit area shapes', () => {
     })
   })
 
-  it('fills the compact in-form ListRow body at the row radius', () => {
+  it('insets the compact in-form ListRow fill at the row radius', () => {
     const row = <ListRow title="Templates" accessibilityLabel="Templates" compact onClick={() => {}} />
-    expect(pressedStyle(row, 'Templates')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    withTree(row, (tree) => {
+      expect(rowFill(findPressable(tree, 'Templates'), true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+    })
   })
 
   it('clips the chip press fill to its pill hit area', () => {
@@ -190,8 +202,8 @@ describe('pressed hit area shapes', () => {
 
     withTree(rows, (tree) => {
       const action = findPressable(tree, 'Theme')
-      expect(pressedFill(action, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
-      expect(pressedFill(action, false).backgroundColor).toBeUndefined()
+      expect(rowFill(action, true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+      expect(rowFill(action, false).backgroundColor).toBe('transparent')
       expect(tree.root.findAllByType(Pressable).filter((node) => node.props.accessibilityLabel === 'Version')).toHaveLength(0)
     })
   })

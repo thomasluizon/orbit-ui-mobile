@@ -267,8 +267,7 @@ describe('AboutScreen', () => {
     const destinations = tree.root.findAll((node) => node.type === 'Pressable' && ['Orbit guide', 'Contact support', 'Terms of use', 'Privacy policy'].includes(node.props.accessibilityLabel as string))
     expect(destinations).toHaveLength(4)
     for (const destination of destinations) {
-      const style = destination.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-      const body = StyleSheet.flatten(style({ pressed: false }))
+      const body = flattenedStyle(destination)
       expect(body.minHeight).toBe(52)
       expect(body.paddingVertical).toBe(12)
       expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 24).length).toBeGreaterThan(0)
