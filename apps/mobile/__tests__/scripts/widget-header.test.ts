@@ -163,6 +163,10 @@ function layoutViews(relativePath = 'layout/widget_layout.xml', resolveDimension
   const parser = new SaxesParser()
 
   parser.on('opentag', tag => {
+    if (tag.name === 'include') {
+      const included = String(tag.attributes.layout).replace('@layout/', 'layout/') + '.xml'
+      for (const [id, attributes] of layoutViews(included, resolveDimensions)) views.set(id, attributes)
+    }
     const id = tag.attributes['android:id']
     if (id) {
       views.set(
@@ -232,7 +236,7 @@ describe('Android widget content sizing', () => {
     expect(views.get('widget_root')?.['android:padding']).toBe('0dp')
     expect(views.get('widget_content')?.['android:layout_marginTop']).toBe('0dp')
     expect(views.get('widget_list')?.['android:dividerHeight']).toBe('0dp')
-    expect(views.get('widget_header_container')?.['android:layout_height']).toBe('48dp')
+    expect(views.get('widget_header_height')?.['android:height']).toBe('48dp')
     expect(views.has('widget_header_divider')).toBe(true)
     expect(views.has('widget_progress_ring')).toBe(false)
   })
@@ -280,6 +284,28 @@ describe('Android widget content sizing', () => {
 })
 
 describe('Android widget header', () => {
+  it('places the narrow streak below the day without consuming its label width', () => {
+    const views = layoutViews('layout/widget_header_stacked.xml')
+    expect(views.get('widget_header_right')).toMatchObject({
+      'android:layout_height': 'wrap_content',
+    })
+    expect(views.get('widget_header_height')?.['android:height']).toBe('48dp')
+    expect(views.get('widget_header')?.['android:maxLines']).toBe('2')
+    const hierarchy: string[] = []
+    const parents = new Map<string, string | undefined>()
+    let nextNodeIndex = 0
+    const parser = new SaxesParser()
+    parser.on('opentag', tag => {
+      const id = String(tag.attributes['android:id'] ?? `node-${nextNodeIndex++}`)
+      parents.set(id, hierarchy.at(-1))
+      hierarchy.push(id)
+    })
+    parser.on('closetag', () => { hierarchy.pop() })
+    parser.write(readFileSync(resolve(widgetRoot, 'layout/widget_header_stacked.xml'), 'utf8')).close()
+    expect(parents.get('@+id/widget_streak_group')).toBe(parents.get('@+id/widget_subtitle'))
+    expect(parents.get('@+id/widget_streak_group')).not.toBe('@+id/widget_header_right')
+  })
+
   it('ships the complete header copy in English and Brazilian Portuguese', () => {
     const english = resourceStrings('values/widget_strings.xml')
     const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
@@ -327,7 +353,7 @@ describe('Android widget header', () => {
     const views = layoutViews()
 
     expect(views.get('widget_header_container')).toMatchObject({
-      'android:layout_height': '48dp',
+      'android:layout_height': 'wrap_content',
     })
     expect(views.get('widget_header')).toMatchObject({
       'android:textAllCaps': 'false',
@@ -409,7 +435,7 @@ describe('Android widget header', () => {
     for (const name of readdirSync(layoutDirectory).filter(file => file.endsWith('.xml'))) {
       const tags: string[] = []
       const parser = new SaxesParser()
-      parser.on('opentag', tag => tags.push(tag.name))
+      parser.on('opentag', tag => { if (tag.name !== 'include') tags.push(tag.name) })
       parser.write(readFileSync(resolve(layoutDirectory, name), 'utf8')).close()
 
       for (const tag of tags) {
@@ -534,7 +560,7 @@ describe('Android widget header', () => {
   })
 
   it('draws each first-load row as a placeholder mark and name bar', () => {
-    const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
+    const layout = readFileSync(resolve(widgetRoot, 'layout/widget_body.xml'), 'utf8')
     const views = layoutViews()
     const mark = drawable('widget_skeleton_mark.xml')
     const nameBar = drawable('widget_skeleton_bar.xml')
@@ -1036,7 +1062,7 @@ describe('Android widget header', () => {
         'android:layout_height': '48dp',
       })
     }
-    expect(views.get('widget_header_container')).toMatchObject({ 'android:layout_height': '48dp' })
+    expect(views.get('widget_header_height')).toMatchObject({ 'android:height': '48dp' })
   })
 
   it('carries no refresh control on any signed-out path', () => {

@@ -624,7 +624,8 @@ class OrbitWidgetFactory(
             return@runCatching 0
         }
         val geometry = calculateWidgetGeometry(
-            widgetHeightDp, habits.size
+            widgetHeightDp, habits.size,
+            headerHeightDp = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
         )
         geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
     }.getOrDefault(0)
@@ -642,7 +643,8 @@ class OrbitWidgetFactory(
             return RemoteViews(context.packageName, R.layout.widget_item)
         }
         val geometry = calculateWidgetGeometry(
-            widgetHeightDp, habits.size
+            widgetHeightDp, habits.size,
+            headerHeightDp = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
         )
         if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
             return buildRemainderView(geometry.remainderCount)

@@ -25,3 +25,6 @@ internal fun calculateWidgetGeometry(
         contentHeight, headerHeightDp + contentHeight
     )
 }
+
+internal fun widgetHeaderHeightDp(widthDp: Float, heightDp: Float, fontScale: Float): Float =
+    if (widthDp <= 200f && heightDp >= 192f && fontScale > 1f) 72f * maxOf(1f, fontScale) else 48f

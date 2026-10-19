@@ -22,11 +22,12 @@ class OrbitWidgetDayStateTest {
 
     @Test
     fun `all sizes share a header with progress below the day and streak beside it`() {
-        val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-            .newDocumentBuilder().parse(java.io.File("src/main/res/layout/widget_layout.xml"))
-        val elements = document.getElementsByTagName("*")
-        val views = (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
-            .associateBy { it.getAttribute("android:id") }
+        val views = listOf("widget_layout", "widget_header", "widget_body").flatMap { layout ->
+            val document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder().parse(java.io.File("src/main/res/layout/$layout.xml"))
+            val elements = document.getElementsByTagName("*")
+            (0 until elements.length).map { elements.item(it) as org.w3c.dom.Element }
+        }.associateBy { it.getAttribute("android:id") }
         val day = views.getValue("@+id/widget_header")
         val count = views.getValue("@+id/widget_subtitle")
         val streak = views.getValue("@+id/widget_streak_group")
@@ -39,6 +40,23 @@ class OrbitWidgetDayStateTest {
         }
         assertEquals("visible", views.getValue("@+id/widget_content").getAttribute("android:visibility"))
         assertEquals("visible", views.getValue("@+id/widget_loading").getAttribute("android:visibility"))
+    }
+
+    @Test
+    fun `stacked header and list reserve the same space at larger font scales`() {
+        for (scale in listOf(1f, 1.3f, 1.5f, 2f)) {
+            val header = widgetHeaderHeightDp(160f, 192f, scale)
+            check(header == if (scale == 1f) 48f else 72f * scale)
+            for (count in listOf(0, 1, 3, 20)) {
+                val geometry = calculateWidgetGeometry(192f, count, headerHeightDp = header)
+                val rendered = geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
+                check(rendered * 48f <= geometry.contentHeightDp)
+                check(geometry.cardHeightDp == 192f)
+                check(geometry.contentHeightDp == 192f - header)
+            }
+            check(widgetHeaderHeightDp(336f, 192f, scale) == 48f)
+            check(widgetHeaderHeightDp(200f, 96f, scale) == 48f)
+        }
     }
 
     @Test

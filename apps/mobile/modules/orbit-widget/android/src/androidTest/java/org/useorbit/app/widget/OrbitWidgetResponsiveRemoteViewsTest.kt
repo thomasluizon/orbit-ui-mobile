@@ -249,6 +249,13 @@ class OrbitWidgetResponsiveRemoteViewsTest {
     }
 
     @Test
+    fun minimumWidthKeepsTomorrowAndMultiDigitStreakAtLargerFontScales() {
+        for (fontScale in listOf(1.3f, 1.5f, 2f)) {
+            assertSpacing(160f, 192f, 0f, fontScale)
+        }
+    }
+
+    @Test
     @SdkSuppress(maxSdkVersion = 30)
     fun legacyTallResizesExposeEveryAllocatedRowIncludingTheRemainder() {
         val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -263,7 +270,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                 .putLong("habits_updated_at", System.currentTimeMillis()).commit())
             val factory = OrbitWidgetFactory(context, appWidgetId, heightDp, widthDp)
             factory.onDataSetChanged()
-            val geometry = calculateWidgetGeometry(heightDp, prepareWidgetDay(habits, 0).habits.size)
+            val geometry = calculateWidgetGeometry(heightDp, prepareWidgetDay(habits, 0).habits.size,
+                headerHeightDp = widgetHeaderHeightDp(widthDp, heightDp, context.resources.configuration.fontScale))
             assertTrue(geometry.canStateRemainder)
             assertEquals(geometry.visibleRowCount + 1, factory.count)
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
@@ -354,7 +362,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         factory.getViewAt(position).apply(context, parent)
                 }
                 layoutHost((width * density).toInt(), (height * density).toInt())
-                val geometry = calculateWidgetGeometry(height, habits.size)
+                val geometry = calculateWidgetGeometry(height, habits.size,
+                    headerHeightDp = widgetHeaderHeightDp(width, height, context.resources.configuration.fontScale))
                 assertEquals(View.VISIBLE, list.visibility)
                 assertEquals(geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0, list.childCount)
                 assertEquals(View.GONE, hostView.findViewById<View>(R.id.widget_loading).visibility)
@@ -421,11 +430,12 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         }
     }
 
-    private fun assertSpacing(widthDp: Float, heightDp: Float, insetDp: Float) {
+    private fun assertSpacing(widthDp: Float, heightDp: Float, insetDp: Float, textScale: Float = 1f) {
         val preferences = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         for (nightMode in listOf(Configuration.UI_MODE_NIGHT_NO, Configuration.UI_MODE_NIGHT_YES)) {
             val configuration = Configuration(context.resources.configuration).apply {
                 uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+                fontScale = textScale
             }
             val themedContext = context.createConfigurationContext(configuration)
             for (language in listOf("en", "pt-BR")) {
@@ -448,7 +458,11 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         assertEquals(insetDp.toInt(), root.paddingTop)
                         val header = root.findViewById<View>(R.id.widget_header_container)
                         val content = root.findViewById<View>(R.id.widget_content)
-                        assertEquals((48 * density).toInt(), header.height)
+                        val headerHeight = widgetHeaderHeightDp(widthDp, heightDp, textScale)
+                        assertEquals((headerHeight * density).toInt(), header.height)
+                        val geometry = calculateWidgetGeometry(heightDp, 5, headerHeightDp = headerHeight)
+                        assertEquals((geometry.contentHeightDp * density).toInt(), content.height)
+                        assertTrue(header.height + content.height <= heightDp * density + 1f)
                         assertEquals(header.bottom, content.top)
                         assertEquals(View.VISIBLE, content.visibility)
                         val refresh = root.findViewById<View>(R.id.widget_refresh)
@@ -462,10 +476,19 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                             val hiddenStreak = streak == 0 && id in listOf(R.id.widget_streak, R.id.widget_streak_unit)
                             if (label.visibility != View.VISIBLE || hiddenStreak) continue
                             measuredLabels += 1
-                            assertEquals(1, label.layout.lineCount)
-                            assertEquals(0, label.layout.getEllipsisCount(0))
-                            assertTrue(label.paint.measureText(label.text.toString()) <= label.width + 1f)
-                            assertTrue(label.bottom <= header.height)
+                            assertTrue(label.layout.lineCount >= 1)
+                            if (textScale == 1f) assertEquals(1, label.layout.lineCount)
+                            assertEquals(label.text.length, label.layout.getLineEnd(label.layout.lineCount - 1))
+                            for (line in 0 until label.layout.lineCount) {
+                                assertEquals(0, label.layout.getEllipsisCount(line))
+                                assertTrue(label.layout.getLineWidth(line) <= label.width + 1f)
+                            }
+                            val bounds = Rect()
+                            label.getDrawingRect(bounds)
+                            root.offsetDescendantRectToMyCoords(label, bounds)
+                            assertTrue(bounds.bottom <= header.bottom)
+                            assertTrue(bounds.top >= header.top)
+                            assertTrue(label.layout.height <= label.height)
                         }
                         assertTrue(measuredLabels >= 2)
                     }

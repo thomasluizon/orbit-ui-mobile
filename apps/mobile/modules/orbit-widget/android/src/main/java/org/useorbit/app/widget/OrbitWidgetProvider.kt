@@ -264,7 +264,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             completedCount: Int,
             habitCount: Int,
             streak: Int,
-            unitVisibility: Int
+            unitVisibility: Int,
+            stackedHeader: Boolean
         ) {
             val subtitleText = if (syncedOnce) {
                 "$completedCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.OF)} " +
@@ -288,7 +289,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val summaryWidth = widgetWidthDp * context.resources.displayMetrics.density -
                 context.resources.getDimension(R.dimen.widget_row_inset_inline) -
                 context.resources.getDimension(R.dimen.widget_touch_target) - streakWidth -
-                context.resources.getDimension(R.dimen.widget_inline_gap)
+                context.resources.getDimension(
+                    if (stackedHeader) R.dimen.widget_unit_gap else R.dimen.widget_inline_gap
+                )
             val progressText = if (!syncedOnce) "" else if (
                 progressPaint.measureText(subtitleText) <= summaryWidth
             ) subtitleText else "$completedCount/$habitCount"
@@ -328,14 +331,20 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val showSkeleton = !signedOut && (!ownsRows || prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce))
 
             val rowCount = if (showSkeleton) 5 else if (ownsRows) prefs.getInt("row_count", 0) else 0
-            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount)
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            val headerHeight = widgetHeaderHeightDp(widgetWidthDp, widgetHeightDp, context.resources.configuration.fontScale)
+            val geometry = calculateWidgetGeometry(widgetHeightDp, rowCount, headerHeightDp = headerHeight)
+            val stackedHeader = widgetWidthDp <= STREAK_UNIT_BREAKPOINT_DP && widgetHeightDp >= TWO_BY_TWO_HEIGHT_DP
+            val layout = if (stackedHeader) {
+                R.layout.widget_layout_stacked
+            } else R.layout.widget_layout
+            val views = RemoteViews(context.packageName, layout)
+            views.setInt(R.id.widget_header_height, "setHeight", (headerHeight * density).toInt())
             views.setInt(
                 R.id.widget_content_height, "setHeight", (geometry.contentHeightDp * density).toInt()
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 views.setViewLayoutHeight(
-                    R.id.widget_content, geometry.contentHeightDp, TypedValue.COMPLEX_UNIT_DIP
+                    R.id.widget_content, (geometry.contentHeightDp * density).toInt().toFloat(), TypedValue.COMPLEX_UNIT_PX
                 )
             }
 
@@ -388,7 +397,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } else {
                 views.setTextViewText(R.id.widget_header, safeHeaderLabel)
                 applyProgressSummary(context, views, lang, widgetWidthDp, syncedOnce,
-                    completedCount, habitCount, streak, unitVisibility)
+                    completedCount, habitCount, streak, unitVisibility, stackedHeader)
                 val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
                 views.setTextViewText(R.id.widget_streak, "$streak")
                 views.setTextViewText(
