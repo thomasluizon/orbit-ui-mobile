@@ -101,7 +101,7 @@ export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView
     <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
-        beforeDate={<><div id={searchId} hidden={!view.search.open} className="px-4">{view.search.open ? <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /> : null}</div><HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</>}
+        beforeDate={<div className="flex min-w-0 flex-col gap-6"><div id={searchId} hidden={!view.search.open} className="px-4">{view.search.open ? <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={view.search.text} onChange={view.search.changeText} focusRequest={1} /> : null}</div><HabitViewSwitch value={view.activeView} onChange={view.changeView} />{view.activeView === 'today' ? children : null}</div>}
         showDate={view.activeView === 'today'}
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}

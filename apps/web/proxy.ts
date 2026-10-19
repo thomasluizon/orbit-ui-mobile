@@ -14,7 +14,7 @@ import { isPublicPath } from '@/lib/public-paths'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
-const PUBLIC_ROOT_FILES = new Set(['/sw.js'])
+const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
 
 async function resolveProxySession(request: NextRequest): Promise<{
   token: string | null
@@ -163,5 +163,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512)\\.png$).*)'],
+  matcher: ['/((?!_next/static|_next/image|api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512)\\.png$).*)'],
 }

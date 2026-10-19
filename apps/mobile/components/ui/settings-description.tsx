@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -24,11 +25,11 @@ export function SettingsDescription({ children, inset = true }: Readonly<Setting
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 4,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: SPACING.s4,
+    paddingHorizontal: SPACING.s16,
+    paddingBottom: SPACING.s16,
   },
-  flush: { paddingHorizontal: 0 },
+  flush: { paddingHorizontal: SPACING.s0 },
   text: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,

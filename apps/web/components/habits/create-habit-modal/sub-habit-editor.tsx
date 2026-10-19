@@ -36,7 +36,7 @@ export function SubHabitEditor({
               <div
                 data-focus-perimeter=""
                 className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[input:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[input:focus-visible]:border-[Highlight] transition-[box-shadow] duration-[var(--dur-fast)]"
-                style={{ minHeight: 54, gap: 8, padding: '0 8px 0 16px' }}
+                style={{ minHeight: 54, gap: 8, padding: "var(--orbit-space-0) var(--orbit-space-8) var(--orbit-space-0) var(--orbit-space-16)" }}
               >
                 <span className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]" aria-hidden="true">{index + 1}</span>
                 <input value={entry.value} type="text" maxLength={MAX_HABIT_TITLE_LENGTH} aria-label={t('habits.form.subHabitInputLabel', { index: index + 1 })} placeholder={t('habits.form.subHabitPlaceholder')} className="flex-1 min-w-0 bg-transparent text-[14px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus-visible:outline-none" onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)} />

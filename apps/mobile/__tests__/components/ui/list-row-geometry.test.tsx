@@ -71,7 +71,7 @@ function firstRowBody(host: HostRow | HostRow[]): HostRow | undefined {
 }
 
 describe('personal account row geometry', () => {
-  it.each([600, 840, 1100, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => ['Ana', 'Ana Silva'].map((name) => ({ width, fontScale, name })))))('matches Conta, Perfil and plain text at $width, scale $fontScale for $name', async ({ width, fontScale, name }) => {
+  it.each([412, 600, 840, 1100, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => ['Ana', 'Ana Silva'].map((name) => ({ width, fontScale, name })))))('matches Conta, Perfil and plain text at $width, scale $fontScale for $name', async ({ width, fontScale, name }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const profile = createMockProfile({ name, email: 'ana@example.com' })
     const compositions = [<ProfileAccountContent key="account" profile={profile} patchProfile={vi.fn()} />, <AccountNavigationRow key="navigation" profile={profile} submenu={PROFILE_SUBMENUS[0]} />, <ListRow key="plain" title={name} description={profile.email} wrapTitle onClick={vi.fn()} />]

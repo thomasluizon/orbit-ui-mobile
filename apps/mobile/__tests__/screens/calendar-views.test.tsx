@@ -679,7 +679,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
-  it.each([320, 412, 600, 840])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
+  it.each([320, 412, 600, 840, 1352])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
     let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
@@ -702,6 +702,8 @@ describe("CalendarScreen views (mobile)", () => {
         const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
         const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
         expect(segments).toHaveLength(4);
+        expect(Math.min(...segments.map((segment) => segment.left)) - VIEW_TRACK_INSET).toBeCloseTo(16);
+        expect(Math.max(...segments.map((segment) => segment.right)) + VIEW_TRACK_INSET).toBeCloseTo(width - 16);
         const top = Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET;
         const bottom = Math.max(...segments.map((segment) => segment.bottom)) + VIEW_TRACK_INSET;
         if (switchTop === undefined) switchTop = top;

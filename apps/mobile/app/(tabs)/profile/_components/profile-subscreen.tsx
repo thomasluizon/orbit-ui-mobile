@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -46,5 +47,5 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
 const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
-  content: { paddingTop: 16, gap: 12 },
+  content: { paddingTop: SPACING.s16, gap: 12 },
 })

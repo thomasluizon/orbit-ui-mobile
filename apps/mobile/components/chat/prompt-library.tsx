@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { buildPromptPage, INITIAL_PROMPT_FILTERS, reducePromptFilters, PROMPT_CATEGORIES } from '@orbit/shared/chat/prompt-library'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { motionDurations, motionEasings, motionLayerTiming, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, motionLayerTiming, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { ActionRow } from '@/components/ui/action-row'
 import { AppBar } from '@/components/ui/app-bar'
@@ -71,7 +71,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
         {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
       </ScrollView>
     </View>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: SPACING.s16 }} keyboardShouldPersistTaps="handled">
       {props.suggestions.length > 0 ? <View>
         <SectionLabel>{t('chat.templates.forYou')}</SectionLabel>
         {props.suggestions.map(suggestion => <ListRow key={suggestion.id} title={suggestion.label} textMode="label" chevron={false} disabled={!!props.disabledReason} onClick={() => { suggestion.onSelect(); props.onBack() }} />)}
@@ -98,10 +98,10 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
 
 const styles = StyleSheet.create({
   layer: { ...StyleSheet.absoluteFill, zIndex: 1 },
-  controls: { paddingHorizontal: 16, gap: 12 },
-  search: { minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, fontFamily: 'Geist_400Regular', fontSize: 16 },
-  categories: { flexDirection: 'row', flexWrap: 'nowrap', gap: 12, paddingBottom: 4 },
+  controls: { paddingHorizontal: SPACING.s16, gap: 12 },
+  search: { minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 1, paddingHorizontal: SPACING.s12, fontFamily: 'Geist_400Regular', fontSize: 16 },
+  categories: { flexDirection: 'row', flexWrap: 'nowrap', gap: 12, paddingBottom: SPACING.s4 },
   silentStatus: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  empty: { alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 24 },
-  pages: { paddingHorizontal: 16, paddingTop: 16 },
+  empty: { alignItems: 'flex-start', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s24 },
+  pages: { paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
 })

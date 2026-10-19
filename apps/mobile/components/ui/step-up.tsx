@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import type { StepUpProps } from '@orbit/shared/contracts/overlay'
 import { StyleSheet, Text, View } from 'react-native'
 import { Button } from '@/components/ui/pill-button'
@@ -26,7 +27,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     gap: 12,
-    padding: 12,
+    padding: SPACING.s12,
   },
   message: {
     flex: 1,

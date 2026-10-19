@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PickerRow } from '@/components/ui/picker-row'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -68,7 +69,7 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
   return (
     <>
       <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} placement="column" onClick={() => setOpen(true)} />
-      {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{goal.title}</PersonalTextDetails></View>)}{selectedGoals.length > 3 ? <View style={[styles.chip, { paddingHorizontal: 8, paddingVertical: 8 }]}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
+      {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{goal.title}</PersonalTextDetails></View>)}{selectedGoals.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
       {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} actions={activeGoals.length ? <ActionRow><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('goals.create')}</PillButton></ActionRow> : undefined} onClose={() => setOpen(false)}>
         {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><PillButton onClick={openCreateGoal} disabled={atGoalLimit}>{t('habits.form.createGoal')}</PillButton></View> : <GoalPickerList goals={activeGoals} selectedIds={selectedGoalIds} atLimit={atGoalLimit} onToggle={onToggleGoal} />}
       </Sheet> : null}
@@ -80,13 +81,13 @@ export function GoalLinkingField({ habitId, selectedGoalIds, atGoalLimit, onTogg
 type Tokens = ReturnType<typeof createTokensV2>
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: SPACING.s8 },
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, minWidth: 0, maxWidth: '100%' },
     chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, flexShrink: 1 },
-    list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
-    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 54, paddingHorizontal: 16 },
+    list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s8 },
+    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: SPACING.s8, minHeight: 54, paddingHorizontal: SPACING.s16 },
     virtualList: { maxHeight: 320 },
     rowValue: { flex: 1, color: tokens.fg2, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
-    empty: { alignItems: 'center', gap: 16, padding: 32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
+    empty: { alignItems: 'center', gap: 16, padding: SPACING.s32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
   })
 }
