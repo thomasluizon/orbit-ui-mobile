@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -124,7 +125,7 @@ describe('AppLayout import prompt dismissal', () => {
         hasImportedCalendar: prompt.name === 'Astra',
         hasSeenImportPrompt: prompt.name === 'calendar',
       })
-      render(<AppLayout><p>Today content</p></AppLayout>)
+      render(<QueryClientProvider client={new QueryClient()}><AppLayout><p>Today content</p></AppLayout></QueryClientProvider>)
       return screen.getByRole('dialog', { name: prompt.title })
     }
 

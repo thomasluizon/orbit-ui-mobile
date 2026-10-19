@@ -637,7 +637,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
@@ -655,7 +657,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
@@ -673,7 +677,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
@@ -691,7 +697,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "default",
@@ -709,7 +717,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
@@ -727,7 +737,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
@@ -745,7 +757,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
@@ -763,7 +777,9 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
+        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
+        "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
       ],
       "state": "empty",
@@ -3961,6 +3977,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/pick-list-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-proactive-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-proactive-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-proactive-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-proactive-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/proactive-action.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -8298,12 +8370,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8331,12 +8405,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8364,12 +8440,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8397,12 +8475,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8430,12 +8510,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8463,12 +8545,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8496,12 +8580,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -8529,12 +8615,14 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
+        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-view-search.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
+        "apps/mobile/hooks/use-proactive-item.ts",
         "apps/mobile/hooks/use-summary.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
@@ -11741,6 +11829,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pick-list-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-proactive-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-proactive-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-proactive-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/proactive-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-proactive-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/proactive-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/proactive-action.tsx"
       ],
       "state": "default",
       "theme": "dark",

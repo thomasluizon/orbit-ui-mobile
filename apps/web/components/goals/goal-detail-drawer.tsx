@@ -6,7 +6,6 @@ import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/uti
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ListRow } from '@/components/ui/list-row'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -132,7 +131,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
-        <ListRow placement="column" icon={<AstraGlyph size={24} color="var(--fg-1)" />} title={t('nav.astra')} titleTranslate="no" accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
+        <ListRow placement="column" title={t('nav.astra')} titleTranslate="no" accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={!draftHydrated} onClick={openAstra} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}

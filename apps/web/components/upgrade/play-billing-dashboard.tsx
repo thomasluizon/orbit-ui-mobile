@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
@@ -34,7 +33,6 @@ export function PlayBillingDashboard({
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-4 py-4">
-        <AstraGlyph size={96} color="var(--fg-1)" />
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
           {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}

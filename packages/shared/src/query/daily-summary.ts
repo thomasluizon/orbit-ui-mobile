@@ -4,8 +4,6 @@ import { getDailySummaryTimeBucket, getMsUntilNextDailySummaryTimeBucket } from 
 import { habitKeys } from './keys'
 import { QUERY_STALE_TIMES } from './options'
 
-export const AI_SUMMARY_CLAMP_CHARS = 140
-
 export interface DailySummaryOptions {
   date: string
   locale: string

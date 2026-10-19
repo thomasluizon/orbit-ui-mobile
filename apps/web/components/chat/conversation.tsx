@@ -10,7 +10,7 @@ import { AnimatePresence } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from '@orbit/shared/chat'
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -20,12 +20,13 @@ import { ChevronDown, Lightbulb, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { Button } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
+import { ProactiveAction } from './proactive-action'
 import { FollowUpChips } from './follow-up-chips'
 
 function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
@@ -141,16 +142,25 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     verifyStepUpForBubble,
     composerProps,
   } = chat
+  const proactiveEntryId = useChatStore((state) => state.proactiveEntryId)
   const threadContentRef = useRef<HTMLDivElement>(null)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
-    if (!element) return
+    if (!element || useChatStore.getState().proactiveEntryId) return
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
     threadScroll.followLatest(element.scrollTop)
     if (!element.querySelector('article')) return
     element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
     threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
   }, [chatContainerRef, threadScroll])
+
+  useEffect(() => {
+    const feed = chatContainerRef.current
+    if (!proactiveEntryId || !feed) return
+    threadScroll.stopFollowing()
+    feed.scrollTo({ top: 0, behavior: 'auto' })
+    useChatStore.getState().clearProactiveEntry(proactiveEntryId)
+  }, [chatContainerRef, proactiveEntryId, threadScroll])
 
   useEffect(() => {
     const feed = chatContainerRef.current
@@ -170,8 +180,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [chatContainerRef, trackOperation, threadScroll])
 
   const [pendingVisible, setPendingVisible] = useState(true)
-  const showPendingReply = isTyping && streamingMessageId === null && activeSteps.length === 0 && !chat.atMessageLimit
-  const replyWorking = isTyping || streamingMessageId !== null || activeSteps.length > 0
+  const { showPendingReply, replyWorking } = getChatReplyState({ isTyping, streamingMessageId, activeStepCount: activeSteps.length, atMessageLimit: chat.atMessageLimit })
   const [announcingWork, setAnnouncingWork] = useState(false)
   useEffect(() => {
     let mounted = true
@@ -316,7 +325,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ padding: SPACING.s16 }}
         role="feed"
-        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
+        aria-busy={replyWorking || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
         {showSuggestions && <ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
@@ -351,6 +360,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
+          {msg.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={msg.proactiveItem} acted={msg.proactiveActed ?? false} onSend={sendMessage} /> : null}
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </div>
@@ -367,7 +377,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </div>
         </div> : null}
         </div>
-
+        {!showSuggestions ? <p data-testid="astra-ai-disclosure" className="mx-auto max-w-[300px] py-4 text-center text-xs leading-[1.4] text-[var(--fg-3)]">{t('aiDisclosure.notMedicalAdvice')}</p> : null}
       </div>
 
       <div className="shrink-0">

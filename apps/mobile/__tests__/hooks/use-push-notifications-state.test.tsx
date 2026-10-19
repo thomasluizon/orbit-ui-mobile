@@ -37,6 +37,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setAstraConversationOpen(true); return Promise.resolve() } }))
+
 vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
 
 vi.mock('expo', () => ({
@@ -1020,6 +1022,31 @@ describe('usePushNotifications', () => {
     await flush()
 
     expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('keeps a startup proactive push pending until the account signs in', async () => {
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    const response = createNotificationResponse('proactive-login', '/chat')
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockImplementation(() => {
+      vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    })
+    const renderer = await renderHarness()
+    await flush()
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+    expect(notificationsModule.clearLastNotificationResponse).not.toHaveBeenCalled()
+    mocks.auth.isAuthenticated = true
+    mocks.auth.user = { userId: 'user-1' }
+    await TestRenderer.act(() => {
+      renderer.update(<PushNotificationsProvider><Harness /></PushNotificationsProvider>)
+    })
+    await flush()
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => renderer.update(<></>))
   })
 
   it('navigates once when startup recovery and the live listener receive the same response', async () => {

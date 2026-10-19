@@ -6,7 +6,6 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
-import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -265,8 +264,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
-    const glyph = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')[0]!
-    expect(glyph.props.color).toBe(createTokensV2().fg1)
+    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')).toHaveLength(0)
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
   })

@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import { formatLocaleDate, subscriptionSummary } from '@orbit/shared/utils'
@@ -62,7 +61,6 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   const price = !status.isLifetimePro && billing ? planPrice(billing, t) : null
   return (
     <section className="flex flex-col gap-4 py-4">
-      <AstraGlyph size={96} color="var(--fg-1)" />
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}

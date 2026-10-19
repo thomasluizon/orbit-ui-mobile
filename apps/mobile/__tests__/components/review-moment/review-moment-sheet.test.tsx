@@ -138,9 +138,9 @@ describe('ReviewMomentSheet (mobile)', () => {
     const mark = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.eyebrow',
     )
-    expect(mark).toHaveLength(1)
+    expect(mark).toHaveLength(0)
     const glyphs = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')
-    expect(glyphs.map((node) => node.props.color)).toEqual([tokens.fg1])
+    expect(glyphs).toHaveLength(0)
     expect(JSON.stringify(tree.toJSON())).not.toContain(primaryTint)
     expect(JSON.stringify(tree.toJSON())).not.toContain(tokens.primary)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.streakTitle')

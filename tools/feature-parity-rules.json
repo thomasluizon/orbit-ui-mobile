@@ -234,6 +234,18 @@
       ],
       "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
     },
+    "mobile:control:common.seeLess": {
+      "targets": [
+        "mobile:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
+    },
+    "mobile:control:common.seeMore": {
+      "targets": [
+        "mobile:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
+    },
     "mobile:control:common.selectedTime": {
       "targets": [
         "mobile:control:common.selectTime"
@@ -938,6 +950,12 @@
         "mobile:content:progressScreen.sections.streak"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:summary.askAstra": {
+      "targets": [
+        "mobile:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
     },
     "mobile:control:trial.banner.upgrade": {
       "targets": [
@@ -1815,6 +1833,18 @@
       ],
       "reason": "The shared calendar header state supplies this label to the rendered week and Agenda pager button; the button retains its period navigation action."
     },
+    "web:control:common.seeLess": {
+      "targets": [
+        "web:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
+    },
+    "web:control:common.seeMore": {
+      "targets": [
+        "web:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
+    },
     "web:control:common.selectedDate": {
       "targets": [
         "web:content:common.selectedDate"
@@ -2537,6 +2567,12 @@
         "web:content:progressScreen.sections.streak"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:summary.askAstra": {
+      "targets": [
+        "web:control:todayAstra.openConversation"
+      ],
+      "reason": "thomasluizon/orbit-tickets#1541 relocates reading the whole daily summary and asking Astra about it to Hoje's single slot press, which opens the full summary in the conversation."
     },
     "web:control:trial.banner.upgrade": {
       "targets": [

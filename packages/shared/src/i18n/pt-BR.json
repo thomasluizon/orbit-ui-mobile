@@ -678,8 +678,8 @@
     },
     "frequencyLabel": "Frequência",
     "form": {
-      "emojiSuggest": "Sugerir um emoji",
-      "emojiSuggesting": "Buscando um emoji…",
+      "emojiSuggest": "Sugerir emoji",
+      "emojiSuggesting": "Buscando emoji…",
       "aiSuggest": "Sugerir com IA",
       "aiSuggesting": "Pensando…",
       "aiSuggestApplied": "Sugestão de IA aplicada",
@@ -2191,7 +2191,7 @@
       "title": "Resumo diário"
     },
     "proactiveAstra": {
-      "title": "Check-ins"
+      "title": "Notificações da Astra"
     },
     "marketingEmails": {
       "title": "E-mail sobre o produto",
@@ -2591,7 +2591,7 @@
   "summary": {
     "title": "Seu dia",
     "loading": "Dando uma olhada no seu dia...",
-    "error": "Não foi possível carregar seu resumo.",
+    "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",
@@ -3860,5 +3860,16 @@
       "eyebrow": "Hoje",
       "line": "Tudo feito: {count} hábito hoje. | Tudo feito: {count} hábitos hoje."
     }
+  },
+  "proactive": {
+    "actions": {
+      "morningPlan": "Planejar dia",
+      "eveningCheckin": "Registrar",
+      "restartAfterMiss": "Recomeçar",
+      "busyCalendarDay": "Ver dia",
+      "goalBehind": "Ver meta",
+      "weeklyReview": "Ver semana"
+    },
+    "ended": "Este item já terminou."
   }
 }

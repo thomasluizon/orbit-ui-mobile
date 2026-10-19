@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
@@ -473,6 +474,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           hint: description,
           value,
           hasTrailing: Boolean(trailing || toggle),
+          hasValue: Boolean(value),
           onPress: toggle ? () => toggle.onChange(!toggle.checked) : readOnly ? undefined : onClick,
           chevron,
           accessibilityRole: roleOf(props),
@@ -487,6 +489,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           onPress: action.onPress,
         }) : null,
         trailing ?? null,
+        typeof value === 'string' ? null : value ?? null,
         description ? React.createElement('Text', {}, description) : null,
       )
     },
@@ -510,6 +513,7 @@ interface SettingsRowStubNode {
     hint?: string
     value?: string
     hasTrailing?: boolean
+    hasValue?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -566,6 +570,24 @@ function findButtonByText(
 
 
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+
+function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
+  const leadingIcons = ['User', 'Crown', 'Settings', 'MessageCircle', 'Bell']
+  const contents = row.findAll((node: { type: unknown }) =>
+    typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
+  const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+  const navigates = !(index === 1 && isLifetimePro)
+  expect(icons, String(row.props.title)).toHaveLength(navigates ? 2 : 1)
+  expect(contents[0]!.type).toBe(leadingIcons[index])
+  expect(contents[1]!.type).toBe('Text')
+  expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
+  if (navigates) {
+    expect(contents.at(-1)!.type).toBe('ChevronRight')
+  }
+  const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
+    node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
+  expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+}
 
 describe('ProfileScreen', () => {
   it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((screen) => ({ locale, screen }))))('renders the drawn subscreen row glyphs in $screen in $locale', async ({ locale, screen }) => {
@@ -900,23 +922,7 @@ describe('ProfileScreen', () => {
       const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
       const rows = group.findAllByType(ListRow)
       expect(rows).toHaveLength(5)
-      const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
-      for (const [index, row] of rows.entries()) {
-        const contents = row.findAll((node: { type: unknown }) =>
-          typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
-        const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
-        const navigates = !(index === 1 && plan.isLifetimePro)
-        expect(icons, row.props.title).toHaveLength(navigates ? 2 : 1)
-        expect(contents[0].type).toBe(leadingIcons[index])
-        expect(contents[1].type).toBe('Text')
-        expect(icons[0].props.size ?? icons[0].props.width).toBe(24)
-        if (navigates) {
-          expect(contents.at(-1).type).toBe('ChevronRight')
-        }
-        const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
-          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
-        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
-      }
+      for (const [index, row] of rows.entries()) expectProfileRowIcons(row, index, plan.isLifetimePro)
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
       expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))
@@ -1195,10 +1201,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
-    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
-    ['en', false, 'Check-ins', 'Daily recap'],
-    ['en', true, 'Check-ins', 'Daily recap'],
+    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
+    ['en', false, 'Astra notifications', 'Daily recap'],
+    ['en', true, 'Astra notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
@@ -1224,7 +1230,7 @@ describe('ProfileScreen', () => {
       for (const label of [proactive, summary]) {
         const row = findRowByLabel(tree, label)
         expect(row.props.accessibilityRole).toBe('button')
-        expect(row.props.hasTrailing).toBe(true)
+        expect(row.props.hasValue).toBe(true)
         expect(row.props.chevron).toBe(false)
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())
@@ -1885,6 +1891,20 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile/astra' },
     })
+  })
+
+  it.each([false, true])('shows the effective notifications value for Pro with trial=%s', async (isTrialActive) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
+      isLoading: false, error: null,
+    }
+    const tree = await renderProfileSubscreen('astra')
+    const toggle = tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'profile.proactiveAstra.title' })
+    expect(toggle.props.accessibilityState.checked).toBe(true)
+    TestRenderer.act(() => toggle.props.onPress())
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setProactiveAstra', endpoint: API.profile.proactiveAstra, method: 'PUT', payload: { enabled: false },
+    }))
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', async () => {

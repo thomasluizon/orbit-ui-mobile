@@ -2,9 +2,8 @@ import { settleAnimations } from './settle-animations'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
@@ -28,14 +27,14 @@ for (const mode of ['dark', 'light'] as const) {
           }))
           await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
           await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: habits.length } }))
-          const proactive = createMockNotification({
-            url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z`,
+          const proactive = createMockProactiveItem({
+            text: 'Sua rotina mudou. Vamos conversar?', localDate: selectedDate,
           })
-          await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }) }])
+          await setLayoutFixtureSession(context, [{ path: API.proactive.current, body: proactive }])
           await page.goto('/')
           const line = page.locator('.today-astra-line')
           await expect(line).toBeVisible()
-          await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.body)
+          await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
           await expect(page.getByTestId('habit-row')).toHaveCount(habits.length)
           await page.evaluate(async (scale) => {
             document.documentElement.style.fontSize = `${16 * scale}px`
