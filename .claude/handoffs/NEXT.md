@@ -10,37 +10,37 @@ The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). What is left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (134 open at this relay; `reconcile.mjs` places all 134, 0 unplaced, 0 placed twice). 8 redesign tickets are open: `gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign"` (3: `#1459`, `#1439`, `#1438`) plus `#1409`, `#1423`, `#1540`, `#1541`, `#1544`; every one has a pull request. The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). What is left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (129 open at this relay; the scratchpad `reconcile.mjs` places all 129, 0 unplaced). 8 redesign tickets are open: `gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign"` (3: `#1459`, `#1439`, `#1438`) plus `#1409`, `#1423`, `#1541`, `#1544`, `#1545`; every one has a pull request. The run ends only when the spec is done or for an external cause.
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| Landing round 29 (`#1459`, `landing#102`, head `0b48abf`, worktree `ticket-1459-pierre-landing`) | owner rejected round 28 on the staging landing: launch round 29 FIRST on the deep tier from the scratchpad `landing-r29/owner-findings.md` (screenshots `landing-r29/owner/`): proposal pills, suggestion chips and the send control at the app's real logical sizes and padding inside the phone, every in-phone padding from the app, no scrolling inside the phone; add the size-comparison and page-scroll probes; then probe set, push, release the staging landing, tell the owner in pt-BR |
-| Uniform spacing sweep (owner order, new) | file one Batch R ticket through `tools/*-ticket.mjs` after a duplicate search (`gh issue list --state all --limit 2000`): a measured sweep of every app screen and the landing for hover, press and focus fills touching or overlapping neighbours (the habit detail title's hover fill covers the emoji tile and the frequency line), plus a web layout guard and an Android style test on the fill-to-neighbour gap; launch it at once |
-| Combined check `k21` (base `9a87b0c54` plus `ui#1863` `56f50c648`, `ui#1858` `b5c511e12`, `ui#1854` `2e236f3fb`, `ui#1865` `dc7d8718f`) | detached; read `check-k21/summary.txt` and `check-k21/DONE` in the predecessor scratchpad; on a pass merge `ui#1858` (the owner's sidebar finding `#1540`), `ui#1863`, `ui#1854` at their approved heads when each clears the bar (their only red is the old base's Lighthouse budget, about 2,000 bytes each), then release staging web from `redesign/main` and verify `/api/health` |
-| `ui#1865` (`#1544`) | its two 412px cases fail on a base build only by a refetch timeout (`calendar-week-scroll.spec.ts:237`), not at the held-position assertion: read the same cases in `k21`'s layout result; if they time out there too, a round fixes the spec so it fails on the base at the position assertion; it also needs Pullfrog's review |
-| `ui#1830` (`#1481`, `d2529d739`) then `ui#1859` (`#1541`, `70d91fd9b`, stacked) | base-merged and pushed; the owner's two-insights and glyph finding is `ui#1859`: merge `ui#1830` the moment CI and review pass, retarget `ui#1859` to `redesign/main`, merge it, release staging web |
-| `ui#1779` (`0868906d9`), `ui#1786` (`686d60d47`), `ui#1772` (`2223ce364`), `ui#1761` (`b111e37cb`, guard proven), `ui#1826` (`55f1f54b1`), `ui#1824` (`343812bdb`), `ui#1857` (`5b69e73b5`), `ui#1862` (`5ff011f2b`) | base merges and rounds pushed; wait on CI and a fresh review; request reviews with `request-reviews.sh` where an approval check completed with no review of the head; `ui#1826`'s changed `astra-block-spacing.spec.ts` needs a build proof before merge; `ui#1857` takes one mechanical `redesign/main` merge after `ui#1824` merges; merge each on the bar |
-| `ui#1866` (`#206`), `ui#1867` (`#301`), `ui#1869` (`#279`, copy approved and posted) | ui `main`; merge on the bar |
-| `ui#1868` (`#1419` `main` follow-up) | Pullfrog requested changes: read its threads, fix in a round, merge before the next Android release from `main` |
-| `orbit-api#753`, `#752` (`#1528`) | the two SonarCloud issues are Accepted: confirm the SonarCloud check turns green (re-run its analysis if it stays red), merge `#753`, then `#752` base merge plus the `AccessTokenRequired` deletion |
+| `ui#1772` (`2223ce364`), `ui#1826` (`55f1f54b1`, its changed spec proven 37 of 37 on a head build), `ui#1761` (`b111e37cb`) | CI settled green with no failing check, all APPROVED: re-run `bar-all.sh`, read each diff (or a read-only subagent), merge each at its head on the bar FIRST; check the file overlap with the newer base (`ui#1858`, `ui#1863`, `ui#1854` merged) and use a combined check where a head shares a file |
+| `ui#1859` (`#1481` and `#1541`, `8979efc66`, retargeted to `redesign/main`) and `ui#1865` (`#1544`, `156ea5f6f`, proven: base fails 2 cases at the held-position assertion, head 20 of 20) | a waiter was watching both; wait on CI and a fresh Pullfrog review of each head (request one with `request-reviews.sh` if the approval check completes with none), merge, close `#1481`, `#1541`, `#1544` with `complete-ticket.mjs`, then release staging web from `redesign/main` and verify `/api/health` |
+| `ui#1870` (`#1545`, fill clearance) | Pullfrog CHANGES_REQUESTED on round 1 (`5a648b199`): read its threads; round 2 `53c62833c` is committed in worktree `ticket-1545-fill-clearance` and NOT pushed (the guard loads, 311 tests listed; Android summary ring inset). Its guard proof runs detached in the predecessor scratchpad: read `spec-1545-base2.log` and `spec-1545-head2.log` (base `mc-1545b` at `d718dac2a` with the guard overlaid, head `mc-1545h` at `53c62833c`); it must fail on the base at the habit detail title and pass on the head. Then a review round for the threads on top, push once, merge on the bar |
+| Landing round 29 (`8c1cda9`) and 29b (`a07136d`) on `landing#102`, worktree `ticket-1459-pierre-landing` | committed, NOT pushed. Read the 29b diff, then run `bash landing-probe/r29-run.sh` with the probe fixes already in the scratchpad (`proposaltargets24.mjs` HALF 11.25, `hittest-scroll24.mjs` skips pill corners); expect `appsizes` and `pagescroll` green and `comptargets2` green at 320 by 568; a red becomes round 29c. On a clean set: push, release the staging landing from the branch, verify the `orbit-build` meta, tell the owner in pt-BR (one sentence per change: real app pills, chips and send button, no scroll inside the phone) |
+| `orbit-api#752` (`#1528`, `ef686e6ec`) | base merge plus the `AccessTokenRequired` deletion pushed; a waiter was watching CI; on green and a Pullfrog approval of the head, merge to api `main` and close `#1528` |
+| `ui#1868` (`#1419` `main` follow-up, `00a05e838`) | round 1 pushed, thread resolved; wait for a fresh review, merge to ui `main` before the next Android release from `main` |
+| `ui#1862`, `ui#1779`, `ui#1786`, `ui#1824`, `ui#1857` | a waiter was watching them; merge each on the bar; `ui#1857` takes one mechanical `redesign/main` merge after `ui#1824` merges |
+| `calendar-month-loading.spec.ts:23` | a base flake (2 of 91 on base `cadbd9962`, 2 of 91 on `ui#1854` alone): file one Batch R harness ticket after a duplicate search and launch it (owner order: Layout Guard stops failing on pull requests that did not cause the red) |
 | `#1531`, `#1534` | production only with the owner's yes |
 | `#1491`, `#732` | wait: `#1491` until the proactive engine runs in production; `#732` until 30 days since the replay fix reached production |
-| Staging | API `98016b262`; web `redesign/main` `7f2a7b468` (behind; release after the first merges); landing round 28 `0b48abf` |
-| Uncommitted, stashes, detached heads | all three checkouts clean after this handoff commit; no stashes; detached heads are scratch build trees only; unpushed: the two superseded single-commit branches `ticket-1242-week-grid-one-scroller` and `ticket-1503-push-endpoint-check` (leave) |
-| Running workers | none (drained at this relay) |
+| Staging | web `redesign/main` `d718dac2a` (verified `/api/health`); API `98016b262`; landing round 28 `0b48abf` |
+| Uncommitted, stashes, detached heads | the orchestrating checkout is clean after this handoff commit; no stashes in any of the three checkouts; unpushed: `53c62833c` (`ui#1870`), `8c1cda9` and `a07136d` (`landing#102`), plus the two superseded single-commit branches `ticket-1242-week-grid-one-scroller` and `ticket-1503-push-endpoint-check` (leave); detached heads are scratch build trees only (`mc-1545b`, `mc-1545h`, `mc-1865b`, `mc-1865h`, `mc-1826h`, `mc-1854h` in the predecessor scratchpad) |
+| Running workers | none; one detached local check (the `#1545` guard proof above) |
 | Session chain | open (automatic relay) |
 
 ## Then, in this order
 
 1. Answer the owner first, in the language of his latest message (English; landing news in pt-BR).
-2. Landing round 29 and the uniform spacing ticket (both owner orders, launched before anything else).
-3. Merges as each pull request clears the bar, fastest first; release staging web right after `ui#1858` and `ui#1859` merge, so the owner sees his sidebar and Hoje findings fixed; fix every CI red on an open pull request as it appears.
-4. Batch L item 3: `ui#1854`, `ui#1862`; `orbit-api#753` and `#752`; then the throwaway AVD run once both `#1419` halves are merged.
-5. Idle slots: Batch 6 tickets that need no conversation and share no file with an open one (`#208` test mode only without the owner's yes; the social and AI memory deletions need the OpenAPI deprecation step first; `#685`, `#753`, `#765` wait on the `MinSupportedVersion` raise).
-6. When every redesign ticket has merged: release staging web from `redesign/main` (and the staging API if api `redesign/main` moved), verify `/api/health`, rerun the measured sweep (spacing and hover fills included) and fix its findings, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1411`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`, `#1525`, `#1540`, `#1541`, `#1544`), push-notify and tell the owner.
-7. Idle Codex capacity: one audit pass after a large merge wave.
+2. The merges above that clear the bar, fastest first; release staging web after `ui#1859` merges so the owner sees one Astra slot on Hoje.
+3. Landing round 29 and 29b probes, push, staging landing release.
+4. `ui#1870` proof and review round; the month loading flake ticket.
+5. Batch L item 3: `ui#1862`; `orbit-api#752`; then the throwaway AVD run once both `#1419` halves are merged.
+6. Idle slots: Batch 6 tickets that need no conversation and share no file with an open one (`#208` test mode only without the owner's yes; the social and AI memory deletions need the OpenAPI deprecation step first; `#685`, `#753`, `#765` wait on the `MinSupportedVersion` raise).
+7. When every redesign ticket has merged: release staging web from `redesign/main` (and the staging API if api `redesign/main` moved), verify `/api/health`, rerun the measured sweep (spacing and hover fills included) and fix its findings, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1411`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`, `#1525`, `#1540`, `#1541`, `#1544`, `#1545`), push-notify and tell the owner.
+8. Idle Codex capacity: one audit pass after a large merge wave.
 
 ## Sleep
 
@@ -58,15 +58,17 @@ Open owner questions (in the spec and `openOwnerQuestions`, never asked during a
 
 ## Previous prompt, disposition
 
-- Reading list, entry point, sleep rules, authorization, relay rule, owner instructions and open owner questions: carried (the SonarCloud question is answered: done in Chrome).
-- Answer the owner first: carried; this relay answered SonarCloud (done), the landing round 28 rejection (round 29 order written), the two Astra insights (`ui#1859`), the sidebar (`ui#1858`) and the spacing sweep (new ticket owed).
-- Mechanical base merges `ui#1779`, `ui#1786`, `ui#1824`: done (`0868906d9`, `686d60d47`, `343812bdb`); merges carried.
-- Worker base merges `ui#1772`, `ui#1761`, `ui#1830`, `ui#1826`, `ui#1857`, `ui#1859`: done and pushed; merges carried.
-- `ui#1862` round: done (`5ff011f2b`); merge carried, plus its `main` follow-up `ui#1868`.
-- `ui#1858`, `ui#1854`, `ui#1863`: in `k21`; merges carried. `ui#1865`: base red read, see In flight.
-- `ui#1866`: carried (CI). Landing round 28: done (pushed, thread answered, staging landing released); superseded by round 29.
-- `orbit-api#753`, `#752`: the owner's click superseded by the run's own SonarCloud action; merges carried.
-- `#1531`, `#1534`, `#1491`, `#732`, the 1.3.82 steps, idle audits: carried.
-- Idle slots: `#279` (`ui#1869`) and `#301` (`ui#1867`) opened; `#208` left.
+- Reading list, entry point, sleep rules, authorization, relay rule, owner instructions and open owner questions: carried.
+- Answer the owner first: carried (no owner message arrived in this relay).
+- Landing round 29 first on the deep tier: done (`8c1cda9`, then 29b `a07136d`); size-comparison and page-scroll probes added (`landing-probe/appsizes.mjs`, `landing-probe/pagescroll.mjs`); probe set, push and release carried.
+- Uniform spacing ticket: done, filed as `#1545` and built as `ui#1870`; its proof and review carried.
+- `k21`: done; `ui#1858`, `ui#1863`, `ui#1854` merged, staging web released and verified.
+- `ui#1865`: done for the spec (round 3 proven and pushed); merge carried.
+- `ui#1830` then `ui#1859`: superseded: `ui#1830` closed, `ui#1859` carries both and is retargeted; merge carried.
+- `ui#1779`, `ui#1786`, `ui#1772`, `ui#1761`, `ui#1826`, `ui#1824`, `ui#1857`, `ui#1862`: carried (`ui#1826`'s build proof done).
+- `ui#1866`, `ui#1867`, `ui#1869`: done (merged to ui `main`, tickets closed).
+- `ui#1868`: round 1 done (pushed, thread resolved); merge carried.
+- `orbit-api#753`: done (merged); `#752`: base merge and deletion done, merge carried.
+- `#1531`, `#1534`, `#1491`, `#732`, the 1.3.82 steps, idle Batch 6 slots and idle audits: carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
