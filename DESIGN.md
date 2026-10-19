@@ -372,6 +372,33 @@ The first block set, in build order: the **preview** block for anything Astra is
 tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
 frequency control.
 
+The **choice** block asks one question with two to four option rows. Single select uses
+`SelectCheck` radio rows with one roving tab stop and arrow-key selection; multi select uses
+`CheckRow` rows, each in the tab order. An explicit Send action submits, never arrow movement.
+Optional free text has a visible Input label and a 500-character limit. The **pick list** block
+uses proposed CheckRow items and one Review action that requests the existing write preview;
+nothing is written until that preview is approved. Both actions are unfilled, guard double presses,
+and disable every control while acting. Option labels are at most 20 characters and descriptions
+at most 24, each on one line at default text size. The option set stays in one column. Above font
+scale 1.3 or web text zoom 130%, rows grow and option text may wrap; never ellipsize at 200% text.
+Pick list labels are habit names: give them the full available row width, wrap between words to
+at most two lines, then ellipsize, with the complete name accessible and one tap away through
+the label expansion control. Expanding the name leaves its separate checkbox selection intact. Item detail stays on one
+line at default text size. Every row is at least 48 high. Selection labels use `--fg-1` when selected
+and `--fg-2` at rest; completed habit rows retain their completion colours. Acting, offline, limit
+and inline errors share one status line below the trailing action. Review prepares a preview.
+
+Answers become the next user turn, with labels formatted by `Intl.ListFormat` in the person's
+locale and ids carried separately in `blockAnswer`. An answered block collapses to a glyph and one
+`--fg-3` line naming the selection. A later message other than the block's own answer or reply, or a 404 or 410, closes an unanswered block;
+409 says it was already answered; 400 retains the selection with an inline error. Terminal lines
+receive focus without a focus ring and announce through focus alone. Only the status line is a polite live region. Offline retains
+selection and disables submission with a reason. The daily message limit disables choice Send
+with a reason; an identical retry of a failed or uncertain answer stays available. Recovery keeps
+the same block id, selected ids in the same order and free text, and refreshes profile usage from
+the server instead of adding a local charge. A changed answer keeps the limit gate. Pick list
+Review stays available because it spends no message.
+
 The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
 
 A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.

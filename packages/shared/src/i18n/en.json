@@ -1232,6 +1232,22 @@
     }
   },
   "chat": {
+    "choice": {
+      "submit": "Send",
+      "review": "Review",
+      "freeText": "Your answer",
+      "answered": "You chose {options}",
+      "closed": "This question is closed.",
+      "alreadyAnswered": "This question was already answered.",
+      "invalid": "Check your selection and try again.",
+      "error": "Could not send your answer. Try again.",
+      "offline": "You're offline. Your selection is kept.",
+      "limit": "You've used your {allowance} messages for today.",
+      "acting": "Sending your answer",
+      "reviewing": "Preparing the preview",
+      "proposed": "Suggested by Astra",
+      "position": "{position} of {total}"
+    },
     "liveBlock": {
       "stale": "This block could not be updated. Reload to see the latest state.",
       "error": "We could not update this block. Try again."

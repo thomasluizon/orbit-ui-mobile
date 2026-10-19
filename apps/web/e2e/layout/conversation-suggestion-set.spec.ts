@@ -40,7 +40,6 @@ for (const width of [412, 1280]) {
           const conversation = page.locator('[data-shell-conversation="overlay"]')
           await expect(conversation).toBeVisible()
           const empty = conversation.getByRole('feed', { name: words.chat.title })
-          await expect(empty.getByRole('button')).toHaveCount(0)
           const strip = conversation.getByRole('group', { name: words.shell.composer.suggestionsLabel, exact: true })
           if (atLimit) {
             await expect(strip).toHaveCount(0)
@@ -48,8 +47,10 @@ for (const width of [412, 1280]) {
             await expect(composer).toHaveAttribute('data-state', 'atLimit')
             await expect(composer.getByText(words.shell.composer.limit.reason.replace('{allowance}', String(profile.aiMessagesLimit)), { exact: true })).toBeVisible()
             await expect(conversation.getByText(words.chat.empty.title, { exact: true })).toHaveCount(0)
+            await expect(empty.getByRole('button')).toHaveCount(0)
           } else {
             await expect(empty.getByText(words.chat.empty.title, { exact: true })).toBeVisible()
+            await expect(empty.getByRole('button')).toHaveText([words.chat.templates.browse])
             await expect(empty.locator('[data-asset="astra-mark"]')).toBeVisible()
             await expect(empty.getByText(words.aiDisclosure.notMedicalAdvice, { exact: true })).toBeVisible()
             await expect(strip).toHaveCount(1)

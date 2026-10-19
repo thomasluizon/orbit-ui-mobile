@@ -17,6 +17,9 @@ export function CheckRow({
   onOpenLabel,
   labelExpanded,
   checked,
+  selection = false,
+  proposed = false,
+  wrapLabel = false,
   onChange,
   description,
   error,
@@ -26,9 +29,11 @@ export function CheckRow({
 }: Readonly<CheckRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { fontScale } = useWindowDimensions()
   const [pressed, setPressed] = useState(false)
+  const colors = checkRowTextColors(tokens, proposed, checked, pressed, Boolean(error), selection)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow selection={selection} placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
@@ -48,23 +53,26 @@ export function CheckRow({
       data-error={error ? '' : undefined}
       style={({ pressed }) => [
         styles.row,
-        { minHeight: error || description ? 68 : 52 },
+        { minHeight: error || description ? 68 : 52, alignItems: wrapLabel ? 'flex-start' : 'center' },
         pressed ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
       ]}
     >
-      <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      <View data-slot="check-row-control" style={{ justifyContent: 'center', minHeight: wrapLabel ? 22.4 * fontScale : undefined }}>
+        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+      </View>
       <View style={styles.copy}>
-        <Text
+        <CheckRowLabel personal={textMode === 'personal'}
           style={[
             styles.label,
-            { color: checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1 },
+            { color: colors.label },
+            wrapLabel ? { lineHeight: 22.4 } : null,
           ]}
         >
           {label}
-        </Text>
+        </CheckRowLabel>
         {error || description ? (
-          <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>
+          <Text data-slot="check-row-description" style={[styles.description, { color: colors.description }]}>
             {error ?? description}
           </Text>
         ) : null}
@@ -131,29 +139,30 @@ function CalendarDayCircle({ checked, color }: Readonly<{ checked: boolean; colo
   return <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
 }
 
-function PersonalCheckRowContent({ label, placement, variant, labelExpanded, error, description, value, tokens }: Readonly<Pick<CheckRowProps, 'label' | 'placement' | 'variant' | 'labelExpanded' | 'error' | 'description' | 'value'> & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRowContent({ label, selection, checked, placement, variant, labelExpanded, error, description, value, tokens }: Readonly<Pick<CheckRowProps, 'selection' | 'checked' | 'label' | 'placement' | 'variant' | 'labelExpanded' | 'error' | 'description' | 'value'> & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
-  const expanded = placement === 'column' && labelExpanded
+  const { expanded, labelColor } = personalLabelPresentation(selection, placement, labelExpanded, checked, tokens)
   return (
       <View pointerEvents={expanded ? "box-none" : "none"} importantForAccessibility={expanded ? "auto" : "no-hide-descendants"} style={{ gap: 4 }}>
-        <PersonalText expanded={expanded} style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: tokens.fg1 }]}>{label}</PersonalText>
+        <PersonalText expanded={expanded} style={[styles.label, calendarDay ? styles.calendarDayLabel : null, { color: labelColor }, selection ? { lineHeight: 22.4 } : null]}>{label}</PersonalText>
         {error || description || value !== undefined ? <View pointerEvents="none" style={{ gap: 4 }}>
-          {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
+          {error || description ? <Text data-slot="check-row-description" style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
           {value !== undefined ? <Text style={[styles.value, calendarDay ? styles.calendarDayValue : null, { color: tokens.fg2 }]}>{value}</Text> : null}
         </View> : null}
       </View>
   )
 }
 
-function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+  const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
   return (
-    <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement)}>
+    <View data-slot="list-row-body" style={[getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement), selection ? { alignItems: 'flex-start' } : null]}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={getPersonalLabelFill(calendarDay)} hitSlop={{ top: calendarDay ? 0 : 12, bottom: calendarDay ? 0 : 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
-      <PersonalCheckRowContent label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
+      <PersonalCheckRowContent selection={selection} checked={checked} label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
       </View>
-      <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent focusable={!disabled && !loading} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+      <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent focusable={!disabled && !loading} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, selection ? { minHeight: 22.4 * fontScale } : null, disabled || loading ? styles.disabled : null]}>
         {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
       </PersonalControl>
     </View>
@@ -170,4 +179,21 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
       {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>
+}
+
+function checkRowTextColors(tokens: ReturnType<typeof createTokensV2>, proposed: boolean, checked: boolean, pressed: boolean, error: boolean, selection: boolean) {
+  const description = error ? tokens.statusBadText : proposed && !pressed ? tokens.fg3 : tokens.fg2
+  if (selection) return { label: checked ? tokens.fg1 : tokens.fg2, description }
+  return {
+    label: proposed ? (pressed ? tokens.fg2 : tokens.fg3) : checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1,
+    description,
+  }
+}
+
+function CheckRowLabel({ personal, ...props }: Readonly<React.ComponentProps<typeof Text> & { personal: boolean; children: string }>) {
+  return personal ? <PersonalText {...props} /> : <Text {...props} />
+}
+
+function personalLabelPresentation(selection: boolean | undefined, placement: CheckRowProps['placement'], labelExpanded: boolean | undefined, checked: boolean, tokens: ReturnType<typeof createTokensV2>) {
+  return { expanded: (selection || placement === 'column') && labelExpanded, labelColor: selection && !checked ? tokens.fg2 : tokens.fg1 }
 }

@@ -4,7 +4,7 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -22,6 +22,7 @@ export function RadioGlyph({
 }: Readonly<{ selected: boolean; size: number; tokens: AppTokensV2; pressed?: boolean }>) {
   return (
     <View
+      data-slot="list-row-trailing"
       style={[
         styles.glyph,
         { width: size, height: size },
@@ -44,7 +45,8 @@ export function RadioGlyph({
   )
 }
 
-export function RadioRow({ label, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, proposed = false }: Readonly<RadioRowProps>) {
+  const { fontScale } = useWindowDimensions()
   const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const themeTokens = createTokensV2(currentScheme, currentTheme)
@@ -55,25 +57,33 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     onSelect,
     selected,
   })
+  const labelColor = selection && !selected ? tokens.fg2 : tokens.fg1
+  const wrappingStyle = wrapLabel ? { lineHeight: 22.4 } : null
+  const controlMinHeight = wrapLabel ? 22.4 * fontScale : undefined
   const content = (pressed = false) => {
     const secondaryColor = pressed || (selected && !proposed) ? tokens.fg2 : tokens.fg3
+    const personalColor = proposed ? secondaryColor : tokens.fg1
+    const optionColor = proposed ? secondaryColor : labelColor
     return (
       <>
-        {leading ? <View style={styles.leading}>{leading}</View> : null}
+        {leading ? <View data-slot="list-row-icon" style={styles.leading}>{leading}</View> : null}
         <View style={styles.textBlock}>
-          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: proposed ? secondaryColor : tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: proposed ? secondaryColor : tokens.fg1 }]}>{label}</Text>}
+          {textMode === 'personal' ? <PersonalText data-slot="list-row-title" expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text data-slot="list-row-title" style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
-        {meta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
+        {meta && !hideMeta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
         {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
-        <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+        <View data-slot="radio-row-control" style={{ justifyContent: 'center', minHeight: controlMinHeight }}>
+          <RadioGlyph selected={selected} size={24} tokens={tokens} pressed={pressed} />
+        </View>
       </>
     )
   }
   const rowStyle = [
     styles.row,
     {
+      alignItems: wrapLabel ? 'flex-start' as const : 'center' as const,
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: 'transparent',
@@ -84,9 +94,10 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View data-slot="list-row-body" {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <InsetFocusPressable selectionRingWidth={1.5} selectionRingColor={tokens.primary}
+      data-slot="list-row-body"
       {...navigationProps}
       ref={elementRef}
       accessibilityRole="radio"
