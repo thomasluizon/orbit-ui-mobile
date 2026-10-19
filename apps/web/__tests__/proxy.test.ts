@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 import { config, proxy } from '@/proxy'
@@ -80,6 +81,49 @@ describe('proxy', () => {
       expect(response).toMatchObject({ type: 'next' })
     }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('serves robots.txt without resolving a session (authenticated: %s)', async (authenticated) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: authenticated ? 'valid-token' : null,
+      expiresAt: authenticated ? Date.now() + 3600000 : null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    const response = await proxy(createRequest('/robots.txt', {
+      cookies: authenticated ? { auth_token: 'valid-token' } : undefined,
+    }))
+
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+    expect(readFileSync('public/robots.txt', 'utf8')).toBe(
+      'User-agent: *\nDisallow: /\n\nAllow: /terms\nAllow: /privacy\nAllow: /delete-account\n',
+    )
+  })
+
+  it.each([
+    ['/', '/'],
+    ['/robots.txt/dashboard', '/robots.txt/dashboard'],
+    ['/robots.txt.bak', '/robots.txt.bak'],
+    ['/robots.txt/../dashboard', '/dashboard'],
+  ])('keeps signed-out %s protected', async (path, returnUrl) => {
+    const actual = await vi.importActual<typeof import('next/server')>('next/server')
+    vi.mocked(NextResponse.redirect).mockImplementationOnce(actual.NextResponse.redirect)
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    const response = await proxy(createRequest(path))
+    const destination = new URL('/login', 'https://app.useorbit.org')
+    destination.searchParams.set('returnUrl', returnUrl)
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(destination.toString())
   })
 
   it('passes signed-out PostHog assets and capture requests through the proxy', async () => {
