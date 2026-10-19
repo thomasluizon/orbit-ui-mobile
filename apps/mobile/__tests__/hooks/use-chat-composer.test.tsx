@@ -512,14 +512,17 @@ describe('mobile useChatComposer', () => {
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
     const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
-    TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceButton.props.__nativeTag) })
-    expect(__getFocusedNativeTag()).toBe(voiceButton.props.__nativeTag)
+    const voiceTag = voiceButton.props.__nativeTag
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceTag) })
+    expect(__getFocusedNativeTag()).toBe(voiceTag)
     focus.mockClear()
     mocks.state.isRecording = true
     await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
-    expect(visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.stop')).toHaveLength(1)
+    const stopButtons = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.stop')
+    expect(stopButtons).toHaveLength(1)
     expect(focus).not.toHaveBeenCalled()
-    expect(__getFocusedNativeTag()).toBe(voiceButton.props.__nativeTag)
+    expect(stopButtons[0].props.__nativeTag).toBe(voiceTag)
+    expect(__getFocusedNativeTag()).toBe(stopButtons[0].props.__nativeTag)
   })
 
   it('opens on shell field focus and carries every draft edit into the sole conversation input', async () => {

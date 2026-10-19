@@ -168,7 +168,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
-function ComposerControls({ props, onPaste }: Readonly<{ props: WebComposerProps; onPaste?: () => void }>) {
+function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -177,7 +177,9 @@ function ComposerControls({ props, onPaste }: Readonly<{ props: WebComposerProps
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
   const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
-  const items = onPaste ? [{ id: 'paste', label: props.words.paste, icon: 'clipboard' }, ...defaultItems] : defaultItems
+  const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
+    : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
+  const items = textAction ? [textAction, ...defaultItems] : defaultItems
   if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
     <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
       className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
@@ -193,52 +195,57 @@ function ComposerControls({ props, onPaste }: Readonly<{ props: WebComposerProps
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
     </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div>
 }
 
 function subscribeClipboardAvailability() { return () => {} }
 
-function PasteMessageControl({ props, inMenu, onPasteText }: Readonly<{ props: ComposerProps; inMenu: boolean; onPasteText: (text: string) => void }>) {
+function ComposerTextAction({ words, canClear, canPaste, inMenu, onClear, onPaste }: Readonly<{
+  words: ComposerProps['words']; canClear: boolean; canPaste: boolean; inMenu: boolean; onClear: () => void; onPaste: () => void
+}>) {
+  if (inMenu || (!canClear && !canPaste)) return null
+  return <button type="button" aria-label={canClear ? words.clear : words.paste}
+    data-composer-clear={canClear ? '' : undefined} data-composer-paste={canPaste ? '' : undefined}
+    onMouseDown={event => event.preventDefault()}
+    onClick={canClear ? onClear : onPaste}
+    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+    {canClear ? <X size={20} strokeWidth={2} aria-hidden="true" /> : <Clipboard size={20} strokeWidth={2} aria-hidden="true" />}
+  </button>
+}
+
+function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<{ props: ComposerProps; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void }>) {
   const available = useSyncExternalStore(subscribeClipboardAvailability,
     () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
-  const active = useRef(false)
-  const pending = useRef(false)
-  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const canClear = props.state === 'idle' && props.value.length > 0
+  const canPaste = props.state === 'idle' && props.value.length === 0 && available
+  const clipboardScope = useRef({ active: false, pending: false })
+  useEffect(() => {
+    const scope = { active: true, pending: false }
+    clipboardScope.current = scope
+    return () => { scope.active = false }
+  }, [props.state, props.value])
   async function pasteMessage() {
-    if (pending.current) return
-    pending.current = true
+    const scope = clipboardScope.current
+    if (scope.pending) return
+    scope.pending = true
     try {
       const text = await navigator.clipboard.readText()
-      if (!active.current) return
+      if (!scope.active) return
       if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
       else onPasteText(text)
     } catch {
       return
-    } finally { pending.current = false }
+    } finally { scope.pending = false }
   }
   return <>
-  {available && !inMenu ? <button type="button" aria-label={props.words.paste} data-composer-paste
-    onMouseDown={event => event.preventDefault()}
-    onClick={() => void pasteMessage()}
-    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
-    <Clipboard size={20} strokeWidth={2} aria-hidden="true" />
-  </button> : null}
-  <ComposerControls props={props} onPaste={available && inMenu ? () => void pasteMessage() : undefined} />
+  <ComposerTextAction words={props.words} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  <ComposerControls props={props} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
+    onClear={canClear && inMenu ? onClear : undefined} />
   </>
 }
 
-function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
-  if (props.state !== 'idle' || props.value.length === 0) return null
-  return <button type="button" aria-label={props.words.clear} data-composer-clear
-    onMouseDown={event => event.preventDefault()}
-    onClick={() => { props.onChangeValue(''); inputRef.current?.focus() }}
-    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
-    <X size={20} strokeWidth={2} aria-hidden="true" />
-  </button>
-}
-
-function usePasteMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {
+function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {
   const [inMenu, setInMenu] = useState(false)
   useEffect(() => {
     if (state !== 'idle') return
@@ -271,7 +278,7 @@ function usePasteMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, pla
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const pasteInMenu = usePasteMenu(inputRef, props.words.placeholder, props.state)
+  const textActionInMenu = useTextActionMenu(inputRef, props.words.placeholder, props.state)
   const pasteFocus = useRef<string | null>(null)
   useEffect(() => {
     if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
@@ -313,6 +320,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = canSend || props.state === 'sending'
+  function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
     <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
@@ -345,13 +353,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         />}
 
       <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
-        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} inMenu={pasteInMenu} onPasteText={text => {
+        <ComposerTextControls props={props} inMenu={textActionInMenu} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
-        }} /> : <>
-          <ClearMessageControl props={props} inputRef={inputRef} />
-          <ComposerControls props={props} />
-        </>}
+        }} />
 
       <button
         type="button"

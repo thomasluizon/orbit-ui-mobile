@@ -210,10 +210,12 @@ function ComposerActionIcon({ state, tokens }: Readonly<{ state: ComposerProps['
   return <Plus size={20} strokeWidth={2} color={tokens.fg3} />
 }
 
-function ComposerControls({ props, tokens, onPaste }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onPaste?: () => void }>) {
+function ComposerControls({ props, tokens, onPaste, onClear }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onPaste?: () => void; onClear?: () => void }>) {
   const menu = useAnchoredMenu()
   const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
-  const items = onPaste ? [{ id: 'paste', label: props.words.paste, icon: 'clipboard' }, ...defaultItems] : defaultItems
+  const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
+    : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
+  const items = textAction ? [textAction, ...defaultItems] : defaultItems
   const isRecording = props.state === 'recording'
   const menuOpen = menu.visible && !disabled && !voiceActive
   if (!voiceActive && items.length === 0) return null
@@ -227,7 +229,7 @@ function ComposerControls({ props, tokens, onPaste }: Readonly<{ props: MobileCo
         <ComposerActionIcon state={props.state} tokens={tokens} />
       </InsetFocusPressable>
     </MenuAnchorHost>
-    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => { if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </View>
 }
 
@@ -236,7 +238,7 @@ function PasteFitMeasure({ props, pasteInMenu, onPasteFit }: Readonly<{
   pasteInMenu: boolean
   onPasteFit: (fits: boolean) => void
 }>) {
-  const reservedWidth = pasteInMenu && props.value.length === 0 ? styles.iconButton.width + styles.trailingControls.gap : 0
+  const reservedWidth = pasteInMenu ? styles.iconButton.width + styles.trailingControls.gap : 0
   return <Text testID="composer-paste-measure" pointerEvents="none" accessible={false}
     importantForAccessibility="no-hide-descendants"
     onTextLayout={event => onPasteFit(event.nativeEvent.lines.length <= 1)}
@@ -345,41 +347,45 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
     </InsetFocusPressable>
 }
 
-function PasteMessageControl({ props, tokens, inMenu, onPasteText }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void }>) {
-  const active = useRef(false)
-  const pending = useRef(false)
-  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+function ComposerTextAction({ words, tokens, canClear, canPaste, inMenu, onClear, onPaste }: Readonly<{
+  words: ComposerProps['words']; tokens: AppTokensV2; canClear: boolean; canPaste: boolean; inMenu: boolean; onClear: () => void; onPaste: () => void
+}>) {
+  if (inMenu || (!canClear && !canPaste)) return null
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={canClear ? words.clear : words.paste}
+    focusColor={tokens.primary}
+    onPress={canClear ? onClear : onPaste}
+    style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    {canClear ? <X size={20} strokeWidth={2} color={tokens.fg3} /> : <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg3} />}
+  </InsetFocusPressable>
+}
+
+function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void }>) {
+  const canClear = props.state === 'idle' && props.value.length > 0
+  const canPaste = props.state === 'idle' && props.value.length === 0
+  const clipboardScope = useRef({ active: false, pending: false })
+  useEffect(() => {
+    const scope = { active: true, pending: false }
+    clipboardScope.current = scope
+    return () => { scope.active = false }
+  }, [props.state, props.value])
   async function pasteMessage() {
-    if (pending.current) return
-    pending.current = true
+    const scope = clipboardScope.current
+    if (scope.pending) return
+    scope.pending = true
     try {
       const text = await Clipboard.getString()
-      if (!active.current) return
+      if (!scope.active) return
       if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
       else onPasteText(text)
     } catch (error) {
       captureError(error)
-    } finally { pending.current = false }
+    } finally { scope.pending = false }
   }
   return <>
-  {!inMenu ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.paste}
-    focusColor={tokens.primary}
-    onPress={() => void pasteMessage()}
-    style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-    <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg3} />
-  </InsetFocusPressable> : null}
-  <ComposerControls props={props} tokens={tokens} onPaste={inMenu ? () => void pasteMessage() : undefined} />
+  <ComposerTextAction words={props.words} tokens={tokens} canClear={canClear} canPaste={canPaste} inMenu={inMenu} onClear={onClear} onPaste={() => void pasteMessage()} />
+  <ComposerControls props={props} tokens={tokens} onPaste={canPaste && inMenu ? () => void pasteMessage() : undefined}
+    onClear={canClear && inMenu ? onClear : undefined} />
   </>
-}
-
-function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
-  if (props.state !== 'idle' || props.value.length === 0) return null
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.clear}
-    focusColor={tokens.primary}
-    onPress={() => { props.onChangeValue(''); inputRef.current?.focus() }}
-    style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-    <X size={20} strokeWidth={2} color={tokens.fg3} />
-  </InsetFocusPressable>
 }
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
@@ -398,6 +404,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const sendIsAccent = canSend || props.state === 'sending'
+  function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
     <View testID="composer-field" style={[styles.field, { backgroundColor: tokens.bgField }]}>
@@ -408,13 +415,10 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} pasteInMenu={pasteInMenu} onPasteFit={fits => setPasteInMenu(!fits)} />}
 
       <View style={styles.trailingControls}>
-        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} tokens={tokens} inMenu={pasteInMenu} onPasteText={text => {
+        <ComposerTextControls props={props} tokens={tokens} inMenu={pasteInMenu} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
-        }} /> : <>
-          <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />
-          <ComposerControls props={props} tokens={tokens} />
-        </>}
+        }} />
 
       <InsetFocusPressable
         testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}

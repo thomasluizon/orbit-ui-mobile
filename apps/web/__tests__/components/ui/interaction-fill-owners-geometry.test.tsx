@@ -26,6 +26,8 @@ const cases = [320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as
     (['hover', 'press', 'focus'] as const).filter((state) => surface !== 'tabs' || state === 'focus').map((state) => ({ width, locale, state, surface, mode: 'dark' as const, forcedColors: 'none' as const })))))
   .flatMap((scenario) => scenario.width === 320 && scenario.locale === 'en' && scenario.state === 'focus' ? [scenario, { ...scenario, mode: 'light' as const }, { ...scenario, forcedColors: 'active' as const }] : [scenario])
 
+const composerValues = { composer: 'Message', composerPaste: '' }
+
 function focusIndicators(element: Element) {
   return [element, ...element.querySelectorAll('*')].flatMap((owner) =>
     [null, '::before', '::after'].filter((pseudo) => {
@@ -46,9 +48,9 @@ async function reachState(page: Page, control: Locator, state: 'hover' | 'press'
 
 async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, surface: 'composer' | 'composerPaste', width: number, forcedColors: 'active' | 'none') {
   const control = page.getByRole('button', { name: messages.shell.composer[surface === 'composer' ? 'clear' : 'paste'], exact: true })
-  const pasteInMenu = surface === 'composerPaste' && width === 320
-  await expect.poll(() => control.count()).toBe(pasteInMenu ? 0 : 1)
-  if (!pasteInMenu) expect(await control.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
+  const textActionInMenu = width === 320
+  await expect.poll(() => control.count()).toBe(textActionInMenu ? 0 : 1)
+  if (!textActionInMenu) expect(await control.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
   const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
   expect(new Set(bounds).size).toBe(1)
   expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe({ active: 60, none: 56 }[forcedColors])
@@ -99,9 +101,9 @@ describe('shared interaction fill owners in Chromium', () => {
       process.stdout.write(result.outputFiles[0].text);
     `, JSON.stringify(`import React from 'react'; import { createRoot } from 'react-dom/client';
       import { Composer } from './components/shell/composer';
-      const messages = JSON.parse(document.getElementById('composer-configuration').textContent);
+      const { messages, value } = JSON.parse(document.getElementById('composer-configuration').textContent);
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => '' } });
-      createRoot(document.getElementById('composer-mount')).render(<Composer state="idle" value="" suggestions={[]}
+      createRoot(document.getElementById('composer-mount')).render(<Composer state="idle" value={value} suggestions={[]}
         words={messages.shell.composer} onChangeValue={() => {}} onSend={() => {}}
         onOpenConversation={() => {}} conversationLabel={messages.todayAstra.openConversation}
         onAttachFile={() => {}} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />);`)],
@@ -117,19 +119,20 @@ describe('shared interaction fill owners in Chromium', () => {
     const content = (<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <main data-shell-column="" data-focus-inset={surface === 'rows' ? 'panel' : undefined} style={{ maxWidth: 740, margin: 'auto' }}>{ownerSurfaces(messages)[surface]}</main>
     </NextIntlClientProvider>)
-    const markup = surface === 'composerPaste'
-      ? `<main data-shell-column style="max-width:740px;margin:auto"><div id="composer-mount"></div></main><script id="composer-configuration" type="application/json">${JSON.stringify(messages)}</script>`
+    const composerSurface = surface === 'composer' || surface === 'composerPaste'
+    const markup = composerSurface
+      ? `<main data-shell-column style="max-width:740px;margin:auto"><div id="composer-mount"></div></main><script id="composer-configuration" type="application/json">${JSON.stringify({ messages, value: composerValues[surface] })}</script>`
       : renderToStaticMarkup(content)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce', forcedColors })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
-      if (surface === 'composerPaste') {
+      if (composerSurface) {
         await page.addScriptTag({ content: composerScript })
         await page.locator('[data-composer-input]').waitFor()
       }
       await loadAppFonts(page)
-      if (surface === 'composer' || surface === 'composerPaste') await assertComposerRow(page, messages, surface, width, forcedColors)
+      if (composerSurface) await assertComposerRow(page, messages, surface, width, forcedColors)
       const controls = page.locator('button:not(:disabled):not([aria-disabled="true"]), a[href], [role="switch"]')
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()

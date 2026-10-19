@@ -121,7 +121,7 @@ describe('clipboard composer control', () => {
   afterEach(() => { clipboard.getString.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
 
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
-    'moves paste only when the whole placeholder needs its slot at $width', ({ width, messages }) => {
+    'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       const configuration = props({ suggestions: [], words: messages.shell.composer,
         onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
@@ -165,9 +165,17 @@ describe('clipboard composer control', () => {
           expect(placeholder.props.numberOfLines).toBe(1)
           TestRenderer.act(() => tree.update(<Composer {...configuration} value="Draft" />))
           const typed = measure()
-          const clear = byLabel(tree.root, messages.shell.composer.clear)[0]
-          const slotWidth = StyleSheet.flatten(clear.props.style).width + INTERACTION_FILL_CLEARANCE
-          expect(typed.contentWidth).toBe(empty.contentWidth - (layoutWidth === 320 ? slotWidth : 0))
+          expect(typed.contentWidth).toBe(empty.contentWidth)
+          expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(layoutWidth === 320 ? 0 : 1)
+          const typedMenu = tree.root.findByType(Menu)
+          expect(typedMenu.props.items.some((item: { id: string }) => item.id === 'clear')).toBe(layoutWidth === 320)
+          if (layoutWidth === 320) expect(typedMenu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
+          const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
+          const inset = StyleSheet.flatten(measurement.props.style)
+          const candidate = measurePlaceholder(typed.contentWidth - (inset.end - inset.start))
+          const line = { x: 0, y: 0, width: candidate.width, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
+          TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
+          expect(measure().contentWidth).toBe(empty.contentWidth)
         }
       } finally { TestRenderer.act(() => tree.unmount()); config.free(); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
@@ -192,7 +200,8 @@ describe('clipboard composer control', () => {
         const line = { x: 0, y: 0, width: 80, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
         await TestRenderer.act(() => tree.root.findByProps({ testID: 'composer-paste-measure' }).props.onTextLayout({ nativeEvent: { lines: [line, line] } }))
         expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
-        await TestRenderer.act(async () => { tree.root.findByType(Menu).props.onSelect('paste'); await Promise.resolve() })
+        pressControl(byLabel(tree.root, messages.shell.composer.actions)[0])
+        await TestRenderer.act(async () => { pressControl(menuItem(tree, messages.shell.composer.paste)); await Promise.resolve() })
       } else {
         expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
         await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
@@ -203,9 +212,15 @@ describe('clipboard composer control', () => {
       expect(__getFocusedNativeTag()).toBe(input.props.__nativeTag)
       expect(__getFocusedInputSelection()).toEqual({ start: 14, end: 14 })
       expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
-      await TestRenderer.act(() => byLabel(tree.root, messages.shell.composer.clear)[0]!.props.onPress())
+      if (inMenu) {
+        pressControl(byLabel(tree.root, messages.shell.composer.actions)[0])
+        const menu = tree.root.findByType(Menu)
+        expect(menu.props.items[0]).toMatchObject({ id: 'clear', label: messages.shell.composer.clear, icon: 'x' })
+        await TestRenderer.act(() => pressControl(menuItem(tree, messages.shell.composer.clear)))
+      } else await TestRenderer.act(() => byLabel(tree.root, messages.shell.composer.clear)[0]!.props.onPress())
       expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(inMenu ? 0 : 1)
       expect(input.props.value).toBe('')
+      expect(__getFocusedNativeTag()).toBe(input.props.__nativeTag)
       expect(onAttachRemove).not.toHaveBeenCalled()
       expect(tree.root.findAllByProps({ testID: 'composer-attachment-image' }).length).toBeGreaterThan(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
@@ -219,6 +234,27 @@ describe('clipboard composer control', () => {
       await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
       expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: messages.shell.composer.nothingToPaste })
       expect(onChangeValue).not.toHaveBeenCalled()
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('allows a fresh paste after clearing a draft while an older read is pending', async () => {
+    let resolveFirst!: (text: string) => void
+    clipboard.getString.mockImplementationOnce(() => new Promise<string>(resolve => { resolveFirst = resolve })).mockResolvedValue('New clipboard')
+    function ControlledComposer() {
+      const [value, setValue] = React.useState('')
+      return <Composer {...props({ value, onChangeValue: setValue })} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+    try {
+      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText('New draft'))
+      TestRenderer.act(() => byLabel(tree.root, words.clear)[0].props.onPress())
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByType('TextInput').props.value).toBe('New clipboard')
+      expect(clipboard.getString).toHaveBeenCalledTimes(2)
+      await TestRenderer.act(async () => { resolveFirst('Old clipboard'); await Promise.resolve() })
+      expect(tree.root.findByType('TextInput').props.value).toBe('New clipboard')
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 

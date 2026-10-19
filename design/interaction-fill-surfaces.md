@@ -34,8 +34,9 @@ The composer slot reaches three surfaces on both platforms: the Hoje dock and ha
 owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
 conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
 The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.
-When the whole placeholder cannot fit beside the Paste slot, Paste becomes the first item in the
-existing Add menu. The empty field then reclaims the slot; typed text still shows Clear. Placement
+When the whole placeholder cannot fit beside the text-action slot, both text actions move into the
+existing Add menu: Paste is its first item with empty text, and Clear is its first item with typed
+text. Empty and typed fields keep the same width. Placement
 follows the measured placeholder at the current column width and text size. Recording, transcribing,
 sending, offline and limit states omit both text actions.
 

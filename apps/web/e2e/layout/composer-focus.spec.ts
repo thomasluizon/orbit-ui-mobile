@@ -39,8 +39,9 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   await field.fill('Draft')
   await expectOneFieldIndicator(page, field, '[data-composer-input-row]', `composer field in ${mode}`, { forcedColors })
 
+  const clearInSlot = await container.locator('[data-composer-clear]').count() > 0
   for (const control of [
-    container.getByRole('button', { name: en.shell.composer.clear, exact: true }),
+    ...(clearInSlot ? [container.getByRole('button', { name: en.shell.composer.clear, exact: true })] : []),
     container.getByRole('button', { name: en.shell.composer.actions, exact: true }),
   ]) {
     await expect(control).toBeVisible()
@@ -51,7 +52,9 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
   await expect(menu).toBeVisible()
   await page.keyboard.press('Home')
-  for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
+  const names = [...(!clearInSlot ? [en.shell.composer.clear] : []), en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]
+  await expect(menu.getByRole('menuitem')).toHaveCount(names.length)
+  for (const name of names) {
     const control = menu.getByRole('menuitem', { name, exact: true })
     await expect(control).toBeVisible()
     await expectOneControlRing(control, forcedColors)

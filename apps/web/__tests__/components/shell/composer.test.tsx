@@ -3,6 +3,7 @@ import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -79,7 +80,7 @@ describe('clipboard composer control', () => {
     const input = screen.getByRole('textbox') as HTMLTextAreaElement
     await waitFor(() => expect(input).toHaveValue('Pasted\nmessage'))
     expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Pasted\nmessage')
-    expect(input).toHaveFocus()
+    await waitFor(() => expect(input).toHaveFocus())
     expect(input.selectionStart).toBe(input.value.length)
     expect(input.selectionEnd).toBe(input.value.length)
     expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
@@ -107,6 +108,25 @@ describe('clipboard composer control', () => {
     expect(readText).toHaveBeenCalledOnce()
     expect(onChangeValue).not.toHaveBeenCalled()
     expect(useAppToastStore.getState().currentToast).toBeNull()
+  })
+
+  it('allows a fresh paste after clearing a draft while an older read is pending', async () => {
+    let resolveFirst!: (text: string) => void
+    const readText = clipboard(vi.fn().mockImplementationOnce(() => new Promise<string>(resolve => { resolveFirst = resolve })).mockResolvedValue('New clipboard'))
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, onChangeValue: setValue })} />
+    }
+    render(<ControlledComposer />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'New draft' } })
+    fireEvent.click(screen.getByRole('button', { name: words.clear }))
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    await waitFor(() => expect(input).toHaveValue('New clipboard'))
+    expect(readText).toHaveBeenCalledTimes(2)
+    await act(async () => { resolveFirst('Old clipboard'); await Promise.resolve() })
+    expect(input).toHaveValue('New clipboard')
   })
 
   it.each([{}, { clipboard: {} }])('omits paste when clipboard reading is unavailable', navigator => {
@@ -177,14 +197,28 @@ describe('Composer', () => {
   })
 
   it('opens and names its menu from the keyboard without changing the draft', async () => {
-    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords })} />)
+    const user = userEvent.setup()
+    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), attachWords })} />)
     const trigger = screen.getByRole('button', { name: words.actions })
     const input = screen.getByRole('textbox')
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    act(() => trigger.focus())
+    await user.keyboard('{ArrowDown}')
     const menu = await screen.findByRole('menu')
     expect(trigger).toHaveAttribute('aria-controls', menu.id)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
     expect(input).toHaveValue('Keep this draft')
+    const rows = within(menu).getAllByRole('menuitem')
+    expect(rows.map(row => row.textContent)).toEqual([attachWords.image, attachWords.file, voiceWords.start])
+    await waitFor(() => expect(rows[0]).toHaveFocus())
+    for (const row of rows.slice(1)) {
+      await user.keyboard('{ArrowDown}')
+      expect(row).toHaveFocus()
+    }
+    await user.keyboard('{Home}')
+    expect(rows[0]).toHaveFocus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
   })
 
   it('opens the full attachment name without removing it or changing the draft', async () => {
@@ -221,6 +255,17 @@ describe('Composer', () => {
     act(() => stop.focus())
     view.rerender(<Composer {...props({ ...capability, state: 'transcribing' })} autoFocus />)
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
+  })
+
+  it.each(['', 'Draft'])('keeps the focused Add control mounted as recording starts with %j', value => {
+    const capability = { onVoice: vi.fn(), voiceWords, value }
+    const view = render(<Composer {...props(capability)} />)
+    const add = screen.getByRole('button', { name: words.actions })
+    act(() => add.focus())
+    view.rerender(<Composer {...props({ ...capability, state: 'recording' })} />)
+    const stop = screen.getByRole('button', { name: voiceWords.stop })
+    expect(stop).toBe(add)
+    expect(stop).toHaveFocus()
   })
 
   it('runs the recording clock, freezes it for transcription, and restores the transcript', async () => {

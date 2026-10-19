@@ -73,7 +73,7 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
   vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Pasted message') } })
   function ControlledComposer() {
     const [value, setValue] = useState('')
-    return <Composer {...geometryProps('idle', messages, true)} value={value} onChangeValue={setValue} />
+    return <Composer {...geometryProps('tray1', messages, true)} value={value} onChangeValue={setValue} />
   }
   const view = render(<ControlledComposer />)
   const field = screen.getByRole('textbox') as HTMLTextAreaElement
@@ -99,7 +99,17 @@ async function expectNarrowMenuPaste(page: import('@playwright/test').Page, mess
     await waitFor(() => expect(field).toHaveValue('Pasted message'))
     await waitFor(() => expect(field).toHaveFocus())
     expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
-    expect(screen.getByRole('button', { name: messages.shell.composer.clear })).toBeVisible()
+    expect(screen.queryByRole('button', { name: messages.shell.composer.clear })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: messages.shell.composer.actions }), { key: 'ArrowDown' })
+    const clearMenu = await screen.findByRole('menu')
+    const clear = within(clearMenu).getAllByRole('menuitem')[0]!
+    expect(clear).toHaveAccessibleName(messages.shell.composer.clear)
+    expect(clear.querySelector('[data-icon="x"] svg')).not.toBeNull()
+    await waitFor(() => expect(clear).toHaveFocus())
+    fireEvent.click(clear)
+    await waitFor(() => expect(field).toHaveValue(''))
+    await waitFor(() => expect(field).toHaveFocus())
+    expect(screen.getByText('attachment-0.txt')).toBeInTheDocument()
   } finally { widthSpy.mockRestore(); contextSpy.mockRestore(); view.unmount(); vi.unstubAllGlobals() }
 }
 
@@ -107,7 +117,8 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   const { width, fontScale, withOpener, scenario } = context
   const evidence = JSON.stringify({ width, fontScale, withOpener, scenario, measured })
   expect(measured.documentWidth, evidence).toBe(width)
-  const hasClear = ['oneLine', 'typing', 'longText'].includes(scenario)
+  const slotContentWidth = width - 32 - 8 - 16 - 96 - INTERACTION_FILL_CLEARANCE - 48 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0)
+  const hasClear = ['oneLine', 'typing', 'longText'].includes(scenario) && measured.input!.placeholderWidth <= slotContentWidth
   expect(measured.controls).toHaveLength((withOpener ? 3 : 2) + (hasClear ? 1 : 0))
   for (const [index, control] of measured.controls.entries()) {
     expect(control.width, evidence).toBe(48)
@@ -125,7 +136,7 @@ function assertInputGeometry(input: NonNullable<PillGeometry['input']>, pillHeig
   { fontScale, scenario, hasClear }: { fontScale: number; scenario: GeometryScenario; hasClear: boolean }, evidence: string) {
   const clearWidth = hasClear ? 48 + INTERACTION_FILL_CLEARANCE : 0
   expect(input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE - clearWidth)
-  if (fontScale === 1 && !hasClear) expect(input.placeholderWidth, evidence).toBeLessThanOrEqual(input.contentWidth)
+  if (fontScale === 1) expect(input.placeholderWidth, evidence).toBeLessThanOrEqual(input.contentWidth)
   if (scenario === 'longText') {
     expect(input.height, evidence).toBe(input.maximumHeight)
     expect(input.scrollHeight, evidence).toBeGreaterThan(input.height)
@@ -243,7 +254,7 @@ describe('Composer compact geometry in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
-    'moves paste only when the whole placeholder needs its slot at $width', async ({ width, messages }) => {
+    'moves text actions only when the whole placeholder needs their slot at $width', async ({ width, messages }) => {
       const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message' }
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
@@ -267,11 +278,11 @@ describe('Composer compact geometry in Chromium', () => {
         expect(placeholderWidth).toBeLessThanOrEqual(empty.contentWidth)
         await input.fill('Draft')
         const typed = await input.evaluate(measureFieldInset)
-        const slot = await page.locator('[data-composer-clear]').evaluate(element =>
-          element.getBoundingClientRect().width + parseFloat(getComputedStyle(element.parentElement!).columnGap))
-        expect(typed.contentWidth).toBe(empty.contentWidth - (width === 320 ? slot : 0))
+        expect(typed.contentWidth).toBe(empty.contentWidth)
         expect(new Set(await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))).size).toBe(1)
-        await page.locator('[data-composer-clear]').click()
+        expect(await page.locator('[data-composer-clear]').count()).toBe(width === 320 ? 0 : 1)
+        if (width === 320) await input.fill('')
+        else await page.locator('[data-composer-clear]').click()
         await expect.poll(() => paste.count()).toBe(width === 320 ? 0 : 1)
         expect(await input.evaluate(element => element === document.activeElement)).toBe(true)
         if (width === 320) await expectNarrowMenuPaste(page, messages)
@@ -343,7 +354,8 @@ describe('Composer compact geometry in Chromium', () => {
       await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
       const typed = await field.evaluate(measureFieldInset)
       expect(typed.inset).toBe(placeholder.inset)
-      expect(typed.contentWidth).toBe(box.width - 16 - 48 - INTERACTION_FILL_CLEARANCE)
+      const clearCount = await page.locator('[data-composer-clear]').count()
+      expect(typed.contentWidth).toBe(box.width - 16 - clearCount * (48 + INTERACTION_FILL_CLEARANCE))
       if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
       expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
       if (typed.height === typed.maximumHeight) expect(typed.scrollHeight).toBeGreaterThanOrEqual(typed.height)
