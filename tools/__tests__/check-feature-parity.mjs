@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import yaml from 'js-yaml'
 
 import { T, REPO_ROOT, root, stage, run } from './_harness.mjs'
 import { scan, compare, validateRules, newLosses } from '../check-feature-parity.mjs'
@@ -89,6 +90,9 @@ function inventoryRegressions(fixture) {
 }
 
 export const cases = () => {
+  const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
+  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
+  T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
   const snapshot = (source, extra = {}) => {
     const files = {
