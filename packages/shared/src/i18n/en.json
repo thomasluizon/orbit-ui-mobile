@@ -233,6 +233,8 @@
       "placeholder": "Ask Astra",
       "send": "Send",
       "clear": "Clear message",
+      "paste": "Paste",
+      "nothingToPaste": "Nothing to paste",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",
       "voice": {

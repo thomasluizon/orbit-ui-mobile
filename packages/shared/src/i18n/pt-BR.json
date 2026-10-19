@@ -233,6 +233,8 @@
       "placeholder": "Peça à Astra",
       "send": "Enviar",
       "clear": "Limpar mensagem",
+      "paste": "Colar",
+      "nothingToPaste": "Nada para colar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
       "voice": {

@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import type { Locator, Page } from '@playwright/test'
@@ -21,7 +22,7 @@ import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const cases = [320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
-  (['rows', 'calendar', 'composer', 'tabs'] as const).flatMap((surface) =>
+  (['rows', 'calendar', 'composer', 'composerPaste', 'tabs'] as const).flatMap((surface) =>
     (['hover', 'press', 'focus'] as const).filter((state) => surface !== 'tabs' || state === 'focus').map((state) => ({ width, locale, state, surface, mode: 'dark' as const, forcedColors: 'none' as const })))))
   .flatMap((scenario) => scenario.width === 320 && scenario.locale === 'en' && scenario.state === 'focus' ? [scenario, { ...scenario, mode: 'light' as const }, { ...scenario, forcedColors: 'active' as const }] : [scenario])
 
@@ -58,12 +59,16 @@ function ownerSurfaces(messages: typeof en | typeof ptBR) {
     composer: <Composer state="idle" value="Message" suggestions={[]} words={messages.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
         attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />,
+    composerPaste: <Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
+        onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />,
     tabs: <BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
         items={(['today', 'calendar', 'progress', 'profile'] as const).map((id) => ({ id, label: messages.nav[id], href: '/', icon: ({ active }) => <DestinationIcon destination={id === 'today' ? 'hoje' : id === 'calendar' ? 'calendario' : id === 'progress' ? 'progresso' : 'perfil'} active={active} /> }))} />,
   }
 }
 
 describe('shared interaction fill owners in Chromium', () => {
+  afterEach(() => vi.unstubAllGlobals())
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -76,20 +81,23 @@ describe('shared interaction fill owners in Chromium', () => {
 
   it.each(cases)('clears the $surface fills at $width in $locale while $state in $mode with forced colors $forcedColors', async ({ width, locale, state, surface, mode, forcedColors }) => {
     const messages = locale === 'en' ? en : ptBR
-    const markup = renderToStaticMarkup(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+    vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('') } })
+    const content = (<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <main data-shell-column="" data-focus-inset={surface === 'rows' ? 'panel' : undefined} style={{ maxWidth: 740, margin: 'auto' }}>{ownerSurfaces(messages)[surface]}</main>
     </NextIntlClientProvider>)
+    const markup = surface === 'composerPaste' ? render(content).container.innerHTML : renderToStaticMarkup(content)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce', forcedColors })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
       await loadAppFonts(page)
-      if (surface === 'composer') {
-        const clear = page.getByRole('button', { name: messages.shell.composer.clear, exact: true })
+      if (surface === 'composer' || surface === 'composerPaste') {
+        const clear = page.getByRole('button', { name: messages.shell.composer[surface === 'composer' ? 'clear' : 'paste'], exact: true })
         expect(await clear.count()).toBe(1)
         expect(await clear.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
         const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
         expect(new Set(bounds).size).toBe(1)
+        expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe({ active: 60, none: 56 }[forcedColors])
       }
       const controls = page.locator('button:not(:disabled):not([aria-disabled="true"]), a[href], [role="switch"]')
       for (const control of await controls.all()) {

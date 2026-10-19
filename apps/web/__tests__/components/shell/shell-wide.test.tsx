@@ -61,7 +61,7 @@ describe('ShellWide', () => {
     function DraftComposer() {
       const draft = useChatStore(state => state.draft)
       return <Composer state="idle" value={draft} onChangeValue={onChangeValue} onSend={onSend} suggestions={[]}
-        words={{ placeholder: 'Ask Astra', send: 'Send', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
         onAttachFile={onAttachFile} onAttachImage={onAttachImage}
         attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }}
         onVoice={onVoice} voiceWords={{ start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />

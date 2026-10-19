@@ -12,9 +12,12 @@ import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, View, useWindowDimensions } from 'react-native'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { captureError } from '@/lib/sentry'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { ArrowUp, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -324,6 +327,30 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
     </InsetFocusPressable>
 }
 
+function PasteMessageControl({ props, tokens, onPasteText }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; onPasteText: (text: string) => void }>) {
+  const active = useRef(false)
+  const pending = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  async function pasteMessage() {
+    if (pending.current) return
+    pending.current = true
+    try {
+      const text = await Clipboard.getString()
+      if (!active.current) return
+      if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
+      else onPasteText(text)
+    } catch (error) {
+      captureError(error)
+    } finally { pending.current = false }
+  }
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.paste}
+    focusColor={tokens.primary}
+    onPress={() => void pasteMessage()}
+    style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg3} />
+  </InsetFocusPressable>
+}
+
 function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   if (props.state !== 'idle' || props.value.length === 0) return null
   return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.clear}
@@ -336,6 +363,14 @@ function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: Comp
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const [focused, setFocused] = useState(false)
+  const pasteFocus = useRef<string | null>(null)
+  useEffect(() => {
+    if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
+    const end = pasteFocus.current.length
+    pasteFocus.current = null
+    inputRef.current?.focus()
+    inputRef.current?.setSelection(end, end)
+  }, [props.value, props.state, inputRef])
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
@@ -351,7 +386,10 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} />}
 
       <View style={styles.trailingControls}>
-        <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />
+        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} tokens={tokens} onPasteText={text => {
+          pasteFocus.current = text
+          props.onChangeValue(text)
+        }} /> : <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />}
         <ComposerControls props={props} tokens={tokens} />
 
       <InsetFocusPressable

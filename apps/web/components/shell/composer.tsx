@@ -3,7 +3,7 @@
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { useContext, useEffect, useId, useRef, useState, type ClipboardEventHandler } from 'react'
+import { useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -13,10 +13,11 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ArrowUp, Clipboard, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { CompactComposerMenuContext } from './shell-pinned-content'
 
@@ -195,6 +196,35 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   </div>
 }
 
+function subscribeClipboardAvailability() { return () => {} }
+
+function PasteMessageControl({ props, onPasteText }: Readonly<{ props: ComposerProps; onPasteText: (text: string) => void }>) {
+  const available = useSyncExternalStore(subscribeClipboardAvailability,
+    () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
+  const active = useRef(false)
+  const pending = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  async function pasteMessage() {
+    if (pending.current) return
+    pending.current = true
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!active.current) return
+      if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
+      else onPasteText(text)
+    } catch {
+      return
+    } finally { pending.current = false }
+  }
+  if (!available) return null
+  return <button type="button" aria-label={props.words.paste} data-composer-paste
+    onMouseDown={event => event.preventDefault()}
+    onClick={() => void pasteMessage()}
+    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+    <Clipboard size={20} strokeWidth={2} aria-hidden="true" />
+  </button>
+}
+
 function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
   if (props.state !== 'idle' || props.value.length === 0) return null
   return <button type="button" aria-label={props.words.clear} data-composer-clear
@@ -207,6 +237,14 @@ function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProp
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const pasteFocus = useRef<string | null>(null)
+  useEffect(() => {
+    if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
+    const end = pasteFocus.current.length
+    pasteFocus.current = null
+    inputRef.current?.focus()
+    inputRef.current?.setSelectionRange(end, end)
+  }, [props.value, props.state])
   useEffect(() => {
     if (!props.inputSelection) return
     inputRef.current?.focus()
@@ -272,7 +310,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         />}
 
       <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
-        <ClearMessageControl props={props} inputRef={inputRef} />
+        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} onPasteText={text => {
+          pasteFocus.current = text
+          props.onChangeValue(text)
+        }} /> : <ClearMessageControl props={props} inputRef={inputRef} />}
         <ComposerControls props={props} />
 
       <button

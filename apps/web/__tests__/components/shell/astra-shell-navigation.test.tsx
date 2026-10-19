@@ -21,7 +21,7 @@ vi.mock('@/components/command/command-palette', () => ({
 }))
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
-const words = { placeholder: 'Message', send: 'Send', clear: 'Clear message', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
+const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
 const attachWords = { image: 'Photo', file: 'Document', trayLabel: 'Attachments', remove: (name: string) => name }
 const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }
 

@@ -11,6 +11,8 @@ vi.mock('@/components/ui/icons', async (importOriginal) => {
   )
 })
 
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { getString: vi.fn().mockResolvedValue(''), setString: vi.fn() } }))
+
 vi.mock('@sentry/react-native', () => ({ captureException: vi.fn() }))
 
 vi.mock('posthog-react-native', () => ({

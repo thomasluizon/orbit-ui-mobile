@@ -5,7 +5,7 @@ import type { ComposerProps } from '../contracts/composer'
 function composerProps() {
   return {
     state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
-    words: { placeholder: 'Ask Astra', send: 'Send', clear: 'Clear message', actions: 'Actions', suggestionsLabel: 'Suggestions' },
+    words: { placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Actions', suggestionsLabel: 'Suggestions' },
     onAttachImage: vi.fn(), onAttachFile: vi.fn(),
     attachWords: { image: 'Photo', file: 'File', trayLabel: 'Attachments', remove: name => name },
     onVoice: vi.fn(), voiceWords: { start: 'Record', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' },

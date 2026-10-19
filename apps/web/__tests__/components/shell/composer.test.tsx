@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { useState } from 'react'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -12,6 +13,8 @@ const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
   clear: 'clear sentinel',
+  paste: 'paste sentinel',
+  nothingToPaste: 'empty clipboard sentinel',
   actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
@@ -48,6 +51,88 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
     ...overrides,
   } as ComposerProps
 }
+
+describe('clipboard composer control', () => {
+  afterEach(() => { vi.unstubAllGlobals(); useAppToastStore.getState().dismissAllToasts() })
+
+  function clipboard(readText = vi.fn().mockResolvedValue('Pasted\nmessage')) {
+    vi.stubGlobal('navigator', { clipboard: { readText } })
+    return readText
+  }
+
+  it.each([en, ptBR])('pastes text, preserves attachments, swaps controls and focuses the end', async messages => {
+    const readText = clipboard()
+    const onChangeValue = vi.fn()
+    const onAttachRemove = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, words: messages.shell.composer,
+        onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+        attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove })} />
+    }
+    render(<ControlledComposer />)
+    expect(readText).not.toHaveBeenCalled()
+    const paste = screen.getByRole('button', { name: messages.shell.composer.paste })
+    expect(paste.parentElement?.firstElementChild).toBe(paste)
+    expect(screen.queryByRole('button', { name: messages.shell.composer.clear })).not.toBeInTheDocument()
+    fireEvent.click(paste)
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement
+    await waitFor(() => expect(input).toHaveValue('Pasted\nmessage'))
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Pasted\nmessage')
+    expect(input).toHaveFocus()
+    expect(input.selectionStart).toBe(input.value.length)
+    expect(input.selectionEnd).toBe(input.value.length)
+    expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.clear }))
+    expect(screen.getByRole('button', { name: messages.shell.composer.paste })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    expect(screen.getByText('walk.png')).toBeInTheDocument()
+  })
+
+  it.each([en, ptBR])('shows the localized information toast for an empty clipboard', async messages => {
+    clipboard(vi.fn().mockResolvedValue(''))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ words: messages.shell.composer, onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.paste }))
+    await waitFor(() => expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: messages.shell.composer.nothingToPaste }))
+    expect(onChangeValue).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when clipboard reading is refused', async () => {
+    const readText = clipboard(vi.fn().mockRejectedValue(new Error('Permission denied')))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: words.paste })))
+    expect(readText).toHaveBeenCalledOnce()
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+  })
+
+  it.each([{}, { clipboard: {} }])('omits paste when clipboard reading is unavailable', navigator => {
+    vi.stubGlobal('navigator', navigator)
+    render(<Composer {...props()} />)
+    expect(screen.queryByRole('button', { name: words.paste })).not.toBeInTheDocument()
+  })
+
+  it.each(['recording', 'transcribing', 'sending', 'offline', 'atLimit'])('omits paste while %s', state => {
+    clipboard()
+    render(<Composer {...props({ state, limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
+    expect(screen.queryByRole('button', { name: words.paste })).not.toBeInTheDocument()
+  })
+
+  it('does not replace a newer draft with a pending clipboard read', async () => {
+    let resolve!: (text: string) => void
+    clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+    const onChangeValue = vi.fn()
+    const view = render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    view.rerender(<Composer {...props({ value: 'new draft', onChangeValue })} />)
+    await act(async () => resolve('old clipboard'))
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox')).toHaveValue('new draft')
+  })
+})
 
 describe('Composer', () => {
   it.each([{ messages: en, label: 'Clear message' }, { messages: ptBR, label: 'Limpar mensagem' }])('localizes the clear name to $label', ({ messages, label }) => {

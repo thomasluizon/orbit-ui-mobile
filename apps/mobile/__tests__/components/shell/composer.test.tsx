@@ -6,15 +6,19 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Square } from '@/components/ui/icons'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
+import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
+
+const clipboard = vi.hoisted(() => ({ getString: vi.fn().mockResolvedValue('') }))
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
 
 const motionState = vi.hoisted(() => ({ reducedMotion: false }))
 vi.mock('@/lib/motion', async (importOriginal) => ({
@@ -65,6 +69,8 @@ const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
   clear: 'clear sentinel',
+  paste: 'paste sentinel',
+  nothingToPaste: 'empty clipboard sentinel',
   actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
@@ -108,6 +114,72 @@ function renderComposer(composerProps: ComposerProps) {
   })
   return tree
 }
+
+describe('clipboard composer control', () => {
+  afterEach(() => { clipboard.getString.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
+
+  it.each([en, ptBR])('pastes text, preserves attachments, swaps controls and focuses the end', async messages => {
+    clipboard.getString.mockResolvedValue('Pasted\nmessage')
+    const onChangeValue = vi.fn()
+    const onAttachRemove = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = React.useState('')
+      return <Composer {...props({ value, words: messages.shell.composer,
+        onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+        attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove })} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+    try {
+      expect(clipboard.getString).not.toHaveBeenCalled()
+      expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(0)
+      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
+      await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
+      const input = tree.root.findByType('TextInput')
+      expect(input.props.value).toBe('Pasted\nmessage')
+      expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Pasted\nmessage')
+      expect(__getFocusedNativeTag()).toBe(input.props.__nativeTag)
+      expect(__getFocusedInputSelection()).toEqual({ start: 14, end: 14 })
+      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
+      await TestRenderer.act(() => byLabel(tree.root, messages.shell.composer.clear)[0]!.props.onPress())
+      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
+      expect(input.props.value).toBe('')
+      expect(onAttachRemove).not.toHaveBeenCalled()
+      expect(tree.root.findAllByProps({ testID: 'composer-attachment-image' }).length).toBeGreaterThan(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([en, ptBR])('shows the localized information toast for an empty clipboard', async messages => {
+    const onChangeValue = vi.fn()
+    const tree = renderComposer(props({ words: messages.shell.composer, onChangeValue }))
+    try {
+      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
+      await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
+      expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: messages.shell.composer.nothingToPaste })
+      expect(onChangeValue).not.toHaveBeenCalled()
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['recording', 'transcribing', 'sending', 'offline', 'atLimit'])('omits paste while %s', state => {
+    const tree = renderComposer(props({ state, limitReason: 'reason', onVoice: vi.fn(), voiceWords }))
+    expect(byLabel(tree.root, words.paste)).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('does not replace a newer draft with a pending clipboard read', async () => {
+    let resolve!: (text: string) => void
+    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+    const onChangeValue = vi.fn()
+    const tree = renderComposer(props({ onChangeValue }))
+    try {
+      TestRenderer.act(() => { void byLabel(tree.root, words.paste)[0]!.props.onPress() })
+      TestRenderer.act(() => tree.update(<Composer {...props({ value: 'new draft', onChangeValue })} />))
+      await TestRenderer.act(async () => { resolve('old clipboard'); await Promise.resolve() })
+      expect(onChangeValue).not.toHaveBeenCalled()
+      expect(tree.root.findByType('TextInput').props.value).toBe('new draft')
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+})
 
 it.each([{ messages: en, label: 'Clear message' }, { messages: ptBR, label: 'Limpar mensagem' }])('localizes the clear name to $label', ({ messages, label }) => {
   const tree = renderComposer(props({ value: 'draft', words: messages.shell.composer }))
