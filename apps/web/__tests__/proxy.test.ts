@@ -207,15 +207,32 @@ describe('proxy', () => {
     )
   })
 
-  it('runs for every early-return path so each response receives the policy', () => {
-    for (const url of [
-      'http://localhost:3000/api/profile',
-      'http://localhost:3000/_next/static/chunks/app.js',
-      'http://localhost:3000/favicon.ico',
-      'http://localhost:3000/images/orbit-logo.png',
-    ]) {
-      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
-    }
+  it.each([
+    ['/_next/static/chunks/app.js', false],
+    ['/_next/static/chunks/app.css', false],
+    ['/_next/static/media/orbit.woff2', false],
+    ['/_next/image?url=%2Fimages%2Forbit-logo.png&w=640&q=75', false],
+    ['/api/health', false],
+    ['/api/health?check=ready', false],
+    ['/', true],
+    ['/profile', true],
+    ['/terms', true],
+    ['/login?googleError=1', true],
+    ['/api/habits', true],
+    ['/api/profile', true],
+    ['/api/health/check', true],
+    ['/api/healthcheck', true],
+    ['/app-ads.txt', true],
+    ['/robots.txt', true],
+    ['/sw.js', true],
+    ['/favicon.ico', true],
+    ['/images/orbit-logo.png', true],
+    ['/_next/data/build/profile.json', true],
+  ])('matches %s only when proxy coverage is required (%s)', (path, matches) => {
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: new URL(path, 'http://localhost:3000').toString(),
+    })).toBe(matches)
   })
 
   it('keeps the health route outside the auth proxy', async () => {
