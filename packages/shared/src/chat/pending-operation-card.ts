@@ -61,6 +61,23 @@ export interface PendingOperationCardLabels {
 const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
 const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush', 'setProactiveAstra']
 
+function getToggleOutcome(actionKey: string | null | undefined, fields: readonly PendingOperationChange[]): 'turnOn' | 'turnOff' | null {
+  if (!actionKey || !PREVIEW_ACTION_KEYS.includes(actionKey)
+    || !['setProactiveAstra', 'setAiSummary', 'setAiMemory'].includes(actionKey)) return null
+  const enabled = fields.find((field) => field.field === 'enabled')
+  if (typeof enabled?.proposedValue === 'boolean') return enabled.proposedValue ? 'turnOn' : 'turnOff'
+  const value = enabled?.newValue?.toLowerCase()
+  return value === 'true' ? 'turnOn' : value === 'false' ? 'turnOff' : null
+}
+
+function getApprovalLabel(actionKey: string | null | undefined, toggleOutcome: 'turnOn' | 'turnOff' | null,
+  translate: (key: string) => string): string {
+  if (toggleOutcome) return translate(`chat.operation.toggleApprove.${toggleOutcome}`)
+  return actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
+    ? translate(`chat.operation.${COMPACT_ACTIONS.includes(actionKey) ? 'approveAction' : 'source'}.${actionKey}`)
+    : translate('chat.operation.approve')
+}
+
 const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
   'habits.write': 'habits', 'habits.delete': 'habits', 'habits.bulk.write': 'habits', 'habits.bulk.delete': 'habits',
   'goals.write': 'goals', 'goals.delete': 'goals', 'tags.write': 'tags', 'tags.delete': 'tags',
@@ -78,12 +95,13 @@ export function buildPendingOperationCardLabels(
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
-  const actionLabel = actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
-    ? translate(`chat.operation.${COMPACT_ACTIONS.includes(actionKey) ? 'approveAction' : 'source'}.${actionKey}`)
-    : translate('chat.operation.approve')
+  const toggleOutcome = getToggleOutcome(actionKey, pendingOperation.items?.length
+    ? pendingOperation.items.flatMap((item) => item.fields) : pendingOperation.changes ?? [])
+  const actionLabel = getApprovalLabel(actionKey, toggleOutcome, translate)
   const deletionSubject = DELETION_SUBJECTS[pendingOperation.capabilityId]
   const confirm = deletionSubject && pendingOperation.items?.some((item) => item.removesData === true)
     ? translate(`chat.operation.deleteAction.${deletionSubject}`)
+    : toggleOutcome ? translate(`chat.operation.toggleSource.${actionKey}.${toggleOutcome}`)
     : translate(actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
       ? `chat.operation.source.${actionKey}`
       : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
@@ -100,7 +118,11 @@ export function buildPendingOperationCardLabels(
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),
     rejected: (count) => translate('chat.operation.rejected', { count }),
-    summarize: (fields) => summarizePendingOperationItem(fields, translate, formatTime, locale, pendingOperation.actionKey),
+    summarize: (fields) => {
+      const outcome = getToggleOutcome(actionKey, fields)
+      return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, actionKey)
+    },
     save: translate('common.save'),
     search: translate('common.search'),
     invalid: translate('chat.operation.invalid'),

@@ -1954,6 +1954,24 @@
         "unsubscribePush": "Desativar avisos",
         "setProactiveAstra": "Alterar notificações"
       },
+      "toggleApprove": {
+        "turnOn": "Ativar",
+        "turnOff": "Desativar"
+      },
+      "toggleSource": {
+        "setProactiveAstra": {
+          "turnOn": "Ativar notificações da Astra",
+          "turnOff": "Desativar notificações da Astra"
+        },
+        "setAiSummary": {
+          "turnOn": "Ativar o resumo diário",
+          "turnOff": "Desativar o resumo diário"
+        },
+        "setAiMemory": {
+          "turnOn": "Ativar a memória da Astra",
+          "turnOff": "Desativar a memória da Astra"
+        }
+      },
       "approveCount": {
         "createHabits": "Criar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
         "logHabits": "Registrar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",

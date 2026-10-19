@@ -1954,6 +1954,24 @@
         "unsubscribePush": "Disable alerts",
         "setProactiveAstra": "Change notifications"
       },
+      "toggleApprove": {
+        "turnOn": "Turn on",
+        "turnOff": "Turn off"
+      },
+      "toggleSource": {
+        "setProactiveAstra": {
+          "turnOn": "Turn on Astra notifications",
+          "turnOff": "Turn off Astra notifications"
+        },
+        "setAiSummary": {
+          "turnOn": "Turn on the daily recap",
+          "turnOff": "Turn off the daily recap"
+        },
+        "setAiMemory": {
+          "turnOn": "Turn on Astra memory",
+          "turnOff": "Turn off Astra memory"
+        }
+      },
       "approveCount": {
         "createHabits": "Create {count, plural, one {# habit} other {# habits}}",
         "logHabits": "Log {count, plural, one {# habit} other {# habits}}",
