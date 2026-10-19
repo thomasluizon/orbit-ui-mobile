@@ -1,10 +1,11 @@
 import React, { type ComponentProps } from 'react'
 import { StyleSheet } from 'react-native'
 import * as ReactNative from 'react-native'
-import { measureGrid, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
+import { measureGrid, measureDaySurface, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCalendarMonthModel, buildCalendarRangeModel, type CalendarMonthDay } from '@orbit/shared/utils'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarGrid as CalendarGridComponent } from '@/app/(tabs)/calendar/_components/calendar-grid'
 import { CalendarRangeView } from '@/app/(tabs)/calendar/_components/calendar-range-view'
@@ -102,12 +103,42 @@ describe('CalendarGrid (mobile)', () => {
         expect(Math.abs(placeholder.center - placeholder.columnCenter)).toBeLessThanOrEqual(0.5)
         expect(placeholder.width).toBeLessThanOrEqual(placeholder.columnWidth + 0.5)
       }
+      for (const circle of geometry.circles) {
+        expect(circle.left - circle.column.left, 'leading paint inset').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+        expect(circle.column.right - circle.right, 'trailing paint inset').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+      }
       for (const disc of geometry.discs) {
         expect(disc.width).toBeLessThanOrEqual(disc.columnWidth + 0.5)
         expect(disc.width).toBeCloseTo(disc.height, 1)
       }
       expect(geometry.targets).toHaveLength(isLoading ? 0 : view === 'month' ? 30 : 14)
       for (const target of geometry.targets) {
+        expect(target.width).toBeCloseTo(target.columnWidth, 1)
+        expect(target.height).toBeGreaterThanOrEqual(44)
+      }
+    } finally { dimensions.mockRestore() }
+  })
+
+  it.each([320, 412].flatMap((width) => (['pressed', 'focused'] as const).map((state) => ({ width, state }))))('contains month $state paint at $width without shrinking targets', ({ width, state }) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    const model = buildCalendarMonthModel(new Date(2026, 8, 1), new Map(), 1, '2026-09-11')
+    let tree!: TestTree
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarGrid gridDays={model.gridDays} selectedDay={null} onSelectDay={vi.fn()}
+          weekdayHeaders={['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, index) => ({ key: String(index), label }))}
+          language="en" t={i18n.t} tokens={createTokensV2('orange', 'dark')} />)
+      })
+      const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-11')[0]!
+      TestRenderer.act(() => { (control.props[state === 'pressed' ? 'onPressIn' : 'onFocus'] as () => void)() })
+      const parts = measureDaySurface(tree.toJSON(), width)
+      const paint = parts.filter((part) => part.testID === (state === 'pressed' ? 'day-press-fill' : 'day-today-ring'))
+      expect(paint.length).toBeGreaterThan(0)
+      for (const box of paint) {
+        expect(box.left - box.column.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+        expect(box.column.left + box.column.width - box.left - box.width).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+      }
+      for (const target of measureGrid(tree.toJSON(), width, 'month', false).targets) {
         expect(target.width).toBeCloseTo(target.columnWidth, 1)
         expect(target.height).toBeGreaterThanOrEqual(44)
       }

@@ -275,7 +275,7 @@ export function CalendarDayDetail({
         </div>
         <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
       </div> : filteredEntries.length > 0 ? (
-        <div className="flex flex-col">
+        <div className="flex flex-col" style={{ gap: 4 }}>
           <CalendarDayRows
             dateStr={dateStr}
             entries={filteredEntries}

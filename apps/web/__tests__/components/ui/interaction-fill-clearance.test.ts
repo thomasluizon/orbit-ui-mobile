@@ -56,4 +56,32 @@ describe('interaction clearance inspector in Chromium', () => {
       expect(result.violations).toContainEqual({ neighbour: 'aside[]', distance: 0 })
     } finally { await page.close() }
   })
+
+  it('ignores transparent full-column tab targets on both sides of the measurement', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>
+        body { margin: 0 } nav { display: flex } button { width: 80px; height: 80px; padding: 0; border: 0; outline: none; background: transparent }
+        span { display: inline-flex; padding: 8px; background: gray }
+      </style><nav><button><span>One</span></button><button>Two</button><button><span>Three</span></button><button>Four</button></nav>`)
+      const result = await page.getByRole('button').first().evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.hasFill).toBe(true)
+      expect(result.fill.left).toBeGreaterThan(0)
+      expect(result.fill.right).toBeLessThan(80)
+      expect(result.violations).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('permits contained grid cell paint but rejects an extension (outside=%s)', async (outside) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>
+        body { margin: 32px; display: flex } button { width: 80px; height: 80px; position: relative; border: 0; outline: none; background: gray }
+        button::before { content: ''; position: absolute; inset: ${outside ? '-4px' : '0'}; background: gray }
+      </style><button data-interaction-fill-cell>Monday</button><button>Tuesday</button>`)
+      const result = await page.getByRole('button').first().evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.violations.some((violation) => violation.neighbour === 'button[Tuesday]')).toBe(outside)
+    } finally { await page.close() }
+  })
+
 })

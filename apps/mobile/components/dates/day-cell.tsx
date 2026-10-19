@@ -26,7 +26,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
-    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
+    <View style={{ width: '100%', maxWidth: size }}><View testID="day-disc" style={[styles.disc, { width: '100%', aspectRatio: 1, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
       {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       {outcome === 'partial' ? (
         <Svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={styles.arc}>
@@ -46,7 +46,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
         </Svg>
       ) : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
-    </View>
+    </View></View>
   )
 }
 
@@ -57,11 +57,11 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
   if (outcome === 'full') textColor = tokens.bg
   else if (missed) textColor = tokens.fg2
   return (
-    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+    <View style={{ width: '100%', maxWidth: size }}><View testID="day-disc" style={[styles.disc, { width: '100%', aspectRatio: 1, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
-    </View>
+    </View></View>
   )
 }
 
@@ -79,11 +79,11 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
   const ring = props.today || props.selected || focused || props.focused
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
-  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : pressed ? 'transparent' : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
+  return <View style={{ width: '100%', paddingHorizontal: 4, alignItems: 'center' }}><View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : pressed ? 'transparent' : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
     {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
     {ring}
-  </View></View>
+  </View></View></View>
 }
 
 export function DayCell(props: Readonly<MobileDayCellProps>) {

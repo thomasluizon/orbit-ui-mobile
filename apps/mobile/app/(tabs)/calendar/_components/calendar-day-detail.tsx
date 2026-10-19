@@ -275,7 +275,7 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: 24, paddingVertical: 24 },
     copyBlock: { gap: 4 },
-    rowList: { gap: 0 },
+    rowList: { gap: 4 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },

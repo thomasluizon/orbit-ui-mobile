@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -214,7 +215,7 @@ describe('day card compact geometry', () => {
         expect(geometry.bottomInset).toBeCloseTo(24)
         geometry.groupGaps.forEach((gap) => expect(gap).toBeCloseTo(16))
         geometry.rowInsets.forEach((insets) => expect(insets).toEqual([24, 24]))
-        expect(geometry.dayGap).toBeCloseTo(0)
+        expect(geometry.dayGap).toBeCloseTo(INTERACTION_FILL_CLEARANCE)
         if (loggable) {
           expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
           expect(geometry.labelPadding).toEqual(['0px', '16px'])

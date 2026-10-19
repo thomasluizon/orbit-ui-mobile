@@ -15,7 +15,10 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Pills and icon pills | `components/ui/pill-button.tsx`, `app/globals.css` | `components/ui/pill-button.tsx` | Existing 12px action gaps accommodate focus rings; the 2px hit extension paints nothing |
 | Compact focus groups | Weekday pills, segmented controls, profile theme choices and explicit control focus utilities | Existing inset focus pressables on the corresponding surfaces | Explicit outward focus offsets become inset where adjacent controls can have a 4px gap |
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
-| Narrow month grid | `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx`, `app/globals.css` | `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | Below the grid gap breakpoint, adjacent day paint still needs an inset inside the unchanged targets |
+| Narrow month grid | `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx`, `app/globals.css` | `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | A 4px inset on each side of the circular paint preserves full-column targets at every width; the 34px status disc shrinks with the circle on narrow columns |
+| Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | A 4px row gap separates contained label and checkbox fills; the card retains 24px padding |
+| Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers paint inside their own grid cells |
+| Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
 
@@ -29,10 +32,11 @@ computed paint and geometry. Structural wrappers are not separate visual neighbo
 graphics and painted controls are. PersonalTextAction's visual copy belongs to its overlaid control.
 The title's Chromium unit regression exercises the same inspector without an app server.
 
-The inspector currently treats visible neighbour paint and content as the clearance boundary.
-Transparent target-only boxes are excluded. The literal union of every target box in #1545
-conflicts with its contained-paint rule: four 80px tab targets already fill a 320px window.
-That specification choice requires clarification before the guard can be considered complete.
+The inspector measures painted boxes and visible text or graphics on both sides. Transparent
+target-only geometry is excluded. Text neighbours use their text ranges rather than transparent
+control boxes. Adjacent time-grid date headers are explicitly marked as contained cell paint:
+their fills and inset focus indicators remain inside their unchanged column boxes. The exemption
+permits adjoining cell boundaries, never a fill extending outside its cell or covering content.
 
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved

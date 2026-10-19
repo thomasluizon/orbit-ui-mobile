@@ -44,6 +44,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const discs: { node: YogaNode; column: YogaNode }[] = []
+  const circles: { node: YogaNode; column: YogaNode }[] = []
   const selected = new Map<string, YogaNode>()
   const targets: YogaNode[] = []
   const placeholders: { node: YogaNode; column: YogaNode; ancestors: YogaNode[] }[] = []
@@ -55,6 +56,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
     const currentColumn = style.flex === 1 ? node : column
     const currentAncestors = style.flex === 1 ? [] : [...ancestors, node]
     if (current.props.testID === 'day-disc') discs.push({ node, column: currentColumn! })
+    if (current.props.testID === 'day-circle') circles.push({ node, column: currentColumn! })
     if (current.props.testID === 'skeleton-grid-shape') placeholders.push({ node, column: currentColumn!, ancestors: currentAncestors })
     if (current.props.testID) {
       selected.set(current.props.testID, node)
@@ -87,6 +89,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       columnGap: slots[1]!.getComputedLeft() - slots[0]!.getComputedLeft() - slots[0]!.getComputedWidth(),
       slots: slots.map((node) => ({ width: node.getComputedWidth(), height: node.getComputedHeight() })),
       switchEdges: selector ? bounds(selector) : undefined,
+      circles: circles.map(({ node, column }) => ({ ...bounds(node), column: bounds(column) })),
       discs: discs.map(({ node, column }) => ({ width: node.getComputedWidth(), height: node.getComputedHeight(), columnWidth: column.getComputedWidth() })),
       cardWidth: grid.getComputedWidth(),
       contentWidth: width - 32,

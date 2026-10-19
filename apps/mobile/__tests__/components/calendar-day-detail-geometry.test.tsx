@@ -7,6 +7,7 @@ import { i18n } from '@/lib/i18n'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
 
 vi.unmock('react-i18next')
@@ -92,11 +93,11 @@ describe('Android day card geometry', () => {
             const body = measured.parts.find((part) => part.slot === 'list-row-body' && part.top === row.top)!
             const control = measured.controls.find((control) => control.accessibilityLabel === entry.title && control !== row)!
             expect(row.height).toBeCloseTo(body.height)
-            expect(control.width + 24).toBe(48)
-            expect(control.height + 24).toBe(48)
-            expect(control.left - 12).toBeGreaterThanOrEqual(row.right)
-            expect(control.top - 12).toBeGreaterThanOrEqual(body.top)
-            expect(control.bottom + 12).toBeLessThanOrEqual(body.bottom)
+            expect(control.width).toBe(48)
+            expect(control.height).toBe(48)
+            expect(control.left - row.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+            expect(control.top).toBeGreaterThanOrEqual(body.top)
+            expect(control.bottom).toBeLessThanOrEqual(body.bottom)
           }
           const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
           expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
@@ -161,10 +162,10 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(copy.props.style)).toMatchObject({ gap: 4 })
       expect(StyleSheet.flatten(copy.props.style).paddingHorizontal).toBeUndefined()
       expect(StyleSheet.flatten(copy.children[1].props.style)).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, color: createTokensV2('purple', 'dark').fg3 })
-      expect(StyleSheet.flatten(host.children[1].props.style).gap ?? 0).toBe(0)
+      expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(INTERACTION_FILL_CLEARANCE)
       if (loggable) {
         const target = host.children[1].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingHorizontal: 16 })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 4, gap: INTERACTION_FILL_CLEARANCE })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
         expect(titleStyle.marginVertical ?? 0).toBe(0)

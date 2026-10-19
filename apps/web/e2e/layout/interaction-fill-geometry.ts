@@ -40,7 +40,7 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     try { return expand(surrogate.getBoundingClientRect(), style) } finally { surrogate.remove() }
   }
   const bounds = element.getBoundingClientRect()
-  const fill = { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
+  const fill = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity }
   let hasFill = false
   const interactive = 'button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex]'
   for (const owner of [element, ...element.querySelectorAll('*')]) {
@@ -56,17 +56,27 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     }
   }
   const contentOwner = element.parentElement?.matches('[data-personal-text-action]') ? element.parentElement : element
-  const neighbours = [...document.body.querySelectorAll('*')].filter((node) => {
-    if (node === element || contentOwner.contains(node) || node.contains(element) || !visible(node) || node.parentElement?.closest('svg')) return false
-    return node.matches('img, svg, canvas, video') || [...node.childNodes].some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim())
-      || painted(getComputedStyle(node))
-  })
+  const neighbours = [...document.body.querySelectorAll('*')].filter((node) =>
+    node !== element && !contentOwner.contains(node) && !node.contains(element) && visible(node) && !node.parentElement?.closest('svg'))
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
-    const box = neighbour.getBoundingClientRect()
-    const horizontal = Math.max(0, box.left - fill.right, fill.left - box.right)
-    const vertical = Math.max(0, box.top - fill.bottom, fill.top - box.bottom)
-    const distance = Math.hypot(horizontal, vertical)
-    return distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
+    const style = getComputedStyle(neighbour)
+    const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video') ? expand(neighbour.getBoundingClientRect(), style) : null,
+      pseudoBox(neighbour, '::before'), pseudoBox(neighbour, '::after')].filter((box) => box !== null)
+    for (const child of neighbour.childNodes) {
+      if (child.nodeType !== Node.TEXT_NODE || !child.textContent?.trim()) continue
+      const range = document.createRange()
+      range.selectNode(child)
+      boxes.push(...range.getClientRects())
+    }
+    return boxes.flatMap((box) => {
+      const horizontal = Math.max(0, box.left - fill.right, fill.left - box.right)
+      const vertical = Math.max(0, box.top - fill.bottom, fill.top - box.bottom)
+      const distance = Math.hypot(horizontal, vertical)
+      const containedCell = element.hasAttribute('data-interaction-fill-cell')
+        && fill.left >= bounds.left - 0.1 && fill.right <= bounds.right + 0.1 && fill.top >= bounds.top - 0.1 && fill.bottom <= bounds.bottom + 0.1
+        && (box.right <= bounds.left + 0.1 || box.left >= bounds.right - 0.1 || box.bottom <= bounds.top + 0.1 || box.top >= bounds.bottom - 0.1)
+      return !containedCell && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
+    })
   }) : []
   const column = element.closest('[data-shell-column]')?.getBoundingClientRect()
   if (hasFill && column && (fill.left < column.left + clearance - 0.1 || fill.right > column.right - clearance + 0.1)) {

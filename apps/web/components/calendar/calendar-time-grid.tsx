@@ -316,6 +316,7 @@ export function CalendarTimeGrid({
                   key={column.dateStr}
                   type="button"
                   data-testid="time-grid-col-header"
+                  data-interaction-fill-cell=""
                   data-focus-inset="panel"
                   onClick={() => onSelectDay(column.dateStr)}
                   className="flex flex-col items-center justify-center bg-transparent transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]"

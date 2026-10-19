@@ -141,6 +141,13 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-habit-rename::after {
+  content: '';
+  position: absolute;
+  inset-block: -8px;
+  inset-inline: -16px;
+}
+
 .orbit-habit-rename:focus-visible {
   outline: none;
 }
