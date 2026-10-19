@@ -11,7 +11,6 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildRescheduleUpdateRequest } from '@/lib/habit-request-builders'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
@@ -192,7 +191,6 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="flex flex-col pb-2" style={{ gap: 16 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
-          <AstraGlyph size={20} color="var(--fg-1)" />
           <span
             translate="no"
             style={{

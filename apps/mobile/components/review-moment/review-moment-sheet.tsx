@@ -9,7 +9,6 @@ import {
 } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ActionRow } from '@/components/ui/action-row'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useProfile } from '@/hooks/use-profile'
@@ -151,9 +150,6 @@ export function ReviewMomentSheet() {
       )}
     >
       <View style={styles.content}>
-          <View accessible accessibilityRole="image" accessibilityLabel={t('reviewMoment.eyebrow')}>
-            <AstraGlyph size={48} />
-          </View>
           <Text style={styles.body}>
             {variant.kind === 'streak'
               ? t('reviewMoment.streakBody', { count: variant.value })

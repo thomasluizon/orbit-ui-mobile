@@ -21,7 +21,6 @@ import { isStepUpVerified } from '@/lib/step-up-storage'
 
 import type { Profile } from '@orbit/shared/types/profile'
 import { useTranslations } from 'next-intl'
-import { Lock } from '@/components/ui/icons'
 
 interface ProfileContentProps {
   profile: Profile | undefined
@@ -31,8 +30,6 @@ interface ProfileContentProps {
 type Translate = ReturnType<typeof useTranslations>
 type Router = ReturnType<typeof useRouter>
 interface RowContext { profile: Profile | undefined; router: Router; t: Translate }
-
-const icon = (IconComponent: typeof Lock) => <IconComponent size={24} strokeWidth={1.8} />
 
 function buildAstraRows(
   { profile, router, t }: RowContext,
@@ -59,7 +56,7 @@ function buildAstraRows(
                 chevron={false}
               />
             ) : (
-              <ListRow key={feature.key} compact textMode="label" icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              <ListRow key={feature.key} compact textMode="label" title={t(feature.labelKey)} value={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
             ))}
           </RowList>
         ) : null}

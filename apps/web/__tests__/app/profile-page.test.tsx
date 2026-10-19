@@ -19,7 +19,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ChevronRight, Trash2 } from '@/components/ui/icons'
+import { ChevronRight, MessageCircle, Trash2 } from '@/components/ui/icons'
 
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
 
@@ -591,18 +591,24 @@ describe('ProfilePage', () => {
       const group = screen.getByTestId('profile-settings-group-you')
       const rows = group.querySelectorAll('.orbit-list-row-shell')
       expect(rows).toHaveLength(5)
-      for (const row of rows) {
+      const messageIcon = render(<MessageCircle size={24} />).container.querySelector('svg')!
+      for (const [index, row] of rows.entries()) {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
         const navigates = row.querySelector('a') !== null
-        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
+        expect(icons, title.textContent!).toHaveLength(1 + Number(navigates))
         expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        if (index === 3) {
+          expect(icons[0]!.innerHTML).toBe(messageIcon.innerHTML)
+          expect(row.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+        }
         if (navigates) {
-          expect(title.compareDocumentPosition(icons[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-          expect(icons[1]!.getAttribute('aria-hidden')).toBe('true')
-          expect(icons[1]!.getAttribute('focusable')).toBe('false')
+          const chevron = icons[1]!
+          expect(title.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+          expect(chevron.getAttribute('aria-hidden')).toBe('true')
+          expect(chevron.getAttribute('focusable')).toBe('false')
         }
       }
       const titles = Array.from(group.querySelectorAll('[data-slot="list-row-title"]')).map((node) => node.textContent)
@@ -966,10 +972,10 @@ describe('ProfilePage', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
-    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
-    ['en', false, 'Check-ins', 'Daily recap'],
-    ['en', true, 'Check-ins', 'Daily recap'],
+    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
+    ['en', false, 'Astra notifications', 'Daily recap'],
+    ['en', true, 'Astra notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
@@ -1506,6 +1512,18 @@ describe('ProfilePage', () => {
     expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
     expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('shows the effective notifications value for Pro with trial=%s', (isTrialActive) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
+      isLoading: false, error: null,
+    }
+    render(<ProfileSubscreen screen="astra" />)
+    const toggle = screen.getByRole('switch', { name: 'profile.proactiveAstra.title' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(toggle)
+    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: false }, 'account-a')
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', () => {

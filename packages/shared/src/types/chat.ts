@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { proactiveItemSchema } from './proactive'
 import type { ChatBlockKind } from '../chat/block-kinds'
 import { frequencyUnitSchema } from './habit'
 import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
@@ -376,6 +377,9 @@ const replyCardFieldsShape = {
 }
 
 export const chatMessageSchema = z.object({
+  proactiveItem: proactiveItemSchema.optional(),
+  proactiveActed: z.boolean().optional(),
+  proactiveContextAfterMessageId: z.string().nullable().optional(),
   id: z.string(),
   role: z.enum(['user', 'ai']),
   content: z.string(),

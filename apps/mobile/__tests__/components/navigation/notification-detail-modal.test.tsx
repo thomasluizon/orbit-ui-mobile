@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
@@ -15,6 +16,8 @@ type TestNode = {
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
 }))
+
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: vi.fn() }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.push }),
@@ -40,13 +43,13 @@ function renderModal(url: string | null) {
   let tree!: { root: TestNode }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <NotificationDetailModal
+      <QueryClientProvider client={new QueryClient()}><NotificationDetailModal
         open
         onClose={onClose}
         notification={createMockNotification({ url })}
         onMarkAsRead={vi.fn()}
         onDelete={vi.fn()}
-      />,
+      /></QueryClientProvider>,
     )
   })
   return { tree, onClose }

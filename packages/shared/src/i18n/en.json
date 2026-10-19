@@ -678,8 +678,8 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
-      "emojiSuggest": "Suggest an emoji",
-      "emojiSuggesting": "Finding an emoji…",
+      "emojiSuggest": "Suggest emoji",
+      "emojiSuggesting": "Finding emoji…",
       "aiSuggest": "Suggest with AI",
       "aiSuggesting": "Thinking…",
       "aiSuggestApplied": "AI suggestion applied",
@@ -2175,7 +2175,7 @@
       "title": "Daily recap"
     },
     "proactiveAstra": {
-      "title": "Check-ins"
+      "title": "Astra notifications"
     },
     "marketingEmails": {
       "title": "Product email",
@@ -2575,7 +2575,7 @@
   "summary": {
     "title": "Your Day",
     "loading": "Checking in on your day...",
-    "error": "Couldn't load your summary.",
+    "error": "Couldn't load your summary. Try again.",
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
@@ -3844,5 +3844,16 @@
       "eyebrow": "Today",
       "line": "Your {count} habit for today is done. | All {count} habits for today are done."
     }
+  },
+  "proactive": {
+    "actions": {
+      "morningPlan": "Plan day",
+      "eveningCheckin": "Log now",
+      "restartAfterMiss": "Restart",
+      "busyCalendarDay": "See day",
+      "goalBehind": "See goal",
+      "weeklyReview": "See week"
+    },
+    "ended": "This item has ended."
   }
 }

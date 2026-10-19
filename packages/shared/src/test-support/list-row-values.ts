@@ -8,7 +8,7 @@ import { deriveProfilePreferenceValues } from '../utils/profile-preferences'
 
 interface ValueCase {
   surface: string
-  props: ListRowProps
+  props: ListRowProps & { value?: string }
   statusRing?: boolean
   truncatesValue?: boolean
 }

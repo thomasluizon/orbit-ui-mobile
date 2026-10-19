@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
@@ -22,7 +21,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-4 py-4">
-        <AstraGlyph size={96} color="var(--fg-1)" />
         <h2 className="t-display-heading text-balance">{t('upgrade.billing.lapsed.title')}</h2>
         {endedAt ? <p className="font-mono text-xs text-[var(--fg-3)]">{t(endedKey, { date: endedAt })}</p> : null}
         {paymentFailed ? <div className="flex flex-col gap-1 text-sm text-[var(--fg-3)]">
