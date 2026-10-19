@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -119,6 +120,18 @@ describe('serverAuthFetch', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+  })
+
+  it.each(['authenticated', 'public'])('pins API v2 on a %s request despite a caller version', async (boundary) => {
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ value: 'accepted' }))
+    const init = { headers: { 'Api-Version': '1.0' } }
+    const response = boundary === 'public'
+      ? await serverPublicFetch('/api/config', init)
+      : await serverAuthFetch('/api/habits', init)
+    expect(response).toEqual({ value: 'accepted' })
+    expect(mockFetch).toHaveBeenCalledOnce()
+    expectApiVersion2Requests(mockFetch.mock.calls)
   })
 
   it('calls fetch with the resolved auth token', async () => {
@@ -624,3 +637,5 @@ describe('Astra proxy failure logging through server actions', () => {
   })
 
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

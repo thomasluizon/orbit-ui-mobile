@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeHabitDayProgress,
   computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeParentPromptProgress,
 } from '../utils/habit-list-progress'
 import { rebaseSelectedIds } from '../utils/habits'
@@ -167,6 +168,62 @@ describe('computeParentSettlementDecision', () => {
         TODAY,
       ),
     ).toBeNull()
+  })
+})
+
+describe('computeParentPromptDecision', () => {
+  const parent = createMockHabit({ id: 'parent', scheduledDates: [TODAY] })
+  const resolved = { done: 2, total: 2, loggedDone: 1 }
+
+  it.each([
+    [1, 'log'],
+    [0, 'skip'],
+  ] as const)('opens in %s logged-child mode %s without mutating the ledger', (loggedDone, mode) => {
+    const prompted = new Set<string>()
+    expect(computeParentPromptDecision(parent, { ...resolved, loggedDone }, TODAY, prompted))
+      .toEqual({ type: 'open', mode })
+    expect(prompted.size).toBe(0)
+  })
+
+  it('suppresses a dismissed prompt until the children become incomplete', () => {
+    const prompted = new Set([parent.id])
+    expect(computeParentPromptDecision(parent, resolved, TODAY, prompted)).toEqual({ type: 'none' })
+    expect(computeParentPromptDecision(parent, resolved, TODAY, prompted)).toEqual({ type: 'none' })
+    expect(computeParentPromptDecision(parent, { ...resolved, done: 1 }, TODAY, prompted))
+      .toEqual({ type: 'release' })
+    prompted.delete(parent.id)
+    expect(computeParentPromptDecision(parent, resolved, TODAY, prompted))
+      .toEqual({ type: 'open', mode: 'log' })
+  })
+
+  it('releases a parent with no eligible children', () => {
+    expect(computeParentPromptDecision(
+      parent, { done: 0, total: 0, loggedDone: 0 }, TODAY, new Set([parent.id]),
+    )).toEqual({ type: 'release' })
+  })
+
+  it('allows another parent and a ledger cleared for a new selected date', () => {
+    const prompted = new Set(['another-parent'])
+    expect(computeParentPromptDecision(parent, resolved, TODAY, prompted))
+      .toEqual({ type: 'open', mode: 'log' })
+    prompted.add(parent.id)
+    prompted.clear()
+    expect(computeParentPromptDecision(
+      { ...parent, scheduledDates: ['2026-06-23'] }, resolved, '2026-06-23', prompted,
+    )).toEqual({ type: 'open', mode: 'log' })
+  })
+
+  it('does nothing for missing, settled or unscheduled parents', () => {
+    for (const unavailable of [
+      null,
+      { ...parent, isCompleted: true },
+      { ...parent, isLoggedInRange: true },
+      { ...parent, scheduledDates: [], dueDate: '2026-06-23' },
+      { ...parent, isFlexible: true, flexibleTarget: 0, flexibleCompleted: 0 },
+    ]) {
+      expect(computeParentPromptDecision(unavailable, resolved, TODAY, new Set()))
+        .toEqual({ type: 'none' })
+    }
   })
 })
 
@@ -338,6 +395,33 @@ describe('computeParentPromptProgress', () => {
     })
 
     expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+  })
+
+  it('keeps a pending non-flexible child with zero flexible progress unresolved', () => {
+    const pending = createMockHabit({
+      id: 'pending',
+      parentId: 'parent',
+      isFlexible: false,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+      isLoggedInRange: false,
+      scheduledDates: [TODAY],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [pending] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+    expect(computeParentSettlementDecision(
+      createMockHabit({ id: 'parent', scheduledDates: [TODAY] }),
+      progress,
+      TODAY,
+    )).toBeNull()
   })
 
   it('does not report all-done while an overdue sibling is still unlogged (today view)', () => {

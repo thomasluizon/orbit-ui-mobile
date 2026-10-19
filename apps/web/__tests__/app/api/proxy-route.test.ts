@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST, PUT } from '@/app/api/[...path]/route'
@@ -242,6 +243,7 @@ describe('catch-all API proxy route', () => {
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'x-orbit-time-zone': 'America/Sao_Paulo',
+        'api-version': '1.0',
       },
     })
 
@@ -262,6 +264,7 @@ describe('catch-all API proxy route', () => {
         method: 'GET',
         cache: 'no-store',
         headers: {
+          'api-version': '2.0',
           Authorization: 'Bearer initial-token',
           'X-Orbit-Country-Code': 'BR',
           'X-Forwarded-For': '177.55.44.33',
@@ -428,3 +431,5 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

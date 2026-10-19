@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language),
         [ORBIT_REQUEST_ID_HEADER]: requestId,
+        ...API_VERSION_HEADERS,
       },
       body: JSON.stringify(body),
     })
