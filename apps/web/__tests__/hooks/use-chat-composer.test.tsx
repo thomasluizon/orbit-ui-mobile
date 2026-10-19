@@ -146,6 +146,10 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
 }))
 
 vi.mock('@/app/actions/chat', () => ({
+  getCurrentProactiveItem: vi.fn().mockResolvedValue(null),
+  getProactiveItemStatus: vi.fn(),
+  reportProactiveOpened: vi.fn(),
+  reportProactiveActed: vi.fn(),
   confirmPendingOperation: vi.fn(),
   executePendingOperation: vi.fn(),
   issuePendingOperationStepUp: vi.fn(),
