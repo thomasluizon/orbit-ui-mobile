@@ -26,6 +26,10 @@ function usePrivacySections(): LegalDocumentSection[] {
       t('privacy.thirdParty.render'), t('privacy.thirdParty.s3'),
       t('privacy.thirdParty.turnstile'), t('privacy.thirdParty.notion'),
     ] },
+    { id: 'cookies', title: t('privacy.cookies.title'), paragraphs: [
+      t('privacy.cookies.essential'), t('privacy.cookies.analytics'),
+      t('privacy.cookies.withdraw'),
+    ] },
     { id: 'retention', title: t('privacy.retention.title'), paragraphs: [
       t('privacy.retention.intro'), t('privacy.retention.account'),
       t('privacy.retention.sessions'), t('privacy.retention.ai'),
