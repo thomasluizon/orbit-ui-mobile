@@ -30,6 +30,31 @@ describe('sidebar collapse', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   })
 
+  it('keeps the toggle in the brand row beside the bell and first in the collapsed rail', () => {
+    const { container } = render(shell())
+    const sidebar = container.querySelector<HTMLElement>('[data-shell-sidebar]')!
+    const brand = sidebar.querySelector('[data-shell-brand-row]')
+    const toggle = screen.getByRole('button', { name: 'shell.collapseSidebar' })
+    const bell = screen.getByRole('button', { name: 'notifications.bell' })
+    expect(brand).toContainElement(toggle)
+    expect(brand).toContainElement(bell)
+    expect(toggle).toHaveAttribute('title', 'shell.collapseSidebar')
+    expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toBe(sidebar.querySelector('nav'))
+    expect(within(sidebar).getAllByRole('button').slice(0, 2)).toEqual([bell, toggle])
+    toggle.focus()
+    fireEvent.click(toggle)
+    expect(within(sidebar).getAllByRole('button').slice(0, 2)).toEqual([toggle, bell])
+    expect(toggle).toHaveFocus()
+    expect(toggle).toHaveAttribute('title', 'shell.expandSidebar')
+    expect(sidebar.querySelector('[data-shell-account]')).toHaveAttribute('title', 'Person, person@example.test')
+    const navigation = sidebar.querySelector('nav')!
+    const create = within(sidebar).getByRole('button', { name: 'nav.createHabit' })
+    const controls = [...sidebar.querySelectorAll('button, a[href]')]
+    expect(controls.slice(controls.indexOf(navigation.lastElementChild as HTMLElement) + 1)).toEqual([
+      create, sidebar.querySelector('[data-shell-account]'),
+    ])
+  })
+
   it('collapses and expands with Enter and Space while preserving the destination and draft', async () => {
     const user = userEvent.setup()
     const { container } = render(shell())

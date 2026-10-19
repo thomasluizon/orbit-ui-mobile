@@ -52,7 +52,7 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
       <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />
     </NextIntlClientProvider>)
     const sidebar = container.querySelector('[data-shell-sidebar]')!
-    const control = sidebar.querySelector('button')!
+    const control = sidebar.querySelector('button:has(kbd)')!
     expect(control.querySelector('kbd')).toHaveTextContent(hint)
     fireEvent.click(control)
     const palette = await screen.findByRole('dialog', { name: messages.command.title })
@@ -65,7 +65,7 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
       }, resolveWebThemeVariables('orange', theme))
       await page.evaluate(() => document.fonts.ready)
       const measured = await page.evaluate(() => {
-        const button = document.querySelector('[data-shell-sidebar] button')!
+        const button = document.querySelector('[data-shell-sidebar] button:has(kbd)')!
         const field = button.getBoundingClientRect()
         const icon = button.querySelector('svg')!.getBoundingClientRect()
         const keycap = button.querySelector('kbd')!

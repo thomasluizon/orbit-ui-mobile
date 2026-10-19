@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { NextResponse, type NextRequest } from 'next/server'
 import { resolveServerSession } from '@/lib/auth-api'
 import {
@@ -23,6 +24,7 @@ function buildHeaders(
 ): Record<string, string> {
   const headers: Record<string, string> = {
     ...forwardedClientHeaders,
+    ...API_VERSION_HEADERS,
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
