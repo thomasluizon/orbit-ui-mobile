@@ -342,13 +342,15 @@ class OrbitWidgetFactory(
         private fun fallbackColors(mode: String): Map<String, String> =
             if (mode == "dark") WidgetColorFallbacks.dark else WidgetColorFallbacks.light
 
-        /** Resolves a mode-qualified synced token color to an ARGB int. */
+        /** Resolves mode-qualified tokens while retaining this binary's palette for legacy calls. */
         private fun readColor(
             prefs: android.content.SharedPreferences,
             mode: String,
             token: String
         ): Int {
             val fallback = fallbackColors(mode).getValue(token)
+            // WHY: #1419 legacy colors describe one appearance of the other widget design.
+            if (!prefs.getBoolean("theme_mode_preferences", false)) return fallbackColor(mode, token)
             val preferenceKey = "${OrbitWidgetModule.COLOR_KEY_PREFIX}${mode}_$token"
             val value = prefs.getString(preferenceKey, fallback) ?: fallback
             return parseColor(value, fallback)

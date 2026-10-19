@@ -22,4 +22,5 @@ export * from './tag-suggestions-core'
 export * from './proactive-action-core'
 export * from './proactive-item-core'
 
+export { createHabitViewSearchState, updateHabitViewSearch, type HabitViewSearchState } from './habit-view-search-core'
 export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryRequest } from './goal-progress-entry-core'

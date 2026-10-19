@@ -10,6 +10,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { HabitListEmptyState, HabitListSkeleton } from '@/components/habits/habit-list/empty-state'
 import { LazyMotion, domAnimation } from 'motion/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -31,6 +32,7 @@ vi.mock('@/hooks/use-proactive-item', () => ({
 }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
+  activeView: 'today', search: useHabitViewSearch('today'), changeView: vi.fn(),
   nav: useTodayNavigation('2026-09-04'),
   data: { hasFetched: state.surface !== 'loading', isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
   habitListRef: { current: null }, selectedHabitIds: new Set(), selection: {},
@@ -86,32 +88,33 @@ describe('Hoje group spacing', () => {
       state.date = '2026-09-04'
       await load()
       const measureGroups = () => page.evaluate(() => {
+        const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
         const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
-        return { lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
+        return { viewsToLine: line.top - views.bottom, lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
           slots: document.querySelectorAll('[data-today-astra-slot]').length,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
       })
       const spacing = await measureGroups()
-      expect(spacing).toMatchObject({ lineToDate: 24, dateToList: 24, slots: 1 })
+      expect(spacing).toMatchObject({ viewsToLine: 24, lineToDate: 24, dateToList: 24, slots: 1 })
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
       state.lineVisible = false
       await load()
-      expect(await measureGroups()).toMatchObject({ lineToDate: 24, dateToList: 24, slots: 1 })
+      expect(await measureGroups()).toMatchObject({ viewsToLine: 24, lineToDate: 24, dateToList: 24, slots: 1 })
       state.summaryAvailable = false
       for (const surface of ['list', 'empty', 'loading']) {
         state.surface = surface
         await load()
         const spacing = await page.evaluate(() => {
-          const owner = document.querySelector('[data-today-day-transition]')!.getBoundingClientRect()
+          const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
-          return { dateInset: date.top - owner.top, dateToList: list.top - date.bottom,
+          return { viewsToDate: date.top - views.bottom, dateToList: list.top - date.bottom,
             hasLine: Boolean(document.querySelector('.today-astra-line')) }
         })
-        expect(spacing).toMatchObject({ dateInset: 0, dateToList: 24, hasLine: false })
+        expect(spacing).toMatchObject({ viewsToDate: 24, dateToList: 24, hasLine: false })
       }
       state.date = '2026-09-03'
       await load()

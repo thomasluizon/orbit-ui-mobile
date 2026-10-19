@@ -241,6 +241,22 @@ for, and building that instead is the defect.
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
 
+### Hoje habit views
+
+Hoje keeps one full-width SegmentedControl at the top of its content, below the shell header
+actions and above the date pager, on web and Android at every width. Its labels are Hoje, Todos
+and Geral in pt-BR, each one word on one line at the default text size. The chosen view persists
+in `activeView`. Only Hoje shows the date pager, its date-bound notices and the single Astra slot.
+
+Hoje lists the selected day's habits and overdue work when viewing today. Todos keeps scheduled
+habits across dates, grouped with overdue work first and then by due date; completed one-time
+habits appear through Show completed. Geral lists habits with no set day, with completed habits
+behind the same control. Showing general habits on Hoje is a separate preference. Every view
+retains sub-habits, row actions, search, selection and creation. At every width, the header search control expands
+an Input above the view switch and filters the current view in place, preserving its date and frequency scope.
+Wide web keeps the global command palette in the sidebar separately. Todos and Geral act on the current
+account day regardless of the day last visited in Hoje; creation in Geral defaults to no set day.
+
 ### Perfil settings navigation
 
 Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
@@ -344,7 +360,7 @@ structurally rather than by designing them.
 carries the single most relevant thing Astra noticed, and acting on it advances the slot to the next
 thing. There is no dismiss control, because the audience is a person who is already overwhelmed and a
 dismiss control makes the top of the busiest screen one more chore. There is no persistence either,
-because a line whose action the person will not take parks there and stops being read. **When none of these items applies, the slot is absent**, not empty: the line collapses and Hoje starts at the date.
+because a line whose action the person will not take parks there and stops being read. **When none of these items applies, the slot is absent**, not empty: the line collapses and the date follows the habit-view switch.
 
 ### Generative blocks
 
@@ -355,6 +371,10 @@ The first block set, in build order: the **preview** block for anything Astra is
 **habit list** with in-place logging, the **clarification** block asking one short question with
 tappable answers, the **metrics** block, and the **breakdown proposal** with its rows and its
 frequency control.
+
+The **day summary** combines its ring with today's habit rows and the habit list's in-place log control; it shows at most 20 rows, then a count and the Hoje link. The **calendar** block uses EventRow with time or all-day copy and a source when more than one calendar is connected; its trailing action opens the Calendários import sheet with that event selected for review. The **streak** block keeps DayStrip and a read-only FreezeBank, with its action opening Sequência. The **goal list** uses ProgressBar and the tracking badge, names linked habits as the source of derived progress, and opens the goal or Metas. The **metrics** block keeps BarChart, adds at most three StatTile figures with the Progresso vocabulary, and opens Progresso or the habit. Habit, goal and event rows subscribe to live query state; a reply snapshot never decides whether a habit is done. Each block uses BlockFrame for loading, resting, acting, partial failure and stale state, with errors in its actions area.
+
+A reply is an ordered sequence of text and block parts. A client skips an unknown block kind and keeps the rest of the reply. At most one write preview appears per reply.
 
 Six rules govern all of them:
 
@@ -367,7 +387,7 @@ Six rules govern all of them:
    are visually distinguished, the preview never auto-dismisses, and the actions are approve, edit and
    reject rather than a single OK. A partial failure reuses the same per-item rows with a status glyph
    per row.
-4. **Text streams, the block arrives whole.** Never animate a block's own reveal, and never gate the
+4. **Text streams, the block arrives whole.** Text above a block keeps its position when the final parts replace streamed text, and the scroll position stays put. Never animate a block's own reveal, and never gate the
    screen-reader announcement on a visual typing effect.
 5. **A stale block says so.** When the record's `updatedAt` is newer than the block's snapshot, the
    block states it and offers a refresh.
@@ -1110,7 +1130,8 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 
 ## Surface rules
 
-Hoje starts with its single Astra slot, then the date and habits. The slot chooses an unread
+Hoje starts with its habit-view switch. In the Hoje view, its single Astra slot follows the switch,
+then the date and habits. The slot chooses an unread
 check-in, then returning guidance, then the daily summary, including its loading, retry and free-plan
 states. No second insight block belongs below the date. Only the way in and the slot carry Astra's
 glyph outside the conversation.

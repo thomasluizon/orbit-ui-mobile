@@ -1,3 +1,4 @@
+import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
   useCallback,
@@ -12,6 +13,7 @@ import {
 } from 'react'
 import {
   View,
+  Text,
   FlatList,
   RefreshControl,
   type NativeScrollEvent,
@@ -26,6 +28,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import {
+  buildHabitDateBuckets,
+  filterHabitViewRoots,
+  formatHabitDateBucketLabel,
   canLogHabitOnDate,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
@@ -85,14 +90,16 @@ import {
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
 import { subscribeBulkReplaySuccesses } from '@/lib/bulk-replay-events'
+import { SearchEmpty } from '@/components/search/search-results'
 
 interface HabitListProps {
-  view?: 'today'
+  view?: 'today' | 'all' | 'general'
   filters: HabitsFilter
   selectedDate?: Date
   showCompleted: boolean
   onShowCompleted?: () => void
   searchQuery?: string
+  onClearSearch?: () => void
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
   listHeader?: ReactElement | null
@@ -133,6 +140,7 @@ interface RowActionHandlers {
 }
 
 interface ActionRowProps extends Omit<HabitRowProps, 'actions'> {
+  canSkip: boolean
   hasSubHabits: boolean
   isDrillCard: boolean
   onLongPressCard?: () => void
@@ -141,6 +149,7 @@ interface ActionRowProps extends Omit<HabitRowProps, 'actions'> {
 
 function ActionRow({
   habit,
+  canSkip,
   hasSubHabits,
   isDrillCard,
   onLongPressCard,
@@ -157,7 +166,7 @@ function ActionRow({
     return {
       onLog: () => handlersRef.current.toggle(habitId, 'log'),
       onUnlog: () => handlersRef.current.toggle(habitId, 'unlog'),
-      onSkip: () => handlersRef.current.skip(latestRef.current.habit),
+      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
@@ -175,7 +184,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
@@ -253,6 +262,7 @@ interface ParentSettlementData {
   visibility: ReturnType<typeof useHabitVisibility>
   habitsById: Map<string, NormalizedHabit>
   selectedDateStr: string
+  isListView: boolean
 }
 
 interface ParentSettlementOperation {
@@ -282,6 +292,7 @@ function getParentPromptProgress(
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
     skippedIds: confirmedResolutions.skippedIds,
+    isListView: settlementData.isListView,
     resolvedModes: confirmedResolutions.modes,
   })
 }
@@ -404,10 +415,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     {
       view = 'today',
       filters,
-      selectedDate,
+      selectedDate: requestedDate,
       showCompleted,
       onShowCompleted,
       searchQuery,
+      onClearSearch,
       isSelectMode,
       selectedHabitIds,
       listHeader = null,
@@ -423,7 +435,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     },
     ref,
   ) {
-    const { t } = useTranslation()
+    const selectedDate = view === 'today' ? requestedDate : undefined
+    const { t, i18n } = useTranslation()
     const accountHabitCount = useHabitCountLoaded()
     const router = useRouter()
     const pathname = usePathname()
@@ -444,6 +457,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
+    const allListRef = useRef<FlatList<DragItem>>(null)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         onScroll?.(e.nativeEvent.contentOffset.y)
@@ -459,7 +473,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
-    const habitsQuery = useHabits(filters, { completeDay: true })
+    const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
@@ -614,11 +628,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const visibleHabits = useMemo(() => {
-      return topLevelHabits.filter((habit) =>
-        visibility.hasVisibleContent(habit),
-      )
+      return filterHabitViewRoots(topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility)
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [topLevelHabits, visibility])
+    }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
     const allLoadedIds = useMemo(() => {
       return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
@@ -713,9 +725,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       autoCollapsedOnDragRef.current = null
     }, [])
 
+    const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
+    const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
     const flatItems = useMemo<DragItem[]>(
-      () => buildFlatHabitItems(visibleHabits, collapsedIds, getVisibleChildren),
-      [visibleHabits, collapsedIds, getVisibleChildren],
+      () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren),
+      [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren],
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
@@ -724,7 +738,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       activeDragItemsRef.current = activeDragItems
     // react-doctor-disable-next-line exhaustive-deps -- activeDragItems already combines dragOverrideItems and flatItems (both the analyzer flags); listing the combined value is sufficient, no staleness https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [activeDragItems])
-    const isDndEnabled = !isSelectMode
+    const isDndEnabled = view !== 'all' && !isSelectMode
 
     useEffect(() => {
       promptDataRef.current = {
@@ -732,9 +746,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         visibility,
         habitsById,
         selectedDateStr,
+        isListView: view !== 'today',
       }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, visibility, habitsById, selectedDateStr])
+    }, [getChildren, visibility, habitsById, selectedDateStr, view])
 
     const childrenProgressMap = useMemo(() => {
       const map = new Map<string, { done: number; total: number }>()
@@ -743,7 +758,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         child: NormalizedHabit,
         computeFn: (id: string) => { done: number; total: number },
       ): { done: number; total: number } {
-        const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate)
+        const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate, view)
         const nested = computeFn(child.id)
         return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
       }
@@ -783,7 +798,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       return map
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, habitsById, visibility])
+    }, [getChildren, habitsById, visibility, view])
 
     const getChildrenProgress = useCallback(
       (habitId: string) => {
@@ -1170,8 +1185,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const currentDate = new Date()
       const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
       const boundary = getTodayBoundary(selectedDateStr, accountToday)
-      if (boundary === 'read-only' || (boundary === 'future' &&
-        !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
+      if (boundary === 'read-only' || !canLogHabitOnDate(habit, selectedDateStr, accountToday)) return
       const habitId = habit.id
       const date = selectedDateStr
       const settlementData = promptDataRef.current
@@ -1429,7 +1443,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           void refetch()
         },
         scrollToOffset: (offset: number, animated = true) => {
-          const target = scrollContainerRef.current ?? drillListRef.current ?? stateListRef.current
+          const target = scrollContainerRef.current ?? allListRef.current ?? drillListRef.current ?? stateListRef.current
           target?.scrollToOffset({ offset, animated })
         },
       }),
@@ -1496,6 +1510,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           <ActionRow
             key={habit.id}
             habit={habit}
+            canSkip={canLogHabitOnDate(habit, selectedDateStr, todayStr)}
             structuralColumn
             selectedDate={selectedDate}
             today={todayStr}
@@ -1519,6 +1534,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [
         selectedDate,
+        selectedDateStr,
         todayStr,
         collapsedIds,
         getChildrenProgress,
@@ -1568,10 +1584,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderEmptyState = useCallback(
-      () => (
+      () => searchQuery?.trim() ? <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreatePress} /> : (
         <HabitListEmptyState
-          title={t('habits.emptyState')}
-          description={t('habits.noHabitsBody')}
+          title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')}
+          description={view === 'today' ? t('habits.noHabitsBody') : ''}
           askAstraLabel={t('habits.askAstra')}
           onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
@@ -1579,7 +1595,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           variant="primary"
         />
       ),
-      [onCreatePress, t],
+      [onClearSearch, onCreatePress, searchQuery, t, view],
     )
 
     const listHeaderComponent = useMemo(
@@ -1745,7 +1761,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    const showAllDone = !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+    const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
       selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     const activeListHeader = renderAllDoneListHeader(
@@ -1754,6 +1770,37 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       styles.allDoneHeader,
       onSeeUpcoming,
     )
+
+    function renderCurrentViewEmptyState() {
+      if (searchQuery?.trim()) return renderEmptyState()
+      if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
+      if (view !== 'today') return renderEmptyState()
+      return renderDayListEmptyState(accountHabitCount.isLoaded, accountHabitCount.count, showAllDone, renderEmptyState, styles.sectionInset, filters.frequencyUnit)
+    }
+
+    if (view === 'all') return <>
+      <FlatList
+        ref={allListRef}
+        testID="habit-list-all"
+        data={flatItems}
+        keyExtractor={keyExtractor}
+        renderItem={({ item, index }) => <>
+          {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: 0 }]}>{groupHeadings.get(item.id)}</Text> : null}
+          {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
+        </>}
+        extraData={listExtraData}
+        keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
+        contentContainerStyle={[styles.listContent, bulkBarStyle]}
+        refreshControl={refreshControl}
+        ListHeaderComponent={listHeaderComponent}
+        ListEmptyComponent={renderCurrentViewEmptyState()}
+        onScroll={handleListScroll}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={onScrollBeginDrag}
+        showsVerticalScrollIndicator={false}
+      />
+      {commonOverlays}
+    </>
 
     return (
       <>
@@ -1772,14 +1819,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
-          ListEmptyComponent={renderDayListEmptyState(
-            accountHabitCount.isLoaded,
-            accountHabitCount.count,
-            showAllDone,
-            renderEmptyState,
-            styles.sectionInset,
-            filters.frequencyUnit,
-          )}
+          ListEmptyComponent={renderCurrentViewEmptyState()}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}

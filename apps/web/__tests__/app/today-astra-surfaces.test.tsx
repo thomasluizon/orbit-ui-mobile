@@ -9,6 +9,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import type { Profile } from '@orbit/shared/types/profile'
 import { useUIStore } from '@/stores/ui-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 
 const mocks = vi.hoisted(() => ({
   animate: vi.fn(
@@ -56,7 +57,7 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => mocks.view }))
+vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({ ...mocks.view, activeView: 'today', search: useHabitViewSearch('today') }) }))
 vi.mock('@/app/(app)/today-page-view', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/app/(app)/today-page-view')>()),
   TodayHeaderRegion: ({ children }: { children?: React.ReactNode }) => <>{children}<time data-testid="today-date">{mocks.view.nav.today}</time></>,
