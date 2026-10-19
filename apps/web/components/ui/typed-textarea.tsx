@@ -2,6 +2,8 @@
 
 import type { ComponentPropsWithRef } from 'react'
 
-export function TypedTextarea({ style, ...props }: Readonly<ComponentPropsWithRef<'textarea'>>) {
-  return <textarea {...props} style={{ ...style, color: 'var(--fg-1)' }} />
+type TypedTextareaProps = ComponentPropsWithRef<'textarea'> & { proposed?: boolean }
+
+export function TypedTextarea({ style, proposed = false, ...props }: Readonly<TypedTextareaProps>) {
+  return <textarea {...props} style={{ ...style, color: proposed ? 'var(--fg-3)' : 'var(--fg-1)' }} />
 }

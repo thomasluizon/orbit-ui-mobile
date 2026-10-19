@@ -156,7 +156,13 @@ for (const width of [412, 1352]) {
             }
             await assertActionGeometry(page)
           }
-          if (route === `/habits/${habitId}`) await inspectDestinationHeading(page, route, habit.title, inspectActions)
+          if (route === `/habits/${habitId}`) await inspectDestinationHeading(page, route, habit.title, inspectActions, async () => {
+            await page.goto(route)
+            const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+            await expect(consent).toBeVisible()
+            await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+            await expect(consent).toHaveCount(0)
+          })
           else {
             await page.goto(route)
             await inspectActions()

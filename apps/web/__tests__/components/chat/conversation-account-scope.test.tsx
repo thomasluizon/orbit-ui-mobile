@@ -18,6 +18,7 @@ vi.mock('@/app/actions/chat', () => ({
   verifyPendingOperationStepUp: operationsApi.verify,
   executePendingOperation: vi.fn(), issuePendingOperationStepUp: vi.fn(),
   revisePendingOperation: vi.fn(), refreshPendingOperation: vi.fn(),
+  getProactiveItemStatus: vi.fn(), reportProactiveActed: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -128,7 +129,9 @@ it('keeps the requested Progress action only in the composer in a new conversati
   })))
   render(<AstraConversation chat={chat} />)
   expect(screen.getAllByRole('button', { name: 'Create a goal' })).toHaveLength(1)
-  expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+  expect(within(screen.getByRole('feed')).getAllByRole('button')).toEqual([
+    within(screen.getByRole('feed')).getByRole('button', { name: 'chat.templates.browse' }),
+  ])
   fireEvent.click(within(screen.getByRole('group', { name: 'composer-chips' })).getByRole('button', { name: 'Create a goal' }))
   expect(chat.sendMessage).toHaveBeenCalledWith('Help me make a goal')
 })
