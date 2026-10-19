@@ -182,7 +182,8 @@ jobs:
         if: github.base_ref == 'redesign/main'
         uses: actions/download-artifact@v8
         with:
-          name: workspace-unit-coverage
+          pattern: workspace-unit-coverage-*
+          merge-multiple: true
 
       - name: Verify every web report arrived
         if: github.base_ref == 'redesign/main'
@@ -215,6 +216,7 @@ jobs:
           test -s apps/web/coverage/lcov.info
           test -s apps/mobile/coverage/lcov.info
           test -s packages/shared/coverage/lcov.info
+          test -s eslint-rules/coverage/lcov.info
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
@@ -224,6 +226,7 @@ jobs:
             apps/web/coverage/lcov.info
             apps/mobile/coverage/lcov.info
             packages/shared/coverage/lcov.info
+            eslint-rules/coverage/lcov.info
           if-no-files-found: error
 
   web-tests:
@@ -271,10 +274,20 @@ jobs:
           if-no-files-found: error
 
   workspace-tests:
-    name: Workspace unit tests
+    name: Workspace unit (${{ matrix.workspace }})
     if: github.base_ref == 'redesign/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: mobile
+            directory: apps/mobile
+          - workspace: shared
+            directory: packages/shared
+          - workspace: eslint-rules
+            directory: eslint-rules
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -282,19 +295,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Run remaining workspaces with coverage thresholds
-        run: npx turbo run test --filter='!@orbit/web' --concurrency=1 -- --coverage
-      - name: Verify workspace coverage
+      - name: Run workspace with coverage thresholds
+        run: npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage
+      # Preserve repository paths when artifacts from independent jobs are combined.
+      - name: Stage workspace coverage
         run: |
-          test -s apps/mobile/coverage/lcov.info
-          test -s packages/shared/coverage/lcov.info
+          test -s "${{ matrix.directory }}/coverage/lcov.info"
+          mkdir -p ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage"
+          cp "${{ matrix.directory }}/coverage/lcov.info" ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage/lcov.info"
       - name: Upload workspace coverage
         uses: actions/upload-artifact@v7
         with:
-          name: workspace-unit-coverage
-          path: |
-            apps/mobile/coverage/lcov.info
-            packages/shared/coverage/lcov.info
+          name: workspace-unit-coverage-${{ matrix.workspace }}
+          path: .artifacts/workspace-coverage
+          include-hidden-files: true
           if-no-files-found: error
 
   sonarcloud:
