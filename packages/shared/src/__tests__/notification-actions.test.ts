@@ -3,11 +3,39 @@ import {
   getNotificationDestination,
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
+  isRetiredNotification,
   isViewableNotificationUrl,
   resolveNotificationUrl,
 } from '../utils/notification-actions'
 
 describe('notification-actions', () => {
+  it.each(['/social?tab=buddies', '/social', '/public-profile/123', '/u/thomas'])(
+    'identifies %s as retired',
+    (url) => {
+      expect(isRetiredNotification({ url })).toBe(true)
+      expect(isViewableNotificationUrl(url)).toBe(false)
+    },
+  )
+
+  it.each([
+    { url: '/streak', habitId: null, glyph: 'streak' },
+    { url: '/chat', habitId: null, glyph: 'astra' },
+    { url: '/calendar-sync?mode=review', habitId: null, glyph: 'astra' },
+    { url: '/profile', habitId: null, glyph: 'celebration' },
+    { url: null, habitId: null, glyph: 'celebration' },
+    { url: null, habitId: 'habit-1', glyph: 'reminder' },
+    { url: '/unknown', habitId: 'habit-1', glyph: 'reminder' },
+  ])('keeps $url with $habitId and its $glyph glyph', ({ url, habitId, glyph }) => {
+    const notification = { url, habitId }
+    expect(isRetiredNotification(notification)).toBe(false)
+    expect(getNotificationGlyph(notification)).toBe(glyph)
+  })
+
+  it.each([undefined, '', 'https://orbit.app', '//evil.com'])(
+    'does not classify a non-viewable URL %s as retired',
+    (url) => { expect(isRetiredNotification({ url })).toBe(false) },
+  )
+
   it.each([
     ['/progress', '/streak'],
     ['/progress?wrapped=month&year=2026&month=8', '/wrapped?wrapped=month&year=2026&month=8'],

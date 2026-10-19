@@ -1,12 +1,20 @@
 import type { NotificationItem } from '../types/notification'
 
+export const RETIRED_NOTIFICATION_URL_PREFIXES = ['/social', '/public-profile', '/u/'] as const
+
+export function isRetiredNotification(
+  notification: { url?: string | null },
+): boolean {
+  const { url } = notification
+  return typeof url === 'string' &&
+    RETIRED_NOTIFICATION_URL_PREFIXES.some((prefix) => url.startsWith(prefix))
+}
+
 export function isViewableNotificationUrl(
   url: string | null | undefined,
 ): url is string {
   if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return false
-  return !url.startsWith('/social') &&
-    !url.startsWith('/public-profile') &&
-    !url.startsWith('/u/')
+  return !isRetiredNotification({ url })
 }
 
 export function resolveNotificationUrl(url: string): string | null {

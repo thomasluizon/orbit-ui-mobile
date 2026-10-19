@@ -257,7 +257,9 @@ export {
   getNotificationDestination,
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
+  isRetiredNotification,
   isViewableNotificationUrl,
+  RETIRED_NOTIFICATION_URL_PREFIXES,
   resolveNotificationUrl,
 } from './notification-actions'
 export {
