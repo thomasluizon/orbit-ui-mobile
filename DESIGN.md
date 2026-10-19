@@ -204,7 +204,8 @@ conversation. Habit detail's own composer glyph remains an entry at every width.
 Astra row, the compact composer, habit detail's composer and Hoje's single slot. Other Astra actions
 and settings use their text; section headers, plan surfaces, badges, empty regions and sheets add no
 repeated mark. Conversation headers, participant avatars and conversation-owned empty states keep
-their own rules. The Perfil Astra settings row retains its text and row alignment without a glyph.
+their own rules. The Perfil Astra settings row uses the neutral `MessageCircle` icon, keeping the
+shared row anatomy without repeating Astra's glyph.
 
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
@@ -245,7 +246,7 @@ for, and building that instead is the defect.
 Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
 one sub-screen with a page title and a visible back control returning to Perfil. Every top-level row
 carries a 24 leading icon: `User` for the account row, `Crown` for Orbit Pro, `Settings`
-for Preferências and `Bell` for Notificações. Astra keeps its text without a repeated glyph. A row title and its value or
+for Preferências, `MessageCircle` for Astra and `Bell` for Notificações. A row title and its value or
 description each take one line. The trial end date lives on the Pro screen. Calendar sync opens the Calendários sheet, its one home. The account row
 keeps the name and email; the position directly beneath it stays available for Orbit Pro.
 

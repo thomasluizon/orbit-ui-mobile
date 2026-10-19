@@ -572,19 +572,15 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
-  const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
+  const leadingIcons = ['User', 'Crown', 'Settings', 'MessageCircle', 'Bell']
   const contents = row.findAll((node: { type: unknown }) =>
     typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
   const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
   const navigates = !(index === 1 && isLifetimePro)
-  if (index === 3) {
-    expect(contents.map((node: { type: unknown }) => node.type)).toEqual(['Text', 'ChevronRight'])
-  } else {
-    expect(icons, String(row.props.title)).toHaveLength(navigates ? 2 : 1)
-    expect(contents[0]!.type).toBe(leadingIcons[index])
-    expect(contents[1]!.type).toBe('Text')
-    expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
-  }
+  expect(icons, String(row.props.title)).toHaveLength(navigates ? 2 : 1)
+  expect(contents[0]!.type).toBe(leadingIcons[index])
+  expect(contents[1]!.type).toBe('Text')
+  expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }

@@ -7,6 +7,7 @@ import {
   Gift,
   HelpCircle,
   Info,
+  MessageCircle,
   Smartphone,
   type Icon,
 } from '@/components/ui/icons'
@@ -20,7 +21,8 @@ interface ProfileNavIconProps {
   size?: number
 }
 
-const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'astra'>, Icon> = {
+const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
+  astra: MessageCircle,
   account: User,
   pro: Crown,
   preferences: Settings,
@@ -37,7 +39,6 @@ export function ProfileNavIcon({
   color,
   size = 24,
 }: Readonly<ProfileNavIconProps>) {
-  if (iconKey === 'astra') return null
   const Icon = ICON_BY_KEY[iconKey]
   return <Icon size={size} strokeWidth={1.5} color={color} />
 }
