@@ -10,9 +10,6 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   logHabit: vi.fn(),
   skipHabit: vi.fn(),
-  setActiveView: vi.fn(),
-  registerOpenOverlay: vi.fn(),
-  unregisterOpenOverlay: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -22,19 +19,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
-vi.mock('@/stores/ui-store', () => ({
+vi.mock('@/stores/ui-store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/stores/ui-store')>(),
   setUIAccountScope: vi.fn(),
-  useUIStore: (selector: (state: {
-    setActiveView: typeof mocks.setActiveView
-    registerOpenOverlay: typeof mocks.registerOpenOverlay
-    unregisterOpenOverlay: typeof mocks.unregisterOpenOverlay
-    openOverlayIds: string[]
-  }) => unknown) => selector({
-    setActiveView: mocks.setActiveView,
-    registerOpenOverlay: mocks.registerOpenOverlay,
-    unregisterOpenOverlay: mocks.unregisterOpenOverlay,
-    openOverlayIds: [],
-  }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({

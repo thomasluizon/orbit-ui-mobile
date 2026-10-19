@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useContext, useRef } from 'react'
+import { useCallback, useContext, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -17,12 +17,11 @@ import { CommandPalettePortalContext, type CommandPaletteProps } from './command
  * Tab inside the panel and restores focus on close. Mounted app-wide, but the
  * menu (and its habit query) only mount while `shell-store.paletteOpen`.
  */
-export function CommandPaletteDialog({ navItems, onCreateHabit, modalId }: Readonly<CommandPaletteProps & { modalId: string }>) {
+export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRef }: Readonly<CommandPaletteProps & { modalId: string; panelRef: RefObject<HTMLDivElement | null> }>) {
   const t = useTranslations()
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
-  const panelRef = useRef<HTMLDivElement>(null)
   const registerPortal = useContext(CommandPalettePortalContext)
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
