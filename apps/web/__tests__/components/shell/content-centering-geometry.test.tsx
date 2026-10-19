@@ -74,7 +74,8 @@ describe('page content centring and add control clearance', () => {
         expect(geometry.lines.length).toBeGreaterThan(0)
         for (const line of geometry.lines) expectCentred(line, geometry.column)
         expectCentred(geometry.form, geometry.column)
-        expectCentred(geometry.submit, geometry.column)
+        if (viewport.width < 640) expectCentred(geometry.submit, geometry.column)
+        else expect(geometry.submit.left).toBe(geometry.form.left)
       } finally { await page.close(); unmount() }
     }
   })
@@ -104,7 +105,7 @@ describe('page content centring and add control clearance', () => {
       })
       expectCentred(geometry.navigation, geometry.column)
       expectCentred(geometry.stats, geometry.card)
-      for (const figure of geometry.figures) { expectCentred(figure.value, figure.box); expectCentred(figure.label, figure.box) }
+      for (const figure of geometry.figures) { expect(Math.abs(figure.value.left - figure.box.left)).toBeLessThanOrEqual(0.5); expect(Math.abs(figure.label.left - figure.box.left)).toBeLessThanOrEqual(0.5) }
       expectCentred(geometry.frame, geometry.column)
     } finally { await page.close() }
   })

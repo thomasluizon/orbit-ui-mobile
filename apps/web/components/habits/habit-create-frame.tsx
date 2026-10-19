@@ -43,7 +43,7 @@ function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, on
     <div data-habit-create-screen="" className="mx-auto flex w-full max-w-[592px] flex-col gap-6 px-4 py-4">
       {fromConversation ? <div className="flex items-start gap-2 text-sm text-[var(--fg-2)]"><p className="min-w-0 flex-1 text-pretty leading-[1.5]">{t('habits.form.fromConversation')}</p></div> : null}
       <div className="w-full">{children}</div>
-      {!hosted ? footer : null}
     </div>
+    {!hosted ? footer : null}
   </>
 }

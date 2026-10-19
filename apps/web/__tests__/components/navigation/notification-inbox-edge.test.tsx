@@ -59,7 +59,9 @@ describe('Avisos content edge in Chromium', () => {
           firstWidth: list.firstElementChild!.getBoundingClientRect().width,
           lastWidth: list.lastElementChild!.getBoundingClientRect().width }
       }, words.common.back)
-      expect(Math.abs(geometry.rowLeft - geometry.backLeft - 8)).toBeLessThanOrEqual(0.5)
+      // WHY: #1570 centres the retained list cap within the full header column. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      const frameInset = (Math.min(width, 740) - geometry.listWidth) / 2
+      expect(Math.abs(geometry.rowLeft - geometry.backLeft - 8 - frameInset)).toBeLessThanOrEqual(0.5)
       expect(geometry.listWidth).toBe(width < 1024 ? Math.min(width, 740) : 592)
       expect(geometry.firstWidth).toBe(width < 1024 ? Math.min(width, 740) - 32 : 560)
       expect(geometry.lastWidth).toBe(geometry.firstWidth)

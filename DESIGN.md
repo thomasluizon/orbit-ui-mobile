@@ -1315,7 +1315,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 ## Desktop density & orientation
 
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
-- **The main content column caps at about 740px and is centred.**
+- **The main content column caps at about 740px and is centred.** Narrower page columns also centre within their available shell container, retaining their caps and 16px child insets (#1570). Child text and figures keep their start alignment.
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
 - **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge with a 12px gap between their icon-only targets. In the collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.

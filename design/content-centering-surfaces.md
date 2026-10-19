@@ -4,8 +4,10 @@
 
 The page column stays centred in its available container. A web scrollbar's reserved gutter is
 outside that container's usable width. Text inside a centred column retains its own reading
-alignment. The shell's create control occupies a separate band above notices and the composer,
-so scrolling content cannot pass behind its target.
+alignment. The shell's create control floats above notices and the composer without a bottom-chrome
+band or hairline. The scroller reserves 96px of clearance outside its viewport while the
+control is present, so scrolling content cannot pass behind its target. Wide web uses sidebar
+creation and reserves no floating-control clearance.
 
 The source sweep follows every route's rendered owner and its width constraints. The columns
 below record that inspection at each width; they do not claim a running-app or Android device
@@ -15,14 +17,14 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 
 | Screen or surface | Phone | 480 | 840 | 1100 | 1352 | 1200 x 1600 | 1600 x 1200 | Desktop | Owner and result |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Hoje | fixed | fixed | fixed | aligned | aligned | aligned | aligned | aligned | Shell reserves a create band on compact web and at every Android width. |
+| Hoje | fixed | fixed | fixed | aligned | aligned | aligned | aligned | aligned | Shell reserves scroller clearance on compact web and at every Android width. |
 | Todos | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Habit-list empty actions centre within their row. |
 | Geral | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Shares the Todos empty-state owner. |
-| Novo hábito | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | HabitCreateFrame centres the capped form; web submit and explanation share its centre. |
+| Novo hábito | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | HabitCreateFrame centres the capped form; the submit and explanation retain their responsive shared start edge. |
 | Habit detail and edit sheet | aligned | aligned | fixed | fixed | fixed | fixed | fixed | fixed | HabitDetailFrame on web and the inner Android FlowShell body now centre at their retained caps; navigation shares their edges. Shared Sheet already bounds editing. |
-| Calendário, Mês | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Month navigation already centres; figures now centre within their equal tracks below the day card. |
+| Calendário, Mês | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Month navigation and the figures row centre as a column; values and captions retain their start edges within equal tracks. |
 | Calendário, Semana | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Shared navigation and bounded time-grid viewport. |
-| Calendário, Período | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Shares the corrected figures. |
+| Calendário, Período | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Shares the centred figures row with start-aligned values and captions. |
 | Calendário, Agenda | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | Shared content frame centres its narrower wide column. |
 | Progresso | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | ProgressContent uses the centred shell cap. |
 | Sequência | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | ProgressSubscreen keeps the centred shell cap. |
@@ -35,7 +37,7 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 | Notificações settings | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
 | Avisos | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | NotificationList consumes the shared content frame. |
 | Busca | aligned | aligned | fixed | fixed | fixed | fixed | fixed | fixed | Search column, input and results centre within the shell. |
-| Suporte | aligned | aligned | fixed | fixed | fixed | fixed | fixed | fixed | Support column and nested form centre independently at their retained caps. |
+| Suporte | aligned | aligned | fixed | fixed | fixed | fixed | fixed | fixed | Support column centres at its retained cap; its form retains the column inset and 520 cap. |
 | Sobre | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | Shared content frame retains the about cap. |
 | Orbit Pro and Assinatura | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | Shared content frame retains the pitch and billing caps. |
 | Wrapped cover and player | aligned | aligned | aligned | aligned | aligned | aligned | aligned | aligned | Centred player and FlowShell; shorter prose retains its start edge. |
@@ -73,3 +75,12 @@ search and support suites retain their state and interaction checks.
 The source sweep covers the remaining screen owners through those shared layout constraints;
 it is separate from the rendered fixtures above. Complete application flows, screen-reader
 walks and Android device rendering remain outside this hermetic verification.
+
+## Retained child geometry
+
+The centred frame supersedes wide start-edge pinning for Perfil and its sub-screens, Avisos,
+Sobre, Suporte, Busca and Assinatura (#1570). Their caps, content widths and child insets
+remain unchanged. Header back controls retain their shell inset and stable hydration position.
+Calendar figures retain equal tracks, start-aligned values and single-line captions at default
+text size. Habit creation retains its responsive submit cap and the explanation below it,
+centred at compact width and aligned to the submit start at wider widths.

@@ -190,7 +190,7 @@ export default function SupportPage() {
               onBack={() => router.push('/about')}
             />
           ) : (
-            <div className="mx-auto min-w-0 md:max-w-[520px]">
+            <div className="min-w-0 md:max-w-[520px]">
               <SupportForm
                 email={resolvedEmail}
                 subject={subject}

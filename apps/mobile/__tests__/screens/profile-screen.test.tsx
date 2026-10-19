@@ -734,7 +734,8 @@ describe('ProfileScreen', () => {
       for (let index = 1; index < ordered.length; index++) expect(ordered[index]!.top - ordered[index - 1]!.bottom).toBeCloseTo(32, 2)
       for (const testID of ['profile-settings-group-you', 'profile-settings-group-ending']) {
         const box = measured.boxes.find((box) => box.testID === testID)!
-        expect(box.left).toBe(16)
+        // WHY: #1570 centres the retained 592 column at wide widths. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        expect(box.left).toBe((width - (width < 1024 ? width : 592)) / 2 + 16)
         expect(box.width).toBe(width < 1024 ? width - 32 : 560)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
@@ -768,7 +769,8 @@ describe('ProfileScreen', () => {
       scroller.insertChild(content, 0)
       content.insertChild(firstRow, 0)
       column.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
-      expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe(16)
+      // WHY: #1570 centres the frame rather than pinning it to the header. https://github.com/thomasluizon/orbit-tickets/issues/1570
+      expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe((width - content.getComputedWidth()) / 2 + 16)
       expect(content.getComputedWidth()).toBe(width < 1024 ? width : 592)
       expect(firstRow.getComputedWidth()).toBe(width < 1024 ? width - 32 : 560)
       const back = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>

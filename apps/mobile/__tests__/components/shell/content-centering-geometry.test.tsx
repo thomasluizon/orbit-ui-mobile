@@ -39,7 +39,7 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
     expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).justifyContent).toBe('center')
     const figures = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default')
     expect(figures).toHaveLength(3)
-    for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('center')
+    for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('flex-start')
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, viewport)
     for (const key of ['calendar-header-group', 'calendar-month-navigation', 'calendar-stats']) {
       const box = boxes.get(key)!
@@ -65,7 +65,7 @@ it.each(windows)('centres the capped create form with its submit at $width by $h
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each(windows)('reserves the floating add band outside every scrolling control at $width by $height', async (viewport) => {
+it.each(windows)('keeps the floating add target outside every scrolling control at $width by $height', async (viewport) => {
   __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
   await act(() => { tree = create(<Shell412 tabBar={<View style={{ height: 80 }} />}
@@ -79,6 +79,6 @@ it.each(windows)('reserves the floating add band outside every scrolling control
     expect(fab.width).toBe(60)
     expect(fab.top).toBeGreaterThanOrEqual(control.bottom)
     const band = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab-band')[0]!
-    expect(StyleSheet.flatten(band.props.style as StyleProp<ViewStyle>).position).not.toBe('absolute')
+    expect(StyleSheet.flatten(band.props.style as StyleProp<ViewStyle>).position).toBe('absolute')
   } finally { await act(() => tree.unmount()) }
 })

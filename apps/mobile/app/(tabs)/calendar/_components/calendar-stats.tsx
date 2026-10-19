@@ -47,8 +47,8 @@ const styles = StyleSheet.create({
   skeleton: { width: 64, height: 24, borderRadius: 8 },
   row: { flexDirection: 'row', gap: 16, paddingHorizontal: SPACING.s16 },
   stacked: { flexDirection: 'column' },
-  figure: { flex: 1, minWidth: 0, gap: 8, alignItems: 'center' },
-  value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, textAlign: 'center', fontVariant: ['tabular-nums'] },
-  empty: { fontFamily: 'GeistMono_500Medium', fontSize: 12, lineHeight: 22 * 1.4, textAlign: 'center' },
-  label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  figure: { flex: 1, minWidth: 0, gap: 8, alignItems: 'flex-start' },
+  value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, textAlign: 'left', fontVariant: ['tabular-nums'] },
+  empty: { fontFamily: 'GeistMono_500Medium', fontSize: 12, lineHeight: 22 * 1.4, textAlign: 'left' },
+  label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'left' },
 })

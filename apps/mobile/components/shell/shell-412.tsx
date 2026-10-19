@@ -46,15 +46,15 @@ function ShellBottomChrome({
       ]}
     >
       <View style={[styles.bottomColumn, { minHeight: actionMinimum }]}>
-        {fab !== undefined ? (
-          <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-            <View testID="shell-fab" style={styles.fab}>{fab}</View>
-          </View>
-        ) : null}
         {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
           <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
             <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
+          </View>
+        ) : null}
+        {fab !== undefined ? (
+          <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+            <View testID="shell-fab" style={styles.fab}>{fab}</View>
           </View>
         ) : null}
       </View>
@@ -150,7 +150,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
             )
           ) : null}
 
-          <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
+          <View testID="shell-scroller" style={[styles.scroller, props.fab !== undefined && styles.fabClearance, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
             {props.children}
             <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
           </View>
@@ -248,12 +248,9 @@ const styles = StyleSheet.create({
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     width: '100%',
   },
-  fabBand: {
-    flexShrink: 0,
-    alignItems: 'flex-end',
-    padding: PADDING.screenGutter,
-  },
-  fab: { flexShrink: 0 },
+  fabClearance: { marginBottom: SHELL_SCROLLER_CLEARANCE },
+  fabBand: { position: 'absolute', top: 0, height: 0, left: 0, right: 0 },
+  fab: { bottom: 16, position: 'absolute', right: 16 },
   conversation: {
     alignSelf: 'center',
     maxWidth: SHELL_CONTENT_MAX_WIDTH,

@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   formBlock: {
     width: '100%',
     maxWidth: 520,
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     gap: 24,
   },
   formDescription: {

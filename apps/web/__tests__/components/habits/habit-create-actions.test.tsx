@@ -73,7 +73,7 @@ describe('habit create footer', () => {
           expect(geometry.textCenter).toBeCloseTo(geometry.buttonCenter, 1)
         } else {
           expect(geometry.buttonWidth).toBeLessThan(geometry.reasonWidth)
-          expect(geometry.textCenter).toBeCloseTo(geometry.buttonCenter, 1)
+          expect(geometry.textStart).toBeCloseTo(geometry.buttonStart, 1)
         }
       } finally {
         await page.close()
