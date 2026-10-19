@@ -10,45 +10,45 @@ The previous scratchpad's durable copy is at `$HOME/.orbit-run-carry/scratchpad`
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). What is left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (139 open at this relay; `reconcile.mjs` places all 139 in `## The order`, 0 unplaced, 0 placed twice). 9 redesign tickets are open: `gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign"` (5: `#1543`, `#1459`, `#1450`, `#1439`, `#1438`) plus `#1409`, `#1423`, `#1540`, `#1541`; every one has a pull request. The run ends only when the spec is done or for an external cause.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval, in the owner's order (`### Batch L`). What is left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (134 open at this relay; `reconcile.mjs` places all 134 in `## The order`, 0 unplaced, 0 placed twice). 8 redesign tickets are open: `gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign"` (3: `#1459`, `#1439`, `#1438`) plus `#1409`, `#1423`, `#1540`, `#1541`, `#1544`; every one has a pull request. The run ends only when the spec is done or for an external cause.
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| Combined check `k20` (base `a860d3c3c` plus `ui#1860` `585fd8686`, `ui#1791` `69c5374a6`, `ui#1812` `5468459e2`) | runs detached in a reused scratch tree; its results are `check-k20/summary.txt` and `check-k20/DONE` in the predecessor's scratchpad (the sibling scratchpad named by the previous session id in `.git/orbit-session-chain.json`; the carry also copies them once finished); every step through mobile Vitest passed at the relay; on a pass, merge the three at their approved heads (re-read each bar first; `ui#1860` is green on every check including the Today Lighthouse budget), then rerun or base-merge the pull requests whose only red is that budget |
-| `ui#1858` (`#1540`, round 3 `b5c511e12`) | CI and a fresh Pullfrog review; no file shared with the base; merge on the bar |
-| `ui#1854` (`#1418`, base merge `2e236f3fb`) | CI and a fresh review; merge on the bar (a combined check if it shares a file with a newer base) |
-| `ui#1761` (`#1409`, base merge `a505d8681`) | CI and a fresh review; merge on the bar |
-| `ui#1830` (`#1481`, `b3d3769a8`, shared proactive core) then `ui#1859` (`#1541`, `83a88bb7c`, stacked) | CI (SonarCloud duplication must pass) and fresh reviews; merge `ui#1830`, then retarget or base-merge `ui#1859` and merge it |
-| `ui#1862` (`#1419` redesign half, new) | launch the review round now: scratchpad `order-1419-rd-r1-head.md` plus `compose-prompt.mjs --issue 1419 --review-batch` body plus `note-verify-cap.md`, deep tier, `--allow-subagents`, worktree `ticket-1419-redesign-design-switch`; it restores the redesign widget and keeps only the three files `main`'s preflight compares equal to `main` |
-| `ui#1863` (`#255`, new, `redesign/main`) | read its diff, CI and Pullfrog; merge on the bar |
-| `orbit-api#767` (`#660`, new, api `main`) | diff read and accepted; CI and Pullfrog; merge on the bar |
-| `ui#1779`, `ui#1786` | after `ui#1791` merges: regenerate `.claude/manifests/feature-parity.json` (mechanical base merge) and merge on the bar |
-| `ui#1772` | after `ui#1860` merges: worker base merge (`command-palette.tsx` conflict); its Layout red is the race `ui#1791` fixes |
-| `ui#1824`, then `ui#1857`, then `ui#1826` | after `ui#1812` merges: `ui#1824` takes a mechanical `design/canvas/README.md` base merge; `ui#1857` after `ui#1824`; `ui#1826` worker base merge plus its diagnosis round (Pro profile for `astra-block-spacing.spec.ts:19`, `useHabits` and `useLogHabit` mocks in `block-action-row-geometry.test.tsx`) |
-| `landing#102` (rounds 22 to 27, `059a4f6`) | on the staging landing; the owner was told in pt-BR; Pullfrog's review of `059a4f6` and the owner's findings become round 28 |
-| `orbit-api#753`, `#752` (`#1528`) | `#753` waits on the owner's SonarCloud click; then merge, then `#752` base merge plus the `AccessTokenRequired` deletion (it now also shares `ServiceCollectionExtensions.cs` with `#767`) |
+| `ui#1779` (`#1439`), `ui#1786` (`#1438`) | conflict only on `.claude/manifests/feature-parity.json`: mechanical base merge (`git fetch origin main`, `node tools/check-feature-parity.mjs --write`), push, merge on the bar |
+| `ui#1824` (`#1479`) then `ui#1857` (`#1483`) | `ui#1824`: mechanical `design/canvas/README.md` base merge; then `ui#1857` worker base merge (`surfaces.json`, `pill-button.tsx`, `select-check.tsx`, `RadioRow.ts`) |
+| `ui#1772` (`#1423`) | worker base merge (`apps/web/components/command/command-palette.tsx`, now lazy after `ui#1860`) |
+| `ui#1761` (`#1409`, `61286bd0f`) | CI running on the revert; then a worker base merge (`habit-understanding.tsx`, `command-palette.tsx`) and a fresh review |
+| `ui#1830` (`#1481`, `4fe39bb9b`) then `ui#1859` (`#1541`, `48439ae59`, stacked) | CI running; `ui#1830` needs a base merge (`surfaces.json`, `composer-geometry.test.tsx`, `tools/redesign-groups.json`); merge it, then retarget or base-merge `ui#1859` and merge it |
+| `ui#1826` (`#1482`) | worker base merge plus its diagnosis round (Pro profile for `astra-block-spacing.spec.ts:19`, `useHabits` and `useLogHabit` mocks in `block-action-row-geometry.test.tsx`) |
+| `ui#1858` (`#1540`), `ui#1854` (`#1418`) | approved; failed Layout jobs (`press-shape.spec.ts:200`, the `#1544` cause) rerun; merge on the bar once green (clean against the base) |
+| `ui#1863` (`#255`) | diff read and accepted, approved; merge on the bar |
+| `ui#1862` (`#1419` redesign half, `0279c0405`) | round 1 pushed, four threads resolved; CI and a fresh review; merge on the bar; then the throwaway AVD run in `ui#1851`'s `## Device check` |
+| `ui#1865` (`#1544`, `dc7d8718f`) | CI and review; before merge, prove `apps/web/e2e/layout/calendar-week-scroll.spec.ts` red on a base build and green on its head (`head-build.sh`), and `press-shape.spec.ts:200` at 412 green |
+| `ui#1866` (`#206`, ui `main`) | diff read and accepted; merge on the bar |
+| `landing#102` round 28 (`0b48abf`, local in `ticket-1459-pierre-landing`, not pushed) | probes passed except `comptargets2` (6 failures: confirm they are the expected 320x568 rows, scratchpad `landing-probe/comptargets2-r28.log`); `r18` passed every check; then push, answer thread `PRRT_kwDORqm3lM6twzKG` with the fix, read the rerun `Build` Lighthouse result (TBT 307 against 200 on `059a4f6`), release the staging landing and tell the owner in pt-BR |
+| `orbit-api#753`, `#752` (`#1528`) | `#753` waits on the owner's SonarCloud click; then merge, then `#752` base merge plus the `AccessTokenRequired` deletion |
 | `#1531`, `#1534` | unchanged: production only with the owner's yes |
 | `#1491`, `#732` | wait: `#1491` until the proactive engine runs in production; `#732` until the 30-day retention window since the replay fix reached production has passed |
-| Staging | API `98016b262` (Healthy); web `redesign/main` `7f2a7b468` (`redesign/main` is `a860d3c3c`); landing round 27 `059a4f6` |
-| Uncommitted, stashes, detached heads | orchestrating checkout clean after this handoff commit; no stashes in any repository; the landing checkout's `main` is one commit behind its remote (fast-forward before landing work); detached heads are scratch build trees only; unpushed: the two superseded single-commit branches `ticket-1242-week-grid-one-scroller` and `ticket-1503-push-endpoint-check` (leave) |
+| Staging | API `98016b262` (Healthy); web `redesign/main` `7f2a7b468` (`redesign/main` is now `f76cdb659` plus this handoff); landing round 27 `059a4f6` |
+| Uncommitted, stashes, detached heads | all three checkouts clean after this handoff commit; no stashes; detached heads are scratch build trees only; unpushed: landing `0b48abf` (above) and the two superseded single-commit branches `ticket-1242-week-grid-one-scroller` and `ticket-1503-push-endpoint-check` (leave) |
 | Running workers | none (drained at this relay) |
 | Session chain | open (automatic relay) |
 
 ## Then, in this order
 
 1. Answer the owner first, in the language of his latest message (English; landing news in pt-BR).
-2. Launch the `ui#1862` round; merge what clears the bar as CI, reviews and `k20` land, `ui#1860`, `ui#1791` and `ui#1812` first; fix every CI red on an open pull request as it appears (owner order).
-3. The follow-on base merges named above (`ui#1779`, `ui#1786`, `ui#1772`, `ui#1824`, `ui#1857`, `ui#1826`, `ui#1859`).
-4. Batch L item 3: `ui#1854`, `ui#1862`; `orbit-api#753` after the owner's click; then the throwaway AVD run in `ui#1851`'s `## Device check` once both `#1419` halves are merged.
-5. Idle slots: Batch 6 tickets from `### Batch 6` that need no conversation and share no file with an open one (remaining candidates: `#251`, `#206`, `#208`; the social and AI memory deletions need the OpenAPI deprecation step first).
-6. When every redesign ticket has merged: release staging web from `redesign/main` (and the staging API if api `redesign/main` moved), verify `/api/health`, rerun the measured sweep and fix its findings, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1411`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`, `#1525`, `#1540`, `#1541`), push-notify and tell the owner.
+2. The base merges and merges above, fastest first (`ui#1863`, `ui#1866`, `ui#1858`, `ui#1854` on green; the mechanical ones; then worker base merges, gated); fix every CI red on an open pull request as it appears (owner order).
+3. Landing round 28: finish its probe read, push, answer the thread, release the staging landing.
+4. Batch L item 3: `ui#1854`, `ui#1862`; `orbit-api#753` after the owner's click; then the throwaway AVD run once both `#1419` halves are merged.
+5. Idle slots: Batch 6 tickets from `### Batch 6` that need no conversation and share no file with an open one (`#208` is a live Stripe change: test mode only without the owner's yes; the social and AI memory deletions need the OpenAPI deprecation step first).
+6. When every redesign ticket has merged: release staging web from `redesign/main` (and the staging API if api `redesign/main` moved), verify `/api/health`, rerun the measured sweep and fix its findings, dispatch Orbit Staging 1.3.82 (141) to internal, verify the Play upload, update the brain note `0 Inbox/Orbit staging test.md` (add `#1408`, `#1411`, `#1422`, `#1423`, `#1471`, `#1474`, `#1496`, `#1500`, `#1512`, `#1525`, `#1540`, `#1541`, `#1544`), push-notify and tell the owner.
 7. Idle Codex capacity: one audit pass after a large merge wave.
 
 ## Sleep
 
-This is an unattended run that the owner is watching, and the owner's order is to rush: every redesign ticket done, then he checks the app, then the product launch. Take every decision with the best approach and log it in the session scratchpad the moment it is made, with the real clock time (`log.sh`). Keep a live wake source at the end of every turn while work remains. Answer each owner message before other work, in the language of his latest message. Read an owner message as a question when it ends in a question; never record a question as his decision. When he asks which option is better, answer on quality, not ease. A progress report leads with how many redesign tickets remain and whether that fell (9 by the query at this relay, unchanged), and names something as waiting on the owner only when he can act on it now (the SonarCloud click is one). His findings during the gate review are filed as Batch R tickets and their workers start at once.
+This is an unattended run that the owner is watching, and the owner's order is to rush: every redesign ticket done, then he checks the app, then the product launch. Take every decision with the best approach and log it in the session scratchpad the moment it is made, with the real clock time (`log.sh`). Keep a live wake source at the end of every turn while work remains. Answer each owner message before other work, in the language of his latest message. Read an owner message as a question when it ends in a question; never record a question as his decision. When he asks which option is better, answer on quality, not ease. A progress report leads with how many redesign tickets remain and whether that fell (8 by the query at this relay, down from 9), and names something as waiting on the owner only when he can act on it now (the SonarCloud click is one). His findings during the gate review are filed as Batch R tickets and their workers start at once.
 
 The standing operating detail is carried unchanged: gated launches with `LOAD_MAX=60 SPACING=45`; no live-worker cap; `--hard-ceiling-minutes 75` for implementation launches; every ui order appends `note-verify-cap.md` and every api order `note-verify-api.md`; a review round after a failed round, a large ticket and a landing round run on the `deep` tier; D104 salvage of killed workers; relaunch a worker that dies on "Selected model is at capacity" with a note naming any partial edits; `--relaunch-reason` once a branch reaches its launch cap; `--allow-subagents` only for orders with a `## UI review sweep` heading; workers never start a server, browser or emulator; one hermetic Playwright run at a time, on port 3100, on a build baked for 3100; at most three waiters; prove changed layout specs on a build before merging; prove every new guard by breaking what it guards before merging (workers skip this under the verification budget); a pull request behind its base merges after a combined check (read its layout result before merging), or at its approved head when it shares no file with the newer base, and that holds for api merges too; scan heads with `conflict-scan.sh` before a combined check; workers on CI-fix, review, base-merge and landing round orders commit without pushing, so read the diff for gate edits, relaxed limits and committed evidence files and push it yourself (strip local paths from reports before `body-merge.sh`, edit the body before the push, then resolve threads and push once; a base-merge report goes without `--ui-scope`); read every worker pull request's diff yourself or through a read-only subagent before it merges, and turn a verified defect into a round; when a Pullfrog approval check completed with no review of the head, request one with `request-reviews.sh`; a lazily loaded component mounted in the app layout must contain a rejected chunk import (the `ui#1812` and `ui#1860` pattern); a Pullfrog behaviour finding on code a carry brought from `main` is fixed on `main` first and cherry-picked; a worker's NEEDS_DECISION is decided by the run on technical grounds, written into the order and relaunched; new copy is approved with `/second-opinion` framed as a claimed defect and the verdict is posted on the pull request; pt-BR uses the app's own vocabulary and Astra is feminine; ticket writes through the `tools/*-ticket.mjs` tools, and a duplicate search covers every ticket (`gh issue list --state all --limit 2000`); a ticket whose fix merged to `redesign/main` is closed with `complete-ticket.mjs`; Render workspace `tea-ctg9ljtumphs73dep1o0`; port 3000 may be taken by `open-webui` (layout runs use 3100, the landing preview 4401, the scratch landing preview 4402, an `astro dev` server holds 4321), port 5000 belongs to macOS ControlCenter (a local API runs on 5199); browser work through `claude-in-chrome` in the open window only; never sign in to a service for the owner; redact finished worker logs that carry a secret. Codex: the owner applied the banked reset; when it runs out, the run spends the 62,500 credits; idle capacity runs `audit-run.sh` passes, each finding verified by a skeptic before it is filed.
 
@@ -60,19 +60,21 @@ Owner instructions: rush everything, the goal is launch, go faster; every redesi
 
 Open owner questions (in the spec and `openOwnerQuestions`, never asked during a relay): THE REDESIGN GATE approval after the 1.3.82 retest (raise it only once that build is on the internal track). Owner action available now: the SonarCloud click for `orbit-api#753` (two `S1133` issues to Accepted). Owner yes needed later, not now: `orbit-api#750`'s production IAM policy, the `#738` production JWT configuration, the `#749` production BFF secret and the `#1531` production floor raise (1.3.11 to 1.3.38), all at the production API release that carries them; that release also carries the `#718` contract migration (`orbit-api#764`).
 
+
 ## Previous prompt, disposition
 
-- Reading list, entry point, sleep rules, authorization, relay rule, owner instructions and open owner questions: carried (helpers: `body-merge.sh` gained dash stripping; shell cautions gained the `log.sh` stdin rule and the `main` worktree fetch).
+- Reading list, entry point, sleep rules, authorization, relay rule, owner instructions and open owner questions: carried (`openOwnerQuestions` was empty at adoption; the three questions were written back).
 - Answer the owner first: carried (no owner message this relay).
-- Release the staging landing (round 27) and tell the owner in pt-BR: done (run `39186924385`, `orbit-build` meta `059a4f6`, told in pt-BR).
-- `ui#1860` and `ui#1791` first: carried (CI green on `ui#1860`, both in the `k20` combined check with `ui#1812`).
-- `ui#1772`, `ui#1857`, `ui#1824`: carried (each now conflicts with a `k20` head; follow-on base merges named above).
-- `ui#1858`: round 3 pushed (`b5c511e12`), carried. `ui#1812`, `ui#1830`, `ui#1761`, `ui#1779`, `ui#1786`: carried (`ui#1830` round and `ui#1761` base merge pushed).
-- `ui#1859` after `ui#1830`: carried (merged with the new `ui#1830` head, `83a88bb7c`).
-- `ui#1853`: done (merged `a860d3c3c`). `ui#1854` base merge: done (`2e236f3fb`), merge carried. The `#1419` `redesign/main` half: started (`ui#1862`), its round carried.
-- `ui#1826`: carried. `landing#102`: carried (Pullfrog review of `059a4f6` and round 28).
-- `orbit-api#765`: done (merged `c900dba6b`, `#626` closed). `orbit-api#766`: done (round 1 `0739f511`, thread resolved, merged `626c5257c`, `#568` closed).
+- Launch the `ui#1862` round: done (`0279c0405` pushed, threads `PRRT_kwDOR5Siws6txJNa`, `Nf`, `Nj`, `Nl` resolved); its merge carried.
+- `k20` and merging `ui#1860`, `ui#1791`, `ui#1812`: done (`bf39c97ec`, `deeea6664`, `f76cdb659`; `#1543`, `#1450`, `#1478` closed).
+- Rerun or base-merge the pull requests whose only red was the Today budget: superseded by the base merges in `## In flight` (the budget fix is on the base now).
+- `ui#1858`, `ui#1854`, `ui#1761`: carried (`ui#1761` took the `61286bd0f` parity revert; the other two had their `press-shape` Layout jobs rerun).
+- `ui#1830` then `ui#1859`: carried (`4fe39bb9b` coverage round, `48439ae59` merge).
+- `ui#1863`: diff read and accepted; merge carried. `orbit-api#767`: done (`517ed1b30`, `#660` closed).
+- `ui#1779`, `ui#1786`, `ui#1772`, `ui#1824`, `ui#1857`, `ui#1826` follow-on base merges: carried (now due; conflicts listed above).
+- `landing#102` round 28: started (`0b48abf`, local); push carried.
 - `orbit-api#753`, `#752`, `#1531`, `#1534`, `#1491`, `#732`, the 1.3.82 steps, idle audits: carried.
-- Idle slots, Batch 6: `#302` done (`ui#1861` merged to ui `main` `55f9a8c70`), `#255` opened as `ui#1863`, `#660` opened as `orbit-api#767`.
+- Idle slots: `#251` done (`ui#1864`, `16bd9723b`); `#206` opened as `ui#1866`; `#208` left (live Stripe change).
+- New this relay: `#1544` filed and opened as `ui#1865` (the `press-shape` Layout false red and its product cause).
 
 Every identifier here came from a previous session: treat each as a lead to verify.
