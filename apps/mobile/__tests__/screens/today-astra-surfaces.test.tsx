@@ -3,7 +3,7 @@ import type { NotificationItem } from '@orbit/shared/types/notification'
 import { View } from 'react-native'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../support/safe-area-geometry'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
@@ -83,7 +83,7 @@ vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null
 vi.mock('@/components/today/today-date-control', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-date-control')>()
   return { TodayDateControl: (props: React.ComponentProps<typeof original.TodayDateControl>) => mocks.geometry
-    ? <original.TodayDateControl {...props} /> : React.createElement('TodayDate', { date: mocks.today }) }
+    ? <original.TodayDateControl {...props} /> : React.createElement(React.Fragment, null, props.beforeDate, React.createElement('TodayDate', { date: mocks.today })) }
 })
 vi.mock('@/components/shell/shell-header-slot', () => ({ useShellHeaderSlot: () => true }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
@@ -142,6 +142,16 @@ vi.mock('@/app/(tabs)/use-today-selection', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
+const mountedTrees: { unmount: () => void }[] = []
+function createTestTree(node: React.ReactElement) {
+  const tree = TestRenderer.create(node)
+  mountedTrees.push(tree as typeof tree & { unmount: () => void })
+  return tree
+}
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
+
 function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
   const astra = tree.root.findAll((node) => String(node.type) === 'TodayAstraMock')[0]
   if (!astra) throw new Error('Today Astra did not render')
@@ -196,12 +206,18 @@ describe('mobile Today Astra owned surfaces', () => {
       await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
       try {
         const geometry = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
-          ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line'
+          ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : host.props.accessibilityLabel === 'Check in' ? 'line'
             : host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('summary.freePrompt')) ? 'summary' : undefined,
         { width, height: 915 })
         expect(geometry.has('summary')).toBe(true)
         expect(geometry.get('date')!.top - geometry.get('line')!.bottom).toBe(24 * fontScale)
         expect(geometry.get('summary')!.top - geometry.get('date')!.bottom).toBe(24)
+        expect(geometry.get('line')!.top - geometry.get('views')!.bottom).toBe(24)
+        mocks.notifications = []
+        await TestRenderer.act(() => tree.update(<TodayScreen />))
+        const withoutLine = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+          ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : undefined, { width, height: 915 })
+        expect(withoutLine.get('date')!.top - withoutLine.get('views')!.bottom).toBe(24)
       } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
     },
   )
@@ -268,7 +284,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length).toBeGreaterThan(0)
@@ -287,7 +303,7 @@ describe('mobile Today Astra owned surfaces', () => {
   ])('stands down while the %s surface is open', async (_surface, openSurface) => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
     expect(isSuppressed(tree)).toBe(false)
@@ -304,7 +320,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.geometry = true
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
     let tree!: GeometryTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
     const findLine = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in')[0]
     const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
       ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line' : undefined)
@@ -328,7 +344,7 @@ describe('mobile Today Astra owned surfaces', () => {
 
   it('keeps the FAB available through refetch failure with retained habits', async () => {
     let tree!: GeometryTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
     try {
       expect(useUIStore.getState().todayFabHidden).toBe(false)
       mocks.isFetching = true
@@ -352,7 +368,7 @@ describe('mobile Today Astra owned surfaces', () => {
       mocks.isError = state === 'load error'
       useUIStore.setState({ isSelectMode: state === 'select mode' })
       let tree!: GeometryTree
-      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
+      await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) as GeometryTree })
       try {
         if (state === 'list surface') {
           await TestRenderer.act(() => {
@@ -376,7 +392,7 @@ describe('mobile Today Astra owned surfaces', () => {
 
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -390,7 +406,7 @@ describe('mobile Today Astra owned surfaces', () => {
   it('routes detail into the habit flow instead of opening a Today surface', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<TodayScreen />)
+      tree = createTestTree(<TodayScreen />)
       await Promise.resolve()
     })
 
@@ -410,9 +426,9 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.geometry = true
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
     let tree!: GeometryTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<View><TodayScreen /></View>) as GeometryTree })
+    await TestRenderer.act(() => { tree = createTestTree(<View><TodayScreen /></View>) as GeometryTree })
     const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
-      ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line'
+      ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : host.props.accessibilityLabel === 'Check in' ? 'line'
         : host.children?.some((child) => typeof child !== 'string' && child.props.testID === 'today-date-row') ? 'header' : undefined)
     try {
       const visible = measure()
@@ -421,14 +437,14 @@ describe('mobile Today Astra owned surfaces', () => {
       await TestRenderer.act(() => { tree.update(<TodayScreen />) })
       expect(measure().has('line')).toBe(false)
       const absent = measure()
-      expect(absent.get('date')!.top - absent.get('header')!.top).toBe(0)
+      expect(absent.get('date')!.top - absent.get('views')!.bottom).toBe(24)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
   it('separates the profile date placeholder from the habit placeholders by 24', async () => {
     mocks.profileReady = false
     let tree!: GeometryTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<View><TodayScreen /></View>) as GeometryTree })
+    await TestRenderer.act(() => { tree = createTestTree(<View><TodayScreen /></View>) as GeometryTree })
     try {
       let firstHabitFound = false
       const firstLayout = measureSafeArea(tree.toJSON(), (host) => {

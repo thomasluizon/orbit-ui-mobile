@@ -83,6 +83,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: skeletonBone,
     },
 
+    dateGroupHeading: { fontFamily: 'GeistMono_500Medium', fontSize: 12, color: tokens.fg3, paddingTop: SPACING.s12, paddingBottom: SPACING.s12 },
     sectionInset: {},
     allDoneHeader: { paddingBottom: PADDING.sectionGap },
     listContent: {

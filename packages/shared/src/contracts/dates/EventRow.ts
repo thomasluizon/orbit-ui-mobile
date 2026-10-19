@@ -14,4 +14,6 @@ export interface AllDayEventRowProps extends EventRowBase {
   allDayLabel: string
 }
 
-export type EventRowProps = TimedEventRowProps | AllDayEventRowProps
+type EventRowInteraction = { onClick?: () => void; action?: never } | { onClick?: never; action: React.ReactNode }
+
+export type EventRowProps = (TimedEventRowProps | AllDayEventRowProps) & EventRowInteraction

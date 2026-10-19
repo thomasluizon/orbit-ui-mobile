@@ -1,3 +1,4 @@
+import { createAppendedGeneralSearchItems, createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
@@ -5,7 +6,7 @@ import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geom
 import { FlatList, StyleSheet, View, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, createApiClientError } from '@orbit/shared/utils'
+import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -15,6 +16,7 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
+import { SearchEmpty } from '@/components/search/search-results'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -29,7 +31,13 @@ vi.mock('react-native', async (importOriginal) => {
     ...actual,
     FlatList: React.forwardRef((props: React.ComponentProps<typeof actual.FlatList>, ref) => {
       React.useImperativeHandle(ref, () => ({ scrollToOffset: rootListScroll.scrollToOffset }))
-      return React.createElement(actual.FlatList, props)
+      const renderSlot = (slot: unknown) => typeof slot === 'function' ? React.createElement(slot as React.ComponentType) : slot as React.ReactNode
+      const children = props.testID === 'habit-list-all' ? <>
+        {renderSlot(props.ListHeaderComponent)}
+        {Array.from(props.data ?? []).map((item, index) => <React.Fragment key={index}>{props.renderItem?.({ item, index, separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} } })}</React.Fragment>)}
+        {!props.data?.length ? renderSlot(props.ListEmptyComponent) : null}
+      </> : props.children
+      return React.createElement(actual.FlatList, props, children)
     }),
   }
 })
@@ -125,6 +133,7 @@ const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const habitListRefetch = vi.fn()
 const deleteMutateAsync = vi.fn()
+const duplicateMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 const bulkDeleteMutateAsync = vi.fn()
 const bulkLogMutateAsync = vi.fn()
@@ -287,9 +296,11 @@ const mockDrillState = {
 }
 let capturedDrillOptions: HabitVisibilityOptions | undefined
 
-vi.mock('react-i18next', async () => {
+vi.mock('react-i18next', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-i18next')>()
   const { default: messages } = await import('@orbit/shared/i18n/en.json')
   return {
+  ...actual,
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => key === 'habits.deleteListConfirmMessage'
       ? messages.habits.deleteListConfirmMessage
@@ -341,7 +352,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
     useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
     useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
-    useDuplicateHabit: () => ({ mutate: vi.fn() }),
+    useDuplicateHabit: () => ({ mutateAsync: duplicateMutateAsync }),
     useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
     useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
   })
@@ -592,6 +603,117 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant)))
+    const query = matchesDescendant ? 'Needle child' : 'zzzz-no-match'
+    const onClearSearch = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeGeneral: true, search: query }}
+        searchQuery={query} showCompleted={false} onCreatePress={vi.fn()} onClearSearch={onClearSearch} />)
+    })
+    const ids = tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+    expect(ids).toEqual(matchesDescendant ? ['general-parent', 'general-match'] : [])
+    if (matchesDescendant) expect(tree!.root.findAllByType(SearchEmpty)).toHaveLength(0)
+    else {
+      expect(tree!.root.findByType(SearchEmpty).props.query).toBe(query)
+      const clear = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'Pressable' && flattenText(node.props.children).includes('common.clear'))[0]!
+      TestRenderer.act(() => clear.props.onPress())
+      expect(onClearSearch).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('loads producer-shaped Todos rows with overdue logging and rescheduling available', async () => {
+    skipFlow.active = true
+    useActualHabitVisibility = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    offlineMocks.apiClient.mockImplementation((url: string) => {
+      const items = url.includes('dateFrom=') ? createHabitViewScheduleItems(TODAY) : createHabitViewItems(TODAY, 'all')
+      return Promise.resolve({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 })
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} /></QueryClientProvider>)
+    })
+    await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)) })
+    const rows = tree!.root.findAllByType(HabitRow)
+    const overdue = rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'overdue')!
+    expect(overdue.props.habit.isOverdue).toBe(true)
+    const logButton = overdue.find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel?.includes('habits.logHabit') === true)
+    expect(logButton.props.disabled).toBe(false)
+    expect(overdue.props.actions.onReschedule).toBeTypeOf('function')
+    expect(rows.some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'future')).toBe(true)
+    await TestRenderer.act(async () => { overdue.props.actions.onLog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue', intent: 'log' })
+    queryClient.clear()
+  })
+
+  it.each(['future', 'future-child'])('withholds current-day Skip from the future recurring Todos row %s', (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />) })
+    const row = tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    TestRenderer.act(() => row.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
+    const skipItems = tree!.root.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))
+    expect(skipItems).toHaveLength(0)
+    expect(row.props.actions.onSkip).toBeUndefined()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each(['parent', 'today-child', 'overdue', 'one-time'])('keeps current-day Skip or postponement available for the Todos row %s', async (id) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
+    const oneTime = createMockHabit({ id: 'one-time', frequencyUnit: null, dueDate: TOMORROW, scheduledDates: [] })
+    mockHabitsData.habitsById.set(oneTime.id, oneTime)
+    mockHabitsData.topLevelHabits.push(oneTime)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />) })
+    await confirmRowSkip(tree, id)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: id, date: TODAY, onUndo: expect.any(Function) })
+  })
+
+  it.each(['all', 'general'] as const)('retains row actions and selection in %s', async (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    const id = view === 'all' ? 'overdue' : 'general'
+    const edit = vi.fn()
+    const detail = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{}} selectedDate={new Date('2000-01-01T12:00:00')} showCompleted onCreatePress={vi.fn()} onEditHabit={edit} onDetailHabit={detail} />) })
+    const row = () => tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    await TestRenderer.act(async () => { row().props.actions.onLog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'log' })
+    await TestRenderer.act(async () => { row().props.actions.onUnlog(); await Promise.resolve() })
+    expect(logMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'unlog' })
+    TestRenderer.act(() => { row().props.actions.onToggleSelection(); row().props.actions.onEdit(); row().props.actions.onDetail() })
+    expect(toggleSelectionCascade).toHaveBeenCalledWith(id, expect.any(Function))
+    expect(edit).toHaveBeenCalledWith(expect.objectContaining({ id }), undefined)
+    expect(detail).toHaveBeenCalledWith(expect.objectContaining({ id }))
+    await TestRenderer.act(async () => { row().props.actions.onDuplicate(); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.duplicateConfirm'); await Promise.resolve() })
+    expect(duplicateMutateAsync).toHaveBeenCalledWith(id)
+    if (view === 'all') {
+      await confirmRowSkip(tree, id)
+      expect(skipMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: id }))
+    }
+    await TestRenderer.act(async () => { row().props.actions.onDelete(); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.deleteHabit'); await Promise.resolve() })
+    expect(deleteMutateAsync).toHaveBeenCalledWith(id)
+  })
+
+  it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
+    useActualHabitVisibility = true
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(HABIT_VIEW_ROW_ORDER[view])
+  })
+
   beforeEach(() => {
     listQueryState.isLoading = false
     listQueryState.isError = false
@@ -1387,7 +1509,7 @@ describe('HabitList', () => {
   })
 
   it('skips a recurring habit immediately', async () => {
-    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
+    const habit = createMockHabit({ id: 'habit-1', title: 'Exercise', scheduledDates: [TODAY] })
     seedHabits([habit])
 
     let tree: any
@@ -3109,8 +3231,8 @@ describe('HabitList', () => {
       scheduledDates: [TODAY, TOMORROW],
       instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
-    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent' })
-    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent' })
+    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent', scheduledDates: [TODAY] })
+    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent', scheduledDates: [TODAY] })
     seedHabits([parent, childA, childB])
 
     let tree: any

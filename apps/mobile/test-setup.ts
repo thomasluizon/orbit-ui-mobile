@@ -35,6 +35,7 @@ vi.mock('expo-secure-store', () => {
 })
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('expo-updates', () => ({ isEnabled: false }))
 
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 

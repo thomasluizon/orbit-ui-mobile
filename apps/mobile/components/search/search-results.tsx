@@ -36,14 +36,14 @@ export function Searching() {
   </View>
 }
 
-export function SearchEmpty({ query, onCreate }: Readonly<{ query: string; onCreate: () => void }>) {
+export function SearchEmpty({ query, onCreate, onClearSearch }: Readonly<{ query: string; onCreate?: () => void; onClearSearch?: () => void }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View style={styles.empty}>
     <Text style={[styles.name, { color: tokens.fg1 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query }} components={{ queryText: <Text /> }} /></Text>
     <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.emptyBody')}</Text>
-    <Button size="sm" onClick={onCreate}>{t('habits.search.create')}</Button>
+    <Button size="sm" onClick={onClearSearch ?? onCreate}>{t(onClearSearch ? 'common.clear' : 'habits.search.create')}</Button>
   </View>
 }
 

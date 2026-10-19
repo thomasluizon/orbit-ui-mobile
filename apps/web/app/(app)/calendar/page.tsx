@@ -2,6 +2,7 @@
 
 import { PADDING, } from '@orbit/shared/theme'
 
+import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 
 import { PersonalText } from '@/components/ui/personal-text'
@@ -752,7 +753,7 @@ function CalendarPageContent({
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
-          initialEventId={initialImportEventId}
+          initialEventId={calendarImportInitialEventId(importRequested, searchParams.get('event'), initialImportEventId)}
           actionRef={importActionRef}
           onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}

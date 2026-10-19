@@ -4,7 +4,7 @@ import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import type {
   OrbitWidgetModuleType,
-  WidgetThemeColors,
+  RedesignWidgetThemeColors,
   WidgetThemePreferences,
 } from '../modules/orbit-widget/src/OrbitWidget.types'
 import { createTokensV2, type AppTokensV2 } from './theme'
@@ -54,7 +54,7 @@ export async function clearWidgetToken(): Promise<void> {
 export function toWidgetColors(
   tokens: AppTokensV2,
   mode: ThemeMode,
-): WidgetThemeColors {
+): RedesignWidgetThemeColors {
   const generated = widgetColorPalette[mode]
   return {
     background: generated.card,
@@ -78,7 +78,7 @@ export function toWidgetThemePreferences(
   const preferences = {} as WidgetThemePreferences
   for (const mode of modes) {
     const colors = toWidgetColors(createTokensV2(colorScheme, mode), mode)
-    for (const key of Object.keys(colors) as (keyof WidgetThemeColors)[]) {
+    for (const key of Object.keys(colors) as (keyof RedesignWidgetThemeColors)[]) {
       preferences[`${mode}_${key}`] = colors[key]
     }
   }

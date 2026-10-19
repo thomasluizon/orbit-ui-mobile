@@ -10,6 +10,7 @@ import {
   fetchAllPaginatedItems,
   habitListQueryFilters,
   normalizeHabitQueryData,
+  loadHabitListSchedule,
   shouldFetchAllHabitPages,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
@@ -52,19 +53,24 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean } = {}) {
+export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean; scheduleDate?: string } = {}) {
   const completeDay = options.completeDay ?? false
   const queryClient = useQueryClient()
+  const scheduleDate = filters.dateFrom || filters.isGeneral ? undefined : options.scheduleDate
   const query = useQuery({
-    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay)),
+    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
+      const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate,
+        async (scheduleFilters) => habitPageSchema.parse(await fetchJson<unknown>(
+          buildUrlWithQuery(API.habits.list, buildHabitQueryString(scheduleFilters)),
+        )))
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = habitPageSchema.parse(await fetchJson<unknown>(firstQuery))
 
       if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-        return firstPage.items
+        return enrichSchedule(firstPage.items)
       }
 
       const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
@@ -77,7 +83,7 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-      return deduplicateHabitList(items)
+      return enrichSchedule(deduplicateHabitList(items))
     },
     staleTime: QUERY_STALE_TIMES.habits,
     initialData: initialItems,

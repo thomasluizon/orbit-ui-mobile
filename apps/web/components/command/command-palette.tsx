@@ -13,6 +13,7 @@ import {
 } from 'react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
+import type { ActiveView } from '@orbit/shared/stores'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { ShellDestinationId } from '@orbit/shared/utils'
 import type { IconProps } from '@/components/ui/icons'
@@ -40,7 +41,7 @@ function CommandPaletteLoadFailure({ onLoadFailure }: Readonly<{ onLoadFailure: 
 }
 
 export interface CommandNavigationItem {
-  id: ShellDestinationId
+  id: ShellDestinationId | ActiveView
   label: string
   icon: ComponentType<IconProps>
   onSelect: () => void

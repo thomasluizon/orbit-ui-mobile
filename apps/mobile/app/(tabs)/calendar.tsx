@@ -1,4 +1,5 @@
 import { PADDING, SPACING } from '@orbit/shared/theme'
+import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars';
 import { CalendarOptions } from './calendar/_components/calendar-options';
@@ -243,7 +244,7 @@ function CalendarScreenContent({
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, []));
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string; import?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; import?: string; event?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
   const { displayTime } = useTimeFormat();
@@ -810,7 +811,7 @@ function CalendarScreenContent({
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
-          initialEventId={initialImportEventId}
+          initialEventId={calendarImportInitialEventId(importRequested, params.event ?? null, initialImportEventId)}
           actionRef={importActionRef}
           onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}

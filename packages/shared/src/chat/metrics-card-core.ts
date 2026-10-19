@@ -21,3 +21,18 @@ export function getMetricsRows(card: MetricsCard): readonly MetricsRow[] {
     { id: 'topHabit', labelKey: 'chat.metrics.topHabit', value: card.topHabitName ?? null },
   ]
 }
+
+export function metricsFigureLabelKey(id: string, labelKey: string): string {
+  const keys: Readonly<Record<string, string>> = {
+    completionRate: 'progressScreen.window.completionRate', activeDays: 'progressScreen.window.activeDays',
+    currentStreak: 'chat.streakCard.current', bestStreak: 'progressScreen.streak.longest',
+  }
+  return keys[id] ?? labelKey
+}
+
+export function liveMetricsCard(snapshot: MetricsCard, habit: import('../types/habit').HabitMetrics | undefined, recap: import('../types/gamification').Recap | undefined): MetricsCard {
+  if (snapshot.habitId) return habit ? { ...snapshot, ...habit, hasData: habit.totalCompletions > 0, bestStreak: habit.longestStreak } : snapshot
+  if (!recap) return snapshot
+  const metrics = recap.metrics
+  return { ...snapshot, ...metrics, hasData: metrics.totalScheduled > 0 || metrics.totalCompletions > 0 || metrics.activeDays > 0 || metrics.badHabitSlips > 0, series: metrics.completionSeries, topHabitName: metrics.topHabits[0]?.name }
+}

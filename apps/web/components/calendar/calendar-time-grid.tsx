@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -225,10 +225,14 @@ export function CalendarTimeGrid({
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
   const hasMovedGrid = useRef(false)
+  const openingScroll = useRef({ top: 0, left: 0 })
   useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const open = () => {
+      if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+        || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -252,6 +256,7 @@ export function CalendarTimeGrid({
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
         node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
       }
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) hasMovedGrid.current = true
@@ -298,11 +303,17 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
+          onScroll={(event) => {
+            const node = event.currentTarget
+            if (isCalendarGridScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+              || isCalendarGridScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+            openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+          }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div

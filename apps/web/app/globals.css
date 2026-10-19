@@ -1443,6 +1443,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* WHY: The proactive line's section clearance follows text zoom, while its gutter stays fixed. https://github.com/thomasluizon/orbit-tickets/issues/1409 */
 .today-proactive-date-group {
+  gap: var(--padding-section-gap);
+}
+
+.today-proactive-date-group:has(.today-astra-line) {
   gap: calc(var(--padding-section-gap) * (1rem / 16px));
 }
 
