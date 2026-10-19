@@ -21,6 +21,7 @@ export function RadioGlyph({
 }: Readonly<{ selected: boolean; size: number; tokens: AppTokensV2; pressed?: boolean }>) {
   return (
     <View
+      data-slot="list-row-trailing"
       style={[
         styles.glyph,
         { width: size, height: size },
@@ -64,9 +65,9 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     const optionColor = proposed ? secondaryColor : labelColor
     return (
       <>
-        {leading ? <View style={styles.leading}>{leading}</View> : null}
+        {leading ? <View data-slot="list-row-icon" style={styles.leading}>{leading}</View> : null}
         <View style={styles.textBlock}>
-          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
+          {textMode === 'personal' ? <PersonalText data-slot="list-row-title" expanded={disabled ? disclosed : selected} style={[styles.label, { color: personalColor, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text data-slot="list-row-title" style={[styles.label, { color: optionColor }, wrappingStyle]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>

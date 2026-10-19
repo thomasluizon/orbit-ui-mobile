@@ -13,6 +13,7 @@ const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
 export function RadioGlyph({ selected, size, proposed = false }: Readonly<{ selected: boolean; size: number; proposed?: boolean }>) {
   return (
     <span
+      data-slot="list-row-trailing"
       aria-hidden="true"
       className="inline-flex items-center justify-center rounded-full shrink-0"
       style={{
@@ -42,9 +43,9 @@ function RadioRowContent({ label, selection, hideMeta, wrapLabel, textMode, desc
   const optionColor = proposed ? 'var(--radio-row-secondary,var(--fg-3))' : selectionColor
   return (
     <>
-      {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
+      {leading ? <span data-slot="list-row-icon" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
-        {textMode === 'personal' ? <PersonalText id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: personalColor, fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span style={{ color: optionColor, fontFamily: 'var(--font-sans)', ...radioLabelStyle(wrapLabel) }}>{label}</span>}
+        {textMode === 'personal' ? <PersonalText data-slot="list-row-title" id={contentId} expanded={disabled ? disclosed : selected} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) event.stopPropagation() }} style={{ color: personalColor, fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.4 }}>{label}</PersonalText> : <span data-slot="list-row-title" style={{ color: optionColor, fontFamily: 'var(--font-sans)', ...radioLabelStyle(wrapLabel) }}>{label}</span>}
         {description ? <span className="orbit-radio-row-secondary" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
         {disabled && reason ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
       </span>
