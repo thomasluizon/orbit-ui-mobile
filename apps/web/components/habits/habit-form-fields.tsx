@@ -290,7 +290,7 @@ export function HabitFormFields({
   const checklistItems = watch('checklistItems') ?? []
   const isBadHabit = watch('isBadHabit') ?? false
   const slipAlertEnabled = watch('slipAlertEnabled') ?? false
-  const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
+  const canUseSubHabits = isFeatureEnabled(config, 'sub_habits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const detailsId = useId()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)

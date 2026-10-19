@@ -24,11 +24,11 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 function mount() {
   return renderHook(() => ({
-    ...useConfig(), enabled: useFlag('analytics'), unknown: useFlag('unknown'), defaultFlag: useFlag('habits.create'),
+    ...useConfig(), enabled: useFlag('redesign'), missing: useFlag('ai_summary'), defaultFlag: useFlag('sub_habits'),
   }), { wrapper: Wrapper })
 }
 function respond(enabled: boolean) {
-  mocks.fetch.mockResolvedValue(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled, planRequirement: null } }))))
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled, planRequirement: null } }))))
 }
 
 beforeEach(() => {
@@ -49,12 +49,12 @@ afterEach(() => {
 })
 
 describe('web config and flags', () => {
-  it.each([true, false])('returns the resolved flag %s and keeps unknown flags off', async (enabled) => {
+  it.each([true, false])('returns the resolved flag %s and keeps absent flags off', async (enabled) => {
     respond(enabled)
     const { result } = mount()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.enabled).toBe(enabled)
-    expect(result.current.unknown).toBe(false)
+    expect(result.current.missing).toBe(false)
   })
 
   it('publishes config after slow session recovery through the redesign fetch adapter', async () => {
@@ -64,7 +64,7 @@ describe('web config and flags', () => {
     useAuthStore.setState({ sessionRefreshFailed: true })
     mocks.fetch.mockImplementation(actual.sessionAwareFetch)
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      if (input === API.config.get) return Response.json(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))
+      if (input === API.config.get) return Response.json(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))
       if (input === '/api/auth/session') {
         await new Promise((resolve) => setTimeout(resolve, 1_200))
         return Response.json({ expiresAt, userId: null, refreshFailed: false })
@@ -137,15 +137,15 @@ describe('web config and flags', () => {
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
 
     await act(async () => {
-      finishNewer(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled: false, planRequirement: null } }))))
+      finishNewer(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: false, planRequirement: null } }))))
     })
     await waitFor(() => { expect(result.current.enabled).toBe(false); expect(result.current.isFetching).toBe(false) })
     await act(async () => {
-      finishOlder(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } }))))
+      finishOlder(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } }))))
     })
 
     expect(result.current.enabled).toBe(false)
-    expect(result.current.resolvedConfig?.features.analytics?.enabled).toBe(false)
+    expect(result.current.resolvedConfig?.features.redesign?.enabled).toBe(false)
   })
 
   it('refreshes on window focus even while config is fresh', async () => {
@@ -221,7 +221,7 @@ describe('web config and flags', () => {
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalled())
     mocks.fetch.mockRejectedValue(new Error('offline'))
     act(() => { setAccountId('account-b') })
-    await act(async () => { finish(new Response(JSON.stringify(createMockConfigResponse({ analytics: { enabled: true, planRequirement: null } })))) })
+    await act(async () => { finish(new Response(JSON.stringify(createMockConfigResponse({ redesign: { enabled: true, planRequirement: null } })))) })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.enabled).toBe(false)
   })

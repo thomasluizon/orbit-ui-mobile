@@ -28,7 +28,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: true, timeZone: 'UTC' } }),
 }))
 vi.mock('@/hooks/use-config', () => ({
-  useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
+  useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
 vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useTags: () => ({ tags: [] }),

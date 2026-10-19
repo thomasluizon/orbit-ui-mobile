@@ -1,9 +1,9 @@
-import type { AppConfig, FeatureFlag } from '../types/config'
+import type { AppConfig, FeatureFlag, FeatureKey } from '../types/config'
 import type { PlanType } from '../types/profile'
 
 export function isFeatureEnabled(
   config: AppConfig,
-  key: string,
+  key: FeatureKey,
   userPlan: PlanType,
 ): boolean {
   const flag: FeatureFlag | undefined = config.features[key]
@@ -18,7 +18,7 @@ export function isFeatureEnabled(
   return userPlan === 'pro'
 }
 
-export function resolveFlag(config: AppConfig | undefined, key: string): boolean {
+export function resolveFlag(config: AppConfig | undefined, key: FeatureKey): boolean {
   return config !== undefined
     && Object.hasOwn(config.features, key)
     && config.features[key]?.enabled === true
