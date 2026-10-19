@@ -287,6 +287,23 @@ describe('interaction clearance inspector in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([
+    { clip: 'clip-path: inset(50%)', visible: false },
+    { clip: 'clip: rect(0, 0, 0, 0)', visible: false },
+    { clip: 'clip: rect(0, 89px, 20px, 0)', visible: true },
+  ])('measures clipped graphics only when their ancestor leaves visible ink ($clip)', async ({ clip, visible }) => {
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        await page.setContent(`<style>
+          body { margin: 32px } button { width: 48px; height: 48px; border: 0; outline: none; background: gray }
+          span { position: absolute; width: ${visible ? 100 : 1}px; height: ${visible ? 24 : 1}px; overflow: hidden; ${clip} }
+        </style><span><svg width="89" height="20"><path d="M0 0h89v20H0z" /></svg></span><button>Toggle</button>`)
+        const result = await page.getByRole('button').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+        expect(result.hasFill).toBe(true)
+        expect(result.violations).toEqual(visible ? [{ neighbour: 'svg[]', distance: 0 }] : [])
+      } finally { await page.close() }
+  })
+
   it('rejects a fill approaching a painted static neighbour with no text', async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {

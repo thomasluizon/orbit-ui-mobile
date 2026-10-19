@@ -1,4 +1,8 @@
-export function inspectInteractionFill(element: Element, clearance: number) {
+export function inspectInteractionFill(control: Element, clearance: number) {
+  function paintOwner(control: Element) {
+    return control.matches('[data-composer-input-row] > textarea[data-composer-input]') ? control.parentElement! : control
+  }
+  const element = paintOwner(control)
   const pixels = (value: string) => Number.parseFloat(value) || 0
   const transparent = (value: string) => value === 'transparent' || /^rgba\([^)]*,\s*0(?:\.0+)?\)$/.test(value) || /\/\s*0(?:\.0+)?\)$/.test(value)
   const painted = (style: CSSStyleDeclaration) => !transparent(style.backgroundColor) || style.backgroundImage !== 'none'
@@ -9,8 +13,11 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     if (!node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false
     const box = node.getBoundingClientRect()
     if (box.width <= 1 || box.height <= 1 || box.right <= 0 || box.left >= innerWidth || box.bottom <= 0 || box.top >= innerHeight) return false
-    const style = getComputedStyle(node)
-    return style.clipPath !== 'inset(50%)' && !(style.position === 'absolute' && style.clip !== 'auto')
+    for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor)
+      if (style.clipPath === 'inset(50%)' || style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)') return false
+    }
+    return true
   }
   const clipTextRect = (rect: DOMRect, parent: Element) => {
     let { left, right, top, bottom } = rect
@@ -121,5 +128,5 @@ export function inspectInteractionFill(element: Element, clearance: number) {
       return !(containedCell && outsideCell) && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
     })
   }) : []
-  return { control: name(element), fill, hasFill, violations: [...violations, ...boundaryViolations()] }
+  return { control: name(control), fill, hasFill, violations: [...violations, ...boundaryViolations()] }
 }

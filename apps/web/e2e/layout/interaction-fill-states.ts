@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { inspectInteractionFill } from './interaction-fill-geometry'
 import { settleAnimations } from './settle-animations'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const ACTION_TIMEOUT_MS = 2000
 
@@ -24,16 +26,24 @@ async function runAction<Result>(context: string, state: string, action: () => P
 async function reachedControl(page: Page, control: Locator, context: string) {
   const retainsFocus = await runAction(context, 'read active control', () => control.evaluate((element) => document.activeElement === element, undefined, { timeout: ACTION_TIMEOUT_MS }), true)
   if (retainsFocus) return control
-  expect(await runAction(context, 'read transferred control visibility', () => control.isVisible()), `${context} lost focus without entering another layer`).toBe(false)
+  const stillVisible = await runAction(context, 'read transferred control visibility', async () => await control.isVisible() && await inViewport(control))
+  expect(stillVisible, `${context} lost focus without entering another layer`).toBe(false)
   const focused = page.locator(':focus:visible')
-  expect(await runAction(context, 'read reached control', () => focused.count()), context).toBe(1)
+  await runAction(context, 'wait for reached control', () => expect(focused, context).toHaveCount(1, { timeout: ACTION_TIMEOUT_MS }))
   return focused
 }
 
-async function dismissEnteredOverlay(page: Page, overlays: Locator, existing: number, context: string) {
-  if (await runAction(context, 'read entered overlays', () => overlays.count()) <= existing) return
-  await runAction(context, 'dismiss entered overlay', () => page.keyboard.press('Escape'))
-  await runAction(context, 'wait for overlay dismissal', () => expect(overlays).toHaveCount(existing, { timeout: ACTION_TIMEOUT_MS }))
+async function dismissEnteredOverlay(page: Page, overlays: Locator, existing: { overlays: number; conversations: number }, context: string) {
+  if (await runAction(context, 'read entered overlays', () => overlays.count()) <= existing.overlays) return
+  const conversation = page.locator('[data-shell-conversation]:visible')
+  if (await runAction(context, 'read entered conversations', () => conversation.count()) > existing.conversations) {
+    const close = conversation.getByRole('button', { name: en.common.closeConversation, exact: true })
+      .or(conversation.getByRole('button', { name: ptBR.common.closeConversation, exact: true }))
+    await runAction(context, 'close entered conversation', () => close.click({ timeout: ACTION_TIMEOUT_MS }))
+  } else {
+    await runAction(context, 'dismiss entered overlay', () => page.keyboard.press('Escape'))
+  }
+  await runAction(context, 'wait for overlay dismissal', () => expect(overlays).toHaveCount(existing.overlays, { timeout: ACTION_TIMEOUT_MS }))
 }
 
 async function inViewport(control: Locator, fully = false) {
@@ -60,7 +70,9 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
   }, undefined, { timeout: ACTION_TIMEOUT_MS }))
   context = `${context}, ${name}`
   const overlays = page.locator('[role="menu"]:visible, [role="dialog"]:visible, [role="listbox"]:visible')
-  const existingOverlays = await runAction(context, 'read overlays', () => overlays.count())
+  const existingOverlays = await runAction(context, 'read overlays', async () => ({
+    overlays: await overlays.count(), conversations: await page.locator('[data-shell-conversation]:visible').count(),
+  }))
   await runAction(context, 'scroll into view', () => control.scrollIntoViewIfNeeded({ timeout: ACTION_TIMEOUT_MS }))
   if (await runAction(context, 'read pointer bounds', () => inViewport(control))) {
     await runAction(context, 'hover', () => control.hover({ timeout: ACTION_TIMEOUT_MS }))
@@ -75,9 +87,13 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
       await dismissEnteredOverlay(page, overlays, existingOverlays, context)
     }
   }
+  await runAction(context, 'restore control before keyboard focus', () => control.scrollIntoViewIfNeeded({ timeout: ACTION_TIMEOUT_MS }))
   await runAction(context, 'reset pointer focus', () => control.blur({ timeout: ACTION_TIMEOUT_MS }))
   await runAction(context, 'keyboard modality', () => page.keyboard.press('Shift'))
-  await runAction(context, 'focus-visible', () => control.focus({ timeout: ACTION_TIMEOUT_MS }))
+  await runAction(context, 'focus-visible', () => expect.poll(async () => {
+    await control.focus({ timeout: ACTION_TIMEOUT_MS })
+    return page.locator(':focus:visible').count()
+  }, { message: context, timeout: ACTION_TIMEOUT_MS }).toBe(1))
   const focused = await reachedControl(page, control, context)
   await runAction(context, 'focus-visible bounds', async () => {
     await focused.evaluate(settleAnimations, undefined, { timeout: ACTION_TIMEOUT_MS })
