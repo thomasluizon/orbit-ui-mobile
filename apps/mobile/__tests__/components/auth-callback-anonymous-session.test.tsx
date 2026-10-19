@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { AUTH_BACKEND_ERROR_MAP } from '@orbit/shared/utils'
@@ -16,6 +16,7 @@ import { EmailStep } from '@/components/auth/email-step'
 import { CodeStep } from '@/components/auth/code-step'
 import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
 import { useLoginFlow } from '@/app/use-login-flow'
+import { setAccountId } from '@/lib/account-scope'
 import { useConfig } from '@/hooks/use-config'
 import { apiClient } from '@/lib/api-client'
 import * as authSession from '@/stores/auth-store'
@@ -139,14 +140,17 @@ beforeEach(async () => {
   vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
   vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', '')
   await clearAllTokens()
+  setAccountId(null)
   await AsyncStorage.clear()
   await clearPendingGoogleAuthSession()
   useAuthStore.setState({ sessionPhase: 'signed-out', isAuthenticated: false, isLoading: false, user: null, expiresAt: null })
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   mocks.referral.mockResolvedValue(null)
-  mocks.fetch.mockImplementation((url: string) => {
+  mocks.fetch.mockImplementation((url: string, options?: RequestInit) => {
     const path = new URL(url).pathname
-    if (path === API.config.get) return Promise.resolve(new Response(null, { status: 401 }))
+    if (path === API.config.get) return Promise.resolve(new Headers(options?.headers).has('Authorization')
+      ? new Response(JSON.stringify(createMockConfigResponse()))
+      : new Response(null, { status: 401 }))
     if (path === API.auth.sendCode) return Promise.resolve(new Response('{}'))
     if (path === API.auth.verifyCode) {
       const error = Object.entries(AUTH_BACKEND_ERROR_MAP).find(([, key]) => key === 'auth.errors.invalidCode')?.[0]
@@ -192,22 +196,22 @@ it.each([1, 2])('completes one Google exchange after %i foreground checks while 
   expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
 })
 
-it('keeps the config defaults and onboarding destination after an anonymous config 401', async () => {
+it('keeps config defaults without fetching before authentication', async () => {
   let config: ReturnType<typeof useConfig> | undefined
   function ConfigProbe() { config = useConfig(); return null }
   const generation = getSessionGeneration()
   await mount(<ConfigProbe />)
-  await vi.waitFor(() => expect(config?.isPlaceholderData).toBe(false))
+  await vi.waitFor(() => expect(config?.fetchStatus).toBe('idle'))
 
   expect(config?.config).toEqual(DEFAULT_CONFIG)
-  expect(requestCount(API.config.get)).toBe(1)
+  expect(requestCount(API.config.get)).toBe(0)
   expect(requestCount(API.auth.refresh)).toBe(0)
   expect(mocks.replace).not.toHaveBeenCalled()
   expect(getSessionGeneration()).toEqual(generation)
   expectNoTeardown()
 })
 
-it('survives both the anonymous config 401 and foreground check during the same Google callback', async () => {
+it('defers config fetching during an anonymous Google callback and foreground check', async () => {
   let releaseReferral!: (code: null) => void
   mocks.referral.mockReturnValue(new Promise<null>((resolve) => { releaseReferral = resolve }))
   const attemptId = createAuthReturnUrlAttempt()
@@ -215,7 +219,7 @@ it('survives both the anonymous config 401 and foreground check during the same 
   setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=one-use&state=state`, attemptId)
   function ConfigProbe() { useConfig(); return null }
   await mount(<><ConfigProbe /><AuthCallbackScreen /></>)
-  await vi.waitFor(() => expect(queryClient.getQueryCache().getAll()[0]?.state.status).toBe('success'))
+  await vi.waitFor(() => expect(requestCount(API.config.get)).toBe(0))
   await TestRenderer.act(async () => {
     await reconcileSessionOnForeground()
     releaseReferral(null)

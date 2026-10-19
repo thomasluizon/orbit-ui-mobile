@@ -300,6 +300,27 @@ export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig 
 }
 
 
+interface MockConfigResponse {
+  limits: Record<string, string>
+  features: AppConfig['features']
+  settings: AppConfig['settings']
+  minVersion: string
+}
+
+// WHY: https://github.com/thomasluizon/orbit-api/blob/1b886bdfe11bce7248d1bade793b703e6e374343/src/Orbit.Api/Controllers/ConfigController.cs#L20-L35 and src/Orbit.Infrastructure/Services/AppConfigService.cs#L38-L54 define the wire response, including string-valued limits.
+export function createMockConfigResponse(
+  features: AppConfig['features'] = { analytics: { enabled: false, planRequirement: null } },
+  limits: Record<string, string> = {},
+): MockConfigResponse {
+  return {
+    limits: { MaxHabitDepth: '5', MaxTagsPerHabit: '5', MaxReferrals: '10', ReferralRewardDays: '10', ...limits },
+    features,
+    settings: { syncIntervalSeconds: 300, syncMaxBatchSize: 100 },
+    minVersion: '0.0.0',
+  }
+}
+
+
 export function createMockRetrospectiveMetrics(
   overrides: Partial<RetrospectiveMetrics> = {},
 ): RetrospectiveMetrics {

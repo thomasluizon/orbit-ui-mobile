@@ -1,3 +1,4 @@
+import { configCache } from '@/lib/config-cache'
 import { create } from 'zustand'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
@@ -195,6 +196,7 @@ async function clearSessionCredentials(
     clearStepUpState()
     advanceSessionEpoch()
     credentialVersion += 1
+    configCache.setAccount(null)
     resetPostHogUser()
     useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     useAuthStore.setState({
@@ -271,21 +273,6 @@ export type RefreshSessionOutcome =
   | { status: 'network-error' }
   | { status: 'superseded' }
 
-function isTransientNetworkError(error: unknown): boolean {
-  if (error instanceof TypeError) return true
-  if (!(error instanceof Error)) return false
-
-  const message = error.message.toLowerCase()
-  return (
-    message.includes('network request failed') ||
-    message.includes('network error') ||
-    message.includes('failed to fetch') ||
-    message.includes('fetch failed') ||
-    message.includes('load failed') ||
-    message.includes('timed out')
-  )
-}
-
 async function classifyRejectedRefresh(
   response: Response,
   ownership: SessionSnapshot,
@@ -316,27 +303,30 @@ async function rotateSessionToken(
   }
   const currentUser = useAuthStore.getState().user
 
-  let response: Response
+  let data: RefreshResponse
+  const controller = new AbortController()
+  // WHY: https://github.com/thomasluizon/orbit-tickets/issues/1525 accepts a server-committed rotation whose response exceeds the ceiling.
+  const transportTimeout = setTimeout(() => controller.abort(), 60_000)
   try {
-    response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
+    const response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept-Language': i18n.language },
       body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
     })
-  } catch (error: unknown) {
     if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
-    if (!isTransientNetworkError(error)) {
-      return { status: 'unauthorized' }
+    if (!response.ok) {
+      return await classifyRejectedRefresh(response, ownership)
     }
+    data = (await response.json()) as RefreshResponse
+  } catch {
+    if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     return { status: 'network-error' }
+  } finally {
+    clearTimeout(transportTimeout)
   }
 
   if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
-  if (!response.ok) {
-    return classifyRejectedRefresh(response, ownership)
-  }
-
-  const data = (await response.json()) as RefreshResponse
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
   const published = await withCredentialMutationLock(async () => {
     if (!isCurrentCredentialObservation(ownership)) return false
@@ -376,8 +366,19 @@ async function runRefreshSession(): Promise<RefreshSessionOutcome> {
   }
 }
 
-export function refreshSession(): Promise<RefreshSessionOutcome> {
-  return refreshSessionInFlight ??= runRefreshSession()
+export async function refreshSession(): Promise<RefreshSessionOutcome> {
+  const rotation = refreshSessionInFlight ??= runRefreshSession()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      rotation,
+      new Promise<RefreshSessionOutcome>((resolve) => {
+        timeout = setTimeout(() => resolve({ status: 'network-error' }), 10_000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 /**
@@ -450,6 +451,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const loginSession = await withCredentialMutationLock(async () => {
         if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
         await clearPendingGoogleAuthSessionForLogin()
+        if (configCache.getSnapshot().accountId !== user.userId) configCache.setAccount(null)
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -461,6 +463,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         clearPendingNotificationDeletes()
         advanceSessionEpoch()
         credentialVersion += 1
+        configCache.setAccount(user.userId)
         set({
           ...deriveSessionPhase('establishing'),
           user,
