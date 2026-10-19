@@ -589,6 +589,7 @@ export {
   getTomorrowDateString,
   optimisticPatchHabit,
   optimisticRemoveHabits,
+  optimisticSetDatedCompletion,
   withChildren,
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'

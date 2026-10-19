@@ -16,7 +16,7 @@ for (const width of [412, 600, 1352]) {
       const messages = locale === 'en' ? en : pt
       test.describe(`${scenario.kind} block spacing at ${width} in ${locale}`, () => {
         test.use({ appLocale: locale, viewport: { width, height: 915 },
-          layoutProfile: profileSchema.parse({ ...profileFixture, language: locale, aiMessagesUsed: 0 }) })
+          layoutProfile: profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, aiMessagesUsed: 0 }) })
 
         test('keeps turns and blocks 16 apart and fills the composer column', async ({ page, context }) => {
           let prose = true

@@ -280,3 +280,5 @@ describe('Pending preview geometry in Chromium', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 })
+
+vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
