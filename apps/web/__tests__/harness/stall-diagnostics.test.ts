@@ -9,7 +9,7 @@ const directories: string[] = []
 const webRoot = path.resolve(import.meta.dirname, '../..')
 const repositoryRoot = path.resolve(webRoot, '../..')
 
-async function runFixture(source: string, environment?: string, reporterOverride = false) {
+async function runFixture(source: string, environment?: string, reporterOverride = false, phaseTimeoutMs = 2000) {
   const directory = await mkdtemp(path.join(webRoot, '.tmp-vitest-stall-'))
   directories.push(directory)
   await writeFile(path.join(directory, 'stalled.test.ts'), source)
@@ -20,7 +20,7 @@ async function runFixture(source: string, environment?: string, reporterOverride
   await writeFile(path.join(directory, 'vitest.config.mts'), `
     import webConfig from ${JSON.stringify(path.join(webRoot, 'vitest.config.ts'))}
     import { createStallDiagnostics } from ${JSON.stringify(path.join(webRoot, '__tests__/support/stall-diagnostics.ts'))}
-    const diagnostics = createStallDiagnostics(2000)
+    const diagnostics = createStallDiagnostics(${phaseTimeoutMs})
     export default {
       ...webConfig,
       test: {
@@ -106,5 +106,14 @@ it('names a test body even when its event loop is blocked', async () => {
   expect(result.killed).toBe(false)
   expect(result.code).toBe(1)
   expect(result.output).toContain('stalled.test.ts > test body: blocked body')
+  expect(result.output).toContain('unfinished')
+}, 15_000)
+
+it('fails unfinished worker shutdown before the normal Vitest exit deadline', async () => {
+  const result = await runFixture(`import { it } from 'vitest'
+    it('passed before shutdown', () => {})`, './environment.mjs', false, 90_000)
+  expect(result.killed).toBe(false)
+  expect(result.code).toBe(1)
+  expect(result.output).toContain('stalled.test.ts > teardown')
   expect(result.output).toContain('unfinished')
 }, 15_000)

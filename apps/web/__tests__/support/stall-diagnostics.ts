@@ -54,18 +54,19 @@ class BoundedFork extends ForksPoolWorker {
     this.warningTimer = setTimeout(() => {
       this.options.project.vitest.logger.error(this.describe('still running'))
     }, Math.min(10_000, this.timeoutMs / 2)).unref()
-    this.failureTimer = setTimeout(() => this.fail(), this.timeoutMs).unref()
+    const timeoutMs = this.stopping ? Math.min(this.timeoutMs, 5000) : this.timeoutMs
+    this.failureTimer = setTimeout(() => this.fail(timeoutMs), timeoutMs).unref()
   }
 
   private describe(status: string): string {
     return `[vitest phase] ${status}: [${this.options.project.name}] ${this.files.join(', ')} > ${this.phase}`
   }
 
-  private fail(): void {
+  private fail(timeoutMs: number): void {
     this.failed = true
     process.exitCode = 1
     this.clearTimers()
-    const error = new Error(this.describe(`unfinished after ${this.timeoutMs}ms`))
+    const error = new Error(this.describe(`unfinished after ${timeoutMs}ms`))
     this.options.project.vitest.logger.error(error.message)
     if (this.stopping) {
       const response: WorkerResponse = { __vitest_worker_response__: true, type: 'stopped', error }
