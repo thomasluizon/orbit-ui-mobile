@@ -478,6 +478,8 @@ export {
   getNotificationDestination,
   getNotificationTargetKey,
   getNotificationInboxState,
+  isRetiredNotification,
+  RETIRED_NOTIFICATION_URL_PREFIXES,
   isViewableNotificationUrl,
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
