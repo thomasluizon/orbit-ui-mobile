@@ -33,7 +33,14 @@ for (const locale of ['pt-BR', 'en'] as const) {
         const back = page.getByRole('button', { name: words.common.back, exact: true })
         await expect(back).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
-        const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)
+        // WHY: #1570 measures child insets from the centred frame inside the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
+        const frame = await list.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
+          const left = scroller.getBoundingClientRect().left
+          return { left: bounds.left, before: bounds.left - left, after: left + scroller.clientWidth - bounds.right }
+        })
+        expect(Math.abs(frame.before - frame.after)).toBeLessThanOrEqual(0.5)
         const columnWidth = await back.evaluate((element) => element.closest('header')!.getBoundingClientRect().width)
         const contentWidth = width < 1024 ? columnWidth - 32 : Math.min(columnWidth - 32, 560)
         for (const row of [list.getByRole('listitem').first(), list.getByRole('listitem').last()]) {
@@ -41,7 +48,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             const rectangle = element.getBoundingClientRect()
             return { left: rectangle.left, width: rectangle.width }
           })
-          expect(Math.abs(bounds.left - backLeft - 8)).toBeLessThanOrEqual(0.5)
+          expect(Math.abs(bounds.left - frame.left - 16)).toBeLessThanOrEqual(0.5)
           expect(bounds.width).toBeCloseTo(contentWidth, 0)
         }
       })
