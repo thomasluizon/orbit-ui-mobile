@@ -18,6 +18,7 @@ export * from './composer-recording-core'
 
 export * from './backend-field-errors-core'
 export * from './toast-lifecycle-core'
+export * from './tag-suggestions-core'
 
 export { createHabitViewSearchState, updateHabitViewSearch, type HabitViewSearchState } from './habit-view-search-core'
 export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryRequest } from './goal-progress-entry-core'

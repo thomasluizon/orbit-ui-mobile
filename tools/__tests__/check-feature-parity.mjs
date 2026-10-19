@@ -179,6 +179,20 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
+    const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
+    const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
+    T(`${platform} every MCP web guide capability resolves to reachable rendered output`, beforeGuide.length === (platform === 'web' ? 8 : 3) && beforeGuide.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+    const originalGuide = files[guide]
+    files[guide] = 'export function ProfileMcpGuide() { return null }'
+    const afterGuide = compare(guideCapabilities, scan(current, platform), rules)
+    const selectorCapabilities = new Set([
+      `${platform}:control:orbitMcp.claudeWeb`,
+      `${platform}:${platform === 'web' ? 'control' : 'display'}:orbitMcp.webNoApiKey`,
+    ])
+    T(`${platform} removing the MCP web guide retains only selector-owned capabilities`, afterGuide.every((entry) => entry.disposition === (selectorCapabilities.has(entry.id) ? 'retained' : 'missing')))
+    T(`${platform} deleting the MCP web guide blocks every guide-owned capability`, newLosses(afterGuide, beforeGuide).length === guideCapabilities.length - selectorCapabilities.size)
+    files[guide] = originalGuide
     const calendarShell = platform === 'web'
       ? 'apps/web/app/(app)/calendar/_components/calendar-shell.tsx'
       : 'apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx'
@@ -200,7 +214,7 @@ export const cases = () => {
     const capability = inventory.entries.filter((entry) => entry.id === id)
     const before = compare(capability, scan(current, platform), rules)
     T(`${platform} attachment control is retained before removing its consumer`, before[0]?.disposition === 'retained')
-    const composer = `apps/${platform}/components/shell/composer.tsx`
+    const composer = 'packages/shared/src/chat/composer-controls.ts'
     const original = files[composer]
     files[composer] = original.split('\n').filter((line) => !line.includes("id: 'file', label: props.attachWords.file") && !line.includes("if (id === 'file') props.onAttachFile?.()")).join('\n')
     T(`${platform} mutation removes the real attachment menu item and selection branch`, files[composer] !== original && !files[composer].includes('props.attachWords.file'))

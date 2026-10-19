@@ -520,11 +520,10 @@ describe('config schema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects config missing features', () => {
+  it('defaults missing features to an empty map for older API responses', () => {
     const config = createMockConfig()
     const { features: _, ...rest } = config
-    const result = appConfigSchema.safeParse(rest)
-    expect(result.success).toBe(false)
+    expect(appConfigSchema.parse(rest).features).toEqual({})
   })
 
   it('validates feature flag shape', () => {

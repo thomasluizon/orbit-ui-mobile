@@ -48,3 +48,5 @@ export { shouldRetryQuery, queryRetryDelay, parseRetryAfter, errorRetryAfter, is
 
 export { dailySummaryQueryOptions, AI_SUMMARY_CLAMP_CHARS } from './daily-summary'
 export type { DailySummaryOptions } from './daily-summary'
+export { createConfigCache } from './config-cache'
+export type { ConfigCache, ConfigSnapshot } from './config-cache'

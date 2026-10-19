@@ -120,7 +120,7 @@ export {
   validateApiResponse,
   validateApiRequest,
 } from './error-utils'
-export { isFeatureEnabled } from './config'
+export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
@@ -269,6 +269,7 @@ export type {
   HabitUnderstandingLabels,
   HabitUnderstandingProps,
   HabitRepeatIntervalProps,
+  HabitScheduleFieldsProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

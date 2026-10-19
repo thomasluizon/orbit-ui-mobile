@@ -3,27 +3,42 @@
 import {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useRef,
   useState,
   type ComponentType,
   type ReactNode,
+  type RefObject,
 } from 'react'
-import { createPortal } from 'react-dom'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import type { ActiveView } from '@orbit/shared/stores'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { ShellDestinationId } from '@orbit/shared/utils'
 import type { IconProps } from '@/components/ui/icons'
-import { useIsClient } from '@/hooks/use-is-client'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
-import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
-import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
-import { AppToastHost } from '@/components/ui/app-toast-host'
-import { CommandMenu } from './command-menu'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+
+function createCommandPaletteDialog() {
+  return dynamic<CommandPaletteProps & { modalId: string; panelRef: RefObject<HTMLDivElement | null>; onLoadFailure: () => void }>(
+    () => import('./command-palette-dialog')
+      .then((module) => module.CommandPaletteDialog)
+      .catch(() => {
+        CommandPaletteDialog = createCommandPaletteDialog()
+        return CommandPaletteLoadFailure
+      }),
+    { ssr: false, loading: () => null },
+  )
+}
+
+let CommandPaletteDialog = createCommandPaletteDialog()
+
+function CommandPaletteLoadFailure({ onLoadFailure }: Readonly<{ onLoadFailure: () => void }>) {
+  useEffect(onLoadFailure, [onLoadFailure])
+  return null
+}
 
 export interface CommandNavigationItem {
   id: ShellDestinationId | ActiveView
@@ -32,7 +47,7 @@ export interface CommandNavigationItem {
   onSelect: () => void
 }
 
-interface CommandPaletteProps {
+export interface CommandPaletteProps {
   navItems: readonly CommandNavigationItem[]
   onCreateHabit: () => void
 }
@@ -42,7 +57,7 @@ interface CommandPaletteBackgroundProps {
   className?: string
 }
 
-const CommandPalettePortalContext = createContext<
+export const CommandPalettePortalContext = createContext<
   (portal: HTMLDivElement | null) => void
 >(() => {})
 
@@ -70,69 +85,38 @@ export function CommandPaletteBackground({
   )
 }
 
-/**
- * Global command palette (Cmd/Ctrl+K). A token-styled portal overlay wrapping the
- * cmdk menu, dismissed through the shared overlay/escape stack, which also traps
- * Tab inside the panel and restores focus on close. Mounted app-wide, but the
- * menu (and its habit query) only mount while `shell-store.paletteOpen`.
- */
-export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPaletteProps>) {
+export function CommandPalette(props: Readonly<CommandPaletteProps>) {
   const t = useTranslations()
+  const { showError, dismissToast } = useAppToast()
+  const failureToastId = useRef<number | undefined>(undefined)
+  const panelRef = useRef<HTMLDivElement>(null)
   const paletteOpen = useShellStore((state) => state.paletteOpen)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
-  const mounted = useIsClient()
-  const panelRef = useRef<HTMLDivElement>(null)
   const modalId = `modal:${useId()}`
-  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
-  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
-  const registerPortal = useContext(CommandPalettePortalContext)
-
-  const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
-
-  useEffect(() => () => setPaletteOpen(false), [setPaletteOpen])
+  const handleLoadFailure = useCallback(() => {
+    setPaletteOpen(false)
+    failureToastId.current = showError(t('command.loadFailed'))
+  }, [setPaletteOpen, showError, t])
+  useEffect(() => () => {
+    setPaletteOpen(false)
+    if (failureToastId.current !== undefined) dismissToast(failureToastId.current)
+  }, [dismissToast, setPaletteOpen])
   useEffect(() => {
     if (!paletteOpen) return
+    if (failureToastId.current !== undefined) {
+      dismissToast(failureToastId.current)
+      failureToastId.current = undefined
+    }
+    const { registerOpenOverlay, unregisterOpenOverlay } = useUIStore.getState()
     registerOpenOverlay(modalId)
-    return () => unregisterOpenOverlay(modalId)
-  }, [modalId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
-
-  useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
-  useModalFocusTrap(paletteOpen, panelRef)
-
-  if (!mounted) return null
-
-  const overlay = paletteOpen ? (
-    <div
-      ref={registerPortal}
-      className="z-modal fixed inset-0 flex items-start justify-center pl-[max(16px,var(--safe-left))] pr-[max(16px,var(--safe-right))] pt-[max(16px,var(--safe-top))] sm:pt-[max(96px,var(--safe-top))]"
-    >
-      <button
-        type="button"
-        aria-label={t('common.close')}
-        tabIndex={-1}
-        className="absolute inset-0 cursor-default bg-[var(--scrim)]"
-        onClick={close}
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('command.title')}
-        className="relative flex max-h-[calc(100dvh-max(16px,var(--safe-top))-max(16px,var(--safe-bottom)))] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-max(96px,var(--safe-top))-max(16px,var(--safe-bottom)))]"
-      >
-        <CommandMenu
-          navItems={navItems}
-          onCreateHabit={onCreateHabit}
-          onClose={close}
-        />
-        <UpdateAvailableBanner modalId={modalId} />
-        <div className="empty:hidden shrink-0 px-4 pb-4" data-shell-notice="">
-          <AppToastHost placement="modal" modalId={modalId} />
-        </div>
-      </div>
-    </div>
-  ) : null
-
-  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  return createPortal(overlay, document.body)
+    const unsubscribe = useUIStore.subscribe(({ openOverlayIds }) => {
+      if (!panelRef.current && openOverlayIds.at(-1) !== modalId) setPaletteOpen(false)
+    })
+    return () => {
+      unsubscribe()
+      unregisterOpenOverlay(modalId)
+    }
+  }, [dismissToast, modalId, paletteOpen, setPaletteOpen])
+  useOverlayEscape({ open: paletteOpen, onDismiss: () => setPaletteOpen(false), restoreFocus: false })
+  return paletteOpen ? <CommandPaletteDialog {...props} modalId={modalId} panelRef={panelRef} onLoadFailure={handleLoadFailure} /> : null
 }
