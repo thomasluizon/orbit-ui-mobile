@@ -186,14 +186,14 @@ function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ 
       aria-controls={navigationId}
       disabled={!client}
       onClick={toggleSidebar}
-      className="orbit-hover-text flex min-h-[var(--touch-min)] w-12 shrink-0 touch-manipulation items-center justify-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40"
+      className={`orbit-hover-text flex min-h-[var(--touch-min)] w-12 shrink-0 touch-manipulation items-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40 ${collapsed ? 'justify-center' : 'justify-start ps-3'}`}
     >
       {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
     </button>
   )
 
   return (
-    <div data-shell-brand-row="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'px-3'}`}>
+    <div data-shell-brand-row="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'ps-6 pe-2'}`}>
       <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
       <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
         {!collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}

@@ -66,7 +66,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
         const bell = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-bell)')!
         const bounds = (element: Element) => {
           const rect = element.getBoundingClientRect()
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2 }
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2, radius: getComputedStyle(element).borderRadius }
         }
         const controls = [...sidebar.querySelectorAll<HTMLElement>('button, a[href]')]
         const navigationEnd = sidebar.querySelector('nav')!.lastElementChild as HTMLElement
@@ -74,6 +74,8 @@ describe('sidebar brand and account geometry in Chromium', () => {
         return {
           sidebar: bounds(sidebar), brand: bounds(brand), bell: bounds(bell), toggle: bounds(toggle),
           lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
+          search: bounds(sidebar.querySelector('button:has(.tabler-icon-search)')!),
+          trailingGlyph: bounds(toggle.querySelector('svg')!),
           firstControlIsToggle: controls[0] === toggle,
           afterNavigation: controls.slice(controls.indexOf(navigationEnd) + 1).map(element => element === create ? 'create' : element.hasAttribute('data-shell-account') ? 'account' : 'unexpected'),
           icons: [bell, toggle].map(element => {
@@ -87,8 +89,9 @@ describe('sidebar brand and account geometry in Chromium', () => {
       expect(header.overflow).toBe(false)
       expect(header.afterNavigation).toEqual(['create', 'account'])
       for (const control of [header.bell, header.toggle]) {
-        expect(control.width).toBeGreaterThanOrEqual(44)
-        expect(control.height).toBeGreaterThanOrEqual(44)
+        expect(control.width).toBe(48)
+        expect(control.height).toBe(48)
+        expect(control.radius).toBe('12px')
         expect(control.left).toBeGreaterThanOrEqual(header.brand.left)
         expect(control.right).toBeLessThanOrEqual(header.brand.right)
         expect(control.top).toBeGreaterThanOrEqual(header.brand.top)
@@ -107,6 +110,8 @@ describe('sidebar brand and account geometry in Chromium', () => {
         expect(header.brand.height).toBe(48)
         expect(header.toggle.left - header.bell.right).toBe(12)
         expect(header.lockup.right).toBeLessThanOrEqual(header.bell.left)
+        expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
+        expect.soft(Math.abs(header.trailingGlyph.right - header.search.right)).toBeLessThanOrEqual(1)
       }
       const shortAccount = await measureAccount(page)
       if (collapsed) {
