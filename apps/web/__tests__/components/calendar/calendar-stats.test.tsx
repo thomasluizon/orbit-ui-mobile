@@ -108,15 +108,15 @@ describe('CalendarStats geometry', () => {
         const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
         return {
           left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height,
-          valueLeft: valueBox.left, captionLeft: captionBox.left, gap: captionBox.top - valueBox.bottom,
+          valueCenter: valueBox.left + valueBox.width / 2, captionCenter: captionBox.left + captionBox.width / 2, gap: captionBox.top - valueBox.bottom,
           lines: new Set(fragments.map((rect) => Math.round(rect.top))).size,
           fits: fragments.every((rect) => rect.left >= box.left - 0.5 && rect.right <= box.right + 0.5),
         }
       }))
       expect(figures).toHaveLength(9)
       for (const figure of figures) {
-        expect(Math.abs(figure.valueLeft - figure.left)).toBeLessThanOrEqual(0.5)
-        expect(Math.abs(figure.captionLeft - figure.left)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(figure.valueCenter - figure.left - figure.width / 2)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(figure.captionCenter - figure.left - figure.width / 2)).toBeLessThanOrEqual(0.5)
         expect(Math.abs(figure.gap - 8)).toBeLessThanOrEqual(0.5)
         expect(figure.lines).toBe(1)
         expect(figure.fits).toBe(true)
