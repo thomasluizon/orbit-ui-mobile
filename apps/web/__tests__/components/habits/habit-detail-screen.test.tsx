@@ -2103,6 +2103,19 @@ describe('HabitDetailScreen', () => {
             reasonTop: element.closest('[data-testid="detail-children"]')!.querySelector('p')!.getBoundingClientRect().top,
           }))
           expect(geometry.reasonTop - geometry.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          for (const state of ['hover', 'press', 'focus-visible'] as const) {
+            if (state === 'press') await page.mouse.down()
+            if (state === 'focus-visible') {
+              await page.mouse.move(0, 0)
+              await page.mouse.up()
+              await page.keyboard.press('Tab')
+              await control.focus()
+              expect(await control.evaluate(element => element.matches(':focus-visible'))).toBe(true)
+            }
+            const fill = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+            expect(fill.violations, `${width}px ${state}: ${fill.control}`).toEqual([])
+          }
+          await control.blur()
         }
       } finally { await page.close() }
     })

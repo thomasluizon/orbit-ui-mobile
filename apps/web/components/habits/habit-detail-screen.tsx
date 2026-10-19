@@ -5,7 +5,7 @@ import { DescriptionCopyButton } from './description-copy-button'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, MONTH_GRID_TARGET_MIN, SPACING } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
@@ -143,7 +143,7 @@ function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnTyp
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
   if (reason !== notScheduledReason) return null
-  return <div className="pt-[4px]"><p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p></div>
+  return <div style={{ paddingTop: SPACING.s4 + INTERACTION_FILL_CLEARANCE }}><p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p></div>
 }
 
 function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundary>, t: ReturnType<typeof useTranslations>): string | undefined {

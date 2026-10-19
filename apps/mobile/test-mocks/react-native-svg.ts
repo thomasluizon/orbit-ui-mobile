@@ -31,7 +31,7 @@ function MockCircle(
   return React.createElement('Circle', props, children)
 }
 
-const Svg = createSvgComponent('Svg')
+export const Svg = createSvgComponent('Svg')
 
 export const Circle = React.forwardRef(MockCircle)
 export const Defs = createSvgComponent('Defs')

@@ -138,7 +138,7 @@ owns full-page web evidence. Android screen geometry remains a native rendering 
 | Habit detail header column | `Orbit Habit Detail.dc.html` draws 12 from the emoji and actions row to the title and 4 from the title to the frequency summary. The owner's fill clearance order names this surface: the rename fill never touches the emoji row or the summary line. A 4 gap cannot hold a block fill with 4 of clearance, so both gaps are 8. The header keeps its drawn height and the summary keeps its drawn position; only the title moves 4 up. |
 | Habit rename fill | The fill reaches 4 above and below the title and 12 to each side, with one inset focus indicator; the 48 target comes from the hit area, not the paint. |
 
-`habit-title-focus.spec.ts` holds the drawn header height and the glyph and summary clearance on web;
+`habit-title-focus.spec.ts` and `habit-detail-spacing.spec.ts` hold the drawn header height and the glyph and summary clearance on web;
 the Android interaction fill clearance tests hold the same gaps and the 16 total.
 
 ### Any-time label amendment surface inventory

@@ -10,7 +10,9 @@ export function measureInteractionFills(host: Host, width: number, pressed: bool
     hosts.set(key, { host, ancestors })
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
-    return { ...host, props: { ...host.props, style, 'data-slot': key }, children: host.children?.map((child) => typeof child === 'string' ? child : mark(child, [...ancestors, key])) ?? null }
+    const svgSize = host.type === 'Svg' && 'width' in host.props && 'height' in host.props && typeof host.props.width === 'number' && typeof host.props.height === 'number'
+      ? { width: host.props.width, height: host.props.height, flex: 0 } : {}
+    return { ...host, props: { ...host.props, style: { ...style, ...svgSize }, 'data-slot': key }, children: host.children?.map((child) => typeof child === 'string' ? child : mark(child, [...ancestors, key])) ?? null }
   }
   const marked = mark(host, [])
   const measured = measureProfileRow(marked, width, scale)

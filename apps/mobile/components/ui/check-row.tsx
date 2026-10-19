@@ -81,13 +81,13 @@ const styles = StyleSheet.create({
   columnFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
-  calendarDayControlFill: { borderRadius: 24 },
-  calendarDayTarget: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
+  calendarDayControlFill: { borderRadius: 24, top: -SPACING.s8, bottom: -SPACING.s8, left: -SPACING.s8, right: -SPACING.s8 },
+  calendarDayControl: { width: 24, height: 24 },
   controlFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16 },
+  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16, gap: SPACING.s12 },
   calendarDayCopy: { minHeight: 68, paddingVertical: SPACING.s12 },
   personalControl: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, borderRadius: 12, overflow: 'hidden' },
@@ -143,7 +143,7 @@ function PersonalCheckRowContent({ label, placement, variant, labelExpanded, err
 
 function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
-  const control = <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+  const control = <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, disabled || loading ? styles.disabled : null]}>
     {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
   </PersonalControl>
   return (
@@ -152,7 +152,7 @@ function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpande
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={{ ...styles.labelFill, ...(calendarDay ? { top: SPACING.s4, bottom: SPACING.s4 } : {}) }} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
       <PersonalCheckRowContent label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
       </View>
-      {calendarDay ? <View collapsable={false} style={styles.calendarDayTarget}>{control}</View> : control}
+      {control}
     </View>
   )
 }

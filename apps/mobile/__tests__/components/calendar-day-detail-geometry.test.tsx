@@ -102,13 +102,18 @@ describe('Android day card geometry', () => {
             const body = measured.parts.find((part) => part.slot === 'list-row-body' && part.top === row.top)!
             const control = measured.controls.find((control) => control.accessibilityLabel === entry.title && control !== row)!
             expect(row.height).toBeCloseTo(body.height)
-            expect(control.width).toBe(48)
-            expect(control.height).toBe(48)
+            const nativeControl = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox' && node.props.accessibilityLabel === entry.title)[0]!
+            const hitSlop = Number(nativeControl.props.hitSlop)
+            expect(control.width).toBe(24)
+            expect(control.height).toBe(24)
+            expect(control.width + hitSlop * 2).toBe(48)
+            expect(control.height + hitSlop * 2).toBe(48)
+            expect(control.left - hitSlop).toBeGreaterThanOrEqual(row.right)
             const target = paints.find((part) => part.host.type === 'Pressable' && part.left === control.left && part.top === control.top)!
             const fill = paints.find((part) => part.ancestors.at(-1) === target.slot)!
             expect(fill.left - row.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-            expect(control.top).toBeGreaterThanOrEqual(body.top)
-            expect(control.bottom).toBeLessThanOrEqual(body.bottom)
+            expect(control.top - hitSlop).toBeGreaterThanOrEqual(body.top)
+            expect(control.bottom + hitSlop).toBeLessThanOrEqual(body.bottom)
           }
           const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
           expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
@@ -176,7 +181,7 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(0)
       if (loggable) {
         const target = host.children[1].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 0 })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 12 })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
         expect(titleStyle.marginVertical ?? 0).toBe(0)

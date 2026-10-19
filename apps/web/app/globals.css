@@ -2463,6 +2463,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   border-radius: 50%;
 }
 
+.orbit-check-row-control[data-variant="calendar-day"]::before {
+  inset: -12px;
+}
+
+.orbit-check-row-control[data-variant="calendar-day"] > .orbit-check-row-fill {
+  inset: -8px;
+}
+
 @media (forced-colors: active) {
   .orbit-check-row-label:focus-visible,
   .orbit-check-row-control:focus-visible {

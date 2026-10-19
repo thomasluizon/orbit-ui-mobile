@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { useReducedMotion } from 'react-native-reanimated'
-import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
   createAccountScopedHabitDetailWriteQueue,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: SPACING.s12 },
-  childReason: { alignSelf: 'flex-end', paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
+  childReason: { alignSelf: 'flex-end', paddingTop: SPACING.s4 + INTERACTION_FILL_CLEARANCE, paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statCard: { padding: SPACING.s24, borderRadius: 20 },
   statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },

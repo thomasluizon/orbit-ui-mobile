@@ -15,6 +15,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ hasProAccess: true, uses24HourClock: true }) }) }))
 
@@ -74,8 +75,12 @@ describe('day card compact geometry', () => {
           hit: document.elementFromPoint(box.left + 1, box.top + box.height / 2) === button,
           focused: button.matches(':focus-visible') }
       })
-      expect(geometry).toEqual({ width: 48, height: 48, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
+      expect(geometry).toEqual({ width: 24, height: 24, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
         focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
+      const target = await control.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBe(48)
+      expect(target.height).toBe(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
     } finally { await page.close() }
@@ -157,6 +162,7 @@ describe('day card compact geometry', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const expandedTargets = await Promise.all((await page.locator('button, a').all()).map(control => control.evaluate(readExpandedControlGeometry)))
         const geometry = await page.evaluate(() => {
           const headline = [...document.querySelectorAll<HTMLElement>('span')].find((span) => span.textContent === '1:1 FutureProofing Engineering')!
           const titleRange = document.createRange()
@@ -227,11 +233,13 @@ describe('day card compact geometry', () => {
           expect(geometry.eventClipped).toBe(false)
         }
         expectWholeLabels(geometry.labels, scale)
-        for (const target of geometry.targets) {
-          expect(target.width, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
-          expect(target.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
-          expect(target.left).toBeGreaterThanOrEqual(16)
-          expect(target.right).toBeLessThanOrEqual(width - 16)
+        expect(expandedTargets).toHaveLength(geometry.targets.length)
+        for (const [index, target] of geometry.targets.entries()) {
+          const hit = expandedTargets[index]!
+          expect(hit.width, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
+          expect(hit.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
+          expect(hit.left).toBeGreaterThanOrEqual(16)
+          expect(hit.right).toBeLessThanOrEqual(width - 16)
           if (target.clipped) {
             expect(target.personalTitle, JSON.stringify(target)).toBeTruthy()
             expect(target.label, JSON.stringify(target)).toContain(target.personalTitle)

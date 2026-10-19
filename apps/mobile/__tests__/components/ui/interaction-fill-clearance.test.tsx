@@ -11,6 +11,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Chip } from '@/components/ui/chip'
 import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
+import { CheckRow } from '@/components/ui/check-row'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { Composer } from '@/components/shell/composer'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -22,6 +23,7 @@ import { hasPaint, measureInteractionFills, paintedExtent } from '@/__tests__/su
 import type { GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
+vi.unmock('@/components/ui/icons')
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn(), getString: vi.fn().mockResolvedValue('') } }))
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
@@ -146,6 +148,7 @@ describe('Android interaction fill clearance', () => {
     let tree!: GeometryTree
     await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) as GeometryTree })
     try {
+      await setInteraction(tree, 'habits.actions.more', state)
       const childGroup = findHost(tree.toJSON(), 'detail-children')!
       expect(childGroup).toBeDefined()
       const parts = measureInteractionFills(childGroup, 320, state === 'pressed')
@@ -155,7 +158,10 @@ describe('Android interaction fill clearance', () => {
       expect(reason.top - row.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       const controls = parts.filter((part) => part.host.type === 'Pressable')
       expect(controls.length).toBeGreaterThan(0)
-      for (const control of controls) expect(reason.top - control.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+      for (const control of controls) {
+        const paint = control.host.props.accessibilityLabel === 'habits.actions.more' ? fillBox(parts, control) : control
+        expect(reason.top - paint.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+      }
     } finally { await act(() => tree.unmount()) }
   })
 
@@ -171,6 +177,8 @@ describe('Android interaction fill clearance', () => {
       const fill = fillBox(parts, title)
       const actions = parts.find((part) => part.ancestors.length === 2)!
       const summary = parts.find((part) => part.host.type === 'Text' && part.top >= title.bottom && !part.ancestors.includes(title.slot))!
+      expect(title.top - actions.bottom, 'amended controls to title gap').toBe(8)
+      expect(summary.top - title.bottom, 'amended title to summary gap').toBe(8)
       expect(parts[1]!.bottom - parts[1]!.top, 'drawn header height').toBeCloseTo(actions.bottom - actions.top + 12 + title.bottom - title.top + 4 + summary.bottom - summary.top)
       expect(fill.top - actions.bottom, 'emoji row to title fill').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(summary.top - fill.bottom, 'title fill to frequency summary').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
@@ -178,6 +186,34 @@ describe('Android interaction fill clearance', () => {
       expect(Math.min(width, 740) - fill.right, 'trailing page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
     } finally { await act(() => tree.unmount()) }
   })
+
+  it.each([320, 412, 600, 1024, 1352].flatMap(width => [false, true].flatMap(checked =>
+    (['pressed', 'focused'] as const).map(state => ({ width, checked, state })))))(
+    'keeps the calendar circle at its drawn edge at $width, checked $checked while $state', async ({ width, checked, state }) => {
+      let tree!: GeometryTree
+      await act(() => { tree = create(<View style={{ padding: 24 }}><CheckRow variant="calendar-day" textMode="personal"
+        label="Read" value="08:00" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} /></View>) as GeometryTree })
+      try {
+        const control = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!
+        await act(() => state === 'pressed' ? (control.props.onPressIn as () => void)() : (control.props.onFocus as () => void)())
+        const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
+        const body = parts.find(part => part.host.props['data-slot'] === 'list-row-body')!
+        const circle = parts.find(part => part.host.props['data-slot'] === 'calendar-day-circle')!
+        const target = parts.find(part => part.host.type === 'Pressable' && circle.ancestors.includes(part.slot))!
+        const label = parts.find(part => part.host.type === 'Pressable' && part !== target)!
+        const paint = fillBox(parts, target)
+        expect(circle.width, JSON.stringify(circle.host)).toBe(24)
+        expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 16, paddingVertical: 0, minHeight: 68 })
+        expect(body.right - circle.right).toBe(16)
+        expect(circle.left - label.right).toBe(12)
+        expect(paint.left - label.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(paint.right).toBeLessThanOrEqual(body.right - INTERACTION_FILL_CLEARANCE)
+        const hitSlop = Number(control.props.hitSlop)
+        expect(Math.min(target.right + hitSlop, body.right) - Math.max(target.left - hitSlop, body.left)).toBe(48)
+        expect(Math.min(target.bottom + hitSlop, body.bottom) - Math.max(target.top - hitSlop, body.top)).toBe(48)
+        expect(target.left - hitSlop).toBeGreaterThanOrEqual(label.right)
+      } finally { await act(() => tree.unmount()) }
+    })
 
   it.each(['row', 'pill', 'icon', 'chip'].flatMap((primitive) => (['pressed', 'focused'] as const).map((state) => ({ primitive, state }))))('contains the $primitive fill while $state', async ({ primitive, state }) => {
     const surface = primitive === 'row' ? <View style={{ gap: 4 }}><ListRow accessibilityLabel="First" title="First" onClick={vi.fn()} /><ListRow title="Next" onClick={vi.fn()} /></View>
