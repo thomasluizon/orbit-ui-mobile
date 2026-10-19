@@ -4,6 +4,7 @@ import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-r
 import { Bell, CheckCheck, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
+import { isRetiredNotification } from '@orbit/shared/utils'
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -179,7 +180,9 @@ export function NotificationBell() {
 
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const visibleNotifications = useMemo(
-    () => notifications.filter((item) => !pendingDeleteIdSet.has(item.id)),
+    () => notifications.filter(
+      (item) => !isRetiredNotification(item) && !pendingDeleteIdSet.has(item.id),
+    ),
     [notifications, pendingDeleteIdSet],
   )
   const visibleUnreadCount = useMemo(

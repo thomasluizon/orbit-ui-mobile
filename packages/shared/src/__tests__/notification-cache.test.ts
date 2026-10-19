@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createMockNotification } from './factories'
 import { notificationKeys } from '../query'
 import type { NotificationsResponse } from '../types/notification'
 import {
@@ -71,6 +72,23 @@ describe('notification cache helpers', () => {
 
     expect(updated.items.every((item) => item.isRead)).toBe(true)
     expect(updated.unreadCount).toBe(0)
+  })
+
+  it('marks all stored notifications read successfully when some rows are retired', () => {
+    const notifications = {
+      items: [
+        createMockNotification({ id: 'streak', url: '/streak' }),
+        createMockNotification({ id: 'retired', url: '/social?tab=buddies' }),
+        createMockNotification({ id: 'celebration' }),
+      ],
+      unreadCount: 3,
+    }
+
+    const updated = markAllNotificationsReadInList(notifications)
+
+    expect(updated.items).toEqual(notifications.items.map((item) => ({ ...item, isRead: true })))
+    expect(updated.unreadCount).toBe(0)
+    expect(notifications.items.every((item) => !item.isRead)).toBe(true)
   })
 
   it('deletes a notification and updates unread count when needed', () => {
