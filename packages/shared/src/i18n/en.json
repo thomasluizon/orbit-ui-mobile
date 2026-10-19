@@ -330,6 +330,7 @@
   "command": {
     "title": "What do you want to do",
     "placeholder": "Search or run",
+    "loadFailed": "Search could not open. Try again.",
     "empty": "Nothing by that name.",
     "logHabit": "Log a habit",
     "skipHabit": "Skip a habit",

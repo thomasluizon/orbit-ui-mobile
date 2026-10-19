@@ -330,6 +330,7 @@
   "command": {
     "title": "O que você quer fazer",
     "placeholder": "Buscar ou executar",
+    "loadFailed": "Não foi possível abrir a busca. Tente de novo.",
     "empty": "Nada com esse nome.",
     "logHabit": "Registrar um hábito",
     "skipHabit": "Pular um hábito",
