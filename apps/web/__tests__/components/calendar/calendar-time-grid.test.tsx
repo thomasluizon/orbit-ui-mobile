@@ -9,6 +9,7 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
@@ -274,7 +275,37 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
   })
 
-  it.each(['none', 'wheel', 'scrollbar'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
+  it.each(['delivered', 'pending'])('preserves external scrolling across data updates and opens a new week (event=%s)', (event) => {
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400)
+    const grid = (day: number, loaded: boolean) => <CalendarWeekView columns={[column(2026, 9, day)]} dayMap={new Map(loaded ? [[column(2026, 9, day).dateStr, [makeEntry({ dueTime: '06:00' })]]] : [])} slideDirection={null} onSelectDay={vi.fn()} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    try {
+      const view = render(grid(5, false))
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      expect(body.scrollTop).toBe(736)
+      fireEvent.scroll(body)
+      body.scrollTop = 600
+      body.scrollLeft = 88
+      if (event === 'delivered') fireEvent.scroll(body)
+      view.rerender(grid(5, true))
+      act(() => callbacks.at(-1)!())
+      expect(body.scrollTop).toBe(600)
+      expect(body.scrollLeft).toBe(88)
+      view.rerender(grid(12, true))
+      const nextBody = screen.getByTestId('time-grid-hour-scroller')
+      expect(nextBody).not.toBe(body)
+      expect(nextBody.scrollTop).toBe(688)
+      expect(nextBody.scrollLeft).toBe(0)
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
+  })
+
+  it.each(['none', 'wheel', 'scrollbar', 'scroll'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
     const onSelectDay = vi.fn()
     const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={onSelectDay} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
@@ -290,7 +321,8 @@ describe('CalendarTimeGrid', () => {
     if (input !== 'none') {
       scroller.scrollLeft = 88
       if (input === 'wheel') fireEvent.wheel(scroller, { deltaX: 88 })
-      else pressScrollbar(scroller, 'horizontal')
+      else if (input === 'scrollbar') pressScrollbar(scroller, 'horizontal')
+      else fireEvent.scroll(scroller)
     }
     const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
     view.rerender(grid(crowded, false))
@@ -324,17 +356,14 @@ describe('CalendarTimeGrid', () => {
       const nowTop = Number.parseFloat(screen.getByRole('img', { name: 'Now' }).style.top) * 16
       expect(paneHeight + nowTop - body.scrollTop).toBe(100)
       fireEvent.scroll(body)
-      const keepsOpening = ['none', 'browser-scroll', 'content', 'child', 'secondary'].includes(input)
+      const keepsOpening = ['none', 'content', 'child', 'secondary'].includes(input)
       applyGridInput(body, input)
       if (!keepsOpening) {
         body.scrollTop = input === 'scroll-start' ? 0 : 600
         fireEvent.scroll(body)
       }
       paneHeight = 150
-      if (input === 'browser-scroll') {
-        body.scrollTop -= 150
-        fireEvent.scroll(body)
-      }
+      if (input === 'browser-scroll') fireEvent.scroll(body)
       act(() => callbacks.forEach((resize) => resize()))
       expect(pane).toHaveAttribute('data-pinning', 'pinned')
       if (keepsOpening) {

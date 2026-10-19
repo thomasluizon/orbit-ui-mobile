@@ -222,10 +222,12 @@ export function CalendarTimeGrid({
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
   const hasMovedGrid = useRef(false)
+  const openingScroll = useRef({ top: 0, left: 0 })
   useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const open = () => {
+      if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -249,6 +251,7 @@ export function CalendarTimeGrid({
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
         node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
       }
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) hasMovedGrid.current = true
@@ -295,6 +298,10 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
+          onScroll={(event) => {
+            const node = event.currentTarget
+            if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
+          }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
