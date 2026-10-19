@@ -456,14 +456,18 @@ class OrbitWidgetResponsiveRemoteViewsTest {
                         assertEquals((48 * density).toInt(), refresh.height)
                         assertEquals(if (streak == 0) View.GONE else View.VISIBLE,
                             root.findViewById<View>(R.id.widget_streak_group).visibility)
+                        var measuredLabels = 0
                         for (id in listOf(R.id.widget_header, R.id.widget_subtitle, R.id.widget_streak, R.id.widget_streak_unit)) {
                             val label = root.findViewById<TextView>(id)
-                            if (!label.isShown) continue
+                            val hiddenStreak = streak == 0 && id in listOf(R.id.widget_streak, R.id.widget_streak_unit)
+                            if (label.visibility != View.VISIBLE || hiddenStreak) continue
+                            measuredLabels += 1
                             assertEquals(1, label.layout.lineCount)
                             assertEquals(0, label.layout.getEllipsisCount(0))
                             assertTrue(label.paint.measureText(label.text.toString()) <= label.width + 1f)
                             assertTrue(label.bottom <= header.height)
                         }
+                        assertTrue(measuredLabels >= 2)
                     }
                 }
             }
