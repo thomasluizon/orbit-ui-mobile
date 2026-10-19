@@ -190,3 +190,58 @@ for (const viewport of [{ width: 1100, height: 726 }, { width: 840, height: 726 
     })
   }
 }
+
+test.describe('calendar week scroll at 412px', () => {
+  test.use({ appLocale: 'en', viewport: { width: 412, height: 915 } })
+
+  for (const input of ['wheel', 'scrollIntoView'] as const) {
+    test(`preserves ${input} through refetch and resize`, async ({ page, context }) => {
+      let refreshed = false
+      await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => {
+        const query = new URL(route.request().url()).searchParams
+        const dateFrom = query.get('dateFrom')!
+        const dateTo = query.get('dateTo')!
+        const scheduledDates: string[] = []
+        for (let instant = Date.parse(dateFrom); instant <= Date.parse(dateTo); instant += 86_400_000) {
+          scheduledDates.push(new Date(instant).toISOString().slice(0, 10))
+        }
+        const habits = Array.from({ length: refreshed ? 3 : 1 }, (_, index) => makeHabitScheduleItem({
+          id: `untimed-${index}`, title: `${refreshed ? 'Refetched' : 'Opening'} habit ${index + 1}`,
+          dueDate: dateFrom, scheduledDates, dueTime: null, children: [], hasSubHabits: false,
+        }))
+        return route.fulfill({ json: calendarMonthResponseSchema.parse({ habits, logs: {} }) })
+      })
+      await page.goto('/calendar')
+      await page.getByRole('radio', { name: en.calendar.view.week, exact: true }).click()
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      await expect(page.getByTestId('time-grid-all-day-event').first()).toHaveText('Opening habit 1')
+      await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0)
+      const openingLeft = await scroller.evaluate((node) => node.scrollLeft)
+      if (input === 'wheel') {
+        await scroller.hover()
+        await page.mouse.wheel(-400, 0)
+      } else {
+        await page.getByTestId('time-grid-col-header').first().evaluate((node) => node.scrollIntoView({ inline: 'start', block: 'nearest' }))
+      }
+      await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBeLessThan(openingLeft - 100)
+      await expect.poll(() => scroller.evaluate(async (node) => {
+        const before = node.scrollLeft
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const middle = node.scrollLeft
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        return before === middle && middle === node.scrollLeft
+      })).toBe(true)
+      const heldLeft = await scroller.evaluate((node) => node.scrollLeft)
+      refreshed = true
+      await page.clock.setFixedTime(new Date(Date.parse(LAYOUT_FIXED_TIME) + 6 * 60_000))
+      const response = page.waitForResponse((response) => response.url().includes(API.habits.calendarMonth))
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await response
+      await expect(page.getByTestId('time-grid-all-day-event').first()).toHaveText('Refetched habit 1')
+      await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBe(heldLeft)
+      await page.setViewportSize({ width: 412, height: 800 })
+      await expect(scroller).toBeVisible()
+      expect(await scroller.evaluate((node) => node.scrollLeft)).toBe(heldLeft)
+    })
+  }
+})
