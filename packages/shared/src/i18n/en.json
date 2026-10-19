@@ -1415,6 +1415,7 @@
         "profile-preferences-write": "Profile settings",
         "profile-ai-memory-write": "Astra memory",
         "profile-ai-summary-write": "Daily summary",
+        "profile-proactive-astra-write": "Astra notifications",
         "notifications-write": "Notifications",
         "checklist-templates-write": "Checklist templates",
         "referrals-write": "Referral details",
@@ -1950,7 +1951,26 @@
         "manageCalendarSync": "Change sync",
         "linkGoalsToHabit": "Change links",
         "markAllNotificationsRead": "Mark read",
-        "unsubscribePush": "Disable alerts"
+        "unsubscribePush": "Disable alerts",
+        "setProactiveAstra": "Change notifications"
+      },
+      "toggleApprove": {
+        "turnOn": "Turn on",
+        "turnOff": "Turn off"
+      },
+      "toggleSource": {
+        "setProactiveAstra": {
+          "turnOn": "Turn on Astra notifications",
+          "turnOff": "Turn off Astra notifications"
+        },
+        "setAiSummary": {
+          "turnOn": "Turn on the daily recap",
+          "turnOff": "Turn off the daily recap"
+        },
+        "setAiMemory": {
+          "turnOn": "Turn on Astra memory",
+          "turnOff": "Turn off Astra memory"
+        }
       },
       "approveCount": {
         "createHabits": "Create {count, plural, one {# habit} other {# habits}}",
@@ -2033,6 +2053,7 @@
         "updateProfilePreferences": "Change preferences",
         "setAiMemory": "Change Astra memory",
         "setAiSummary": "Change Astra summary",
+        "setProactiveAstra": "Change Astra notifications",
         "markNotificationRead": "Mark alert as read",
         "markAllNotificationsRead": "Mark all alerts as read",
         "subscribePush": "Enable device alerts",

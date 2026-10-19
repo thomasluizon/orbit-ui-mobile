@@ -40,6 +40,68 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summarize([change('reminder_enabled', 'false')])).toBe(messages.chat.preview.summary.stopReminders)
   })
 
+  it('names the Astra notifications action when no field summary is available', () => {
+    const operation = makePendingAgentOperation({ actionKey: 'setProactiveAstra' })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const expected = locale === 'en' ? 'Change Astra notifications' : 'Alterar notificações da Astra'
+    expect(localized.summarize([])).toBe(expected)
+    expect(localized.confirm).toBe(expected)
+  })
+
+  describe.each([
+    { actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write', english: 'Astra notifications', portuguese: 'notificações da Astra', title: messages.profile.proactiveAstra.title },
+    { actionKey: 'setAiSummary', capabilityId: 'profile.ai-summary.write', english: 'the daily recap', portuguese: 'o resumo diário', title: messages.chat.pendingOp.capability['profile-ai-summary-write'] },
+    { actionKey: 'setAiMemory', capabilityId: 'profile.ai-memory.write', english: 'Astra memory', portuguese: 'a memória da Astra', title: messages.chat.pendingOp.capability['profile-ai-memory-write'] },
+  ])('$actionKey toggle preview', ({ actionKey, capabilityId, english, portuguese, title }) => {
+    it.each([
+      { enabled: true, typed: true }, { enabled: false, typed: true },
+      { enabled: true, typed: false }, { enabled: false, typed: false },
+    ])('names the summary and approval for enabled=$enabled, typed=$typed', ({ enabled, typed }) => {
+      const fields = [{ ...change('enabled', enabled ? 'True' : 'False', typed ? enabled : undefined), entityId: '00000000-0000-0000-0000-000000000000', entityName: '', valueType: 'boolean', isEditable: true }]
+      const expectedSummary = locale === 'en'
+        ? `Turn ${enabled ? 'on' : 'off'} ${english}` : `${enabled ? 'Ativar' : 'Desativar'} ${portuguese}`
+      const expectedApproval = locale === 'en' ? `Turn ${enabled ? 'on' : 'off'}` : enabled ? 'Ativar' : 'Desativar'
+      for (const itemized of [true, false]) {
+        const operation = makePendingAgentOperation({
+          actionKey, capabilityId,
+          riskClass: 'Low', confirmationRequirement: 'None',
+          changes: fields,
+          items: itemized ? [{ itemId: '0', entityId: null, entityName: '', fields, stateFingerprint: 'preview-fingerprint', removesData: null }] : undefined,
+          changeTargetCount: 1,
+        })
+        const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+        const { record, render } = createRenderers()
+        const card = createCard()
+        renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+        expect(record.frame?.title).toBe(title)
+        expect(record.frame?.items[0]?.label).toBe(title)
+        expect.soft(record.frame?.items[0]?.meta).toBe(expectedSummary)
+        const approve = record.buttons.find((button) => button.variant === 'primary')!
+        expect.soft(approve.label).toBe(expectedApproval)
+        expect(card.execute).not.toHaveBeenCalled()
+        approve.onClick()
+        expect(card.execute).toHaveBeenCalledOnce()
+        expect(card.setConfirmOpen).not.toHaveBeenCalled()
+      }
+    })
+
+    it.each([null, 'unknown'])('keeps the current labels when the requested value is %s', (newValue) => {
+      const fields = [change('enabled', newValue)]
+      const operation = makePendingAgentOperation({ actionKey, capabilityId, changes: fields })
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+      expect(localized.summarize(fields)).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+      expect(localized.approve(1)).toBe(translateMessages(messages, `chat.operation.${actionKey === 'setProactiveAstra' ? 'approveAction' : 'source'}.${actionKey}`))
+    })
+  })
+
+  it('does not use a stale flattened value when the preview item has a different requested value', () => {
+    const fields = [change('enabled', 'False', false)]
+    const operation = makePendingAgentOperation({ actionKey: 'setProactiveAstra', changes: [change('enabled', 'True', true)],
+      items: [{ itemId: '0', entityId: null, entityName: '', fields, stateFingerprint: 'preview-fingerprint' }] })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    expect(localized.approve(1)).toBe(locale === 'en' ? 'Turn off' : 'Desativar')
+  })
+
   it('names cleared repetition when the producer formats null as an empty string', () => {
     expect(summarize([change('frequency_unit', '', null, 'Day')])).toBe(messages.habits.filter.oneTime)
   })
