@@ -7,6 +7,7 @@ const LAUNCH_PREPARATION = `
 `
 
 module.exports = function withDesignBundleLaunch(config) {
+  if (config.updates?.enabled === false) return config
   return withMainApplication(config, (mod) => {
     if (mod.modResults.language !== 'kt') {
       throw new Error('Design bundle launch requires MainApplication.kt')
