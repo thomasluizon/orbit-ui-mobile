@@ -2714,6 +2714,7 @@ describe('mobile habit hooks', () => {
 
     expect(logResult).toEqual({
       results: [],
+      streakResponses: [],
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
       hasConfirmedSuccess: false,
@@ -3174,7 +3175,7 @@ describe('daily streak moment after confirmed logging', () => {
     const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
     const firstLog = { habitId: 'habit-1', intent: 'log' as const }
     const firstContext = await mutation.onMutate?.(firstLog)
-    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, currentStreak: 5 }, firstLog, firstContext)
+    mutation.onSuccess?.({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: 4, currentStreak: 5 }, firstLog, firstContext)
     expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
     store.getState().completeActiveCelebration()
     if (!['second completion', 'repeated first response'].includes(scenario.name)) store.setState({ dailyStreakMomentDate: '' })
@@ -3182,7 +3183,7 @@ describe('daily streak moment after confirmed logging', () => {
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.name === 'milestone' ? 6 : 5 })
     const nextLog = { habitId: 'habit-1', date: scenario.date, intent: scenario.intent ?? 'log' as const }
     const nextContext = await mutation.onMutate?.(nextLog)
-    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, currentStreak: scenario.streak }, nextLog, nextContext)
+    mutation.onSuccess?.({ logId: 'next-log', isFirstCompletionToday: scenario.first, previousStreak: scenario.name === 'milestone' ? 6 : 5, currentStreak: scenario.streak }, nextLog, nextContext)
     expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.name === 'milestone' ? 'streak' : null)
     expect(store.getState().queuedCelebrations).toEqual([])
     mocks.useRealUIStore = false
@@ -3191,7 +3192,7 @@ describe('daily streak moment after confirmed logging', () => {
 
 
 describe('daily streak moment after bulk logging', () => {
-  it('uses the refreshed profile after a confirmed bulk completion', async () => {
+  it('uses the response after a confirmed bulk completion', async () => {
     const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const store = actual.useUIStore
     mocks.useRealUIStore = true
@@ -3205,7 +3206,8 @@ describe('daily streak moment after bulk logging', () => {
     const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
     const items = [{ habitId: 'habit-1' }]
     const context = await mutation.onMutate?.(items)
-    await Promise.resolve(mutation.onSuccess?.({ results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }, items, context))
+    mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
     expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 5 } })
     invalidate.mockImplementation(async () => {})
     mocks.useRealUIStore = false
@@ -3228,16 +3230,20 @@ it('keeps a bulk completion confirmed across midnight out of the next day receip
   })
   const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
   const items = [{ habitId: 'habit-1' }]
-  const response = { results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }
+  const response = { previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] }
   try {
     const context = await mutation.onMutate?.(items)
     vi.setSystemTime(new Date(2026, 5, 16, 0, 1))
-    await Promise.resolve(mutation.onSuccess?.(response, items, context))
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
     expect(store.getState().activeCelebration).toBeNull()
     expect(store.getState().dailyStreakMomentDate).toBe('')
     refreshedStreak = 6
+    response.previousStreak = 5
+    response.currentStreak = 6
     const nextContext = await mutation.onMutate?.(items)
-    await Promise.resolve(mutation.onSuccess?.(response, items, nextContext))
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, nextContext))
     expect(store.getState().activeCelebration).toMatchObject({ kind: 'daily-streak', payload: { streak: 6 } })
   } finally {
     mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
@@ -3257,11 +3263,11 @@ it.each([5, 7])('shows the streak extension to %i after an earlier slip', async 
   const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
   const slip = { habitId: 'avoid', intent: 'log' as const }
   const slipContext = await mutation.onMutate?.(slip)
-  mutation.onSuccess?.({ logId: 'slip-log', isFirstCompletionToday: false, currentStreak: streak - 1 }, slip, slipContext)
+  mutation.onSuccess?.({ logId: 'slip-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak - 1 }, slip, slipContext)
   expect(store.getState().activeCelebration).toBeNull()
   const completion = { habitId: 'build', intent: 'log' as const }
   const completionContext = await mutation.onMutate?.(completion)
-  mutation.onSuccess?.({ logId: 'positive-log', isFirstCompletionToday: false, currentStreak: streak }, completion, completionContext)
+  mutation.onSuccess?.({ logId: 'positive-log', isFirstCompletionToday: false, previousStreak: streak - 1, currentStreak: streak }, completion, completionContext)
   expect(store.getState().activeCelebration).toMatchObject({ kind: streak === 7 ? 'streak' : 'daily-streak', payload: { streak } })
   expect(store.getState().queuedCelebrations).toEqual([])
   mocks.useRealUIStore = false
@@ -3288,7 +3294,7 @@ describe('account calendar streak regressions', () => {
     try {
       const context = await mutation.onMutate?.(variables)
       if (scenario.after) vi.setSystemTime(new Date(scenario.after))
-      mutation.onSuccess?.({ logId: 'confirmed-log', currentStreak: scenario.streak, isFirstCompletionToday: true }, variables, context)
+      mutation.onSuccess?.({ logId: 'confirmed-log', previousStreak: scenario.streak - 1, currentStreak: scenario.streak, isFirstCompletionToday: true }, variables, context)
       expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? (scenario.streak === 7 ? 'streak' : 'daily-streak') : null)
       expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
     } finally {
@@ -3315,7 +3321,8 @@ describe('account calendar streak regressions', () => {
     const variables = [{ habitId: 'habit-1', date: scenario.date }]
     try {
       const context = await mutation.onMutate?.(variables)
-      await Promise.resolve(mutation.onSuccess?.({ results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }, variables, context))
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
       expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
       expect(store.getState().dailyStreakMomentDate).toBe(scenario.expected ? '2026-06-15' : '')
     } finally {
@@ -3352,7 +3359,8 @@ describe('bulk streak and all-done ordering regressions', () => {
     let moment: ReturnType<typeof TestRenderer.create>
     try {
       const context = await mutation.onMutate?.(variables)
-      await Promise.resolve(mutation.onSuccess?.({ results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }], hasConfirmedSuccess: true, queuedIds: [], ambiguousIds: [], offlineFailureIds: [] }, variables, context))
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: streak - 1, currentStreak: streak, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
       if (existing) {
         expect(store.getState().activeCelebration).toEqual(previousActive)
         expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['daily-streak', 'all-done'])
@@ -3399,7 +3407,7 @@ describe('bulk no-op streak eligibility', () => {
       })
       const unsubscribe = observer.subscribe(() => {})
       mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
-      mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: streak - 1, currentStreak: streak, results: [{
         index: 0, status: 'Success', habitId: 'habit-1', logId: created ? 'confirmed-log' : null,
         error: null,
       }] })
@@ -3422,4 +3430,90 @@ describe('bulk no-op streak eligibility', () => {
       }
     },
   )
+})
+
+
+describe('response streak authority', () => {
+  const scenarios = [
+    { name: 'restart', previousStreak: 0, currentStreak: 1, cached: 2, expected: 'daily-streak' },
+    { name: 'normal first log with stale profile', previousStreak: 4, currentStreak: 5, cached: 2, expected: 'daily-streak' },
+    { name: 'second log', previousStreak: 5, currentStreak: 5, cached: 4, expected: null },
+    { name: 'unchanged streak', previousStreak: 0, currentStreak: 0, cached: 2, expected: null },
+    { name: 'missing previous streak', currentStreak: 5, cached: 4, expected: null },
+    { name: 'milestone', previousStreak: 6, currentStreak: 7, cached: 2, expected: 'streak' },
+    { name: 'slip', previousStreak: 4, currentStreak: 5, cached: 2, bad: true, expected: null },
+  ]
+
+  it.each(scenarios)('uses the single response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    mocks.runQueuedMutation.mockResolvedValueOnce({ logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak })
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    const variables = { habitId: 'habit-1', intent: 'log' as const }
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const response = await mutation.mutationFn(variables)
+      await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      mocks.useRealUIStore = false
+    }
+  })
+
+  it.each([...scenarios, { name: 'missing current streak', previousStreak: 4, currentStreak: undefined, cached: 4, bad: false, expected: null }])('uses the bulk response for $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    mocks.useRealUIStore = true
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    seedHabitState([makeHabit({ isBadHabit: scenario.bad ?? false })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: scenario.cached })
+    mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: scenario.previousStreak, currentStreak: scenario.currentStreak, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const variables = [{ habitId: 'habit-1' }]
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const response = await mutation.mutationFn(variables)
+      await Promise.resolve(mutation.onSuccess?.(response, variables, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: scenario.currentStreak })
+    } finally {
+      mocks.useRealUIStore = false
+    }
+  })
+})
+
+
+describe('bulk response chunk streak transitions', () => {
+  it.each([
+    { name: 'extension in first chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension in second chunk', firstPrevious: 0, firstCurrent: 0, secondPrevious: 0, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'only slips in the moving chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: true, expected: false },
+  ])('keeps response fields with their matching results: $name', async (scenario) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    const habits = Array.from({ length: 101 }, (_, index) => makeHabit({ id: `habit-${index}`, isBadHabit: index < 100 && scenario.badFirst }))
+    const items = habits.map(({ id }) => ({ habitId: id }))
+    const responses = [items.slice(0, 100), items.slice(100)].map((chunk, index) => ({
+      previousStreak: index === 0 ? scenario.firstPrevious : scenario.secondPrevious,
+      currentStreak: index === 0 ? scenario.firstCurrent : scenario.secondCurrent,
+      results: chunk.map((item, itemIndex) => ({ index: itemIndex, status: 'Success' as const, habitId: item.habitId, logId: `log-${item.habitId}`, error: null })),
+    }))
+    mocks.useRealUIStore = true
+    seedHabitState(habits)
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 2 })
+    for (const response of responses) mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    try {
+      const context = await mutation.onMutate?.(items)
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(items), items, context))
+      expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
+      if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: 1 })
+      expect(store.getState().queuedCelebrations).toEqual([])
+    } finally {
+      mocks.useRealUIStore = false
+    }
+  })
 })
