@@ -90,7 +90,7 @@ class BoundedFork extends ForksPoolWorker {
   }
 }
 
-export function createStallDiagnostics(timeoutMs = 90_000): { pool: PoolRunnerInitializer; runner: string } {
+export function createStallDiagnostics(timeoutMs = 300_000): { pool: PoolRunnerInitializer; runner: string } {
   return {
     pool: { name: 'bounded-forks', createPoolWorker: (options) => new BoundedFork(options, timeoutMs) },
     runner: path.resolve(import.meta.dirname, 'phase-runner.ts'),

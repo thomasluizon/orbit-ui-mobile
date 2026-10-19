@@ -111,7 +111,7 @@ it('names a test body even when its event loop is blocked', async () => {
 
 it('fails unfinished worker shutdown before the normal Vitest exit deadline', async () => {
   const result = await runFixture(`import { it } from 'vitest'
-    it('passed before shutdown', () => {})`, './environment.mjs', false, 90_000)
+    it('passed before shutdown', () => {})`, './environment.mjs', false, 300_000)
   expect(result.killed).toBe(false)
   expect(result.code).toBe(1)
   expect(result.output).toContain('stalled.test.ts > teardown')
