@@ -1,4 +1,5 @@
 export type CelebrationKind =
+  | "daily-streak"
   | "streak"
   | "all-done"
   | "goal-completed"
@@ -10,7 +11,10 @@ export function isStreakCelebrationMilestone(value: number): boolean {
   return (STREAK_CELEBRATION_MILESTONES as readonly number[]).includes(value);
 }
 
+export const DAILY_STREAK_MOMENT_DURATION = 2500;
+
 export interface CelebrationPayloadMap {
+  "daily-streak": { streak: number };
   streak: { streak: number };
   "all-done": { count: number };
   "goal-completed": { name: string; count: number; unit: string };
@@ -18,6 +22,13 @@ export interface CelebrationPayloadMap {
 }
 
 export type CelebrationQueueItem =
+  | {
+      id: string;
+      kind: "daily-streak";
+      payload: CelebrationPayloadMap["daily-streak"];
+      priority: number;
+      sequence: number;
+    }
   | {
       id: string;
       kind: "streak";
@@ -68,6 +79,8 @@ export function getCelebrationPriority(kind: CelebrationKind): number {
   switch (kind) {
     case "streak":
       return 0;
+    case "daily-streak":
+      return 1;
     case "goal-completed":
     case "all-done":
       return 2;
@@ -101,6 +114,7 @@ export function isDuplicateCelebration(
       if (item.kind !== candidate.kind) return false;
 
       switch (item.kind) {
+        case "daily-streak":
         case "streak":
           return (
             item.payload.streak ===

@@ -15,3 +15,7 @@ export const updateThemePreference = bindServerAction(serverActions.updateThemeP
 export const completeOnboarding = bindServerAction(serverActions.completeOnboarding)
 export const resetAccount = bindServerAction(serverActions.resetAccount)
 export const exportUserData = bindServerAction(serverActions.exportUserData)
+
+export const authorizeNotion = bindServerAction(serverActions.authorizeNotion)
+export const completeNotion = bindServerAction(serverActions.completeNotion)
+export const disconnectNotion = bindServerAction(serverActions.disconnectNotion)

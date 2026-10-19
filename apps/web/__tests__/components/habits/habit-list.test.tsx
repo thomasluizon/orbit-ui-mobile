@@ -826,7 +826,7 @@ describe('HabitList', () => {
     expect(bodies[0]).toHaveFocus()
   })
 
-  it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {
+  it('centres Hoje rows in 68px bodies with a contrasting parent track in both modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
@@ -850,13 +850,13 @@ describe('HabitList', () => {
           const well = row.querySelector('[data-habit-row-body] > span')!
           const bounds = panel.getBoundingClientRect()
           const wellBounds = well.getBoundingClientRect()
-          const track = row.querySelector('circle')
+          const track = row.querySelector('[data-habit-check]')
           return {
             height: bounds.height,
             top: wellBounds.top - bounds.top,
             bottom: bounds.bottom - wellBounds.bottom,
-            track: track ? getComputedStyle(track).stroke : null,
-            card: getComputedStyle(panel).backgroundColor,
+            track: track ? getComputedStyle(track).boxShadow.match(/rgba?\([^)]+\)/u)?.[0] : null,
+            card: getComputedStyle(row).backgroundColor,
             canvas: getComputedStyle(document.body).backgroundColor,
           }
         }))
@@ -867,6 +867,14 @@ describe('HabitList', () => {
           expect(panel.top).toBeCloseTo(panel.bottom, 1)
           if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
         }
+        fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
+        await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
+        const gaps = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => {
+          const bounds = rows.map((row) => row.getBoundingClientRect()).filter((row) => row.height > 0)
+          return bounds.slice(1).map((row, index) => row.top - bounds[index]!.bottom)
+        })
+        expect(gaps).toEqual([4, 12])
+        fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
         await page.close()
       }
     } finally {

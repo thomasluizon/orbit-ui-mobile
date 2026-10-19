@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from './habit-check'
 
 interface CheckCircleProps {
   state: HabitStatus
@@ -11,10 +11,9 @@ interface CheckCircleProps {
   disabled: boolean
   ariaLabel: string
   disabledReason?: string
-  size?: number
 }
 
-export function CheckCircle({ state, unavailable = false, onToggle, disabled, ariaLabel, disabledReason, size = 30 }: Readonly<CheckCircleProps>) {
+export function CheckCircle({ state, unavailable = false, onToggle, disabled, ariaLabel, disabledReason }: Readonly<CheckCircleProps>) {
   const previousState = useRef(state)
   const [justCompleted, setJustCompleted] = useState(false)
   const reasonId = useId()
@@ -32,7 +31,7 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
     <button
       type="button"
       data-testid="habit-status-toggle"
-      data-habit-row-control="ring"
+      data-habit-row-control="check"
       onClick={(event) => {
         event.stopPropagation()
         if (disabled) return
@@ -43,13 +42,13 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
       aria-label={ariaLabel}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
       title={disabled ? disabledReason : undefined}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
       <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>
         {unavailable
-          ? <span data-status="unavailable" className="block shrink-0 rounded-full bg-[var(--bg-well)]" style={{ width: size, height: size }} />
-          : <StatusRing status={state} size={size} label={ariaLabel} />}
+          ? <HabitCheck status={state} unavailable />
+          : <HabitCheck status={state} label={ariaLabel} />}
       </span>
       {disabled && disabledReason ? <span id={reasonId} className="sr-only">{disabledReason}</span> : null}
     </button>

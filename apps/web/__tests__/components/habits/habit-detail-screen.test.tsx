@@ -2057,6 +2057,21 @@ describe('HabitDetailScreen', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
+      vi.useRealTimers()
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+        const group = await page.getByTestId('detail-children').evaluate((element) => {
+          const paint = getComputedStyle(element)
+          return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth, gap: paint.rowGap }
+        })
+        expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px', gap: '12px' })
+      } finally { await page.close() }
+    })
+
     it.each([
       [320, 'dark'], [412, 'dark'], [1100, 'dark'],
       [320, 'light'], [412, 'light'], [1100, 'light'],

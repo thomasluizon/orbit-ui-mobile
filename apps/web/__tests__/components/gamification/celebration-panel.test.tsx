@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -98,4 +98,60 @@ describe('CelebrationPanel', () => {
       animation: 'celebration-rise 280ms var(--ease-out) both',
     })
   })
+})
+
+
+describe('daily streak presentation', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('shows the new number statically with reduced motion and dismisses itself', async () => {
+    vi.useFakeTimers()
+    motion.reduced = true
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+    useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+    const { container } = render(<CelebrationPanel />)
+    const moment = container.querySelector('[data-daily-streak-moment]')
+    expect(moment).toHaveTextContent('5')
+    expect(moment).toHaveAttribute('data-motion', 'static')
+    expect(moment?.querySelector('[data-previous-streak]')).toBeNull()
+    await act(() => vi.advanceTimersByTime(2500))
+    expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
+  })
+})
+
+
+it('keeps the daily moment while its close button has focus', async () => {
+  vi.useFakeTimers()
+  motion.reduced = true
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  const { container, unmount } = render(<CelebrationPanel />)
+  const close = screen.getByRole('button', { name: 'celebration.close:{}' })
+  act(() => close.focus())
+  await act(() => vi.advanceTimersByTime(5000))
+  expect(container.querySelector('[data-daily-streak-moment]')).not.toBeNull()
+  act(() => close.blur())
+  await act(() => vi.advanceTimersByTime(2500))
+  expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
+  unmount()
+  vi.useRealTimers()
+})
+
+
+it('animates one daily change and leaves the next queued fact available after timeout', async () => {
+  vi.useFakeTimers()
+  motion.reduced = false
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
+  useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
+  const { container, unmount } = render(<CelebrationPanel />)
+  expect(container.querySelector('[data-daily-streak-moment]')).toHaveAttribute('data-motion', 'animated')
+  expect(container.querySelector('[data-previous-streak]')).toHaveTextContent('4')
+  await act(() => vi.advanceTimersByTime(2500))
+  expect(container.querySelector('[data-daily-streak-moment]')).toBeNull()
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  await act(() => vi.advanceTimersByTime(5000))
+  expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+  unmount()
+  vi.useRealTimers()
 })

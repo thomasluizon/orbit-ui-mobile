@@ -3,6 +3,7 @@ import {
   parseAPIDate,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAccountDay,
   getAccountDateTime,
   millisecondsUntilNextDay,
   nowDate,
@@ -101,6 +102,21 @@ describe('formatAPIDateInTimeZone', () => {
 
     expect(formatAPIDateInTimeZone(instant, null)).toBe('2026-09-12')
     expect(formatAPIDateInTimeZone(instant, 'Invalid/Zone')).toBe('2026-09-12')
+  })
+})
+
+describe('getAccountDay', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([
+    { timeZone: undefined, expected: '2026-06-15' },
+    { timeZone: null, expected: '2026-06-16' },
+    { timeZone: 'America/Sao_Paulo', expected: '2026-06-15' },
+    { timeZone: 'Pacific/Kiritimati', expected: '2026-06-16' },
+  ])('resolves $timeZone to $expected on a different device calendar', ({ timeZone, expected }) => {
+    vi.stubEnv('TZ', 'America/Sao_Paulo')
+
+    expect(getAccountDay(new Date('2026-06-16T02:59:00Z'), timeZone)).toBe(expected)
   })
 })
 

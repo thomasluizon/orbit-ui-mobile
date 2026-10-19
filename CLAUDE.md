@@ -58,6 +58,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `questions.md` | Run-level redesign questions, decision criteria and resolved composition decisions. |
 | `design/canvas/` | Granted drawings, design tokens and surface amendments. Outranks DESIGN.md prose on appearance; never its Information architecture or Bans. |
 | `design/google-sign-in-surfaces.md` | Google sign-in mark owners and theme, locale and request-state coverage. |
+| `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |
 | `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
@@ -65,10 +66,13 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `design/progress-grid-surfaces.md` | Responsive Progresso achievement tracks, card text, adjacent stat and goal list audit, platform owners and geometry coverage. |
+| `design/goal-forecast-surfaces.md` | Reachable goal forecast owners, supplied metrics, mirrored states and verification boundaries. |
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
+| `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
+| `design/mcp-web-guide-surfaces.md` | Claude Web connection guide client selector, settings entry, OAuth steps, confirmed endpoint copy states and platform verification owners. |
 | `design/progress-surfaces.md` | Progresso overview and sub-screen owners, retained figures and actions, states and verification coverage. |
 | `design/subscription-surfaces.md` | Assinatura presentation inventory, shared frame start edge and wide shell ownership, shared purchase consumers, retained billing transitions and platform verification owners. |
 | `.claude/manifests/feature-parity.json` | Generated web and Android capability inventory, removal citations and restoration tracking. |

@@ -38,7 +38,7 @@ import { validateTagForm, validateEndTime } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
+import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
@@ -58,6 +58,8 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { TagPickerField } from './habit-form-fields/tag-picker-field'
+import { TagSuggestions } from './habit-form-fields/tag-suggestions'
+import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 
 function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: HabitFormHelpers; dueTime: string }>) {
@@ -257,7 +259,8 @@ export function HabitFormFields({
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const locale = resolveSupportedLocale(useLocale())
+  const language = useLocale()
+  const locale = resolveSupportedLocale(language)
   const translate = useCallback(
     (key: string, values?: Record<string, string | number | Date>) => t(key, values),
     [t],
@@ -316,6 +319,13 @@ export function HabitFormFields({
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const suggestTags = useSuggestTags()
+  const tagSuggestions = useTagSuggestions({
+    availableTags,
+    title, description, language, disabled: tagMutationPending || tags.atTagLimit,
+    request: suggestTags.mutateAsync,
+    accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
+  })
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
 
   useEffect(() => {
@@ -525,7 +535,7 @@ export function HabitFormFields({
             <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />
 
             <section>
-              <TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
+              <TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
                   error={newTagErrors.fieldErrors.name}
                   focusRequest={newTagErrors.focusRequest}
