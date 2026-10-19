@@ -36,6 +36,7 @@ export function createProactiveItemController(adapters: ProactiveItemAdapters): 
 
   function openProactiveItem(item: ProactiveItem): void {
     if (adapters.getChat().openProactiveItem(item)) {
+      // WHY: Outcome reports must not interrupt chat or retry; https://github.com/thomasluizon/orbit-tickets/issues/1481
       void adapters.reportOpened(item.id).catch(() => undefined)
     }
     adapters.openConversation()

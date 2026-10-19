@@ -50,6 +50,7 @@ export async function actOnProactiveItem(item: ProactiveItem, adapters: Pick<Pro
   if (!send.isOnline || send.atLimit) return
   const chat = adapters.useChatStore.getState()
   if (chat.isTyping || chat.streamingMessageId !== null || !chat.claimProactiveAction(item.id)) return
+  // WHY: Outcome reports must not interrupt chat or retry; https://github.com/thomasluizon/orbit-tickets/issues/1481
   void adapters.reportActed(item.id).catch(() => undefined)
   void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
   await send.onSend(item.actionPrompt)
