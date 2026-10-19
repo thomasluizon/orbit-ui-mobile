@@ -55,6 +55,11 @@ interface PlacedEntry {
   laneCount: number
 }
 
+function isScrollMovement(offset: number, openingOffset: number, maximumTravel: number): boolean {
+  const isNativeClamp = offset < openingOffset && Math.abs(maximumTravel - offset) <= 1
+  return offset !== openingOffset && !isNativeClamp
+}
+
 function parseMinutes(time: string | null): number | null {
   if (!time) return null
   const match = /^(\d{1,2}):(\d{2})/.exec(time)
@@ -227,7 +232,9 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
+      if (isScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+        || isScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -300,7 +307,9 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onScroll={(event) => {
             const node = event.currentTarget
-            if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
+            if (isScrollMovement(node.scrollTop, openingScroll.current.top, node.scrollHeight - node.clientHeight)
+              || isScrollMovement(node.scrollLeft, openingScroll.current.left, node.scrollWidth - node.clientWidth)) hasMovedGrid.current = true
+            openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
           }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}

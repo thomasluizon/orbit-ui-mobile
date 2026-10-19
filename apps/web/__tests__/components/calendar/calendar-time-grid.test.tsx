@@ -305,6 +305,56 @@ describe('CalendarTimeGrid', () => {
     } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
   })
 
+  it.each(['vertical', 'horizontal'].flatMap((axis) => ['delivered', 'pending'].flatMap((event) => [
+    { axis, event, movement: 'browser clamp', distance: 0, keepsOpening: true },
+    { axis, event, movement: 'browser clamp within one pixel', distance: 0.5, keepsOpening: true },
+    { axis, event, movement: 'movement outside clamp tolerance', distance: 2, keepsOpening: false },
+    { axis, event, movement: 'movement toward the end', distance: -200, keepsOpening: false },
+  ])))('handles $axis $movement before reopening (event=$event)', ({ axis, event, distance, keepsOpening }) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    let paneHeight = 300
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.dataset.testid === 'time-grid-day-pane' ? paneHeight : 0
+    })
+    const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
+    const crowded = new Map([[columns[3]!.dateStr, Array.from({ length: 4 }, (_, index) => makeEntry({ habitId: `timed-${index}`, dueTime: '08:00' }))]])
+    const grid = (dayMap: Map<string, CalendarDayEntry[]>) => <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    try {
+      const view = render(grid(crowded))
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      const today = screen.getAllByTestId('time-grid-day-column')[3]!
+      const columnWidth = () => Number(/minmax\(([\d.]+)rem/.exec(screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns)![1]) * 16
+      Object.defineProperty(body, 'clientWidth', { configurable: true, value: 380 })
+      Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: 96 })
+      Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
+      act(() => callbacks.at(-1)!())
+      expect(body.scrollTop).toBe(1232)
+      expect(body.scrollLeft).toBe(1202)
+      fireEvent.scroll(body)
+      paneHeight = 100
+      const maximumTravel = distance < 0 ? 1400 : axis === 'vertical' ? 1152 : 1060
+      Object.defineProperty(body, axis === 'vertical' ? 'scrollHeight' : 'scrollWidth', {
+        configurable: true, value: maximumTravel + (axis === 'vertical' ? body.clientHeight : body.clientWidth),
+      })
+      const offset = maximumTravel - Math.max(0, distance)
+      if (axis === 'vertical') body.scrollTop = offset
+      else body.scrollLeft = offset
+      if (event === 'delivered') fireEvent.scroll(body)
+      view.rerender(grid(new Map()))
+      act(() => callbacks.at(-1)!())
+      expect(body.scrollTop).toBe(keepsOpening ? 957 : axis === 'vertical' ? offset : 1232)
+      expect(body.scrollLeft).toBe(keepsOpening ? 530 : axis === 'horizontal' ? offset : 1202)
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
+  })
+
   it.each(['none', 'wheel', 'scrollbar', 'scroll'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
     const onSelectDay = vi.fn()

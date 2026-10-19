@@ -464,12 +464,12 @@ describe("CalendarTimeGrid (mobile)", () => {
   });
 
   it.each([
-    { movement: 'native clamp', offset: 1152, contentHeight: 1552, expected: 1152 },
-    { movement: 'native clamp within one DIP', offset: 1151.5, contentHeight: 1552, expected: 1151.5 },
+    { movement: 'native clamp', offset: 1152, contentHeight: 1552, expected: 957 },
+    { movement: 'native clamp within one DIP', offset: 1151.5, contentHeight: 1552, expected: 957 },
     { movement: 'upward input below the maximum', offset: 1100, contentHeight: 1552, expected: 1100 },
     { movement: 'upward input outside clamp tolerance', offset: 1150, contentHeight: 1552, expected: 1150 },
     { movement: 'input to the end', offset: 1352, contentHeight: 1752, expected: 1352 },
-  ])("preserves $movement before the shorter pane layout", ({ offset, contentHeight, expected }) => {
+  ])("corrects the opening after $movement arrives before the shorter pane layout", ({ offset, contentHeight, expected }) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
     let scrollOffset = 0;
@@ -500,14 +500,15 @@ describe("CalendarTimeGrid (mobile)", () => {
       TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } }));
       expect(body().props.stickyHeaderIndices).toEqual([0]);
       expect(scrollOffset).toBe(expected);
+      if (expected === 957) expect(1032 - scrollOffset).toBe(75);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
   it.each([
-    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1060 },
+    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1044 },
     { movement: 'upward input below the maximum', offset: 1000, contentWidth: 1344, expected: 1000 },
     { movement: 'input to the end', offset: 1788, contentWidth: 2072, expected: 1788 },
-  ])("releases horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
+  ])("keeps horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
     let horizontalOffset = 0;
@@ -553,7 +554,7 @@ describe("CalendarTimeGrid (mobile)", () => {
         pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 100 } } });
       });
       expect(horizontalOffset).toBe(expected);
-      expect(verticalOffset).toBe(1232);
+      expect(verticalOffset).toBe(expected === 1044 ? 957 : 1232);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
