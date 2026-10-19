@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 import { config, proxy } from '@/proxy'
@@ -90,6 +91,49 @@ describe('proxy', () => {
       expect(response).toMatchObject({ type: 'next' })
     }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('serves robots.txt without resolving a session (authenticated: %s)', async (authenticated) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: authenticated ? 'valid-token' : null,
+      expiresAt: authenticated ? Date.now() + 3600000 : null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    const response = await proxy(createRequest('/robots.txt', {
+      cookies: authenticated ? { auth_token: 'valid-token' } : undefined,
+    }))
+
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+    expect(readFileSync('public/robots.txt', 'utf8')).toBe(
+      'User-agent: *\nDisallow: /\n\nAllow: /terms\nAllow: /privacy\nAllow: /delete-account\n',
+    )
+  })
+
+  it.each([
+    ['/', '/'],
+    ['/robots.txt/dashboard', '/robots.txt/dashboard'],
+    ['/robots.txt.bak', '/robots.txt.bak'],
+    ['/robots.txt/../dashboard', '/dashboard'],
+  ])('keeps signed-out %s protected', async (path, returnUrl) => {
+    const actual = await vi.importActual<typeof import('next/server')>('next/server')
+    vi.mocked(NextResponse.redirect).mockImplementationOnce(actual.NextResponse.redirect)
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    const response = await proxy(createRequest(path))
+    const destination = new URL('/login', 'https://app.useorbit.org')
+    destination.searchParams.set('returnUrl', returnUrl)
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(destination.toString())
   })
 
   it('passes signed-out PostHog assets and capture requests through the proxy', async () => {
@@ -217,15 +261,32 @@ describe('proxy', () => {
     )
   })
 
-  it('runs for every early-return path so each response receives the policy', () => {
-    for (const url of [
-      'http://localhost:3000/api/profile',
-      'http://localhost:3000/_next/static/chunks/app.js',
-      'http://localhost:3000/favicon.ico',
-      'http://localhost:3000/images/orbit-logo.png',
-    ]) {
-      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
-    }
+  it.each([
+    ['/_next/static/chunks/app.js', false],
+    ['/_next/static/chunks/app.css', false],
+    ['/_next/static/media/orbit.woff2', false],
+    ['/_next/image?url=%2Fimages%2Forbit-logo.png&w=640&q=75', false],
+    ['/api/health', false],
+    ['/api/health?check=ready', false],
+    ['/', true],
+    ['/profile', true],
+    ['/terms', true],
+    ['/login?googleError=1', true],
+    ['/api/habits', true],
+    ['/api/profile', true],
+    ['/api/health/check', true],
+    ['/api/healthcheck', true],
+    ['/app-ads.txt', true],
+    ['/robots.txt', true],
+    ['/sw.js', true],
+    ['/favicon.ico', true],
+    ['/images/orbit-logo.png', true],
+    ['/_next/data/build/profile.json', true],
+  ])('matches %s only when proxy coverage is required (%s)', (path, matches) => {
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: new URL(path, 'http://localhost:3000').toString(),
+    })).toBe(matches)
   })
 
   it('keeps the health route outside the auth proxy', async () => {
