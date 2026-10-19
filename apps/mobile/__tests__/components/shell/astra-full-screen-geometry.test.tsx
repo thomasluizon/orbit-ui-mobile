@@ -54,7 +54,7 @@ it.each([412, 840])('pins the full conversation over navigation at %ipx', async 
   await renderer.act(() => { tree = renderer.create(<App />) as GeometryTree })
   try {
     const empty = tree.root.findAll(node => node.type === ChatEmptyState)[0]!
-    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(1)
     const geometry = measureSafeArea(tree.toJSON(), host => {
       if (host.props.testID === 'shell-conversation') return 'layer'
       if (host.props.testID === 'shell-tab-bar') return 'tabs'

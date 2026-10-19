@@ -1,6 +1,7 @@
 
 export interface RadioRowBase {
   label: string
+  proposed?: boolean
   textMode?: 'personal'
   description?: string
   selected?: boolean

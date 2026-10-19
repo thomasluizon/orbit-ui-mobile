@@ -115,18 +115,6 @@ vi.mock('@/components/ui/app-bar', () => ({
   ),
 }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
-vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: (props: { children: string; disabled?: boolean; onClick: () => void }) =>
-    React.createElement(
-      'Pressable',
-      {
-        accessibilityLabel: props.children,
-        disabled: props.disabled,
-        onPress: props.onClick,
-      },
-      React.createElement('Text', null, props.children),
-    ),
-}))
 
 type TestNode = {
   type: unknown
@@ -293,7 +281,7 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
     const empty = findByType(tree.root, 'ChatEmptyState')!
 
-    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button').map(node => nodeText(node).trim())).toEqual(['chat.templates.browse'])
     expect(renderedChips(tree.root).map(node => node.props.accessibilityLabel)).toEqual(
       mocks.composer.composerProps.suggestions.map(chip => chip.label),
     )
@@ -322,7 +310,7 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
     const empty = findByType(tree.root, 'ChatEmptyState')!
 
-    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button').map(node => nodeText(node).trim())).toEqual(['chat.templates.browse'])
     expect(renderedChips(tree.root)).toHaveLength(0)
     expect(tree.root.findAll(node => node.type === 'ScrollView' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')).toHaveLength(0)
   })

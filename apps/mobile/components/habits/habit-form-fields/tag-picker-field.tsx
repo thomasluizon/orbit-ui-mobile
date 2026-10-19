@@ -20,6 +20,7 @@ interface TagPickerFieldProps {
   atLimit: boolean
   disabled: boolean
   editor?: ReactNode
+  suggestions?: ReactNode
   onToggle: (id: string) => void
   onCreate: () => void
   onEdit: (tag: HabitTag) => void
@@ -33,7 +34,7 @@ function TagPreview({ tags, moreLabel, styles }: Readonly<{ tags: HabitTag[]; mo
   return <View style={styles.chips}>{tags.slice(0, 3).map((tag) => <View key={tag.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{tag.name}</PersonalTextDetails></View>)}{tags.length > 3 ? <View style={[styles.chip, { paddingHorizontal: 8, paddingVertical: 8 }]}><Text style={styles.chipText}>{moreLabel}</Text></View> : null}</View>
 }
 
-export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
+export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -49,6 +50,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
   const trailingControls = <>
     {tags.length > 0 && !editor ? <Pressable focusInset accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
     {editor}
+    {suggestions}
   </>
   return <>
     <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
