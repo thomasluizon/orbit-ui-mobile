@@ -47,7 +47,7 @@ export function NotificationInbox() {
         onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <button ref={menuAnchorRef} type="button"
           aria-label={t('notifications.options')} aria-expanded={menuOpen} aria-controls={menuId}
           onClick={() => setMenuOpen((open) => !open)}
-          className="grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2">
+          className="grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2">
           <MoreVertical size={20} aria-hidden="true" />
         </button> : undefined}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}:${menuOpen}`} />

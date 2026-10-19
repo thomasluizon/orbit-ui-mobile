@@ -59,12 +59,17 @@ describe('Switch', () => {
 })
 
 describe('SettingsRow', () => {
-  it('clips the pressed fill to its whole row hit area', () => {
+  it('clips the pressed fill inside its whole row hit area', () => {
     let tree: any
     TestRenderer.act(() => { tree = TestRenderer.create(<ListRow textMode="label" title="Account" onClick={() => {}} />) })
     const row = tree.root.find((node: any) => node.props.accessibilityRole === 'button' && node.findAllByProps({ children: 'Account' }).length > 0)
-    const pressed = StyleSheet.flatten(row.props.style({ pressed: true }))
-    expect(pressed).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    const body = StyleSheet.flatten(row.props.style)
+    expect(body).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
+    TestRenderer.act(() => row.props.onPressIn())
+    const fill = () => StyleSheet.flatten(row.findAllByProps({ 'data-slot': 'list-row-fill' })[0].props.style)
+    expect(fill()).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    TestRenderer.act(() => row.props.onPressOut())
+    expect(fill().backgroundColor).toBe('transparent')
   })
 
   it('draws the canonical ListRow leading icon geometry', () => {

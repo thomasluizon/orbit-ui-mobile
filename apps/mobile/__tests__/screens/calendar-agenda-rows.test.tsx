@@ -34,8 +34,11 @@ interface NativeNode {
     accessibilityRole?: string
     importantForAccessibility?: string
     entries: CalendarDayEntry[]
-    style: (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    'data-slot'?: string
+    style: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     onPress: () => void
+    onPressIn: () => void
+    onPressOut: () => void
     onFocus: (event: { target: number; currentTarget: number }) => void
     onBlur: (event: { target: number; currentTarget: number }) => void
     onHoverIn: () => void
@@ -95,8 +98,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
       expect(row.findAllByType(StatusRing)).toHaveLength(1)
       expect(row.findByType(StatusRing).props.size).toBe(24)
       const control = row.findAll((node) => node.type === 'Pressable')[0]!
-      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 })
-      expect(StyleSheet.flatten(control.props.style({ pressed: true })).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+      const declared = control.props.style
+      expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 })
+      await act(() => control.props.onPressIn())
+      expect(StyleSheet.flatten(control.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-fill')[0]!.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+      await act(() => control.props.onPressOut())
     }
     expect(rows[0]!.findByType(StatusRing).props.status).toBe('bad')
     expect(tree!.root.findAll((node) => node.type === 'X')).toHaveLength(1)
@@ -128,11 +134,12 @@ it('paints the Agenda row fill on keyboard focus and pointer hover', async () =>
   await act(() => { tree = TestRenderer.create(<CalendarAgendaView startDate={parseAPIDate('2026-10-05')} dayMap={dayMap}
     displayTime={(time) => time} todayKey="2026-10-05" isLoading={false} loadingLabel={i18n.t('common.loading')} />) })
   const control = () => tree!.root.findAll((node) => node.type === 'Pressable')[0]!
+  const fill = () => StyleSheet.flatten(control().findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-fill')[0]!.props.style as StyleProp<ViewStyle>).backgroundColor
   await act(() => control().props.onFocus({ target: 1, currentTarget: 1 }))
-  expect(StyleSheet.flatten(control().props.style({ pressed: false })).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+  expect(fill()).toBe(createTokensV2('purple', 'dark').bgHover)
   await act(() => control().props.onBlur({ target: 1, currentTarget: 1 }))
   await act(() => control().props.onHoverIn())
-  expect(StyleSheet.flatten(control().props.style({ pressed: false })).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+  expect(fill()).toBe(createTokensV2('purple', 'dark').bgHover)
   await act(() => control().props.onHoverOut())
-  expect(StyleSheet.flatten(control().props.style({ pressed: false })).backgroundColor).toBeUndefined()
+  expect(fill()).toBe('transparent')
 })

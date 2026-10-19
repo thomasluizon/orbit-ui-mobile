@@ -120,7 +120,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
-  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; 'data-slot'?: string }[] = []
+  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[] }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
   }
@@ -132,7 +132,11 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     applyStyle(node, style)
     if (host.props.testID) boxes.push({ node, testID: host.props.testID })
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
-    if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel })
+    if (host.type === 'Pressable') {
+      const children = (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string')
+      const contentIndexes = children.flatMap((child, index) => child.props['data-slot'] === 'list-row-fill' ? [] : [index])
+      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes })
+    }
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
     if (host.type === 'Text') {
       texts.push({ node, label, style, limit: host.props.numberOfLines })
@@ -153,9 +157,9 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel }) => {
+    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes }) => {
       const bounds = position(node)
-      const content = Array.from({ length: node.getChildCount() }, (_, index) => position(node.getChild(index)))
+      const content = contentIndexes.map((index) => position(node.getChild(index)))
       return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
     }), texts: texts.map(({ node, label, style, limit }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))

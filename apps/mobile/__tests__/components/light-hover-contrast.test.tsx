@@ -42,7 +42,7 @@ const cases: { name: string; role: string; element: ReactElement }[] = [
 ]
 
 function pressedFill(control: ReactTestInstance): string {
-  const painted = control.findAll((node) => String(node.type) === 'View' && node.props['data-press-fill'] !== undefined)[0] ?? control
+  const painted = control.findAll((node) => String(node.type) === 'View' && (node.props['data-press-fill'] !== undefined || node.props['data-slot'] === 'list-row-fill'))[0] ?? control
   const style = painted.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
   const resolved = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
   return resolved.backgroundColor as string

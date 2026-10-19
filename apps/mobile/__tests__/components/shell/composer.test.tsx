@@ -1,7 +1,9 @@
 import React from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { buildComposerChips } from '@orbit/shared/chat'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -197,6 +199,14 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
     children.forEach((child, index) => node.insertChild(composerLayout(child, config, nodes, lineCount), index))
   }
   return node
+}
+
+function composerBounds(node: YogaNode) {
+  let left = 0
+  let top = 0
+  let ancestor: YogaNode | null = node
+  while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+  return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight() }
 }
 
 describe('Composer (mobile)', () => {
@@ -570,23 +580,25 @@ describe('Composer (mobile)', () => {
               layout.calculateLayout(width, undefined)
               const field = nodes.get('composer-field')!
               const controls = nodes.get('composer-controls')!
+              const fieldBounds = composerBounds(field)
+              const controlsBounds = composerBounds(controls)
               expect(field.getComputedWidth()).toBe(width - 32)
               expect(controls.getComputedWidth()).toBe(48)
               expect(controls.getComputedHeight()).toBe(48)
-              expect(controls.getComputedTop() + controls.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
+              expect(controlsBounds.bottom).toBeLessThanOrEqual(fieldBounds.bottom)
               const send = nodes.get(state === 'idle' || state === 'sending' ? 'composer-send-accent' : 'composer-send-neutral')!
-              expect(send.getParent()).toEqual(field)
+              const sendBounds = composerBounds(send)
               expect(send.getComputedWidth()).toBe(48)
               expect(send.getComputedHeight()).toBe(48)
-              expect(send.getComputedLeft()).toBeGreaterThanOrEqual(controls.getComputedLeft() + controls.getComputedWidth())
-              expect(send.getComputedLeft() + send.getComputedWidth()).toBeLessThanOrEqual(field.getComputedWidth())
+              expect(sendBounds.left - controlsBounds.right).toBe(INTERACTION_FILL_CLEARANCE)
+              expect(sendBounds.right).toBeLessThanOrEqual(fieldBounds.right - 4)
               if (nativeInput) {
                 const input = nodes.get('input')!
                 const slot = nodes.get('composer-text-slot')!
                 expect(input.getComputedHeight()).toBe(24 * fontScale * Math.min(5, lineCount) + 24)
                 expect(field.getComputedHeight()).toBe(input.getComputedHeight() + 8)
-                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - (withOpener ? 48 : 0))
-                expect(controls.getComputedLeft()).toBeGreaterThanOrEqual(slot.getComputedLeft() + slot.getComputedWidth())
+                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0))
+                expect(controlsBounds.left).toBeGreaterThanOrEqual(composerBounds(slot).right)
               } else expect(field.getComputedHeight()).toBe(56)
             } finally { layout.freeRecursive() }
           }
@@ -737,6 +749,23 @@ describe('Composer (mobile)', () => {
     expect(StyleSheet.flatten(input.props.style).borderWidth).toBeUndefined()
     TestRenderer.act(() => input.props.onBlur())
     expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(1)
+  })
+
+  it('keeps each action focus ring primary and separates it from an accent fill', async () => {
+    const tree = await renderComposer(props({ value: 'Draft', onAttachFile: vi.fn(), attachWords }))
+    const tokens = createTokensV2('purple', 'dark')
+    for (const name of [words.actions, words.send]) {
+      const control = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === name)[0]
+      const target = {}
+      TestRenderer.act(() => control.props.onFocus({ target, currentTarget: target }))
+      const ring = control.findAllByType('View').at(-1)
+      const style = StyleSheet.flatten(ring.props.style)
+      expect(style).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
+      expect(style.outlineOffset + style.outlineWidth).toBeLessThanOrEqual(0)
+      if (name === words.send) expect(style).toMatchObject({ borderWidth: 4, borderColor: tokens.bg })
+      expect(contrastOnSurface(tokens.primary, [tokens.bg])).toBeGreaterThanOrEqual(3)
+      TestRenderer.act(() => control.props.onBlur({ target, currentTarget: target }))
+    }
   })
 
   it.each(['', '   '])('does not send a blank value %j', async (value) => {

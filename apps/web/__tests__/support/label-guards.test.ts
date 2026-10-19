@@ -482,6 +482,20 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
+  it.each([false, true])('measures compact checkbox paint independently of transparent reach (partial=%s)', async (partial) => {
+    const page = await browser.newPage()
+    try {
+      const row = renderToStaticMarkup(createElement(CheckRow, { placement: 'column', label: en.calendar.showRecurring, checked: true, onChange: () => {} }))
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}${partial ? '.orbit-list-row-outset { inset-inline: -8px }' : ''}</style><main style="padding:24px">${row}</main></html>`)
+      const control = page.getByRole('checkbox')
+      await control.hover()
+      const assertion = expectFillShape(control, 'hover')
+      if (partial) await expect(assertion).rejects.toThrow(/fill.*control/)
+      else await assertion
+    } finally { await page.close() }
+  })
+
   it.each([
     { name: 'centered partial fill', inset: '12px', passes: false },
     { name: 'full control fill', inset: '0', passes: true },
@@ -527,7 +541,7 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
-  it('rejects a full-size fill with an unpainted pseudo-element hit extension', async () => {
+  it('accepts a full-size fill with a transparent pseudo-element hit extension', async () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>
@@ -535,7 +549,7 @@ describe('label and interaction fill guards in Chromium', () => {
           background: rgb(220, 220, 220); }
         button::before { content: ""; position: absolute; inset: -4px; }
       </style><button>Go</button>`)
-      await expect(expectFillShape(page.locator('button'), 'press')).rejects.toThrow('a hit extension must also carry the fill')
+      await expectFillShape(page.locator('button'), 'press')
     } finally {
       await page.close()
     }
@@ -640,16 +654,15 @@ describe('label and interaction fill guards in Chromium', () => {
     const row = render(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', personalExpanded: false, onClick: () => {} }))
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main>`)
+      await page.bringToFront()
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main></html>`)
       await loadAppFonts(page)
       await markUserText(page, [email])
       await expectLabelsFit(page, page, [email])
-      await page.getByRole('button', { name: `Account, ${email}` }).evaluate((element) => {
-        const control = element as HTMLElement
-        control.style.setProperty('transition', 'none', 'important')
-        control.style.setProperty('background-color', 'rgb(220, 220, 220)', 'important')
-      })
-      await expectFillShape(page.getByRole('button', { name: `Account, ${email}` }), 'resting')
+      const control = page.getByRole('button', { name: `Account, ${email}` })
+      await control.hover()
+      await expectFillShape(control, 'hover')
     } finally { await page.close(); row.unmount() }
   })
 

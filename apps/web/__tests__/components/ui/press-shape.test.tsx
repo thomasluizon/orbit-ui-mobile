@@ -1,4 +1,5 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 import { execFileSync } from 'node:child_process'
 import { NextIntlClientProvider } from 'next-intl'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -214,9 +215,9 @@ describe('interaction fill parity in Chromium', () => {
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(48)
         expect(bounds!.height, `${label} target height`).toBeGreaterThanOrEqual(48)
         await control.hover()
-        if (!hasTouch) expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor), label).toBe(expectedFill)
+        if (!hasTouch) expect((await control.evaluate(readControlPaint)).background, label).toBe(expectedFill)
         await page.mouse.down()
-        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor), `${label} press`).toBe(expectedFill)
+        expect((await control.evaluate(readControlPaint)).background, `${label} press`).toBe(expectedFill)
         await page.mouse.up()
       }
       if (!hasTouch) {

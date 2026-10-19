@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { useReducedMotion } from 'react-native-reanimated'
-import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
   createAccountScopedHabitDetailWriteQueue,
@@ -238,7 +238,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
           {editing ? <TypedTextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
             {({ pressed }) => <>
-              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -6, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
+              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
               <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>
             </>}
           </Pressable>}
@@ -689,19 +689,19 @@ const styles = StyleSheet.create({
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16 },
   surface: { gap: 8 },
-  header: { gap: 12 },
+  header: { gap: 8 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerSpacer: { flex: 1 },
-  headerCopy: { width: '100%', minWidth: 0, gap: 4 },
+  headerCopy: { width: '100%', minWidth: 0, gap: 8 },
   renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
-  renameFill: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
+  renameFill: { position: 'absolute', top: -4, bottom: -4, left: -12, right: -12, minWidth: TOUCH_TARGET_MIN, borderRadius: 12 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: SPACING.s0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: SPACING.s12 },
-  childReason: { alignSelf: 'flex-end', paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
+  childReason: { alignSelf: 'flex-end', paddingTop: SPACING.s4 + INTERACTION_FILL_CLEARANCE, paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statCard: { padding: SPACING.s24, borderRadius: 20 },
   statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },

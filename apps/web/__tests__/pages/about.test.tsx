@@ -154,7 +154,7 @@ describe('About destination geometry in Chromium', () => {
     } finally { await page.close(); vi.unstubAllEnvs() }
   })
 
-  it.each([600, 1352])('extends the account target and fill 16px beyond the fact edges at %ipx', async (width) => {
+  it.each([600, 1352])('keeps the account fill inside the page edge at %ipx', async (width) => {
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
     useAuthStore.setState({ isAuthenticated: true })
     render(<AboutPage />)
@@ -175,8 +175,8 @@ describe('About destination geometry in Chromium', () => {
       })
       expect(measured.left).toBe(measured.versionLeft)
       expect(measured.right).toBe(measured.versionRight)
-      expect(measured.fillLeft).toBe('-16px')
-      expect(measured.fillRight).toBe('-16px')
+      expect(measured.fillLeft).toBe('-12px')
+      expect(measured.fillRight).toBe('-12px')
       expect(measured.leftHit).toBe(true)
       expect(measured.rightHit).toBe(true)
     } finally { await page.close(); vi.unstubAllEnvs() }

@@ -275,7 +275,12 @@ describe('expanded RadioRow personal text in Chromium', () => {
       }
       const control = composition === 'calendarEvent' ? selection : disclosure
       const bounds = (await control.boundingBox())!
-      await page.mouse.click(bounds.x + 8, bounds.y + (composition === 'calendarCheck' ? -8 : 8))
+      if (composition === 'calendarCheck') {
+        await page.mouse.click(bounds.x + 8, bounds.y - 8)
+        expect(await control.getAttribute('aria-expanded')).toBe('true')
+        expect(await page.locator('#commits').textContent()).toBe('toggle')
+      }
+      await page.mouse.click(bounds.x + 8, bounds.y + 8)
       expect(await control.getAttribute(composition === 'calendarEvent' ? 'aria-pressed' : 'aria-expanded')).toBe(composition === 'calendarEvent' ? 'true' : 'false')
       await control.focus()
       await page.keyboard.press(key)

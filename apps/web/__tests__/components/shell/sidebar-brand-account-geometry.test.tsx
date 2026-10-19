@@ -3,21 +3,27 @@ import { render, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { useShellStore } from '@/stores/shell-store'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => true }))
 
 const cases = [1024, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
-  [false, true].map(collapsed => ({ width, locale, collapsed })),
+  [false, true].flatMap(collapsed => (['dark', 'light'] as const).map(mode => ({ width, locale, collapsed, mode, forcedColors: 'none' as const }))),
 ))
+  .flatMap(scenario => scenario.width === 1024 && scenario.locale === 'en' ? [scenario, { ...scenario, forcedColors: 'active' as const }] : [scenario])
 const email = 'a.very.long.account.address@example.test'
 const longName = 'Alexandra Beatriz Carolina Daniela Emilia Fernanda Gabriela'
 
@@ -52,12 +58,13 @@ describe('sidebar brand and account geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('groups the brand controls and account at $width in $locale, collapsed=$collapsed', async ({ width, locale, collapsed }) => {
+  it.each(cases)('groups the brand controls and account at $width in $locale, collapsed=$collapsed, $mode with forced colors $forcedColors', async ({ width, locale, collapsed, mode, forcedColors }) => {
     useShellStore.setState({ sidebarCollapsed: collapsed })
     const view = render(sidebarFixture(locale, 'Alex Lin'))
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ viewport: { width, height: 900 }, forcedColors })
     try {
-      await page.setContent(`<html lang="${locale}" class="dark"><head><style>${stylesheet}</style></head><body>${view.container.innerHTML}</body></html>`)
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html lang="${locale}" class="${mode}" style="${variables}"><head><style>${stylesheet}</style></head><body>${view.container.innerHTML}</body></html>`)
       await page.evaluate(() => document.fonts.ready)
       const header = await page.evaluate(() => {
         const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
@@ -113,6 +120,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
         expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
         expect.soft(Math.abs(header.trailingGlyph.right - header.search.right)).toBeLessThanOrEqual(1)
       }
+      await assertBrandFills(page)
       const shortAccount = await measureAccount(page)
       if (collapsed) {
         expect(shortAccount.avatar.centerX).toBe(header.sidebar.centerX)
@@ -150,6 +158,28 @@ describe('sidebar brand and account geometry in Chromium', () => {
     } finally { await page.close() }
   })
 })
+
+async function assertBrandFills(page: Page) {
+  for (const control of await page.locator('[data-shell-brand-row] button').all()) {
+    for (const state of ['hover', 'press', 'focus']) {
+      if (state === 'focus') {
+        await page.keyboard.press('Shift')
+        await control.focus()
+      } else {
+        await control.hover()
+        if (state === 'press') await page.mouse.down()
+      }
+      await control.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+      await control.evaluate(settleAnimations)
+      const fill = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(fill.hasFill, `${fill.control} ${state}`).toBe(true)
+      expect(fill.violations, `${fill.control} ${state}`).toEqual([])
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+      await control.blur()
+    }
+  }
+}
 
 async function measureAccount(page: Awaited<ReturnType<Browser['newPage']>>) {
   return page.evaluate(() => {

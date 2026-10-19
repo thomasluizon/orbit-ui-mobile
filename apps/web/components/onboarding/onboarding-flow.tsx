@@ -153,7 +153,7 @@ function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<
   return <div className="flex min-h-14 items-center justify-between gap-4 px-4 min-[1024px]:px-0">
     <div className="flex shrink-0 items-center gap-2">
       {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <button type="button" aria-label={t('back')} disabled={completionPending} onClick={onBack}
-        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-none place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40">
+        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-none place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-40">
         <ArrowLeft size={20} aria-hidden="true" focusable="false" className="translate-x-px rtl:-translate-x-px rtl:-scale-x-100" />
       </button> : null}
       <span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>

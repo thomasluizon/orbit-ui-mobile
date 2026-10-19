@@ -593,9 +593,11 @@ function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetime
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }
-  const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
-    node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
+  const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string; 'data-slot'?: string } }) =>
+    node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props['data-slot'] !== 'list-row-fill')
   expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+  const fills = row.findAll((node: { type: unknown; props: { 'data-slot'?: string } }) => node.type === 'View' && node.props['data-slot'] === 'list-row-fill')
+  expect(fills).toHaveLength(Number(navigates))
 }
 
 describe('ProfileScreen', () => {

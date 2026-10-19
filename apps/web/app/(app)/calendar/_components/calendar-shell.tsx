@@ -13,9 +13,9 @@ interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
 }
 
-const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
+const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 const titleButton = `${controlButton} rounded-[12px] bg-transparent`
-const headerButton = `${controlButton} rounded-full bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]`
+const headerButton = `${controlButton} orbit-calendar-nav-control relative rounded-full bg-transparent`
 const pickerButton = `${controlButton} rounded-[12px] bg-[var(--bg-field)]`
 
 function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
@@ -47,7 +47,7 @@ function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, peri
           aria-disabled={isTodaySelected} onClick={onReturn}>
           {period ? <span>{period.label}</span> : <span className="min-w-0 whitespace-normal break-words">{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>}
         </button>
-        {!period ? <button type="button" className={titleButton} style={{ minWidth: 48, minHeight: 48 }}
+        {!period ? <button type="button" className={`${titleButton} orbit-calendar-picker-control relative`} style={{ minWidth: 48, minHeight: 48 }}
           aria-label={`${monthName}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId}
           onClick={onOpenPicker}>
           <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />

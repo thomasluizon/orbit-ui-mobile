@@ -43,6 +43,18 @@ vi.mock('@/app/(tabs)/profile/_components/delete-account-modal', () => ({ Delete
 type Tree = ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
 type HostRow = Parameters<typeof measureProfileRow>[0]
 
+it('measures row content padding separately from its decorative fill', async () => {
+  let tree!: Tree
+  await act(() => { tree = create(<ListRow textMode="label" title="Events" onClick={vi.fn()} />) as Tree })
+  try {
+    const geometry = measureProfileRow(tree.toJSON(), 320, 1)
+    expect(geometry.controls[0]!.inlineClearance).toBe(16)
+    const fill = geometry.parts.find((part) => part.slot === 'list-row-fill')!
+    expect(fill.left).toBe(4)
+    expect(fill.right).toBe(316)
+  } finally { await act(() => tree.update(<></>)) }
+})
+
 describe('account navigation row', () => {
   it.each([
     createMockProfile({ name: 'Ana', email: 'a@b.co' }),

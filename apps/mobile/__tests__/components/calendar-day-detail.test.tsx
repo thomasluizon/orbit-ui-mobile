@@ -3,7 +3,7 @@ import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -439,6 +439,12 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(control.findAll((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(0)
     expect(control.props.accessibilityState).toMatchObject({ checked: status === 'completed' })
     expect(control.props.hitSlop).toBe(12)
+    const controlStyle = StyleSheet.flatten(control.props.style as ViewStyle)
+    expect(controlStyle).toMatchObject({ width: 24, height: 24 })
+    expect(Number(controlStyle.width) + Number(control.props.hitSlop) * 2).toBe(48)
+    expect(Number(controlStyle.height) + Number(control.props.hitSlop) * 2).toBe(48)
+    const row = nodes(tree, 'View').find(node => node.props['data-slot'] === 'list-row-body' && node.findAll(child => child === control).length > 0)!
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 68, paddingStart: 16, paddingEnd: 16, gap: 12 })
     TestRenderer.act(() => { (control.props.onFocus as () => void)() })
     const fills = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] === '')
     expect(fills).toHaveLength(1)

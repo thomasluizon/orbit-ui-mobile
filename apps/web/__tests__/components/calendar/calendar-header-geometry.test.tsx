@@ -28,6 +28,7 @@ import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
 
@@ -272,7 +273,7 @@ describe('Calendar header geometry in Chromium', () => {
       for (const label of ['Previous', 'Next']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const resting = await control.evaluate((button) => {
-          const style = getComputedStyle(button)
+          const style = getComputedStyle(button, '::before')
           return { background: style.backgroundColor, ring: style.boxShadow, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height }
         })
         expect(resting.background).toBe('rgba(0, 0, 0, 0)')
@@ -281,13 +282,13 @@ describe('Calendar header geometry in Chromium', () => {
         expect(resting.width).toBeGreaterThanOrEqual(48)
         expect(resting.height).toBeGreaterThanOrEqual(48)
         await control.hover()
-        await expect.poll(() => control.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe(resting.background)
+        await expect.poll(async () => (await control.evaluate(readControlPaint)).background).not.toBe(resting.background)
         await page.mouse.move(0, 0)
       }
       const title = page.getByRole('button', { name: `September, ${en.calendar.monthPicker}` })
       expect(await title.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, radius: getComputedStyle(button).borderRadius }))).toEqual({ background: 'rgba(0, 0, 0, 0)', radius: '12px' })
       await title.focus()
-      await expect.poll(() => title.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+      await expect.poll(async () => (await title.evaluate(readControlPaint)).background).not.toBe('rgba(0, 0, 0, 0)')
     } finally { await page.close() }
   })
 

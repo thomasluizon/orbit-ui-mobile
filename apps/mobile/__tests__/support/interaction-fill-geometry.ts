@@ -1,0 +1,28 @@
+import { StyleSheet, type ViewStyle } from 'react-native'
+import { measureProfileRow } from './profile-row-geometry'
+
+type Host = Parameters<typeof measureProfileRow>[0]
+
+export function measureInteractionFills(host: Host, width: number, pressed: boolean, scale = 1) {
+  const hosts = new Map<string, { host: Host; ancestors: string[] }>()
+  function mark(host: Host, ancestors: string[]): Host {
+    const key = String(hosts.size)
+    hosts.set(key, { host, ancestors })
+    const declared = host.props.style
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
+    const svgSize = host.type === 'Svg' && 'width' in host.props && 'height' in host.props && typeof host.props.width === 'number' && typeof host.props.height === 'number'
+      ? { width: host.props.width, height: host.props.height, flex: 0 } : {}
+    return { ...host, props: { ...host.props, style: { ...style, ...svgSize }, 'data-slot': key }, children: host.children?.map((child) => typeof child === 'string' ? child : mark(child, [...ancestors, key])) ?? null }
+  }
+  const marked = mark(host, [])
+  const measured = measureProfileRow(marked, width, scale)
+  return measured.parts.map((part) => ({ ...part, ...hosts.get(part.slot)! }))
+}
+
+export function paintedExtent(style: ViewStyle) {
+  return style.outlineStyle === 'solid' ? Math.max(0, Number(style.outlineWidth ?? 0) + Number(style.outlineOffset ?? 0)) : 0
+}
+
+export function hasPaint(style: ViewStyle) {
+  return Boolean(style.backgroundColor && style.backgroundColor !== 'transparent') || Number(style.outlineWidth ?? 0) > 0
+}

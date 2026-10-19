@@ -216,7 +216,8 @@ function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerPro
   return <View testID="composer-controls" style={styles.controls}>
     <MenuAnchorHost anchorRef={menu.anchorRef}>
       <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label}
-        focusColor={isRecording ? tokens.fgOnPrimary : tokens.fg1}
+        focusColor={tokens.primary}
+        focusContrastColor={isRecording ? tokens.bg : undefined}
         accessibilityState={{ disabled, ...(!voiceActive ? { expanded: menuOpen } : {}) }} disabled={disabled} onPress={voiceActive ? props.onVoice : menu.open}
         style={({ pressed }) => composerActionStyle(tokens, isRecording, disabled, pressed)}>
         <ComposerActionIcon state={props.state} tokens={tokens} />
@@ -339,11 +340,13 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       ) : null}
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} />}
 
+      <View style={styles.trailingControls}>
         <ComposerControls props={props} tokens={tokens} />
 
       <InsetFocusPressable
         testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
-        focusColor={sendIsAccent ? tokens.fgOnPrimary : tokens.fg1}
+        focusColor={tokens.primary}
+        focusContrastColor={sendIsAccent ? tokens.bg : undefined}
         accessibilityRole="button"
         accessibilityLabel={props.words.send}
         accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}
@@ -365,6 +368,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       >
         {props.state === 'sending' ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
       </InsetFocusPressable>
+      </View>
     </View>
   )
 }
@@ -589,6 +593,11 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  trailingControls: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
   },
   textSlot: {
     flex: 1,

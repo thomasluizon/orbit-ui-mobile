@@ -1,6 +1,6 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
-import { PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
@@ -128,36 +128,32 @@ function useRowInteraction(disabled: boolean) {
   }
 }
 
-function rowHighlight(column: boolean, disabled: boolean, highlighted: boolean, color: string) {
-  return !column && !disabled && highlighted ? { backgroundColor: color } : null
-}
-
 function rowAccessibilityState(props: ListRowProps) {
   return { ...(props.disabled || props.toggle?.pending ? { disabled: true } : {}), ...(props.expanded === undefined ? {} : { expanded: props.expanded }), ...(props.toggle ? { checked: props.toggle.checked } : {}), ...(props.toggle?.pending ? { busy: true } : {}) }
 }
 
-function ColumnFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowInteraction>; tokens?: ReturnType<typeof createTokensV2> }>) {
-  if (props.placement !== 'column') return null
+function RowFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowInteraction>; tokens?: ReturnType<typeof createTokensV2> }>) {
+  const column = props.placement === 'column'
+  if (!column && !interaction) return null
   const highlightedStyle = interaction && tokens ? { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' as const } : null
-  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot="list-row-body" style={[styles.outset, hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot={column ? 'list-row-body' : 'list-row-fill'} style={[column ? styles.outset : styles.insetFill, column && props.action ? { right: 0 } : null, column && hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
 }
 
 function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowInteraction>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
   const column = props.placement === 'column'
   const slot = column ? undefined : 'list-row-body'
-  if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><ColumnFill props={props} />{children}</View>
-  const Control = column ? NativePressable : Pressable
+  if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><RowFill props={props} />{children}</View>
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
-  return <Control data-slot={slot} ref={ref} focusOffset={-2} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  return <NativePressable data-slot={slot} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? () => toggle.onChange(!toggle.checked) : props.onClick}
     onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut}
-    style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), rowHighlight(column, disabled, pressed || interaction.highlighted, tokens.bgHover)]}>
-    <ColumnFill props={props} interaction={interaction} tokens={tokens} />
+    style={[bodyStyle, getDisabledStyle(disabled)]}>
+    <RowFill props={props} interaction={interaction} tokens={tokens} />
     {children}
-  </Control>
+  </NativePressable>
 }
 
 function rowContentStyle(props: ListRowProps, trailing: ReactNode, labelWrapped: boolean) {
@@ -216,7 +212,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   )
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, props.action ? { gap: 4 } : null]}>
       <RowControl ref={ref} props={props} bodyStyle={bodyStyle} interaction={interaction} tokens={tokens}>{body}</RowControl>
       <RowAction action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
     </View>
@@ -225,10 +221,11 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
 
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
-  body: { minHeight: 52, paddingVertical: PADDING.rowBlock, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
+  body: { position: 'relative', minHeight: 52, paddingVertical: PADDING.rowBlock, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
+  insetFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
   insetBody: { paddingHorizontal: PADDING.rowInline, overflow: 'hidden' },
   columnBody: { position: 'relative' },
-  outset: { minHeight: 52, paddingVertical: PADDING.rowBlock, position: 'absolute', top: 0, bottom: 0, left: -PADDING.rowInline, right: -PADDING.rowInline, borderRadius: 12 },
+  outset: { minHeight: 52, paddingVertical: PADDING.rowBlock, position: 'absolute', top: 0, bottom: 0, left: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, right: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: SPACING.s0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },

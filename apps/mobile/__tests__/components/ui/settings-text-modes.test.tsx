@@ -15,7 +15,8 @@ describe.each([['ListRow', ListRow]] as const)('%s text modes', (_name, Row) => 
     const label = tree!.root.findAll((node) => String(node.type) === 'Text')[0]!
     expect(label.props.numberOfLines).toBeUndefined()
     const row = tree!.root.findAll((node) => String(node.type) === 'Pressable')[0]!
-    const style = StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => object)({ pressed: false }))
+    const declared = row.props.style
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
     expect(style).toMatchObject({ minHeight: 52 })
     if (fontScale > 1.3) expect(style).toMatchObject({ alignItems: 'center' })
     await act(() => tree!.update(<></>))

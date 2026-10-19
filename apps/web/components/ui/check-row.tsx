@@ -87,7 +87,17 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
 }
 
 function personalLabelContentStyle(calendarDay: boolean) {
-  return { gap: 4, minHeight: calendarDay ? 68 : 24, paddingBlock: calendarDay ? SPACING.s12 : undefined }
+  return { gap: 4, minHeight: calendarDay ? 68 : 48, paddingBlock: SPACING.s12 }
+}
+
+function personalControlStyle(selection: boolean) {
+  return selection ? { minHeight: `calc(var(--fs-base) * 1.4 + ${SPACING.s12 * 2}px)` } : undefined
+}
+
+function personalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement'], selection: boolean) {
+  return { minHeight: calendarDay || supportingText ? 68 : 52, paddingInlineStart: SPACING.s16,
+    paddingInlineEnd: calendarDay ? SPACING.s16 : SPACING.s4, marginInline: placement === 'column' ? -SPACING.s16 : undefined,
+    paddingBlock: SPACING.s0, gap: calendarDay ? SPACING.s12 : SPACING.s0, alignItems: selection ? 'flex-start' as const : undefined }
 }
 
 function PersonalCheckRow({ label, selection = false, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
@@ -100,8 +110,8 @@ function PersonalCheckRow({ label, selection = false, placement, variant, onOpen
         {error || description ? <span data-slot="check-row-description" className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
       </button>} />
-      <button type="button" role="checkbox" style={selection ? { minHeight: 'calc(var(--fs-base) * 1.4)' } : undefined} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className="orbit-check-row-control relative grid size-[24px] shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60">
-        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-3">
+      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control relative grid ${calendarDay ? 'size-6' : 'size-[48px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
+        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
           {calendarDay ? <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>
       </button>
@@ -121,8 +131,4 @@ function checkRowLabelClass(selection: boolean, proposed: boolean, checked: bool
   if (personal && !selection) return 'text-[var(--fg-1)]'
   if (selection) return checked ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'
   return proposed || checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)] group-active/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'
-}
-
-function personalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement'], selection: boolean) {
-  return { minHeight: calendarDay || supportingText ? 68 : 52, paddingInline: SPACING.s16, marginInline: placement === 'column' ? -SPACING.s16 : undefined, paddingBlock: calendarDay ? SPACING.s0 : SPACING.s12, gap: 12, alignItems: selection ? 'flex-start' as const : undefined }
 }

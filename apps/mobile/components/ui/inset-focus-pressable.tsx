@@ -9,6 +9,7 @@ export interface InsetFocusPressableProps extends Omit<PressableProps, 'children
   ref?: Ref<View>
   focusOffset?: number
   focusColor?: ColorValue
+  focusContrastColor?: ColorValue
   selectionRingWidth?: number
   selectionRingColor?: ColorValue
 }
@@ -20,6 +21,7 @@ export function InsetFocusPressable({
   children,
   focusOffset = -4,
   focusColor,
+  focusContrastColor,
   selectionRingWidth,
   selectionRingColor,
   ...props
@@ -58,6 +60,7 @@ export function InsetFocusPressable({
                 outlineOffset: focusOffset,
                 outlineStyle: 'solid',
                 outlineColor: focusColor ?? tokens.fg1,
+                ...(focusContrastColor ? { borderWidth: 4, borderColor: focusContrastColor } : {}),
               },
             ]}
           /> : null}

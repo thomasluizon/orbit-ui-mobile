@@ -1,3 +1,5 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { readFileSync } from 'node:fs'
@@ -31,12 +33,15 @@ import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-cha
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
+import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
   realTimeField: false,
   realReminderSections: false,
   realHeaderRing: false,
+  realChildRows: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -252,8 +257,12 @@ vi.mock('@/components/habits/habit-log-button', async (importOriginal) => {
       : <button type="button" aria-label={props.label} data-logged={props.logged} data-disabled-reason={props.disabledReason} disabled={props.disabled} onClick={props.onPress}>{props.label}</button>,
   }
 })
-vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  return { HabitRow: (props: React.ComponentProps<typeof actual.HabitRow>) => {
+    if (mocks.realChildRows) return <actual.HabitRow {...props} />
+    const { habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions = {} } = props
+    return (
     <div>
       <button
         type="button"
@@ -272,8 +281,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       <button type="button" aria-label={`open-${habit.id}`} onClick={actions.onDetail} />
       <button type="button" aria-label={`delete-${habit.id}`} onClick={actions.onDelete} />
     </div>
-  ),
-}))
+    )
+  } }
+})
 
 function openRescueGate() {
   mocks.logs = []
@@ -468,6 +478,7 @@ describe('HabitDetailScreen', () => {
   })
   beforeEach(() => {
     mocks.realHeaderRing = false
+    mocks.realChildRows = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
@@ -2074,6 +2085,41 @@ describe('HabitDetailScreen', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each([320, 412, 600, 1024, 1352])('clears the unscheduled child explanation at %ipx', async (width) => {
+      vi.useRealTimers()
+      mocks.scopedHabits = new Map()
+      mocks.realChildRows = true
+      const { container } = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root { ${variables} } * { transition:none!important }</style>${container.innerHTML}`)
+        const group = page.getByTestId('detail-children')
+        expect(await group.locator('p').textContent()).toBe('calendar.dayCell.notScheduled')
+        for (const control of await group.locator('button:visible:not(:disabled):not([aria-disabled="true"])').all()) {
+          await control.hover({ timeout: 2000 })
+          const geometry = await control.evaluate((element) => ({
+            bottom: element.getBoundingClientRect().bottom,
+            reasonTop: element.closest('[data-testid="detail-children"]')!.querySelector('p')!.getBoundingClientRect().top,
+          }))
+          expect(geometry.reasonTop - geometry.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          for (const state of ['hover', 'press', 'focus-visible'] as const) {
+            if (state === 'press') await page.mouse.down()
+            if (state === 'focus-visible') {
+              await page.mouse.move(0, 0)
+              await page.mouse.up()
+              await page.keyboard.press('Tab')
+              await control.focus()
+              expect(await control.evaluate(element => element.matches(':focus-visible'))).toBe(true)
+            }
+            const fill = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+            expect(fill.violations, `${width}px ${state}: ${fill.control}`).toEqual([])
+          }
+          await control.blur()
+        }
+      } finally { await page.close() }
+    })
+
     it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
       vi.useRealTimers()
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
@@ -2099,6 +2145,7 @@ describe('HabitDetailScreen', () => {
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
         await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
         const button = title.getByRole('button')
         expect(await button.textContent()).toBe(mocks.detail!.title)
@@ -2111,6 +2158,7 @@ describe('HabitDetailScreen', () => {
         expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
         const hit = await target.evaluate(readExpandedControlGeometry)
         expect(hit.edgeHits).toEqual([true, true, true, true])
+        const paint = await target.evaluate(readControlPaint)
         const clearance = await target.evaluate((element, bounds) => {
           const heading = element.closest('h1')!
           const style = getComputedStyle(element, '::before')
@@ -2124,9 +2172,11 @@ describe('HabitDetailScreen', () => {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
             summaryGap: summary.top - bounds.bottom - outerEdge,
           }
-        }, hit)
+        }, paint.bounds)
         expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
-        expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+        expect(clearance.summaryGap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        const fill = await target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+        expect(fill.violations).toEqual([])
         await title.focus()
         expect(await title.evaluate((element) => element === document.activeElement)).toBe(true)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
@@ -2134,7 +2184,7 @@ describe('HabitDetailScreen', () => {
       } finally { await page.close() }
     })
 
-    it.each([412, 1100])('aligns title ink and preserves the base header height at %ipx', async (width) => {
+    it.each([320, 412, 600, 1024, 1100, 1352])('aligns title ink and reserves fill clearance at %ipx', async (width) => {
       vi.useRealTimers()
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -2167,6 +2217,19 @@ describe('HabitDetailScreen', () => {
         expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
         expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)
         expect(geometry.rowHeight).toBeCloseTo(geometry.baseHeight, 1)
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+        await page.addStyleTag({ content: `:root { ${variables} }` })
+        const target = heading.getByRole('button')
+        await target.hover()
+        for (const state of ['hover', 'press'] as const) {
+          if (state === 'press') await page.mouse.down()
+          await target.evaluate(readControlPaint)
+          const fill = await target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+          expect(fill.hasFill, state).toBe(true)
+          expect(fill.violations, state).toEqual([])
+        }
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
       } finally { await page.close() }
     })
 

@@ -11,6 +11,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { expectCalendarDayLinkFocus } from './calendar-day-link-focus'
 import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
+import { readControlPaint } from './control-paint'
 import { test } from './upgrade-fixtures'
 
 const selectedDate = '2026-09-04'
@@ -49,16 +50,19 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
     }
     await expect(control).not.toHaveAttribute('data-test-touch-held')
     await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
-    await expect.poll(() => control.evaluate((element) => {
+    await expect.poll(async () => {
+      const expected = await control.evaluate(() => {
       const probe = document.createElement('span')
       probe.style.background = 'var(--bg-hover)'
       probe.style.position = 'fixed'
       probe.style.pointerEvents = 'none'
       document.body.append(probe)
-      const expected = getComputedStyle(probe).backgroundColor
+      const color = getComputedStyle(probe).backgroundColor
       probe.remove()
-      return getComputedStyle(element).backgroundColor === expected
-    }), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
+      return color
+      })
+      return (await control.evaluate(readControlPaint)).background === expected
+    }, { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
     await expectFillShape(control, 'touch press')
     if (separateBody) await expect(separateBody).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   } finally {

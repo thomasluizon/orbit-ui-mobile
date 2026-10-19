@@ -552,8 +552,8 @@ describe('HabitDetailScreen', () => {
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
     const copy = header.findAll((node: TestNode) => node.type === 'View' && viewStyle(node).width === '100%')[0]!
     expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
-    expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
-    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
+    expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 8 })
+    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 8 })
     const views = header.findAll((node: TestNode) => node.type === 'View')
     const controls = views.find((node: TestNode) => viewStyle(node).flexDirection === 'row')!
     expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
@@ -1093,10 +1093,10 @@ describe('HabitDetailScreen', () => {
     expect(textsOf(renameControls[0])).toContain(title)
     expect(StyleSheet.flatten(renameControls[0]!.props.style)).toMatchObject({ minWidth: 48, minHeight: 32, position: 'relative' })
     expect(renameControls[0]!.props.hitSlop).toEqual({ top: 8, bottom: 8, left: 16, right: 16 })
-    const fill = renameControls[0]!.findAllByType('View').find((node: TestNode) => viewStyle(node).top === -8)!
-    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -16, right: -16, borderRadius: 12 })
+    const fill = renameControls[0]!.findAllByType('View').find((node: TestNode) => viewStyle(node).top === -4)!
+    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, top: -4, bottom: -4, left: -12, right: -12, borderRadius: 12 })
     TestRenderer.act(() => { renameControls[0]!.props.onFocus() })
-    expect(viewStyle(fill)).toMatchObject({ outlineWidth: 2, outlineOffset: -6, backgroundColor: createTokensV2('orange', 'dark').bgHover })
+    expect(viewStyle(fill)).toMatchObject({ outlineWidth: 2, outlineOffset: -2, backgroundColor: createTokensV2('orange', 'dark').bgHover })
     TestRenderer.act(() => { renameControls[0]!.props.onPress() })
     expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBe(title)
   })
@@ -1930,7 +1930,7 @@ describe('HabitDetailScreen', () => {
     expect(date).toBeDefined()
     for (const icon of icons) expect(icon.left).toBeCloseTo(date.left, 1)
     for (const body of geometry.parts.filter((part) => part.slot === 'list-row-body')) {
-      expect(body.left).toBeCloseTo(date.left - 16, 1)
+      expect(body.left).toBeCloseTo(date.left - 12, 1)
       expect(body.right).toBeLessThanOrEqual(width)
     }
     TestRenderer.act(() => tree.unmount())
@@ -1946,8 +1946,8 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!
     TestRenderer.act(() => ask.props.onPressIn())
-    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -16)!
-    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -16, right: -16 })
+    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -12)!
+    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -12, right: -12 })
     TestRenderer.act(() => ask.props.onPressOut())
     TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)

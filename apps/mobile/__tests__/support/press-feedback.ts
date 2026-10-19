@@ -61,13 +61,21 @@ export function expectPressFill(tree: PressTree, label: string, backgroundColor:
     const style = host().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
   }
+  const paint = (pressed: boolean) => {
+    const control = host() as unknown as PressControl
+    const fill = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]
+    return fill ? StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>) : resolved(pressed)
+  }
   expect(host().props.hitSlop).toBeUndefined()
   const resting = resolved(false)
+  const restingPaint = paint(false)
   expect(resting.minHeight ?? resting.height).toBeGreaterThanOrEqual(48)
   expect(resting.minWidth ?? resting.width).toBeGreaterThanOrEqual(48)
   void renderer.act(() => { (host().props.onPressIn as (() => void) | undefined)?.() })
-  expect(resolved(true)).toMatchObject({ backgroundColor, borderRadius, overflow: 'hidden' })
-  expect(resolved(true).backgroundColor).not.toBe(resting.backgroundColor)
+  expect(resolved(true)).toMatchObject({ borderRadius, overflow: 'hidden' })
+  expect(paint(true)).toMatchObject({ backgroundColor })
+  expect(paint(true).backgroundColor).not.toBe(restingPaint.backgroundColor)
   void renderer.act(() => { (host().props.onPressOut as (() => void) | undefined)?.() })
   expect(resolved(false)).toEqual(resting)
+  expect(paint(false)).toEqual(restingPaint)
 }

@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
+import { readControlPaint } from './control-paint'
 
 for (const width of [412, 1280] as const) {
   test.describe(`checklist templates row at ${width}px`, () => {
@@ -37,7 +38,8 @@ for (const width of [412, 1280] as const) {
       await expect(button).toHaveCSS('border-radius', '12px')
       const buttonBox = await button.boundingBox()
       expect(buttonBox).toEqual(rowBox)
-      const fillBox = (await fill.boundingBox())!
+      const paint = await button.evaluate(readControlPaint)
+      const fillBox = { x: paint.target.left, width: paint.target.right - paint.target.left }
       const contentBox = (await first.boundingBox())!
       expect(contentBox.x).toBeCloseTo(inputBlockBox.x, 1)
       expect(fillBox.x).toBeCloseTo(inputBlockBox.x - 16, 1)

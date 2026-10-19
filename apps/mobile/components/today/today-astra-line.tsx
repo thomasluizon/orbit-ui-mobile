@@ -33,7 +33,7 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
         accessibilityHint={destination}
         accessibilityState={{ disabled, busy }}
         disabled={disabled}
-        style={[styles.line, { backgroundColor: tokens.bgWell }, focused ? { outlineStyle: 'solid', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: 2 } : null]}
+        style={[styles.line, { backgroundColor: tokens.bgWell }, focused ? { outlineStyle: 'solid', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2 } : null]}
         onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         onPressIn={() => setPressed(true)}

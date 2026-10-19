@@ -1,4 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { readControlPaint } from './control-paint'
 
 async function readHitBoxOnceStill(control: Locator) {
   await expect(async () => {
@@ -34,7 +36,8 @@ async function waitForHoverStateToSettle(control: Locator, hovered: boolean) {
 }
 
 async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
-  return control.evaluate((element, fillPseudo) => {
+  const paint = await control.evaluate(readControlPaint)
+  return control.evaluate((element, { fillPseudo, paint }) => {
     const bounds = element.getBoundingClientRect()
     const smallPill = element.matches('.orbit-pill-action[data-size="sm"]')
     const hitChecks = [
@@ -65,7 +68,7 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
       right: bounds.right - pixels(fillStyle.right), bottom: bounds.bottom - pixels(fillStyle.bottom),
       width: bounds.width - pixels(fillStyle.left) - pixels(fillStyle.right),
       height: bounds.height - pixels(fillStyle.top) - pixels(fillStyle.bottom),
-    } : fill.getBoundingClientRect()
+    } : { ...paint.bounds, width: paint.bounds.right - paint.bounds.left, height: paint.bounds.bottom - paint.bounds.top }
     const probe = document.createElement('span')
     probe.style.backgroundColor = 'var(--bg-hover)'
     element.append(probe)
@@ -74,18 +77,23 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
     const opaqueHoverFill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return {
-      smallPill, hitChecks,
+      smallPill, hitChecks, reserveInline: paint.reserveInline, reserveBlock: paint.reserveBlock,
       hoverFill,
       opaqueHoverFill,
       hit,
       painted: { left: fillBox.left, top: fillBox.top, right: fillBox.right, bottom: fillBox.bottom },
       width: fillBox.width,
       height: fillBox.height,
-      background: fillStyle.backgroundColor,
-      opacity: fillStyle.opacity,
-      radius: Math.min(pixels(fillStyle.borderTopLeftRadius), fillBox.width / 2, fillBox.height / 2),
+      background: fillPseudo ? fillStyle.backgroundColor : paint.background,
+      opacity: fillPseudo ? fillStyle.opacity : paint.opacity,
+      radius: fillPseudo ? Math.min(pixels(fillStyle.borderTopLeftRadius), fillBox.width / 2, fillBox.height / 2) : paint.radii[0]!,
     }
-  }, fillPseudo ?? null)
+  }, { fillPseudo: fillPseudo ?? null, paint })
+}
+
+function paintEdgeInset(edge: 'left' | 'top' | 'right' | 'bottom', smallPill: boolean, reserved: boolean) {
+  const inset = smallPill ? 2 : reserved ? INTERACTION_FILL_CLEARANCE : 0
+  return edge === 'left' || edge === 'top' ? inset : -inset
 }
 
 export async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
@@ -103,7 +111,8 @@ export async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 
   const geometry = await readTargetGeometry(control, fillPseudo)
   if (fillToken) expect(geometry.background, `the interaction uses ${fillToken}`).toBe(fillToken === '--bg-hover-opaque' ? geometry.opaqueHoverFill : geometry.hoverFill)
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
-    const paintInset = geometry.smallPill ? (edge === 'left' || edge === 'top' ? 2 : -2) : 0
+    const reserved = edge === 'left' || edge === 'right' ? geometry.reserveInline : geometry.reserveBlock
+    const paintInset = paintEdgeInset(edge, geometry.smallPill, reserved)
     expect(geometry.painted[edge], `the fill reaches the ${edge} paint edge`).toBeCloseTo(geometry.hit[edge] + paintInset, 1)
     if (geometry.smallPill) expect(geometry.hitChecks).toEqual([true, true, true, true])
   }

@@ -1,10 +1,15 @@
 export function readExpandedControlGeometry(element: Element) {
   const bounds = element.getBoundingClientRect()
   const style = getComputedStyle(element, '::before')
-  const left = bounds.left + Number.parseFloat(style.left)
-  const right = bounds.right - Number.parseFloat(style.right)
-  const top = bounds.top + Number.parseFloat(style.top)
-  const bottom = bounds.bottom - Number.parseFloat(style.bottom)
+  let { left, right, top, bottom } = bounds
+  for (const pseudo of ['::before', '::after']) {
+    const reach = getComputedStyle(element, pseudo)
+    if (['none', 'normal'].includes(reach.content) || reach.position !== 'absolute' || reach.pointerEvents === 'none') continue
+    left = Math.min(left, bounds.left + Number.parseFloat(reach.left))
+    right = Math.max(right, bounds.right - Number.parseFloat(reach.right))
+    top = Math.min(top, bounds.top + Number.parseFloat(reach.top))
+    bottom = Math.max(bottom, bounds.bottom - Number.parseFloat(reach.bottom))
+  }
   const points = [
     [left + 1, (top + bottom) / 2],
     [right - 1, (top + bottom) / 2],

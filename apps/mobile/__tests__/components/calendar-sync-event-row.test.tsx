@@ -103,8 +103,8 @@ describe('calendar import row press contrast', () => {
       const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
       const paint = StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)
       expect(paint).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
-      expect(paint.left).toBe(-16)
-      expect(paint.right).toBe(-16)
+      expect(paint.left).toBe(-12)
+      expect(paint.right).toBe(-12)
       expect(paint.backgroundColor).toBe(pressed && !blocked ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
     }
   })

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
@@ -77,6 +78,23 @@ describe('daily summary on Hoje', () => {
       await press(tree, 'Your habits are ready for today.')
       expect(useUIStore.getState().astraConversationOpen).toBe(true)
       expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: mocks.summary })
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['A short daily summary.', 'Your habits are ready for today. '.repeat(8)])('keeps the summary action focus ring inside its box for %s', async (summary) => {
+    mocks.summary = summary
+    const tree = await renderSummary()
+    const label = summary.split('. ')[0]!.replace(/\.$/, '') + '.'
+    const actionStyle = () => StyleSheet.flatten(action(tree, label).props.style as StyleProp<ViewStyle>)
+    try {
+      expect(actionStyle().outlineWidth ?? 0).toBe(0)
+      await TestRenderer.act(() => (action(tree, label).props.onFocus as () => void)())
+      expect(actionStyle()).toMatchObject({ outlineStyle: 'solid', outlineWidth: 2, outlineOffset: -2 })
+      await TestRenderer.act(() => (action(tree, label).props.onPressIn as () => void)())
+      expect(actionStyle()).toMatchObject({ outlineStyle: 'solid', outlineWidth: 2, outlineOffset: -2 })
+      await TestRenderer.act(() => (action(tree, label).props.onPressOut as () => void)())
+      await TestRenderer.act(() => (action(tree, label).props.onBlur as () => void)())
+      expect(actionStyle().outlineWidth ?? 0).toBe(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 

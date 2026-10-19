@@ -69,7 +69,7 @@ beforeEach(() => {
   translated.words = {};
 });
 
-type TestNode = { type: unknown; props: Record<string, any> };
+type TestNode = { type: unknown; props: Record<string, any>; findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 type Tree = {
   toJSON: () => Parameters<typeof measureProfileRow>[0];
   unmount: () => void;
@@ -170,7 +170,8 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     });
     for (const label of ['Previous', 'Next']) {
       const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
-      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
+      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' });
+      expect(StyleSheet.flatten(control.findAll((node: TestNode) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]!.props.style)).toMatchObject({ borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
       expectPressFill(tree, label, themedTokens.bgHover, 999);
     }
     const title = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'April, calendar.monthPicker')[0]!;
@@ -279,7 +280,10 @@ describe('CalendarHeader shared navigation', () => {
     }
     const controls = tree.root.findAll((node) => node.type === 'Pressable');
     expect(controls).toHaveLength(view === 'month' ? 4 : 3);
-    for (const index of [0, controls.length - 1]) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+    for (const index of [0, controls.length - 1]) {
+      expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999 });
+      expect(StyleSheet.flatten(controls[index]!.findAll((node: TestNode) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]!.props.style)).toMatchObject({ borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+    }
     const title = StyleSheet.flatten(controls[1]!.props.style({ pressed: false }));
     expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: view === 'month' ? 8 : 16, paddingVertical: 8 });
     expect(title.borderWidth).toBeUndefined();

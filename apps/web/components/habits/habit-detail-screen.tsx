@@ -5,7 +5,7 @@ import { DescriptionCopyButton } from './description-copy-button'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, MONTH_GRID_TARGET_MIN, SPACING } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
@@ -143,7 +143,7 @@ function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnTyp
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
   if (reason !== notScheduledReason) return null
-  return <p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p>
+  return <div style={{ paddingTop: SPACING.s4 + INTERACTION_FILL_CLEARANCE }}><p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p></div>
 }
 
 function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundary>, t: ReturnType<typeof useTranslations>): string | undefined {
@@ -212,14 +212,14 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
   }
   return (
     <header className="pt-2">
-      <div data-habit-detail-header-row="" className="flex flex-col gap-3">
+      <div data-habit-detail-header-row="" className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
           <div className="flex-1" />
           <PillButton variant="ghost" size="sm" iconOnly label={t('rename')} onClick={() => setEditing(true)}><Pencil size={20} /></PillButton>
           <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </div>
-        <div className="min-w-0 w-full">
+        <div className="flex min-w-0 w-full flex-col gap-2">
           {editing ? (
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (
@@ -229,7 +229,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
               </button>
             </h1>
           )}
-          {summary ? <p className="mt-1 truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
+          {summary ? <p className="truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
         </div>
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] border border-[var(--hairline-strong)]"><PersonalTextDetails lines={1} textStyle={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>{tag.name}</PersonalTextDetails></div>)}</div></div> : null}

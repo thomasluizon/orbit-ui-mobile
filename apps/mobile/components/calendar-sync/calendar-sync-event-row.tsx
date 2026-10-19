@@ -125,7 +125,7 @@ export function CalendarSyncEventRow({
         accessibilityHint={importIssueLabel ?? undefined}
         style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 }}
       >
-        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
+        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
       </Pressable>
       <View {...eventContentProps(expanded)} style={styles.eventRow}>
         <View pointerEvents="box-none" style={styles.eventBody}>

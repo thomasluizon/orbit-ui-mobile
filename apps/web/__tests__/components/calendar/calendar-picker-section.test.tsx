@@ -92,7 +92,12 @@ describe('CalendarPickerSection', () => {
     expect(fullName).toHaveTextContent(name)
     expect(fullName).toHaveAttribute('data-personal-text-expanded')
     const row = open.closest('[data-slot="list-row-body"]')!
-    expect(row).toHaveStyle({ paddingInline: '16px', marginInline: '-16px' })
+    const checkbox = screen.getByRole('checkbox', { name })
+    expect(row).toContainElement(checkbox)
+    expect(open).not.toContainElement(checkbox)
+    fireEvent.click(row)
+    expect(open).toHaveAttribute('aria-expanded', 'true')
+    expect(checkbox).toHaveAttribute('aria-checked', 'true')
     expect(screen.getAllByText(personalText(name))).toHaveLength(1)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name })).toHaveAttribute('aria-checked', 'true')

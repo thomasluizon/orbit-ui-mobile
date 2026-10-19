@@ -11,7 +11,7 @@ import { DestinationHeaderRow } from '@/components/navigation/root-notification-
 import { ShellHeader } from '@/components/shell/shell-header'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
-  'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
+  'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2'
 
 export interface TodayDateControlProps extends SharedTodayDateControlProps {
   showDate?: boolean
@@ -62,7 +62,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         </button>
         <button type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
           aria-disabled={props.isTodaySelected} onClick={() => { if (!props.isTodaySelected) props.onGoToToday() }}
-          className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-2 py-1 text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="orbit-today-date-return touch-target transition-none min-h-[48px] min-w-[48px] flex-1 rounded-[12px] px-2 py-1 text-center text-[var(--fg-1)] cursor-pointer aria-disabled:cursor-default hover:aria-[disabled=false]:bg-[var(--bg-hover)] active:aria-[disabled=false]:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2"
           title={`${props.dayName}, ${props.numericDate}`}>
           <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
             {props.shortDayName ? <>

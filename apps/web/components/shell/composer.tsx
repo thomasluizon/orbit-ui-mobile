@@ -177,7 +177,7 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   const anchorRef = useRef<HTMLButtonElement>(null)
   const { voiceActive, disabled, label, items } = buildComposerControls(props)
   if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
-    <button type="button" aria-label={label} disabled={props.state === 'transcribing'} onClick={props.onVoice}
+    <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
       className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
       <Square size={16} fill="currentColor" aria-hidden="true" />
     </button>
@@ -232,7 +232,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const sendIsAccent = canSend || props.state === 'sending'
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -261,12 +261,14 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
         />}
 
+      <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
         <ComposerControls props={props} />
 
       <button
         type="button"
         aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
+        data-focus-on-primary={sendIsAccent ? '' : undefined}
         aria-busy={props.state === 'sending' || undefined}
         disabled={!canSend}
         onClick={() => {
@@ -276,6 +278,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
       >
         {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" aria-hidden="true" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
       </button>
+      </div>
     </div>
   )
 }

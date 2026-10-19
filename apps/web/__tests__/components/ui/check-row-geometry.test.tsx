@@ -12,6 +12,9 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
+import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 
 describe('personal checkbox interaction fills in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -61,8 +64,8 @@ describe('personal checkbox interaction fills in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((checked) => (['light', 'dark'] as const).flatMap((mode) => (['inset', 'column'] as const).map((placement) => ({ width, checked, mode, placement }))))))('pads both controls in $mode at $width, checked $checked, placement $placement', async ({ width, checked, mode, placement }) => {
-    const markup = renderToStaticMarkup(<CheckRow placement={placement} label="Family calendar" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
+  it.each([412, 1352].flatMap((width) => [false, true].flatMap((checked) => (['light', 'dark'] as const).flatMap((mode) => (['inset', 'column'] as const).flatMap((placement) => ([undefined, 'calendar-day'] as const).map(variant => ({ width, checked, mode, placement, variant })))))))('pads both controls in $mode at $width, checked $checked, placement $placement, variant $variant', async ({ width, checked, mode, placement, variant }) => {
+    const markup = renderToStaticMarkup(<CheckRow placement={placement} variant={variant} label="Family calendar" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -72,27 +75,36 @@ describe('personal checkbox interaction fills in Chromium', () => {
       const insets = await label.evaluate((element) => {
         const row = element.closest('[data-slot="list-row-body"]')!.getBoundingClientRect()
         const label = element.getBoundingClientRect()
-        const graphic = element.closest('[data-slot="list-row-body"]')!.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
-        return { start: label.left - row.left, end: row.right - graphic.right }
+        const body = element.closest('[data-slot="list-row-body"]')!
+        const graphic = body.querySelector('[data-slot="checkbox-box"], [data-slot="calendar-day-circle"]')!.getBoundingClientRect()
+        return { start: label.left - row.left, end: row.right - graphic.right, gap: graphic.left - label.right,
+          padding: [getComputedStyle(body).paddingLeft, getComputedStyle(body).paddingRight] }
       })
-      expect(insets).toEqual({ start: 16, end: 16 })
+      expect(insets).toMatchObject({ start: 16, end: 16, gap: 12 })
+      expect(insets.padding).toEqual(['16px', variant === 'calendar-day' ? '16px' : '4px'])
+      const hit = await checkbox.evaluate(readExpandedControlGeometry)
+      expect(hit.width).toBeGreaterThanOrEqual(48)
+      expect(hit.height).toBeGreaterThanOrEqual(48)
+      expect(hit.edgeHits).toEqual([true, true, true, true])
       await expectInteractionFill(checkbox)
       await expectInteractionFill(label)
       const contents = await checkbox.evaluate((control) => {
         const fill = control.querySelector('[data-press-fill]')!
-        return { checkboxInFill: Boolean(fill.querySelector('[data-slot="checkbox-box"]')), graphicCount: fill.querySelectorAll('svg').length }
+        return { checkboxInFill: Boolean(fill.querySelector('[data-slot="checkbox-box"], [data-slot="calendar-day-circle"]')), graphicCount: fill.querySelectorAll('svg').length }
       })
       expect(contents.checkboxInFill).toBe(true)
       expect(contents.graphicCount).toBeGreaterThan(0)
       const bounds = (await checkbox.boundingBox())!
       await checkbox.evaluate((element) => element.addEventListener('click', () => element.setAttribute('data-activated', 'true')))
-      await page.mouse.click(bounds.x - 8, bounds.y + bounds.height / 2)
+      await page.mouse.click(bounds.x + 4, bounds.y + bounds.height / 2)
       expect(await checkbox.getAttribute('data-activated')).toBe('true')
       await checkbox.evaluate((element) => element.removeAttribute('data-activated'))
       await checkbox.focus()
       await page.keyboard.press('Space')
       await checkbox.evaluate(async (element) => { await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)) })
       await expectFillShape(checkbox, 'focus')
+      const paint = await checkbox.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(paint.violations).toEqual([])
       expect(await checkbox.getAttribute('data-activated')).toBe('true')
     } finally { await page.close() }
   })

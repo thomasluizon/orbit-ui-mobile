@@ -9,7 +9,9 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildComposerChips } from '@orbit/shared/chat'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
@@ -68,7 +70,7 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   }
   expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
   if (measured.input) {
-    expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
+    expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE)
     if (fontScale === 1) {
       expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.contentWidth)
     }
@@ -324,6 +326,7 @@ describe('Composer compact geometry in Chromium', () => {
               height: input.clientHeight, scrollHeight: input.scrollHeight,
               singleLineHeight: parseFloat(style.lineHeight) + padding,
               textWidth: canvas.measureText(input.placeholder).width,
+              contentWidth: input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
               pillHeight: input.parentElement!.getBoundingClientRect().height }
           })
           const evidence = JSON.stringify({ scenario, withOpener, fontScale, measured })
@@ -333,8 +336,9 @@ describe('Composer compact geometry in Chromium', () => {
           expect(measured.pillHeight, evidence).toBeGreaterThanOrEqual(measured.height + 8)
           if (fontScale > 1.3) {
             expect(measured.placeholder, evidence).toBe(configuration.words.placeholder)
-            if (measured.textWidth > measured.width) expect(measured.height, evidence).toBeGreaterThan(measured.singleLineHeight)
-          } else expect(measured.height, evidence).toBeCloseTo(measured.singleLineHeight, 0)
+          }
+          if (measured.textWidth > measured.contentWidth) expect(measured.height, evidence).toBeGreaterThan(measured.singleLineHeight)
+          else expect(measured.height, evidence).toBeCloseTo(measured.singleLineHeight, 0)
         })
         if (scenario === 'idle' && fontScale === 2) {
           const placeholderHeight = await field.evaluate(element => element.clientHeight)
@@ -566,13 +570,14 @@ describe('Composer compact geometry in Chromium', () => {
     }, 30_000,
   )
 
-  it.each([412, 1280].flatMap((width) => [false, true].map((forcedColors) => ({ width, forcedColors }))))(
-    'draws one field and action focus ring at $width with forced colors $forcedColors', async ({ width, forcedColors }) => {
+  it.each([412, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) => [false, true].map((forcedColors) => ({ width, mode, forcedColors })))))(
+    'draws one field and action focus ring at $width in $mode with forced colors $forcedColors', async ({ width, mode, forcedColors }) => {
       const view = render(<Composer {...geometryProps('typing', en, false)} />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.emulateMedia({ forcedColors: forcedColors ? 'active' : 'none' })
         await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        await page.evaluate((variables) => { for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value) }, resolveWebThemeVariables('orange', mode))
         await page.keyboard.press('Tab')
         const field = page.getByRole('textbox')
         expect(await field.evaluate((element) => element === document.activeElement)).toBe(true)
@@ -589,11 +594,20 @@ describe('Composer compact geometry in Chromium', () => {
             document.body.append(sample)
             const systemColor = getComputedStyle(sample).color
             sample.remove()
-            return { width: style.outlineWidth, style: style.outlineStyle, color: style.outlineColor, systemColor }
+            const separator = document.createElement('span')
+            separator.style.color = 'var(--bg)'
+            document.body.append(separator)
+            const separatorColor = getComputedStyle(separator).color
+            separator.remove()
+            return { width: style.outlineWidth, style: style.outlineStyle, color: style.outlineColor, systemColor, separatorColor, shadow: style.boxShadow }
           })
           expect(outline.width).toBe('2px')
           expect(outline.style).toBe('solid')
           expect(outline.color).toBe(forcedColors ? outline.systemColor : 'rgb(196, 83, 15)')
+          if (!forcedColors && name === en.shell.composer.send) {
+            expect(outline.shadow).toContain(`${outline.separatorColor} 0px 0px 0px 4px inset`)
+            expect(contrastOnSurface(outline.color, [outline.separatorColor])).toBeGreaterThanOrEqual(3)
+          }
         }
         fireEvent.click(screen.getByRole('button', { name: en.shell.composer.actions }))
         const menu = await screen.findByRole('menu')
@@ -775,6 +789,12 @@ describe('Composer compact geometry in Chromium', () => {
         const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
         if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
         else expect(hoveredFill).not.toBe(restingFill)
+        if (state === 'recording') {
+          await page.keyboard.press('Shift')
+          await control.focus()
+          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+          expect(await control.evaluate((element) => getComputedStyle(element).outlineColor)).toBe('rgb(196, 83, 15)')
+        }
       } finally { await page.close() }
     },
   )

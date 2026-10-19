@@ -22,7 +22,7 @@ function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: str
       role="radio"
       aria-checked={selected}
       tabIndex={tabIndex}
-      className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`}
+      className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`}
       onClick={onActivate}
       onKeyDown={onKeyDown}
     >{label}</button>

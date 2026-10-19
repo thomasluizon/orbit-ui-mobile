@@ -27,7 +27,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
     divider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     dividerLine: { flex: 1, height: 1, backgroundColor: tokens.hairline },
     dividerText: { fontFamily: 'GeistMono_400Regular', fontSize: 12, color: tokens.fg3 },
-    legal: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 19.2, color: tokens.fg3 },
+    legal: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 24, color: tokens.fg3 },
     legalLink: { textDecorationLine: 'underline', color: tokens.fg2 },
     quietAction: { alignSelf: 'flex-start' },
     hiddenLiveRegion: { position: 'absolute', width: 1, height: 1 },

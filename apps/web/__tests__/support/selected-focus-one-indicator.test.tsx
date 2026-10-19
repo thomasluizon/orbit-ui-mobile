@@ -36,9 +36,9 @@ describe('selection yields to keyboard focus', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   for (const theme of ['dark', 'light'] as const) {
-    it.each([false, true])(`personal CheckRow keeps exactly one fill outline, ${theme}, checked %s`, async (checked) => {
+    it.each([false, true].flatMap((checked) => (['none', 'active'] as const).map((forcedColors) => ({ checked, forcedColors }))))(`personal CheckRow keeps exactly one fill outline, ${theme}, checked $checked, forced colors $forcedColors`, async ({ checked, forcedColors }) => {
       const { container } = render(<CheckRow label="Habit" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
-      const page = await browser.newPage()
+      const page = await browser.newPage({ forcedColors })
       try {
         await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${container.innerHTML}`)
         for (const role of ['button', 'checkbox'] as const) {

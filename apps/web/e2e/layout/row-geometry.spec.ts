@@ -11,6 +11,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectInteractionFill } from './label-interaction-fill'
+import { readControlPaint } from './control-paint'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -23,21 +24,22 @@ const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, w
 
 async function assertRow(row: Locator) {
   await row.scrollIntoViewIfNeeded()
-  const geometry = await row.evaluate((element) => {
+  const owner = row.locator('.orbit-list-row-body')
+  const paint = await (await owner.count() ? owner : row.locator('[data-slot="list-row-body"]')).evaluate(readControlPaint)
+  const geometry = await row.evaluate((element, bounds) => {
     const body = element.querySelector<HTMLElement>('[data-slot="list-row-body"]')!
     const title = element.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
     const description = element.querySelector<HTMLElement>('[data-slot="list-row-description"]')
     const content = element.querySelector<HTMLElement>('[data-slot="list-row-content"]')!
     const first = element.querySelector('[data-slot="list-row-icon"]') ?? title
     const last = element.querySelector('[data-slot="list-row-chevron"]') ?? element.querySelector('[data-slot="list-row-trailing"]') ?? element.querySelector('[data-slot="list-row-value"]') ?? title
-    const bounds = body.getBoundingClientRect()
     const style = getComputedStyle(body)
     return { title: title.textContent!, start: first.getBoundingClientRect().left - bounds.left, end: bounds.right - last.getBoundingClientRect().right,
       minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd, border: parseFloat(style.borderBottomWidth),
       gap: parseFloat(getComputedStyle(content).gap), descriptionGap: description ? description.getBoundingClientRect().top - title.getBoundingClientRect().bottom : null,
       chevronWidth: element.querySelector('[data-slot="list-row-chevron"]')?.getBoundingClientRect().width,
       supporting: Boolean(description) || Boolean(element.querySelector('[data-personal-text]') && element.querySelector('[data-slot="list-row-value"]')) }
-  })
+  }, paint.target)
   expect(Math.abs(geometry.start - 16), geometry.title).toBeLessThanOrEqual(0.5)
   expect(Math.abs(geometry.end - 16), geometry.title).toBeLessThanOrEqual(0.5)
   expect(geometry).toMatchObject({ minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', border: 0, gap: 12 })
@@ -59,8 +61,8 @@ async function assertPersonalCheckRow(body: Locator) {
     const control = element.querySelector(calendarDay ? '[data-slot="calendar-day-circle"]' : '[data-slot="checkbox-box"]')!.getBoundingClientRect()
     const style = getComputedStyle(element)
     return { start: labelBounds.left - bounds.left, end: bounds.right - control.right,
-      minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd,
-      gap: parseFloat(style.gap), textGap: parseFloat(labelStyle.gap),
+      minHeight: style.minHeight, paddingStart: calendarDay ? style.paddingBlockStart : labelStyle.paddingBlockStart, paddingEnd: calendarDay ? style.paddingBlockEnd : labelStyle.paddingBlockEnd,
+      gap: control.left - labelBounds.right, textGap: parseFloat(labelStyle.gap),
       calendarDay,
       labelMinHeight: labelStyle.minHeight, labelPaddingStart: labelStyle.paddingBlockStart, labelPaddingEnd: labelStyle.paddingBlockEnd,
       labelTop: labelBounds.top - bounds.top, labelBottom: labelBounds.bottom - bounds.bottom,
@@ -103,12 +105,12 @@ async function assertColumnRows(surface: Locator) {
   }).map((node) => node.outerHTML))).toEqual([])
   for (const row of await surface.locator('.orbit-list-row-column').all()) {
     if (!await row.isVisible()) continue
-    const alignment = await row.evaluate((element) => {
-      const fill = element.querySelector('[data-slot="list-row-body"]')!.getBoundingClientRect()
+    const paint = await row.locator('.orbit-list-row-body').evaluate(readControlPaint)
+    const alignment = await row.evaluate((element, fill) => {
       const content = element.getBoundingClientRect()
       const first = element.querySelector('[data-slot="list-row-icon"]') ?? element.querySelector('[data-slot="list-row-title"]')!
       return { contentStart: first.getBoundingClientRect().left - content.left, outsetStart: content.left - fill.left, outsetEnd: fill.right - content.right }
-    })
+    }, paint.target)
     for (const [key, expected] of Object.entries({ contentStart: 0, outsetStart: 16, outsetEnd: 16 })) expect(Math.abs(alignment[key as keyof typeof alignment] - expected)).toBeLessThanOrEqual(0.5)
   }
 }

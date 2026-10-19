@@ -20,6 +20,7 @@ import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 0 } }) }))
@@ -298,7 +299,7 @@ describe('rendered light hover contrast', () => {
         const control = page.locator(selector).first()
         const resting = await control.evaluate(readTextColors)
         await control.hover()
-        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!.querySelector('[data-press-fill]') ?? document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
+        await expect.poll(async () => (await control.evaluate(readControlPaint)).background).toBe('rgba(9, 9, 11, 0.11)')
         const colors = await control.evaluate(readTextColors)
         const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
         const expected = resting.map((color) => color === rgb(neutralColors.light.fg3)
@@ -323,7 +324,7 @@ describe('rendered light hover contrast', () => {
         }, { selector, colors: expectedPressOnly })
         const pressOnly = await control.evaluate(readTextColors)
         expect(pressOnly).toEqual(expectedPressOnly)
-        const pressedBackground = await control.evaluate((button) => getComputedStyle(button.querySelector('[data-press-fill]') ?? button).backgroundColor)
+        const pressedBackground = (await control.evaluate(readControlPaint)).background
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
           for (const color of pressOnly) {
             expect(contrastOnSurface(color, [surface, pressedBackground])).toBeGreaterThanOrEqual(4.5)

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import postcss from 'postcss'
 import { describe, expect, it, vi } from 'vitest'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
@@ -118,9 +119,14 @@ describe('habit form focus treatments', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
       .replaceAll('\r\n', '\n')
 
-    expect(stylesheet).toMatch(
-      /@media \(forced-colors: active\) \{\s*:focus-visible \{[^}]*outline: 2px solid CanvasText !important;[^}]*\}\s*\}/,
-    )
+    const outlines: { value: string; important: boolean }[] = []
+    postcss.parse(stylesheet).walkAtRules('media', (media) => {
+      if (media.params !== '(forced-colors: active)') return
+      media.walkRules(':focus-visible', (rule) => {
+        rule.walkDecls('outline', (declaration) => { outlines.push({ value: declaration.value, important: Boolean(declaration.important) }) })
+      })
+    })
+    expect(outlines).toContainEqual({ value: '2px solid CanvasText', important: true })
   })
 
   it('drops the global forced-colors outline on a field that paints its own perimeter', () => {

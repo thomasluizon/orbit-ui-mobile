@@ -115,7 +115,8 @@ describe('Bottom tab geometry in Chromium', () => {
           expect(contrastOnSurface(colors.icon, [colors.canvas, colors.indicator])).toBeGreaterThanOrEqual(3)
           await page.keyboard.press('Tab')
           await button.focus()
-          expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
+          expect(await button.evaluate((element) => getComputedStyle(element, '::after').outlineStyle)).not.toBe('none')
+          expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('none')
         }
         const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
           const { left, right, top, bottom } = element.getBoundingClientRect()

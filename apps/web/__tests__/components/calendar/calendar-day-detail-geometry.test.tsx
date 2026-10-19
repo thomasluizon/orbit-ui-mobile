@@ -15,6 +15,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ hasProAccess: true, uses24HourClock: true }) }) }))
 
@@ -65,22 +66,27 @@ describe('day card compact geometry', () => {
         const box = fill.getBoundingClientRect()
         const visible = icon.getBoundingClientRect()
         const fillStyle = getComputedStyle(fill)
-        return { width: box.width, height: box.height, radius: fillStyle.borderRadius,
+        return { width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, fillWidth: box.width, fillHeight: box.height, radius: fillStyle.borderRadius,
           iconWidth: visible.width, iconHeight: visible.height,
+          iconInsets: [visible.left - box.left, box.right - visible.right, visible.top - box.top, box.bottom - visible.bottom],
           focus: fillStyle.outlineWidth, offset: fillStyle.outlineOffset,
           buttonFocus: getComputedStyle(button).outlineStyle, shadow: fillStyle.boxShadow,
           pseudoRadius: getComputedStyle(button, '::before').borderRadius,
           hit: document.elementFromPoint(box.left + 1, box.top + box.height / 2) === button,
           focused: button.matches(':focus-visible') }
       })
-      expect(geometry).toEqual({ width: 48, height: 48, radius: '50%', iconWidth: 24, iconHeight: 24,
+      expect(geometry).toEqual({ width: 24, height: 24, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
         focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
+      const target = await control.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBe(48)
+      expect(target.height).toBe(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
     } finally { await page.close() }
   })
 
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
+  it.each([320, 412, 1280, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
     const entries = makeCalendarDayCardEntries()
     expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
@@ -108,7 +114,7 @@ describe('day card compact geometry', () => {
           const labelStyle = getComputedStyle(button)
           const controlFill = row.querySelector('[role="checkbox"] [data-press-fill]')?.getBoundingClientRect()
           const metadataBox = metadata?.getBoundingClientRect()
-          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
+          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom, rowStyle.paddingLeft, rowStyle.paddingRight], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
         }))
         expect(rows).toHaveLength(entries.length)
         rows.forEach((row) => {
@@ -116,11 +122,11 @@ describe('day card compact geometry', () => {
           expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           expect(row.labelHeight, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           if (loggable) {
-            expect(row.rowPadding).toEqual(['0px', '0px'])
+            expect(row.rowPadding).toEqual(['0px', '0px', '16px', '16px'])
             expect(row.labelPadding).toEqual(['12px', '12px'])
             expect(row.labelMargins).toEqual(['0px', '0px'])
             expect(row.fillsRow).toBe(true)
-            expect(row.controlFill).toEqual({ width: 48, height: 48, separated: true, contained: true })
+            expect(row.controlFill).toEqual({ width: 40, height: 40, separated: true, contained: true })
           }
         })
         rows.forEach((row, index) => {
@@ -156,6 +162,7 @@ describe('day card compact geometry', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const expandedTargets = await Promise.all((await page.locator('button, a').all()).map(control => control.evaluate(readExpandedControlGeometry)))
         const geometry = await page.evaluate(() => {
           const headline = [...document.querySelectorAll<HTMLElement>('span')].find((span) => span.textContent === '1:1 FutureProofing Engineering')!
           const titleRange = document.createRange()
@@ -200,7 +207,7 @@ describe('day card compact geometry', () => {
               const content = target.parentElement?.hasAttribute('data-personal-text-action')
                 ? target.parentElement.querySelector('[data-personal-text-content]')!
                 : target
-              const box = (target.querySelector('[data-press-fill]') ?? target).getBoundingClientRect()
+              const box = target.getBoundingClientRect()
               const style = getComputedStyle(target)
               return { personalTitle: content.querySelector('[data-personal-text]')?.getAttribute('aria-label'), label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...content.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
@@ -226,11 +233,13 @@ describe('day card compact geometry', () => {
           expect(geometry.eventClipped).toBe(false)
         }
         expectWholeLabels(geometry.labels, scale)
-        for (const target of geometry.targets) {
-          expect(target.width, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
-          expect(target.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
-          expect(target.left).toBeGreaterThanOrEqual(16)
-          expect(target.right).toBeLessThanOrEqual(width - 16)
+        expect(expandedTargets).toHaveLength(geometry.targets.length)
+        for (const [index, target] of geometry.targets.entries()) {
+          const hit = expandedTargets[index]!
+          expect(hit.width, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
+          expect(hit.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
+          expect(hit.left).toBeGreaterThanOrEqual(16)
+          expect(hit.right).toBeLessThanOrEqual(width - 16)
           if (target.clipped) {
             expect(target.personalTitle, JSON.stringify(target)).toBeTruthy()
             expect(target.label, JSON.stringify(target)).toContain(target.personalTitle)
