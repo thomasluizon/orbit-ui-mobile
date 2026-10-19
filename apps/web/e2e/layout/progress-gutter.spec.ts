@@ -65,7 +65,7 @@ for (const width of [1352, 1100, 840, 412]) {
           const todayPanel = page.locator('.habit-panel').first()
           await expect(todayPanel).toBeVisible()
           if (panelOpen) {
-            await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
+            await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
             await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
             await expect(page.locator('[data-shell-scroller]')).toBeHidden()
             await page.getByRole('button', { name: messages.common.closeConversation }).click()
