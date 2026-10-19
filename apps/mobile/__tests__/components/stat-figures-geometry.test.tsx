@@ -153,8 +153,8 @@ it.each([en, ptBR].flatMap((catalog) => [280, 311, 312, 320, 360, 384, 412].flat
     for (const { node } of figures) {
       const value = node.getChild(0)
       const caption = node.getChild(1)
-      expect(value.getComputedLeft()).toBe(0)
-      expect(caption.getComputedLeft()).toBe(0)
+      expect(value.getComputedLeft() + value.getComputedWidth() / 2).toBeCloseTo(node.getComputedWidth() / 2, 0)
+      expect(caption.getComputedLeft() + caption.getComputedWidth() / 2).toBeCloseTo(node.getComputedWidth() / 2, 0)
       expect(caption.getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 0)
       expect(Math.abs(node.getComputedHeight() - (30.8 * fontScale + 8 + 20 * fontScale))).toBeLessThanOrEqual(1)
       expect(caption.getComputedHeight()).toBeCloseTo(20 * fontScale, 0)
