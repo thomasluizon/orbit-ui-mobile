@@ -40,6 +40,36 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summarize([change('reminder_enabled', 'false')])).toBe(messages.chat.preview.summary.stopReminders)
   })
 
+  it('names the Astra notifications action when no field summary is available', () => {
+    const operation = makePendingAgentOperation({ actionKey: 'setProactiveAstra' })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const expected = locale === 'en' ? 'Change Astra notifications' : 'Alterar notificações da Astra'
+    expect(localized.summarize([])).toBe(expected)
+    expect(localized.confirm).toBe(expected)
+  })
+
+  it.each([true, false])('previews Astra notifications enabled=%s before approval', (enabled) => {
+    const operation = makePendingAgentOperation({
+      actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write',
+      riskClass: 'Low', confirmationRequirement: 'None',
+      changes: [{ ...change('enabled', enabled ? 'True' : 'False', enabled), entityId: '00000000-0000-0000-0000-000000000000', entityName: '', valueType: 'boolean' }],
+      changeTargetCount: 1,
+    })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    const card = createCard()
+    renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.title).toBe(messages.profile.proactiveAstra.title)
+    expect(record.frame?.items[0]?.label).toBe(messages.profile.proactiveAstra.title)
+    expect(record.frame?.items[0]?.meta).toBe(enabled ? messages.chat.preview.summary.turnOn : messages.chat.preview.summary.turnOff)
+    const approve = record.buttons.find((button) => button.variant === 'primary')!
+    expect(approve.label).toBe(locale === 'en' ? 'Change notifications' : 'Alterar notificações')
+    expect(card.execute).not.toHaveBeenCalled()
+    approve.onClick()
+    expect(card.execute).toHaveBeenCalledOnce()
+    expect(card.setConfirmOpen).not.toHaveBeenCalled()
+  })
+
   it('names cleared repetition when the producer formats null as an empty string', () => {
     expect(summarize([change('frequency_unit', '', null, 'Day')])).toBe(messages.habits.filter.oneTime)
   })

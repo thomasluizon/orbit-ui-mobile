@@ -1950,7 +1950,8 @@
         "manageCalendarSync": "Change sync",
         "linkGoalsToHabit": "Change links",
         "markAllNotificationsRead": "Mark read",
-        "unsubscribePush": "Disable alerts"
+        "unsubscribePush": "Disable alerts",
+        "setProactiveAstra": "Change notifications"
       },
       "approveCount": {
         "createHabits": "Create {count, plural, one {# habit} other {# habits}}",
@@ -2033,6 +2034,7 @@
         "updateProfilePreferences": "Change preferences",
         "setAiMemory": "Change Astra memory",
         "setAiSummary": "Change Astra summary",
+        "setProactiveAstra": "Change Astra notifications",
         "markNotificationRead": "Mark alert as read",
         "markAllNotificationsRead": "Mark all alerts as read",
         "subscribePush": "Enable device alerts",

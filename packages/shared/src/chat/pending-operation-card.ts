@@ -59,7 +59,7 @@ export interface PendingOperationCardLabels {
 }
 
 const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
-const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush']
+const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush', 'setProactiveAstra']
 
 const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
   'habits.write': 'habits', 'habits.delete': 'habits', 'habits.bulk.write': 'habits', 'habits.bulk.delete': 'habits',
@@ -134,7 +134,7 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: translate(capabilityKey ?? 'chat.operation.unknown'),
+    name: translate(actionKey === 'setProactiveAstra' ? 'profile.proactiveAstra.title' : capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),

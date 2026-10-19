@@ -115,7 +115,7 @@ export const PREVIEW_ACTION_KEYS: readonly string[] = [
   'moveHabit', 'moveHabitParent', 'reorderHabits', 'logHabit', 'skipHabit', 'updateChecklist',
   'createGoal', 'updateGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalsToHabit',
   'linkHabitsToGoal', 'createTag', 'updateTag', 'assignTags', 'createChecklistTemplate', 'deleteChecklistTemplate',
-  'updateProfilePreferences', 'setAiMemory', 'setAiSummary', 'markNotificationRead', 'markAllNotificationsRead',
+  'updateProfilePreferences', 'setAiMemory', 'setAiSummary', 'setProactiveAstra', 'markNotificationRead', 'markAllNotificationsRead',
   'subscribePush', 'unsubscribePush', 'sendTestPush', 'updateNotifications', 'viewReferralCode',
   'sendSupportRequest', 'createCheckout', 'openBillingPortal', 'manageSubscription', 'viewApiKeys',
   'createApiKey', 'revokeApiKey', 'manageApiKeys', 'resetAccount', 'requestAccountDeletion', 'confirmAccountDeletion', 'manageAccount',
