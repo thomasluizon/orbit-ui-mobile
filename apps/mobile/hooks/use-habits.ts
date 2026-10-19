@@ -1458,18 +1458,20 @@ export function useBulkLogHabits() {
       if (successfulIds.length === 0) return
       return profileRefresh?.then(() => {
         const profile = queryClient.getQueryData<Profile>(profileKeys.detail())
-        if (!context.account.stillCurrent() || today !== getAccountDay(new Date(), profile?.timeZone)) return
-        for (const response of data.streakResponses) {
-          const countsTowardStreak = response.results.some((entry) => {
+        if (!profile || !context.account.stillCurrent() || today !== getAccountDay(new Date(), profile.timeZone)) return
+        const countsTowardStreak = data.streakResponses.some((response) => {
+          if (response.previousStreak == null || response.currentStreak !== response.previousStreak + 1) return false
+          return response.results.some((entry) => {
             if (entry.logId === null || !successfulEntries.some((success) => success.index === entry.index)) return false
             const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
             return habit !== null && !habit.isBadHabit
           })
-          const currentStreak = response.currentStreak ?? undefined
-          if (currentStreak !== undefined) showStreakMoment(currentStreak, response.previousStreak ?? undefined, { date: today, timeZone: profile?.timeZone, intent: 'log', countsTowardStreak })
-        }
+        })
+        const previousStreak = data.streakResponses[0]?.previousStreak ?? undefined
+        const currentStreak = data.streakResponses[data.streakResponses.length - 1]?.currentStreak ?? undefined
+        if (currentStreak !== undefined) showStreakMoment(currentStreak, previousStreak, { date: today, timeZone: profile.timeZone, intent: 'log', countsTowardStreak })
         checkTodayCompletionAfterLogs(queryClient, successfulIds, today,
-          (habits, children, date) => checkAllDoneCelebration(habits, children, date, profile?.timeZone))
+          (habits, children, date) => checkAllDoneCelebration(habits, children, date, profile.timeZone))
       })
     },
 

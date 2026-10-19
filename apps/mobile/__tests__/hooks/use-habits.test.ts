@@ -3407,7 +3407,7 @@ describe('bulk no-op streak eligibility', () => {
       })
       const unsubscribe = observer.subscribe(() => {})
       mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
-      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: streak - 1, currentStreak: streak, results: [{
+      mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: created ? streak - 1 : streak, currentStreak: streak, results: [{
         index: 0, status: 'Success', habitId: 'habit-1', logId: created ? 'confirmed-log' : null,
         error: null,
       }] })
@@ -3496,11 +3496,13 @@ describe('bulk response chunk streak transitions', () => {
   it.each([
     { name: 'extension in first chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: false, expected: true },
     { name: 'extension in second chunk', firstPrevious: 0, firstCurrent: 0, secondPrevious: 0, secondCurrent: 1, badFirst: false, expected: true },
+    { name: 'extension reversed by a later slip', firstPrevious: 4, firstCurrent: 5, secondPrevious: 5, secondCurrent: 4, badFirst: false, expected: false },
     { name: 'only slips in the moving chunk', firstPrevious: 0, firstCurrent: 1, secondPrevious: 1, secondCurrent: 1, badFirst: true, expected: false },
   ])('keeps response fields with their matching results: $name', async (scenario) => {
     const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
-    const habits = Array.from({ length: 101 }, (_, index) => makeHabit({ id: `habit-${index}`, isBadHabit: index < 100 && scenario.badFirst }))
+    const showStreakMoment = vi.spyOn(store.getState(), 'showStreakMoment')
+    const habits = Array.from({ length: 101 }, (_, index) => makeHabit({ id: `habit-${index}`, isBadHabit: index < 100 ? scenario.badFirst : scenario.secondCurrent < scenario.secondPrevious }))
     const items = habits.map(({ id }) => ({ habitId: id }))
     const responses = [items.slice(0, 100), items.slice(100)].map((chunk, index) => ({
       previousStreak: index === 0 ? scenario.firstPrevious : scenario.secondPrevious,
@@ -3518,8 +3520,51 @@ describe('bulk response chunk streak transitions', () => {
       expect(store.getState().activeCelebration?.kind ?? null).toBe(scenario.expected ? 'daily-streak' : null)
       if (scenario.expected) expect(store.getState().activeCelebration?.payload).toEqual({ streak: 1 })
       expect(store.getState().queuedCelebrations).toEqual([])
+      expect(showStreakMoment).toHaveBeenCalledExactlyOnceWith(scenario.secondCurrent, scenario.firstPrevious, expect.objectContaining({ timeZone: undefined, intent: 'log', countsTowardStreak: !scenario.badFirst }))
     } finally {
+      showStreakMoment.mockRestore()
       mocks.useRealUIStore = false
     }
   })
+})
+
+
+it('waits for the profile before showing bulk streak feedback', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit()])
+  mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const variables = [{ habitId: 'habit-1' }]
+  try {
+    const context = await mutation.onMutate?.(variables)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    mocks.useRealUIStore = false
+  }
+})
+
+it('does not attribute another bulk log extension to a cached no-op habit', async () => {
+  const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  mocks.useRealUIStore = true
+  store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
+  seedHabitState([makeHabit()])
+  mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 4 })
+  mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: 4, currentStreak: 5, results: [
+    { index: 0, status: 'Success', habitId: 'habit-1', logId: null, error: null },
+    { index: 1, status: 'Success', habitId: 'uncached', logId: 'confirmed-log', error: null },
+  ] })
+  const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+  const variables = [{ habitId: 'habit-1' }, { habitId: 'uncached' }]
+  try {
+    const context = await mutation.onMutate?.(variables)
+    await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
+    expect(store.getState().activeCelebration).toBeNull()
+    expect(store.getState().dailyStreakMomentDate).toBe('')
+  } finally {
+    mocks.useRealUIStore = false
+  }
 })
