@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -40,7 +43,7 @@ function AboutAccountFact({ label, value }: Readonly<Pick<AboutFactProps, 'label
     data-testid="about-fact-account">
     <span data-testid="about-fact-account-label" style={{ flex: '1 1 auto', minWidth: 0, color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.5 }}>{label}</span>
     <span className="flex min-w-0 max-w-full items-start" style={{ flex: '0 0 auto', gap: 12 }}>
-      <PersonalText id="about-account-value" expanded={expanded} data-testid="about-fact-account-value" style={{ paddingInline: expanded ? 0 : undefined, flex: '0 1 auto', minWidth: 0, color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums', lineHeight: 1.6 }}>{value}</PersonalText>
+      <PersonalText id="about-account-value" expanded={expanded} data-testid="about-fact-account-value" style={{ paddingInline: expanded ? SPACING.s0 : undefined, flex: '0 1 auto', minWidth: 0, color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums', lineHeight: 1.6 }}>{value}</PersonalText>
       <ChevronDown aria-hidden="true" focusable="false" size={20} strokeWidth={1.5} className={expanded ? 'shrink-0 rotate-180' : 'shrink-0'} style={{ color: 'var(--fg-3)' }} />
     </span>
   </button>} />

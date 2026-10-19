@@ -1,5 +1,5 @@
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useState } from 'react'
 import {
@@ -198,13 +198,13 @@ export function ChecklistTemplates({
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    templateRow: { minWidth: 0, gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
-    templateLoad: { overflow: 'hidden', minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
+    templateRow: { minWidth: 0, gap: 4, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8 },
+    templateLoad: { overflow: 'hidden', minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, justifyContent: 'center' },
     templateName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
-    templateActions: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 },
+    templateActions: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: SPACING.s8 },
     templateCount: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 },
     templateDelete: { overflow: 'hidden', width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-    formRow: { paddingTop: 8 },
+    formRow: { paddingTop: SPACING.s8 },
     container: {
       gap: 4,
     },
@@ -220,7 +220,7 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
       color: tokens.fg1,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
@@ -230,7 +230,7 @@ function createStyles(tokens: AppTokens) {
       minHeight: TOUCH_TARGET_MIN,
       borderRadius: 999,
       backgroundColor: tokens.primary,
-      paddingHorizontal: 12,
+      paddingHorizontal: SPACING.s12,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -250,10 +250,10 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    emptyState: { alignItems: 'center', gap: 12, paddingVertical: 32 },
+    emptyState: { alignItems: 'center', gap: 12, paddingVertical: SPACING.s32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
     emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 16 },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16 },
     emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })

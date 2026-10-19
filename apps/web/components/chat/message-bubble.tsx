@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { useState, useMemo } from 'react'
 import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -90,7 +93,7 @@ export function MessageBubble({
             className={isUser
               ? 'select-text inline-block max-w-full bg-[var(--bg-well)] text-[var(--fg-1)]'
               : 'select-text inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'}
-            style={{ padding: isUser ? '12px 16px' : 0, borderRadius: isUser ? 16 : 0 }}
+            style={{ padding: isUser ? "var(--orbit-space-12) var(--orbit-space-16)" : SPACING.s0, borderRadius: isUser ? 16 : 0 }}
           >
             {index === 0 && message.imageUrl && <LocalImage
               src={message.imageUrl}
@@ -112,8 +115,8 @@ export function MessageBubble({
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
-                marginBottom: 4,
-                paddingLeft: 4,
+                marginBottom: SPACING.s4,
+                paddingLeft: SPACING.s4,
               }}
             >
               {t('chat.related.title')}

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, type ReactNode } from 'react'
@@ -142,7 +143,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgWell,
       borderRadius: 12,
       gap: 12,
-      padding: 16,
+      padding: SPACING.s16,
     },
     questionTitle: {
       color: tokens.fg1,

@@ -5,14 +5,14 @@ import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/c
 import { isHabitDoneForRange } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressRing } from '@/components/ui/progress-ring'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from '@/components/habits/habit-check'
 import { PersonalText } from '@/components/ui/personal-text'
 import { Button } from '@/components/ui/pill-button'
 import { useHabits, useLogHabit } from '@/hooks/use-habits'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -68,10 +68,10 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     const title = occurrence?.title ?? item.title
     const control = daySummaryLogControl(occurrence, item.status === 'overdue')
     const actionLabel = control.undoUnavailable ? `${title}: ${t(control.statusKey)}` : t(control.actionKey, { name: title })
-    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{occurrence?.emoji ?? item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
+    return { id: item.id, wrapLabel: true, label: <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: title })} onPress={() => navigate({ pathname: '/habits/[id]', params: { id: item.id } })} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: 0, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{occurrence?.emoji ?? item.emoji ?? '•'}</Text></View><View style={{ flex: 1, minWidth: 0 }}><PersonalText style={{ color: tokens.fg1, fontSize: 14 }}>{title}</PersonalText></View></InsetFocusPressable>,
       meta: control.status === 'bad' ? t('habits.statusDot.bad') : item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       ...(failedId === item.id ? { status: 'failed' as const } : {}),
-      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><StatusRing status={control.status} size={24} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
+      control: occurrence ? <DaySummaryControl readOnly={control.undoUnavailable} disabled={pendingId !== null || unavailable} label={actionLabel} onToggle={() => toggle(item.id)}><HabitCheck status={control.status} label={t(control.statusKey)} /></DaySummaryControl> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>

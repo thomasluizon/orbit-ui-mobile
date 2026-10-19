@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
@@ -76,20 +77,20 @@ export function CheckRow({
 }
 
 const styles = StyleSheet.create({
-  columnRow: { width: '100%', minHeight: 52, position: 'relative', flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 12 },
+  columnRow: { width: '100%', minHeight: 52, position: 'relative', flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: SPACING.s12 },
   columnFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
   calendarDayControlFill: { borderRadius: 24 },
-  controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
-  personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s12 },
+  personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 24, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayRow: { minHeight: 68, paddingVertical: 0 },
-  calendarDayCopy: { minHeight: 68, paddingVertical: 12 },
+  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0 },
+  calendarDayCopy: { minHeight: 68, paddingVertical: SPACING.s12 },
   calendarDayLabelFill: { top: 0, bottom: 0 },
   personalControl: { height: 24, width: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
-  row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden' },
+  row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   calendarDayLabel: { fontFamily: 'Geist_400Regular', lineHeight: 22.4 },
@@ -114,7 +115,7 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
 }
 
 function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement']) {
-  return [styles.personalRow, placement === 'column' ? { marginHorizontal: -16 } : null, calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }]
+  return [styles.personalRow, placement === 'column' ? { marginHorizontal: -SPACING.s16 } : null, calendarDay ? styles.calendarDayRow : { minHeight: supportingText ? 68 : 52 }]
 }
 
 function getPersonalLabelFill(calendarDay: boolean) {

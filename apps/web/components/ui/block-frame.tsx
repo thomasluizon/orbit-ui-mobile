@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { ActionRow } from './action-row'
 
 import { useEffect, useRef } from 'react'
@@ -53,7 +56,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <div
-      className={`flex min-h-[52px] gap-[12px] p-[12px] ${item.wrapLabel ? 'items-start' : 'items-center'}`}
+      className={`flex min-h-[52px] gap-[12px] p-3 ${item.wrapLabel ? 'items-start' : 'items-center'}`}
       data-proposed={item.proposed ? '' : undefined}
       data-status={status}
     >
@@ -178,7 +181,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       data-state={props.state}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
-        padding: 24,
+        padding: SPACING.s24,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >

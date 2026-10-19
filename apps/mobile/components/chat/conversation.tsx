@@ -1,5 +1,5 @@
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
@@ -57,8 +57,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
       {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
     </View> : null}
   </View>);
-  if (running) return <View testID="thinking-trace-running" accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
-  return <View testID="thinking-trace-completed" style={{ paddingVertical: 8 }}>
+  if (running) return <View testID="thinking-trace-running" accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: SPACING.s8 }}>{lines}</View>;
+  return <View testID="thinking-trace-completed" style={{ paddingVertical: SPACING.s8 }}>
     <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
       <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
@@ -96,7 +96,7 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   const tokens = createTokensV2(currentScheme, currentTheme);
   const pendingIdea = useChatStore(state => state.contextualSuggestion);
   if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
-  return <View style={{ paddingHorizontal: 16 }}>
+  return <View style={{ paddingHorizontal: SPACING.s16 }}>
     {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
     <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
   </View>;

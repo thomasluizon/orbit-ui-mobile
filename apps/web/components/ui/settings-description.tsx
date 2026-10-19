@@ -15,7 +15,7 @@ export function SettingsDescription({ children, inset = true }: Readonly<Setting
         fontWeight: 400,
         lineHeight: 1.5,
         color: 'var(--fg-3)',
-        padding: inset ? '4px 16px 16px' : '4px 0 16px',
+        padding: inset ? "var(--orbit-space-4) var(--orbit-space-16) var(--orbit-space-16)" : "var(--orbit-space-4) var(--orbit-space-0) var(--orbit-space-16)",
       }}
     >
       {children}

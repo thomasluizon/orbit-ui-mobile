@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -44,7 +45,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
 const styles = StyleSheet.create({
   loadingValue: { minWidth: 64, alignItems: 'flex-start', justifyContent: 'center' },
   skeleton: { width: 64, height: 24, borderRadius: 8 },
-  row: { flexDirection: 'row', gap: 16, paddingHorizontal: 16 },
+  row: { flexDirection: 'row', gap: 16, paddingHorizontal: SPACING.s16 },
   stacked: { flexDirection: 'column' },
   figure: { flex: 1, minWidth: 0, gap: 8, alignItems: 'flex-start' },
   value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, textAlign: 'left', fontVariant: ['tabular-nums'] },

@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { SectionTitleProps } from '@orbit/shared/contracts/navigation'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -15,8 +16,8 @@ export function SectionLabel({ children, eyebrow, inset = true }: Readonly<Secti
 }
 
 const styles = StyleSheet.create({
-  container: { paddingTop: 24, paddingBottom: 12, paddingHorizontal: 16, gap: 8 },
-  flush: { paddingHorizontal: 0 },
+  container: { paddingTop: PADDING.sectionGap, paddingBottom: PADDING.sectionTitleGap, paddingHorizontal: PADDING.screenGutter, gap: 8 },
+  flush: { paddingHorizontal: SPACING.s0 },
   eyebrow: { fontFamily: 'GeistMono_500Medium', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.96 },
   title: { fontFamily: 'Geist_500Medium', fontSize: 20, letterSpacing: -0.2 },
 })

@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import type { InputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -51,11 +52,11 @@ const styles = StyleSheet.create({
   root: { width: '100%', gap: 8 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   control: { borderRadius: 12, overflow: 'hidden', position: 'relative' },
-  input: { width: '100%', minHeight: 54, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, lineHeight: 24 },
+  input: { width: '100%', minHeight: 54, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, fontSize: 16, lineHeight: 24 },
   multiline: { minHeight: 96 },
   trailing: { position: 'absolute', right: 16, top: 16 },
   disabled: { opacity: 0.6 },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
-  marks: { borderTopWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, padding: 8 },
-  mark: { borderRadius: 8, fontFamily: 'Geist_400Regular', fontSize: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  marks: { borderTopWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, padding: SPACING.s8 },
+  mark: { borderRadius: 8, fontFamily: 'Geist_400Regular', fontSize: 12, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4 },
 })

@@ -1,3 +1,4 @@
+import { PADDING } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import {
@@ -53,10 +54,10 @@ export function ProfileSettingsFrame({
 const styles = StyleSheet.create({
   groups: {
     width: '100%',
-    gap: 32,
+    gap: PADDING.sectionStackGap,
   },
   group: {
-    gap: 12,
+    gap: PADDING.sectionTitleGap,
   },
   heading: {
     fontFamily: 'Geist_500Medium',

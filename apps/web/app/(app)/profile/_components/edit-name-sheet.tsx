@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useTranslations } from 'next-intl'
@@ -105,7 +108,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
           <p
             role="alert"
             style={{
-              margin: 0,
+              margin: SPACING.s0,
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--status-bad-text)',

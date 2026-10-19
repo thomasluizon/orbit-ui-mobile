@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
@@ -23,7 +24,7 @@ export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount
   const heading = titleKey ? t(titleKey) : trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (<View style={styles.pricingSections}>
-      <View style={[styles.convertHeader, !inset && { paddingHorizontal: 0 }]}>
+      <View style={[styles.convertHeader, !inset && { paddingHorizontal: SPACING.s0 }]}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text nativeID={headingId} ref={headingRef} accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t(bodyKey ?? 'upgrade.convert.promise')}</Text>
@@ -33,7 +34,7 @@ export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount
         {dateHint ? <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{dateHint}</Text> : null}
       </View>
 
-      <View style={[styles.allowanceSection, !inset && { paddingHorizontal: 0 }]}>
+      <View style={[styles.allowanceSection, !inset && { paddingHorizontal: SPACING.s0 }]}>
         <View
           style={[
             styles.allowanceCard,

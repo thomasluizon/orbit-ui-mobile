@@ -35,7 +35,7 @@ describe('Hoje proactive line perimeter', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([320, 600, 840].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
+  it.each([320, 412, 600, 840, 1352].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
     (width === 320 ? [1, 2] : [1]).map((textScale) => ({ width, mode, textScale })),
   )))('insets the fill and contains keyboard focus at $width in $mode with $textScale text scale', async ({ width, mode, textScale }) => {
     const { container, unmount } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
@@ -81,6 +81,8 @@ describe('Hoje proactive line perimeter', () => {
           clientTop: scrollBounds.top + scroller.clientTop,
           clientBottom: scrollBounds.top + scroller.clientTop + scroller.clientHeight,
           outlineWidth, outlineStyle: style.outlineStyle, shadow: style.boxShadow,
+          inlineStart: Number.parseFloat(style.paddingInlineStart), inlineEnd: Number.parseFloat(style.paddingInlineEnd),
+          blockStart: Number.parseFloat(style.paddingTop), blockEnd: Number.parseFloat(style.paddingBottom),
           height: bounds.height, sentenceHeight: sentence.getBoundingClientRect().height,
           lineHeight: Number.parseFloat(getComputedStyle(sentence).lineHeight),
         }
@@ -91,6 +93,10 @@ describe('Hoje proactive line perimeter', () => {
       expect.soft(geometry.ringRight).toBeLessThanOrEqual(geometry.clientRight)
       expect.soft(geometry.ringTop).toBeGreaterThanOrEqual(geometry.clientTop)
       expect.soft(geometry.ringBottom).toBeLessThanOrEqual(geometry.clientBottom)
+      expect(geometry.inlineStart).toBeGreaterThanOrEqual(8)
+      expect(geometry.inlineEnd).toBeGreaterThanOrEqual(8)
+      expect(geometry.blockStart).toBeGreaterThanOrEqual(4)
+      expect(geometry.blockEnd).toBeGreaterThanOrEqual(4)
       expect(geometry.outlineWidth).toBe(2)
       expect(geometry.outlineStyle).toBe('solid')
       expect(geometry.shadow).toBe('none')
