@@ -20,11 +20,11 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams({ date: state.date }),
 }))
-const state = vi.hoisted(() => ({ lineVisible: true, profileReady: true, surface: 'list', date: '2026-09-04' }))
+const state = vi.hoisted(() => ({ lineVisible: true, summaryAvailable: true, profileReady: true, surface: 'list', date: '2026-09-04' }))
 vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => '2026-09-04' }))
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-profile')>(),
-  useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null }) : undefined }),
+  useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null, hasProAccess: !state.summaryAvailable, aiSummaryEnabled: false }) : undefined }),
 }))
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: state.lineVisible ? createMockProactiveItem({ text: 'Você pode beber um copo de água agora mesmo.', localDate: '2026-09-04' }) : null, openItem: vi.fn() }),
@@ -80,36 +80,38 @@ describe('Hoje group spacing', () => {
     }
     try {
       state.profileReady = true
+      state.summaryAvailable = true
       state.lineVisible = true
       state.surface = 'list'
       state.date = '2026-09-04'
       await load()
-      const spacing = await page.evaluate((summaryTitle) => {
+      const measureGroups = () => page.evaluate(() => {
         const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
-        const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)!.getBoundingClientRect()
-        return { lineToDate: date.top - line.bottom, dateToSummary: summary.top - date.bottom, summaryToList: list.top - summary.bottom,
+        return { lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
+          slots: document.querySelectorAll('[data-today-astra-slot]').length,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
-      }, messages.summary.title)
-      expect.soft(spacing.lineToDate).toBeCloseTo(24, 1)
-      expect(spacing.dateToSummary).toBeCloseTo(24, 1)
-      expect(spacing.summaryToList).toBeCloseTo(24, 1)
+      })
+      const spacing = await measureGroups()
+      expect(spacing).toMatchObject({ lineToDate: 24, dateToList: 24, slots: 1 })
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
       state.lineVisible = false
+      await load()
+      expect(await measureGroups()).toMatchObject({ lineToDate: 24, dateToList: 24, slots: 1 })
+      state.summaryAvailable = false
       for (const surface of ['list', 'empty', 'loading']) {
         state.surface = surface
         await load()
-        const spacing = await page.evaluate((summaryTitle) => {
+        const spacing = await page.evaluate(() => {
           const owner = document.querySelector('[data-today-day-transition]')!.getBoundingClientRect()
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
-          const summary = Array.from(document.querySelectorAll('section')).find((element) => element.getAttribute('aria-label') === summaryTitle)?.getBoundingClientRect()
-          return { dateInset: date.top - owner.top, dateToNext: (summary ?? list).top - date.bottom,
-            summaryToList: summary ? list.top - summary.bottom : null, hasLine: Boolean(document.querySelector('.today-astra-line')) }
-        }, messages.summary.title)
-        expect(spacing).toMatchObject({ dateInset: 0, dateToNext: 24, summaryToList: surface === 'loading' ? null : 24, hasLine: false })
+          return { dateInset: date.top - owner.top, dateToList: list.top - date.bottom,
+            hasLine: Boolean(document.querySelector('.today-astra-line')) }
+        })
+        expect(spacing).toMatchObject({ dateInset: 0, dateToList: 24, hasLine: false })
       }
       state.date = '2026-09-03'
       await load()
