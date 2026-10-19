@@ -340,6 +340,33 @@ describe('computeParentPromptProgress', () => {
     expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
   })
 
+  it('keeps a pending non-flexible child with zero flexible progress unresolved', () => {
+    const pending = createMockHabit({
+      id: 'pending',
+      parentId: 'parent',
+      isFlexible: false,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+      isLoggedInRange: false,
+      scheduledDates: [TODAY],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [pending] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+    expect(computeParentSettlementDecision(
+      createMockHabit({ id: 'parent', scheduledDates: [TODAY] }),
+      progress,
+      TODAY,
+    )).toBeNull()
+  })
+
   it('does not report all-done while an overdue sibling is still unlogged (today view)', () => {
     const loggedOverdue = createMockHabit({
       id: 'a',
