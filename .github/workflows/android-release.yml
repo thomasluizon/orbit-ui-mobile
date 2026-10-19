@@ -53,6 +53,7 @@ concurrency:
 jobs:
   publish-design-bundles:
     name: Validate and publish both Android designs
+    if: ${{ inputs.track == 'open' || inputs.track == 'production' }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.track == 'internal' && 'android-internal' || 'production' }}
@@ -138,6 +139,10 @@ jobs:
   release-android:
     name: Build and publish Android app
     needs: publish-design-bundles
+    if: >-
+      ${{ always() && !cancelled() &&
+          ((inputs.track == 'internal' && needs['publish-design-bundles'].result == 'skipped') ||
+           ((inputs.track == 'open' || inputs.track == 'production') && needs['publish-design-bundles'].result == 'success')) }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
@@ -155,7 +160,7 @@ jobs:
           RELEASE_TRACK: ${{ inputs.track }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_REF_NAME" != main ]; then
+          if [ "$RELEASE_TRACK" != internal ] && [ "$GITHUB_REF_NAME" != main ]; then
             echo "::error::Android design releases must run from main" >&2
             exit 1
           fi
