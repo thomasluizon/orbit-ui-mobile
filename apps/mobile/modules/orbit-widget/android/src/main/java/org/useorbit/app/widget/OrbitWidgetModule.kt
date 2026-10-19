@@ -126,9 +126,12 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("saveToken") { token: String ->
       val context = moduleContext()
-      synchronized(accountRenderLock) {
-        getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply()
-      }
+      WidgetAccountState(accountRenderLock) { getToken(context)?.let { sessionKey(it) } }
+        .replaceAccount(
+          sessionKey(token),
+          saveToken = { getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply() },
+          clearCache = { clearWidgetCache(context) }
+        )
       refreshWidgets(context)
     }
 
@@ -144,6 +147,7 @@ class OrbitWidgetModule : Module() {
     AsyncFunction("syncTheme") { colors: Map<String, String> ->
       val context = moduleContext()
       val editor = context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE).edit()
+      editor.putBoolean("theme_mode_preferences", colors.keys.any { it.startsWith("dark_") || it.startsWith("light_") })
       for ((token, value) in colors) {
         editor.putString("$COLOR_KEY_PREFIX$token", value)
       }
@@ -151,20 +155,25 @@ class OrbitWidgetModule : Module() {
       refreshWidgets(context)
     }
 
-    AsyncFunction("syncWidgetData") { json: String, token: String ->
+    AsyncFunction("syncWidgetData") { json: String, token: String? ->
       val context = moduleContext()
       // Label the payload with the caller's account, since sign-out can occur during the fetch.
       // Compare accounts so a token refresh keeps the same account's cache.
-      val session = sessionKey(token)
-      if (getToken(context)?.let { sessionKey(it) } == session) {
-        context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
-          .edit()
-          .putString("habits_json", json)
-          .putString("habits_session", session)
-          .putLong("habits_updated_at", System.currentTimeMillis())
-          .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
-          .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
-          .apply()
+      synchronized(accountRenderLock) {
+        val authorizingToken = token ?: getToken(context)
+        if (authorizingToken != null) {
+          val session = sessionKey(authorizingToken)
+          if (getToken(context)?.let { sessionKey(it) } == session) {
+            context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
+              .edit()
+              .putString("habits_json", json)
+              .putString("habits_session", session)
+              .putLong("habits_updated_at", System.currentTimeMillis())
+              .putBoolean("refresh_loading", false)
+              .putBoolean("loading_skeleton", false)
+              .apply()
+          }
+        }
       }
       refreshWidgets(context)
     }
