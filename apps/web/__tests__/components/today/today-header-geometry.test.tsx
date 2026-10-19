@@ -135,7 +135,7 @@ describe('Hoje header geometry', () => {
           expect(inspected).toBe(width < 1024 ? [3, 2, 1, 1][index] : index < 2 ? 1 : 0)
           if (width >= 1024) {
             const bell = page.locator('[data-shell-sidebar] button[aria-label^="' + ptBr.notifications.bell + '"]')
-            const next = page.locator('[data-shell-sidebar] > div').first().locator(':scope > button')
+            const next = page.locator('[data-shell-sidebar] [data-shell-search]')
             await expectHeaderFillClearance(page, bell, next, mode)
           }
         }
