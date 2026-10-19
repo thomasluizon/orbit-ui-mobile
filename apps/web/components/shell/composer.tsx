@@ -18,6 +18,8 @@ import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { CompactComposerMenuContext } from './shell-pinned-content'
 
@@ -219,19 +221,24 @@ function ComposerTextControls({ props, inMenu, onPasteText, onClear }: Readonly<
     () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
   const canClear = props.state === 'idle' && props.value.length > 0
   const canPaste = props.state === 'idle' && props.value.length === 0 && available
+  const accountGeneration = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
   const clipboardScope = useRef({ active: false, pending: false })
   useEffect(() => {
     const scope = { active: true, pending: false }
     clipboardScope.current = scope
     return () => { scope.active = false }
-  }, [props.state, props.value])
+  }, [props.state, props.value, accountGeneration])
   async function pasteMessage() {
     const scope = clipboardScope.current
+    const { isAuthenticated, user } = useAuthStore.getState()
+    const accountId = user?.userId
     if (scope.pending) return
     scope.pending = true
     try {
       const text = await navigator.clipboard.readText()
-      if (!scope.active) return
+      const session = useAuthStore.getState()
+      if (!scope.active || accountGeneration !== getAccountGeneration()
+        || session.isAuthenticated !== isAuthenticated || session.user?.userId !== accountId) return
       if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
       else onPasteText(text)
     } catch {

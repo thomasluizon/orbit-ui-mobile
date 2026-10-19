@@ -9,6 +9,7 @@ import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Square } from '@/components/ui/icons'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { Composer } from '@/components/shell/composer'
 import { Menu } from '@/components/ui/menu'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,6 +19,9 @@ import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __se
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+
+const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getString: vi.fn().mockResolvedValue('') }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
@@ -118,6 +122,7 @@ function renderComposer(composerProps: ComposerProps) {
 }
 
 describe('clipboard composer control', () => {
+  beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
   afterEach(() => { clipboard.getString.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
 
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
@@ -262,6 +267,53 @@ describe('clipboard composer control', () => {
     const tree = renderComposer(props({ state, limitReason: 'reason', onVoice: vi.fn(), voiceWords }))
     expect(byLabel(tree.root, words.paste)).toHaveLength(0)
     TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['text', 'empty'])('discards a pending %s read across account transitions and permits a fresh paste', async result => {
+    let resolve!: (text: string) => void
+    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete })).mockResolvedValue('New account text')
+    const onChangeValue = vi.fn()
+    const tree = renderComposer(props({ onChangeValue }))
+    try {
+      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      TestRenderer.act(() => { advanceAccountGeneration(); advanceAccountGeneration() })
+      await TestRenderer.act(async () => { resolve(result === 'text' ? 'Previous account text' : ''); await Promise.resolve() })
+      expect(onChangeValue).not.toHaveBeenCalled()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+      await TestRenderer.act(async () => { byLabel(tree.root, words.paste)[0].props.onPress(); await Promise.resolve() })
+      expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('New account text')
+      expect(clipboard.getString).toHaveBeenCalledTimes(2)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['signed-out', 'account-b'].flatMap(account => ['text', 'empty'].map(result => ({ account, result }))))(
+    'discards pending $result when auth becomes $account before account cleanup', async ({ account, result }) => {
+      let resolve!: (text: string) => void
+      clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+      const onChangeValue = vi.fn()
+      const tree = renderComposer(props({ onChangeValue }))
+      try {
+        TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+        authSession.isAuthenticated = account !== 'signed-out'
+        authSession.user = { userId: account === 'signed-out' ? 'account-a' : account }
+        await TestRenderer.act(async () => { resolve(result === 'text' ? 'Previous account text' : ''); await Promise.resolve() })
+        expect(onChangeValue).not.toHaveBeenCalled()
+        expect(useAppToastStore.getState().currentToast).toBeNull()
+      } finally { await TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
+  it('keeps a pending paste through a credential refresh in the same account', async () => {
+    let resolve!: (text: string) => void
+    clipboard.getString.mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete }))
+    const onChangeValue = vi.fn()
+    const tree = renderComposer(props({ onChangeValue }))
+    try {
+      TestRenderer.act(() => byLabel(tree.root, words.paste)[0].props.onPress())
+      TestRenderer.act(() => advanceSessionEpoch())
+      await TestRenderer.act(async () => { resolve('Same account text'); await Promise.resolve() })
+      expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Same account text')
+    } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
   it('does not replace a newer draft with a pending clipboard read', async () => {

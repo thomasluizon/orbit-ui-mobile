@@ -1,12 +1,16 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -54,6 +58,7 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
 }
 
 describe('clipboard composer control', () => {
+  beforeEach(() => { authSession.isAuthenticated = true; authSession.user = { userId: 'account-a' } })
   afterEach(() => { vi.unstubAllGlobals(); useAppToastStore.getState().dismissAllToasts() })
 
   function clipboard(readText = vi.fn().mockResolvedValue('Pasted\nmessage')) {
@@ -139,6 +144,47 @@ describe('clipboard composer control', () => {
     clipboard()
     render(<Composer {...props({ state, limitReason: 'reason', onVoice: vi.fn(), voiceWords })} />)
     expect(screen.queryByRole('button', { name: words.paste })).not.toBeInTheDocument()
+  })
+
+  it.each(['text', 'empty'])('discards a pending %s read across account transitions and permits a fresh paste', async result => {
+    let resolve!: (text: string) => void
+    const readText = clipboard(vi.fn().mockImplementationOnce(() => new Promise<string>(complete => { resolve = complete })).mockResolvedValue('New account text'))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    act(() => { advanceAccountGeneration(); advanceAccountGeneration() })
+    await act(async () => resolve(result === 'text' ? 'Previous account text' : ''))
+    expect(onChangeValue).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    await waitFor(() => expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('New account text'))
+    expect(readText).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['signed-out', 'account-b'].flatMap(account => ['text', 'empty'].map(result => ({ account, result }))))(
+    'discards pending $result when auth becomes $account before account cleanup', async ({ account, result }) => {
+      let resolve!: (text: string) => void
+      clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+      const onChangeValue = vi.fn()
+      render(<Composer {...props({ onChangeValue })} />)
+      fireEvent.click(screen.getByRole('button', { name: words.paste }))
+      authSession.isAuthenticated = account !== 'signed-out'
+      authSession.user = { userId: account === 'signed-out' ? 'account-a' : account }
+      await act(async () => resolve(result === 'text' ? 'Previous account text' : ''))
+      expect(onChangeValue).not.toHaveBeenCalled()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+    },
+  )
+
+  it('keeps a pending paste through a credential refresh in the same account', async () => {
+    let resolve!: (text: string) => void
+    clipboard(vi.fn(() => new Promise<string>(complete => { resolve = complete })))
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ onChangeValue })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.paste }))
+    act(() => advanceSessionEpoch())
+    await act(async () => resolve('Same account text'))
+    expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Same account text')
   })
 
   it('does not replace a newer draft with a pending clipboard read', async () => {

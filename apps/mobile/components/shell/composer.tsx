@@ -10,11 +10,13 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, type TextInput, View, useWindowDimensions } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { captureError } from '@/lib/sentry'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
@@ -362,19 +364,24 @@ function ComposerTextAction({ words, tokens, canClear, canPaste, inMenu, onClear
 function ComposerTextControls({ props, tokens, inMenu, onPasteText, onClear }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void; onClear: () => void }>) {
   const canClear = props.state === 'idle' && props.value.length > 0
   const canPaste = props.state === 'idle' && props.value.length === 0
+  const accountGeneration = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
   const clipboardScope = useRef({ active: false, pending: false })
   useEffect(() => {
     const scope = { active: true, pending: false }
     clipboardScope.current = scope
     return () => { scope.active = false }
-  }, [props.state, props.value])
+  }, [props.state, props.value, accountGeneration])
   async function pasteMessage() {
     const scope = clipboardScope.current
+    const { isAuthenticated, user } = useAuthStore.getState()
+    const accountId = user?.userId
     if (scope.pending) return
     scope.pending = true
     try {
       const text = await Clipboard.getString()
-      if (!scope.active) return
+      const session = useAuthStore.getState()
+      if (!scope.active || accountGeneration !== getAccountGeneration()
+        || session.isAuthenticated !== isAuthenticated || session.user?.userId !== accountId) return
       if (text.length === 0) useAppToastStore.getState().showInfo(props.words.nothingToPaste)
       else onPasteText(text)
     } catch (error) {

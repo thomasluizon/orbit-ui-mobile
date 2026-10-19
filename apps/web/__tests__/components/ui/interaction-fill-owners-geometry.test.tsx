@@ -95,7 +95,8 @@ describe('shared interaction fill owners in Chromium', () => {
         define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
         plugins: [{ name: 'composer-menu-boundary', setup(builder) {
           builder.onResolve({ filter: /^@\\/components\\/ui\\/(menu|sheet)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
-          builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const Menu = () => null; export const Sheet = () => null;', loader: 'js' }));
+          builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+          builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const useAuthStore = { getState: () => ({ isAuthenticated: true, user: { userId: "composer-account" } }) }; export const Menu = () => null; export const Sheet = () => null;', loader: 'js' }));
         } }],
       });
       process.stdout.write(result.outputFiles[0].text);
