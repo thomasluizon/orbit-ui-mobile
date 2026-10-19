@@ -4923,52 +4923,52 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-command-command-palette",
+      "surfaceId": "overlay-command-command-palette-dialog",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "sourceFile": "apps/web/components/command/command-palette-dialog.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
+        "apps/web/components/command/command-palette-dialog.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-command-command-palette",
+      "surfaceId": "overlay-command-command-palette-dialog",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "sourceFile": "apps/web/components/command/command-palette-dialog.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
+        "apps/web/components/command/command-palette-dialog.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-command-command-palette",
+      "surfaceId": "overlay-command-command-palette-dialog",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "sourceFile": "apps/web/components/command/command-palette-dialog.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
+        "apps/web/components/command/command-palette-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-command-command-palette",
+      "surfaceId": "overlay-command-command-palette-dialog",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "sourceFile": "apps/web/components/command/command-palette-dialog.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
+        "apps/web/components/command/command-palette-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
