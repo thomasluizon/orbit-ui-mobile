@@ -12,6 +12,19 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     const style = getComputedStyle(node)
     return style.clipPath !== 'inset(50%)' && !(style.position === 'absolute' && style.clip !== 'auto')
   }
+  const clipTextRect = (rect: DOMRect, parent: Element) => {
+    let { left, right, top, bottom } = rect
+    for (let ancestor: Element | null = parent; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor)
+      const clipsInline = style.overflowX !== 'visible' || style.textOverflow === 'ellipsis'
+      const clipsBlock = style.overflowY !== 'visible'
+      if (!clipsInline && !clipsBlock) continue
+      const clip = ancestor.getBoundingClientRect()
+      if (clipsInline) { left = Math.max(left, clip.left); right = Math.min(right, clip.right) }
+      if (clipsBlock) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom) }
+    }
+    return right > left && bottom > top ? { left, right, top, bottom } : null
+  }
   const name = (node: Element) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}[${node.getAttribute('aria-label') ?? node.getAttribute('data-testid') ?? node.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
   const expand = (box: DOMRect, style: CSSStyleDeclaration) => {
     const outline = style.outlineStyle === 'none' ? 0 : Math.max(0, pixels(style.outlineWidth) + pixels(style.outlineOffset))
@@ -66,7 +79,10 @@ export function inspectInteractionFill(element: Element, clearance: number) {
       if (child.nodeType !== Node.TEXT_NODE || !child.textContent?.trim()) continue
       const range = document.createRange()
       range.selectNode(child)
-      boxes.push(...range.getClientRects())
+      for (const rect of range.getClientRects()) {
+        const clipped = clipTextRect(rect, neighbour)
+        if (clipped) boxes.push(clipped)
+      }
     }
     return boxes.flatMap((box) => {
       const horizontal = Math.max(0, box.left - fill.right, fill.left - box.right)
