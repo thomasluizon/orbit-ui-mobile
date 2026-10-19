@@ -32,8 +32,8 @@ vi.mock('next-intl', () => ({
 
 describe('ActionChips', () => {
   it.each([
-    { type: 'UpdateChecklist', label: 'Checklist atualizada: Leitura' },
-    { type: 'update_checklist', label: 'Checklist atualizada: Leitura' },
+    { type: 'UpdateChecklist', label: 'Checklist atualizado: Leitura' },
+    { type: 'update_checklist', label: 'Checklist atualizado: Leitura' },
     { type: 'MoveHabitParent', label: 'Hábito principal alterado: Leitura' },
     { type: 'move_habit_parent', label: 'Hábito principal alterado: Leitura' },
     { type: 'LinkGoalsToHabit', label: 'Metas vinculadas a Leitura' },
