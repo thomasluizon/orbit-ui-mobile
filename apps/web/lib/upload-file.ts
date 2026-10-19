@@ -2,7 +2,7 @@ import {
   SignUploadResponseSchema,
   UPLOAD_ALLOWED_CONTENT_TYPES,
   type StoredFile,
-} from '@orbit/shared'
+} from '@orbit/shared/types/upload'
 import { signUpload } from '@/lib/actions/uploads'
 import { getHeldAccountId } from '@/stores/auth-store'
 

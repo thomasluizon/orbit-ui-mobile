@@ -1,6 +1,6 @@
 'use client'
 
-import { createApiClientError } from '@orbit/shared'
+import { createApiClientError } from '@orbit/shared/utils/error-utils'
 import { unstable_isUnrecognizedActionError } from 'next/navigation'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'

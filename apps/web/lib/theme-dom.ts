@@ -1,3 +1,4 @@
+import type { ThemeMode } from '@orbit/shared/types/profile'
 import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import {
   motionDurations,
@@ -7,8 +8,7 @@ import {
   schemes,
   statusConstants,
   type ColorScheme,
-  type ThemeMode,
-} from '@orbit/shared'
+} from '@orbit/shared/theme'
 
 export const VALID_COLOR_SCHEMES = new Set<ColorScheme>(['orange'])
 
