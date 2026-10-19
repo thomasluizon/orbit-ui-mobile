@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/auth/send-code/route'
 
@@ -82,3 +83,5 @@ describe('send-code BFF route', () => {
     expect(JSON.stringify(json)).not.toContain('dns failure detail')
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))
