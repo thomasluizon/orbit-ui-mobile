@@ -8,6 +8,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
+import { advanceLayoutClock } from './layout-test'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -233,9 +234,9 @@ test.describe('calendar week scroll at 412px', () => {
       })).toBe(true)
       const heldPosition = await scroller.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))
       refreshed = true
-      await page.clock.setFixedTime(new Date(Date.parse(LAYOUT_FIXED_TIME) + 6 * 60_000))
+      await advanceLayoutClock(page, 6 * 60_000)
       const response = page.waitForResponse((response) => response.url().includes(API.habits.calendarMonth))
-      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })))
       await response
       await expect(page.getByTestId('time-grid-all-day-event').first()).toHaveText('Refetched habit 1')
       await waitForWeekGeometry(scroller)
