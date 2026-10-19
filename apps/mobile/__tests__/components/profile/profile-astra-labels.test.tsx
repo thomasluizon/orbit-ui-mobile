@@ -13,8 +13,8 @@ import { replayProfileTitleLayout } from '../../support/profile-row-geometry'
 
 vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }), useLocalSearchParams: () => ({}) }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useQuery: () => ({ data: undefined, isLoading: false }), useMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
 vi.mock('@/components/profile/profile-api-keys', () => ({ ProfileApiKeys: () => null }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ isTrialActive: false }) }) }))
@@ -121,7 +121,7 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
     expect.soft(StyleSheet.flatten(panel.props.style).padding).toBe(16)
     const group = tree.root.find((node: { type: unknown; props: { style?: ViewStyle } }) => node.type === 'View' && node.props.style?.gap === 24)
     expect(group).toBeDefined()
-    const labels = ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title'].map((key) => i18n.t(key))
+    const labels = ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.connections.googleCalendar', 'profile.connections.notion'].map((key) => i18n.t(key))
     for (const label of labels) {
       const title = tree.root.findAllByType(Text).find((node: { props: { children: string } }) => node.props.children === label)!
       expect.soft(title.props.numberOfLines, label).toBeUndefined()
@@ -151,3 +151,6 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
     expect(tree.root.findAllByType(RowList)).toHaveLength(1)
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
 })
+
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { notion_integration: { enabled: true } } } }) }))

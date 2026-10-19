@@ -126,6 +126,8 @@ export function GoalLinkedHabitsSection({
   formatValue,
   onOpenHabit,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -145,14 +147,16 @@ export function GoalLinkedHabitsSection({
       ) : linkedHabits.map((habit) => {
         const adherence = adherenceByHabitId.get(habit.id)
         const value = adherence ? formatValue(adherence.currentStreak) : undefined
+        const description = adherence ? t('goals.metrics.weeklyAdherence', { percent: formatGoalHistoryNumber(Math.round(adherence.weeklyCompletionRate), locale) }) : undefined
         return (
           <ListRow
             compact={false}
             key={habit.id}
             title={habit.title}
-                textMode="personal"
+            textMode="personal"
             value={value}
-            accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
+            description={description}
+            accessibilityLabel={[habit.title, description, value].filter(Boolean).join(', ')}
             onClick={() => onOpenHabit(habit.id)}
           />
         )

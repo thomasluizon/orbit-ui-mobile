@@ -88,3 +88,6 @@ describe('useAstraSettingsController', () => {
     })
   })
 })
+
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: {} } }) }))
