@@ -134,7 +134,7 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: translate(actionKey === 'setProactiveAstra' ? 'profile.proactiveAstra.title' : capabilityKey ?? 'chat.operation.unknown'),
+    name: translate(capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),

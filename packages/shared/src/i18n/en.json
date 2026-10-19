@@ -1415,6 +1415,7 @@
         "profile-preferences-write": "Profile settings",
         "profile-ai-memory-write": "Astra memory",
         "profile-ai-summary-write": "Daily summary",
+        "profile-proactive-astra-write": "Astra notifications",
         "notifications-write": "Notifications",
         "checklist-templates-write": "Checklist templates",
         "referrals-write": "Referral details",

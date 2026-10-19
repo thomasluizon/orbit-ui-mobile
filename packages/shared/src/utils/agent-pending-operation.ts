@@ -5,6 +5,7 @@ const WRITE_CAPABILITY_IDS = new Set([
   'profile.preferences.write',
   'profile.ai-memory.write',
   'profile.ai-summary.write',
+  'profile.proactive-astra.write',
   'notifications.write',
   'checklist-templates.write',
   'referrals.write',
