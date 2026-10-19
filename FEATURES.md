@@ -130,6 +130,11 @@ Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) dr
 | Milestone sharing | Share a milestone card on a big streak/achievement | Free | Both | — |
 | Referral / invite links | Personal invite link; referrals grow the community (`r/[code]`) | Free | Both | — |
 
+The social hub, feed, friends, cheers, cooperative challenges, and accountability pairs
+have no client screens or actions on either platform. Sharing and referrals remain available.
+The generated server contract and optional `socialOptIn` profile field remain for API
+compatibility; neither exposes a social capability in the clients.
+
 ---
 
 ## Habits & Tracking
@@ -208,6 +213,11 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Celebration overlays | Milestone/achievement celebration animations | Free | Both | — |
 | Orbit Wrapped | Shareable recap of best streaks, wins, and stats | Free | Both | — |
 
+Earned achievements remain viewable after a capability is retired. The `team_player`,
+`mission_accomplished`, and `battle_buddy` achievement names and descriptions stay in both
+`en` and `pt-BR`, and the `Social` category remains supported. Both achievement screens resolve
+copy by achievement ID, so removing these keys would break the display of earned badges.
+
 ---
 
 ## Widget
@@ -226,6 +236,10 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Manage notifications | Mark read, delete, bulk actions | Free | Both | — |
 | Configure reminders | Per-habit reminder times (at-time, minutes/hours, up to 1 day before) | Free | Both | — |
 | Push notifications | Toggle push; test button; reminders delivered as push | Free | Both | Max 5 push subscriptions/user |
+
+Notifications targeting `/social`, `/public-profile`, or `/u/` are hidden from both inboxes
+and their unread badges. The retired URLs remain in regression fixtures to verify that
+stored notifications cannot restore removed destinations and that bulk mark-read still works.
 
 ---
 
