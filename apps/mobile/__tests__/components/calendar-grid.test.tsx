@@ -5,7 +5,6 @@ import { measureGrid, measureDaySurface, type GeometryHost } from '@/__tests__/s
 import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCalendarMonthModel, buildCalendarRangeModel, type CalendarMonthDay } from '@orbit/shared/utils'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarGrid as CalendarGridComponent } from '@/app/(tabs)/calendar/_components/calendar-grid'
 import { CalendarRangeView } from '@/app/(tabs)/calendar/_components/calendar-range-view'
@@ -104,8 +103,8 @@ describe('CalendarGrid (mobile)', () => {
         expect(placeholder.width).toBeLessThanOrEqual(placeholder.columnWidth + 0.5)
       }
       for (const circle of geometry.circles) {
-        expect(circle.left - circle.column.left, 'leading paint inset').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
-        expect(circle.column.right - circle.right, 'trailing paint inset').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+        expect(circle.left, 'leading column containment').toBeGreaterThanOrEqual(circle.column.left - 0.1)
+        expect(circle.right, 'trailing column containment').toBeLessThanOrEqual(circle.column.right + 0.1)
       }
       for (const disc of geometry.discs) {
         expect(disc.width).toBeLessThanOrEqual(disc.columnWidth + 0.5)
@@ -132,11 +131,11 @@ describe('CalendarGrid (mobile)', () => {
       const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-11')[0]!
       TestRenderer.act(() => { (control.props[state === 'pressed' ? 'onPressIn' : 'onFocus'] as () => void)() })
       const parts = measureDaySurface(tree.toJSON(), width)
-      const paint = parts.filter((part) => part.testID === (state === 'pressed' ? 'day-press-fill' : 'day-today-ring'))
+      const paint = parts.filter((part) => part.day && (part.testID === 'day-press-fill' || part.testID === 'day-today-ring' || part.testID === 'day-selection-ring' || Boolean(part.style.backgroundColor && part.style.backgroundColor !== 'transparent')))
       expect(paint.length).toBeGreaterThan(0)
       for (const box of paint) {
-        expect(box.left - box.column.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
-        expect(box.column.left + box.column.width - box.left - box.width).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+        expect(box.left, box.testID).toBeGreaterThanOrEqual(box.column.left - 0.1)
+        expect(box.left + box.width, box.testID).toBeLessThanOrEqual(box.column.left + box.column.width + 0.1)
       }
       for (const target of measureGrid(tree.toJSON(), width, 'month', false).targets) {
         expect(target.width).toBeCloseTo(target.columnWidth, 1)

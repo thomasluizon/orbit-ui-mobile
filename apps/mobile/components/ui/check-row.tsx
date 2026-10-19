@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
   calendarDayControlFill: { borderRadius: 24 },
+  calendarDayTarget: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
   controlFill: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4, paddingStart: 16, paddingEnd: 4, paddingVertical: 0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
@@ -141,15 +142,16 @@ function PersonalCheckRowContent({ label, placement, variant, labelExpanded, err
 
 function PersonalCheckRow({ label, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const calendarDay = variant === 'calendar-day'
+  const control = <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+    {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
+  </PersonalControl>
   return (
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement)}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={styles.labelFill} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
       <PersonalCheckRowContent label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
       </View>
-      <PersonalControl tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
-        {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
-      </PersonalControl>
+      {calendarDay ? <View collapsable={false} style={styles.calendarDayTarget}>{control}</View> : control}
     </View>
   )
 }

@@ -439,6 +439,9 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(control.findAll((node) => node.props['data-slot'] === 'checkbox-box')).toHaveLength(0)
     expect(control.props.accessibilityState).toMatchObject({ checked: status === 'completed' })
     expect(control.props.hitSlop).toBe(12)
+    const target = nodes(tree, 'View').find((node) => node.props.collapsable === false && node.findAll((child) => child === control).length > 0)!
+    expect(target).toBeDefined()
+    expect(StyleSheet.flatten(target.props.style)).toMatchObject({ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' })
     TestRenderer.act(() => { (control.props.onFocus as () => void)() })
     const fills = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] === '')
     expect(fills).toHaveLength(1)

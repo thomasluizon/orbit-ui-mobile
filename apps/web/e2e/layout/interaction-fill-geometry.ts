@@ -52,7 +52,8 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     owner.append(surrogate)
     try { return expand(surrogate.getBoundingClientRect(), style) } finally { surrogate.remove() }
   }
-  const bounds = element.getBoundingClientRect()
+  const cell = element.closest('[data-interaction-fill-grid] > *') ?? (element.hasAttribute('data-interaction-fill-cell') ? element : null)
+  const bounds = (cell ?? element).getBoundingClientRect()
   const fill = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity }
   let hasFill = false
   const interactive = 'button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex]'
@@ -69,6 +70,21 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     }
   }
   const contentOwner = element.parentElement?.matches('[data-personal-text-action]') ? element.parentElement : element
+  const insideCell = (box: typeof fill) => box.left >= bounds.left - 0.1 && box.right <= bounds.right + 0.1
+    && box.top >= bounds.top - 0.1 && box.bottom <= bounds.bottom + 0.1
+  const containedCell = Boolean(cell) && insideCell(fill)
+  function boundaryViolations() {
+    const violations: { neighbour: string; distance: number }[] = []
+    if (!hasFill) return violations
+    if (cell && !containedCell) {
+      violations.push({ neighbour: 'grid cell edge', distance: Math.min(fill.left - bounds.left, bounds.right - fill.right, fill.top - bounds.top, bounds.bottom - fill.bottom) })
+    }
+    const column = element.closest('[data-shell-column]')?.getBoundingClientRect()
+    if (column && (fill.left < column.left + clearance - 0.1 || fill.right > column.right - clearance + 0.1)) {
+      violations.push({ neighbour: 'page column edge', distance: Math.min(fill.left - column.left, column.right - fill.right) })
+    }
+    return violations
+  }
   const neighbours = [...document.body.querySelectorAll('*')].filter((node) =>
     node !== element && !contentOwner.contains(node) && !node.contains(element) && visible(node) && !node.parentElement?.closest('svg'))
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
@@ -88,15 +104,9 @@ export function inspectInteractionFill(element: Element, clearance: number) {
       const horizontal = Math.max(0, box.left - fill.right, fill.left - box.right)
       const vertical = Math.max(0, box.top - fill.bottom, fill.top - box.bottom)
       const distance = Math.hypot(horizontal, vertical)
-      const containedCell = element.hasAttribute('data-interaction-fill-cell')
-        && fill.left >= bounds.left - 0.1 && fill.right <= bounds.right + 0.1 && fill.top >= bounds.top - 0.1 && fill.bottom <= bounds.bottom + 0.1
-        && (box.right <= bounds.left + 0.1 || box.left >= bounds.right - 0.1 || box.bottom <= bounds.top + 0.1 || box.top >= bounds.bottom - 0.1)
-      return !containedCell && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
+      const outsideCell = box.right <= bounds.left + 0.1 || box.left >= bounds.right - 0.1 || box.bottom <= bounds.top + 0.1 || box.top >= bounds.bottom - 0.1
+      return !(containedCell && outsideCell) && distance + 0.1 < clearance ? [{ neighbour: name(neighbour), distance }] : []
     })
   }) : []
-  const column = element.closest('[data-shell-column]')?.getBoundingClientRect()
-  if (hasFill && column && (fill.left < column.left + clearance - 0.1 || fill.right > column.right - clearance + 0.1)) {
-    violations.push({ neighbour: 'page column edge', distance: Math.min(fill.left - column.left, column.right - fill.right) })
-  }
-  return { control: name(element), fill, hasFill, violations }
+  return { control: name(element), fill, hasFill, violations: [...violations, ...boundaryViolations()] }
 }

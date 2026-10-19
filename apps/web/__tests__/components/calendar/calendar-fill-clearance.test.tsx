@@ -6,9 +6,11 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { buildCalendarRangeModel } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -39,15 +41,54 @@ describe('calendar painted fill clearance', () => {
       const geometry = await control.evaluate((element) => {
         const target = element.getBoundingClientRect()
         const circle = element.querySelector('[data-day-circle]')!.getBoundingClientRect()
-        return { width: target.width, height: target.height, leading: circle.left - target.left, trailing: target.right - circle.right }
+        const disc = element.querySelector('[data-day-disc]')!.getBoundingClientRect()
+        return { width: target.width, height: target.height, circleWidth: circle.width, circleHeight: circle.height, discWidth: disc.width, discHeight: disc.height, leading: circle.left - target.left, trailing: target.right - circle.right }
       })
       expect(geometry.width).toBeCloseTo((width - 32 - (width < 364 ? 0 : 24)) / 7, 1)
       expect(geometry.height).toBeGreaterThanOrEqual(44)
-      expect(geometry.leading).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
-      expect(geometry.trailing).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE / 2 - 0.1)
+      expect(geometry.leading).toBeGreaterThanOrEqual(-0.1)
+      expect(geometry.trailing).toBeGreaterThanOrEqual(-0.1)
+      expect(geometry.circleWidth).toBeCloseTo(Math.min(44, geometry.width), 1)
+      expect(geometry.circleHeight).toBeCloseTo(geometry.circleWidth, 1)
+      expect(geometry.discWidth).toBe(34)
+      expect(geometry.discHeight).toBe(34)
       const result = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
       expect(result.hasFill).toBe(true)
       expect(result.violations).toEqual([])
     } finally { await page.mouse.up(); await page.close(); view.unmount() }
+  })
+
+  it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('contains read-only range paint at $width in $locale', async ({ width, locale }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 8, 12), new Map(), 1, '2026-09-12')
+    const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
+      <CalendarRangeView model={model} weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']} rangeLabel="Range"
+        isLoading={false} loadingLabel="Loading" stats={[
+          { key: 'bestStreak', value: 0, label: 'Streak' }, { key: 'totalLogs', value: 0, label: 'Logs' }, { key: 'missed', value: 0, label: 'Missed' },
+        ]} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+      const days = page.getByRole('img')
+      expect(await days.count()).toBe(14)
+      for (const day of await days.all()) {
+        const geometry = await day.evaluate((element) => {
+          const target = element.getBoundingClientRect()
+          const circle = element.querySelector('[data-day-circle]')!.getBoundingClientRect()
+          const disc = element.querySelector('[data-day-disc]')!.getBoundingClientRect()
+          return { width: target.width, height: target.height, circleWidth: circle.width, circleHeight: circle.height, discWidth: disc.width, discHeight: disc.height, leading: circle.left - target.left, trailing: target.right - circle.right }
+        })
+        expect(geometry.width).toBeCloseTo((width - 32 - (width < 364 ? 0 : 24)) / 7, 1)
+        expect(geometry.height).toBeGreaterThanOrEqual(44)
+        expect(geometry.leading).toBeGreaterThanOrEqual(-0.1)
+        expect(geometry.trailing).toBeGreaterThanOrEqual(-0.1)
+        expect(geometry.circleWidth).toBeCloseTo(Math.min(44, geometry.width), 1)
+        expect(geometry.circleHeight).toBeCloseTo(geometry.circleWidth, 1)
+        expect(geometry.discWidth).toBe(34)
+        expect(geometry.discHeight).toBe(34)
+        expect((await day.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)).violations).toEqual([])
+      }
+    } finally { await page.close(); view.unmount() }
   })
 })

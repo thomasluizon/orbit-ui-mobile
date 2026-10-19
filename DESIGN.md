@@ -1326,6 +1326,8 @@ Reserve the extension in layout; a negative inset never grants permission to ove
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 A grid cell may fill its own column and adjoin another cell, provided its paint and focus
 indicator stay inside that cell; this never permits paint over neighbouring content.
+Month and range grid day cells keep every hover, press, focus and selection paint inside their
+own column, with unchanged full-column targets, circular position rings and 34px status discs.
 
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
 to `--bg-hover`, and light uses the stronger opaque-control hover value.

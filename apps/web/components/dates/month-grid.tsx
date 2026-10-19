@@ -37,6 +37,7 @@ export function MonthGrid({
         className="grid justify-items-center"
         style={{ ...gridStyle, alignContent: 'start', gap, minHeight: minimumDayGridHeight }}
         data-testid="month-grid-days"
+        data-interaction-fill-grid=""
         role={loadingLabel ? "progressbar" : undefined}
         aria-label={loadingLabel}
         aria-busy={loadingLabel ? true : undefined}

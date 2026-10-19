@@ -85,4 +85,18 @@ describe('interaction clearance inspector in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([-4, 0, 4])('measures paint against its grid column without a neighbour (offset=%s)', async (offset) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>
+        body { margin: 32px } [data-interaction-fill-grid] { display: grid; grid-template-columns: repeat(7, 1fr) }
+        button { width: 100%; height: 44px; padding: 0; border: 0; background: transparent; outline: none }
+        span { display: block; height: 40px; background: gray; transform: translateX(${offset}px) }
+      </style><div data-interaction-fill-grid><div><button aria-label="Day"><span></span></button></div></div>`)
+      const result = await page.getByRole('button').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.hasFill).toBe(true)
+      expect(result.violations.some((violation) => violation.neighbour === 'grid cell edge')).toBe(offset !== 0)
+    } finally { await page.close() }
+  })
+
 })
