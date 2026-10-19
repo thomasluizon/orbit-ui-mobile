@@ -1,3 +1,4 @@
+import { useUIStore } from '@/stores/ui-store'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { act } from 'react'
 import { hydrateRoot } from 'react-dom/client'
@@ -14,6 +15,7 @@ import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
+  commandViews: [] as { id: string; onSelect: () => void }[],
   pathname: '/',
   params: {} as { missing?: string[] },
   wide: false,
@@ -86,7 +88,10 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   }
 })
 vi.mock('@/components/command/command-palette', () => ({
-  CommandPalette: () => <div data-testid="command-palette" />,
+  CommandPalette: ({ navItems }: { navItems: { id: string; onSelect: () => void }[] }) => {
+    mocks.commandViews = navItems
+    return <div data-testid="command-palette" />
+  },
 }))
 vi.mock('@/components/ui/fab', () => ({
   Fab: ({ label, onClick }: { label: string; onClick: () => void }) => (
@@ -174,6 +179,13 @@ import {
 } from '@/lib/motion/route-intent'
 
 describe('DestinationShell', () => {
+  it.each(['all', 'general'] as const)('opens %s from the keyboard command palette', (view) => {
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    act(() => mocks.commandViews.find((item) => item.id === view)!.onSelect())
+    expect(useUIStore.getState().activeView).toBe(view)
+    expect(mocks.push).toHaveBeenCalledWith('/')
+  })
+
   const originalUserAgentData = Object.getOwnPropertyDescriptor(navigator, 'userAgentData')
   const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform')
 

@@ -61,6 +61,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |
 | `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
+| `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, scoped header search at every width, retained actions, state coverage, long-list rendering and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
 | `design/calendar-import-sheet-inventory.md` | Calendars sheet surfaces, platform owners, retained behavior and verification boundaries. |

@@ -197,3 +197,13 @@ describe('buildTodayFilters API-day parsing is timezone-stable', () => {
     })
   })
 })
+
+
+describe('restored habit view filters', () => {
+  it('lists all dates in Todos while retaining search, frequency and tags', () => {
+    expect(buildTodayFilters({ ...inputOf({ searchQuery: '  walk  ', selectedFrequency: 'Week', selectedTagIds: ['tag'] }), view: 'all' })).toEqual({ search: 'walk', frequencyUnit: 'Week', tagIds: ['tag'] })
+  })
+  it('requests Geral independently of the Hoje preference and frequency', () => {
+    expect(buildTodayFilters({ ...inputOf({ searchQuery: ' walk ', selectedFrequency: 'Day', selectedTagIds: ['tag'], showGeneralOnToday: false }), view: 'general' })).toEqual({ isGeneral: true, search: 'walk', tagIds: ['tag'] })
+  })
+})

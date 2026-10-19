@@ -234,6 +234,22 @@ for, and building that instead is the defect.
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
 
+### Hoje habit views
+
+Hoje keeps one full-width SegmentedControl at the top of its content, below the shell header
+actions and above the date pager, on web and Android at every width. Its labels are Hoje, Todos
+and Geral in pt-BR, each one word on one line at the default text size. The chosen view persists
+in `activeView`. Only Hoje shows the date pager and its date-bound notices and proactive line.
+
+Hoje lists the selected day's habits and overdue work when viewing today. Todos keeps scheduled
+habits across dates, grouped with overdue work first and then by due date; completed one-time
+habits appear through Show completed. Geral lists habits with no set day, with completed habits
+behind the same control. Showing general habits on Hoje is a separate preference. Every view
+retains sub-habits, row actions, search, selection and creation. At every width, the header search control expands
+an Input above the view switch and filters the current view in place, preserving its date and frequency scope.
+Wide web keeps the global command palette in the sidebar separately. Todos and Geral act on the current
+account day regardless of the day last visited in Hoje; creation in Geral defaults to no set day.
+
 ### Perfil settings navigation
 
 Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
