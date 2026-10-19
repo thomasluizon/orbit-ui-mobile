@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMockProactiveItem } from './factories'
 import type { ChatStoreState } from '../stores/chat-store'
+import { buildRecentChatHistory } from '../utils/chat-history'
 import {
   clearContextualSuggestionIfCurrent,
   createChatStoreState,
@@ -56,6 +57,76 @@ describe('shared chat store', () => {
     expect(store.getState().messages[0]).toMatchObject({ role: 'ai', content: item.text })
     expect(store.getState().messages.find((message) => message.id === 'streaming')?.content).toBe('Partial reply')
     expect(store.getState().streamingMessageId).toBe('streaming')
+  })
+
+  it.each([0, 1, 10, 25])('keeps only the next follow-up anchored when opening over %i prior messages', (count) => {
+    const store = createStoreHarness()
+    const item = createMockProactiveItem()
+    for (let index = 0; index < count; index += 1) {
+      store.getState().addMessage({ id: `prior-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Turn ${index}`, timestamp: new Date() })
+    }
+    store.getState().openProactiveItem(item)
+    store.getState().addMessage({ id: 'follow-up', role: 'user', content: 'Why?', timestamp: new Date() })
+    const messages = store.getState().messages
+    const history = buildRecentChatHistory(messages)
+    expect(history).toContainEqual({ role: 'assistant', content: item.text })
+    expect(history).toHaveLength(Math.min(count + 1, 10))
+    expect(buildRecentChatHistory(messages)).toEqual(history)
+    expect(buildRecentChatHistory(messages, 0)).toEqual([])
+    expect(buildRecentChatHistory(messages, 1)).toEqual([{ role: 'assistant', content: item.text }])
+
+    store.getState().addMessage({ id: 'answer', role: 'ai', content: 'Explanation', timestamp: new Date() })
+    store.getState().addMessage({ id: 'next-turn', role: 'user', content: 'Another question', timestamp: new Date() })
+    const nextHistory = buildRecentChatHistory(store.getState().messages)
+    const normalHistory = store.getState().messages.slice(-11, -1).map(message => ({
+      role: message.role === 'ai' ? 'assistant' : 'user', content: message.content,
+    }))
+    expect(nextHistory).toEqual(normalHistory)
+  })
+
+  it('reanchors an existing item without changing a draft, earlier messages or an active reply', () => {
+    const store = createStoreHarness()
+    const item = createMockProactiveItem()
+    store.getState().openProactiveItem(item)
+    store.getState().claimProactiveAction(item.id)
+    for (let index = 0; index < 10; index += 1) {
+      store.getState().addMessage({ id: `prior-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Turn ${index}`, timestamp: new Date() })
+    }
+    store.getState().addMessage({ id: 'active-reply', role: 'ai', content: 'Partial', timestamp: new Date() })
+    const earlierMessages = store.getState().messages.slice(1)
+    store.getState().setStreamingMessageId('active-reply')
+    store.getState().setIsTyping(true)
+    store.getState().setDraft('Keep my draft')
+
+    store.getState().openProactiveItem(item)
+
+    expect(store.getState()).toMatchObject({ draft: 'Keep my draft', isTyping: true, streamingMessageId: 'active-reply' })
+    expect(store.getState().messages[0]).toMatchObject({ proactiveItem: item, proactiveActed: true })
+    for (const [index, message] of earlierMessages.entries()) {
+      expect(store.getState().messages[index + 1]).toBe(message)
+    }
+    store.getState().appendToMessageContent('active-reply', ' reply')
+    store.getState().addMessage({ id: 'follow-up', role: 'user', content: 'Why?', timestamp: new Date() })
+    expect(buildRecentChatHistory(store.getState().messages)).toContainEqual({ role: 'assistant', content: item.text })
+    expect(store.getState().messages.find(message => message.id === 'active-reply')?.content).toBe('Partial reply')
+  })
+
+  it('uses only the most recently opened proactive item as the follow-up context', () => {
+    const store = createStoreHarness()
+    const first = createMockProactiveItem()
+    const second = createMockProactiveItem({ id: '22222222-2222-4222-8222-222222222222', text: 'Another check-in' })
+    for (let index = 0; index < 10; index += 1) {
+      store.getState().addMessage({ id: `prior-${index}`, role: 'user', content: `Turn ${index}`, timestamp: new Date() })
+    }
+    store.getState().openProactiveItem(first)
+    store.getState().openProactiveItem(second)
+    store.getState().addMessage({ id: 'follow-up', role: 'user', content: 'Why?', timestamp: new Date() })
+
+    const history = buildRecentChatHistory(store.getState().messages)
+    expect(history).toHaveLength(10)
+    expect(history).toContainEqual({ role: 'assistant', content: second.text })
+    expect(history).not.toContainEqual({ role: 'assistant', content: first.text })
+    expect(store.getState().messages.filter(message => message.proactiveItem)).toHaveLength(2)
   })
 
   it('appends a summary once without moving it on reopen or interrupting a reply', () => {

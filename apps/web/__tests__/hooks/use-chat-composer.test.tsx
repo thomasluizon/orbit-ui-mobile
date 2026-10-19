@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
@@ -661,6 +661,49 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('errors.api.accountChanged')
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it.each(['new', 'reopened'])('serializes the full %s proactive item in the next typed follow-up over ten prior messages', async (entry) => {
+    const item = createMockProactiveItem({ text: 'Try a short walk after lunch. Keep it comfortable and stop if you need a break.' })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => {
+      if (entry === 'reopened') useChatStore.getState().openProactiveItem(item)
+      for (let index = 0; index < 10; index += 1) {
+        useChatStore.getState().addMessage({ id: `previous-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Earlier turn ${index}`, timestamp: new Date() })
+      }
+      result.current.setInput('Why do you suggest that?')
+      useChatStore.getState().openProactiveItem(item)
+      useUIStore.getState().setAstraConversationOpen(true)
+    })
+    expect(result.current.input).toBe('Why do you suggest that?')
+    expect(useChatStore.getState().messages[0]).toMatchObject({ proactiveItem: item, content: item.text })
+    expect(useChatStore.getState().messages.slice(1).map(message => message.id)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `previous-${index}`),
+    )
+
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+
+    const formData = mocks.fetch.mock.calls[0]![1].body as FormData
+    const history = JSON.parse(formData.get('history') as string)
+    expect(formData.get('message')).toBe('Why do you suggest that?')
+    expect(history).toContainEqual({ role: 'assistant', content: item.text })
+    expect(history.filter((message: { content: string }) => message.content === item.text)).toHaveLength(1)
+    expect(history).toHaveLength(10)
+    expect(history).toEqual([
+      ...Array.from({ length: 9 }, (_, index) => ({
+        role: index % 2 === 0 ? 'assistant' : 'user', content: `Earlier turn ${index + 1}`,
+      })),
+      { role: 'assistant', content: item.text },
+    ])
+
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.sendMessage('What else can I try?') })
+    const nextFormData = mocks.fetch.mock.calls[1]![1].body as FormData
+    const nextHistory = JSON.parse(nextFormData.get('history') as string)
+    expect(nextHistory).toHaveLength(10)
+    expect(nextHistory).not.toContainEqual({ role: 'assistant', content: item.text })
   })
 
   it('keeps an opened daily summary in the next request after ten prior messages', async () => {

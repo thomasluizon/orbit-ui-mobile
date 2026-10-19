@@ -3,7 +3,7 @@ import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
 import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
@@ -856,6 +856,49 @@ describe('mobile useChatComposer', () => {
       await vi.advanceTimersByTimeAsync(100)
     })
     expect(scrollToEnd).toHaveBeenCalled()
+  })
+
+  it.each(['new', 'reopened'])('serializes the full %s proactive item in the next typed follow-up over ten prior messages', async (entry) => {
+    const item = createMockProactiveItem({ text: 'Try a short walk after lunch. Keep it comfortable and stop if you need a break.' })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    TestRenderer.act(() => {
+      if (entry === 'reopened') useChatStore.getState().openProactiveItem(item)
+      for (let index = 0; index < 10; index += 1) {
+        useChatStore.getState().addMessage({ id: `previous-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Earlier turn ${index}`, timestamp: new Date() })
+      }
+      composer.current.setInput('Why do you suggest that?')
+      useChatStore.getState().openProactiveItem(item)
+      useUIStore.getState().setAstraConversationOpen(true)
+    })
+    expect(composer.current.input).toBe('Why do you suggest that?')
+    expect(useChatStore.getState().messages[0]).toMatchObject({ proactiveItem: item, content: item.text })
+    expect(useChatStore.getState().messages.slice(1).map(message => message.id)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `previous-${index}`),
+    )
+
+    await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
+    await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
+
+    const [formData] = mocks.openChatStream.mock.calls[0] as [{ get(name: string): string | null }]
+    const history = JSON.parse(formData.get('history') as string)
+    expect(formData.get('message')).toBe('Why do you suggest that?')
+    expect(history).toContainEqual({ role: 'assistant', content: item.text })
+    expect(history.filter((message: { content: string }) => message.content === item.text)).toHaveLength(1)
+    expect(history).toHaveLength(10)
+    expect(history).toEqual([
+      ...Array.from({ length: 9 }, (_, index) => ({
+        role: index % 2 === 0 ? 'assistant' : 'user', content: `Earlier turn ${index + 1}`,
+      })),
+      { role: 'assistant', content: item.text },
+    ])
+
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => { await composer.current.sendMessage('What else can I try?') })
+    const [nextFormData] = mocks.openChatStream.mock.calls[1] as [{ get(name: string): string | null }]
+    const nextHistory = JSON.parse(nextFormData.get('history') as string)
+    expect(nextHistory).toHaveLength(10)
+    expect(nextHistory).not.toContainEqual({ role: 'assistant', content: item.text })
   })
 
   it('keeps an opened daily summary in the next request after ten prior messages', async () => {

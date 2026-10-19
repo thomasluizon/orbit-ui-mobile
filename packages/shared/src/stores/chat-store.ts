@@ -56,13 +56,15 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       let added = false
       set((state) => {
         const existing = state.messages.find((message) => message.proactiveItem?.id === item.id)
-        if (existing) return { proactiveEntryId: item.id, messages: [existing, ...state.messages.filter((message) => message !== existing)] }
+        const proactiveContextAfterMessageId = state.messages.filter((message) => message.role === 'user').at(-1)?.id ?? null
+        if (existing) return { proactiveEntryId: item.id, messages: [{ ...existing, proactiveContextAfterMessageId }, ...state.messages.filter((message) => message !== existing)] }
         added = !state.proactiveOutcomes[item.id]
         return { proactiveEntryId: item.id, proactiveOutcomes: { ...state.proactiveOutcomes, [item.id]: state.proactiveOutcomes[item.id] ?? 'opened' }, messages: [{
           id: `proactive-${item.id}`,
           role: 'ai',
           content: item.text,
           proactiveItem: item,
+          proactiveContextAfterMessageId,
           proactiveActed: state.proactiveOutcomes[item.id] === 'acted',
           timestamp: new Date(),
         }, ...state.messages] }
