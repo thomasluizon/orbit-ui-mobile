@@ -6,93 +6,6 @@
  */
 import * as zod from 'zod';
 
-export const GetApiAccountabilityPairsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const GetApiAccountabilityPairsResponse = zod.unknown()
-
-
-export const PostApiAccountabilityPairsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PostApiAccountabilityPairsBody = zod.object({
-  "buddyUserId": zod.uuid(),
-  "cadence": zod.int(),
-  "habitIds": zod.array(zod.uuid())
-})
-
-export const PostApiAccountabilityPairsResponse = zod.unknown()
-
-
-export const PostApiAccountabilityPairsPairIdAcceptParams = zod.object({
-  "pairId": zod.uuid()
-})
-
-export const PostApiAccountabilityPairsPairIdAcceptHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PostApiAccountabilityPairsPairIdAcceptBody = zod.object({
-  "habitIds": zod.array(zod.uuid())
-})
-
-export const PostApiAccountabilityPairsPairIdAcceptResponse = zod.void()
-
-
-export const DeleteApiAccountabilityPairsPairIdParams = zod.object({
-  "pairId": zod.uuid()
-})
-
-export const DeleteApiAccountabilityPairsPairIdHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const DeleteApiAccountabilityPairsPairIdResponse = zod.void()
-
-
-export const PutApiAccountabilityPairsPairIdHabitsParams = zod.object({
-  "pairId": zod.uuid()
-})
-
-export const PutApiAccountabilityPairsPairIdHabitsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PutApiAccountabilityPairsPairIdHabitsBody = zod.object({
-  "habitIds": zod.array(zod.uuid())
-})
-
-export const PutApiAccountabilityPairsPairIdHabitsResponse = zod.void()
-
-
-export const GetApiAccountabilityPairsPairIdCheckInsParams = zod.object({
-  "pairId": zod.uuid()
-})
-
-export const GetApiAccountabilityPairsPairIdCheckInsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const GetApiAccountabilityPairsPairIdCheckInsResponse = zod.unknown()
-
-
-export const PostApiAccountabilityPairsPairIdCheckInsParams = zod.object({
-  "pairId": zod.uuid()
-})
-
-export const PostApiAccountabilityPairsPairIdCheckInsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PostApiAccountabilityPairsPairIdCheckInsBody = zod.object({
-  "note": zod.string().nullable()
-})
-
-export const PostApiAccountabilityPairsPairIdCheckInsResponse = zod.unknown()
-
-
 export const PostApiAchievementsReportEventHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -434,40 +347,6 @@ export const PostApiAuthOperationsVerifyCodeBody = zod.object({
 export const PostApiAuthOperationsVerifyCodeResponse = zod.unknown()
 
 
-export const PostApiAuthGoogleHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const postApiAuthGoogleBodyLanguageDefault = `en`;
-
-export const PostApiAuthGoogleBody = zod.object({
-  "accessToken": zod.string(),
-  "language": zod.string().default(postApiAuthGoogleBodyLanguageDefault),
-  "googleAccessToken": zod.string().nullish(),
-  "googleRefreshToken": zod.string().nullish(),
-  "referralCode": zod.string().nullish()
-})
-
-export const PostApiAuthGoogleResponse = zod.unknown()
-
-
-export const PostApiAuthOperationsGoogleHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const postApiAuthOperationsGoogleBodyLanguageDefault = `en`;
-
-export const PostApiAuthOperationsGoogleBody = zod.object({
-  "accessToken": zod.string(),
-  "language": zod.string().default(postApiAuthOperationsGoogleBodyLanguageDefault),
-  "googleAccessToken": zod.string().nullish(),
-  "googleRefreshToken": zod.string().nullish(),
-  "referralCode": zod.string().nullish()
-})
-
-export const PostApiAuthOperationsGoogleResponse = zod.unknown()
-
-
 export const PostApiAuthGoogleCodeHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -672,83 +551,6 @@ export const PostApiCalendarAutoSyncRunHeader = zod.object({
 })
 
 export const PostApiCalendarAutoSyncRunResponse = zod.unknown()
-
-
-export const PostApiChallengesHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const postApiChallengesBodyTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
-
-export const PostApiChallengesBody = zod.object({
-  "type": zod.int(),
-  "title": zod.string(),
-  "description": zod.string().nullable(),
-  "targetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChallengesBodyTargetCountRegExpTwo)]).nullable(),
-  "periodStartUtc": zod.iso.date(),
-  "periodEndUtc": zod.iso.date().nullable(),
-  "linkedHabitIds": zod.array(zod.uuid()).nullable(),
-  "invitedFriendUserIds": zod.array(zod.uuid()).nullable()
-})
-
-export const PostApiChallengesResponse = zod.unknown()
-
-
-export const GetApiChallengesHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const GetApiChallengesResponse = zod.unknown()
-
-
-export const PostApiChallengesJoinHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PostApiChallengesJoinBody = zod.object({
-  "code": zod.string(),
-  "linkedHabitIds": zod.array(zod.uuid()).nullable()
-})
-
-export const PostApiChallengesJoinResponse = zod.void()
-
-
-export const DeleteApiChallengesChallengeIdLeaveParams = zod.object({
-  "challengeId": zod.uuid()
-})
-
-export const DeleteApiChallengesChallengeIdLeaveHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const DeleteApiChallengesChallengeIdLeaveResponse = zod.void()
-
-
-export const PutApiChallengesChallengeIdHabitsParams = zod.object({
-  "challengeId": zod.uuid()
-})
-
-export const PutApiChallengesChallengeIdHabitsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PutApiChallengesChallengeIdHabitsBody = zod.object({
-  "habitIds": zod.array(zod.uuid()).nullable()
-})
-
-export const PutApiChallengesChallengeIdHabitsResponse = zod.void()
-
-
-export const GetApiChallengesChallengeIdParams = zod.object({
-  "challengeId": zod.uuid()
-})
-
-export const GetApiChallengesChallengeIdHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const GetApiChallengesChallengeIdResponse = zod.unknown()
 
 
 export const GetApiChatRecordsKindParams = zod.object({
@@ -1247,6 +1049,9 @@ export const GetApiEventsHeader = zod.object({
 export const GetApiEventsResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const GetApiFriendsHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -1254,6 +1059,9 @@ export const GetApiFriendsHeader = zod.object({
 export const GetApiFriendsResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const GetApiFriendsUserIdProfileParams = zod.object({
   "userId": zod.uuid()
 })
@@ -1265,6 +1073,9 @@ export const GetApiFriendsUserIdProfileHeader = zod.object({
 export const GetApiFriendsUserIdProfileResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const GetApiFriendsInvitePreviewQueryParams = zod.object({
   "code": zod.string().optional()
 })
@@ -1276,6 +1087,9 @@ export const GetApiFriendsInvitePreviewHeader = zod.object({
 export const GetApiFriendsInvitePreviewResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const getApiFriendsFeedQueryPageSizeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
@@ -1291,6 +1105,9 @@ export const GetApiFriendsFeedHeader = zod.object({
 export const GetApiFriendsFeedResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const getApiFriendsCheersQueryDirectionDefault = `received`;
 
 export const GetApiFriendsCheersQueryParams = zod.object({
@@ -1304,6 +1121,9 @@ export const GetApiFriendsCheersHeader = zod.object({
 export const GetApiFriendsCheersResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiFriendsCheersHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -1317,6 +1137,9 @@ export const PostApiFriendsCheersBody = zod.object({
 export const PostApiFriendsCheersResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiFriendsRequestsHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -1329,6 +1152,9 @@ export const PostApiFriendsRequestsBody = zod.object({
 export const PostApiFriendsRequestsResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiFriendsRequestsFriendshipIdAcceptParams = zod.object({
   "friendshipId": zod.uuid()
 })
@@ -1340,6 +1166,9 @@ export const PostApiFriendsRequestsFriendshipIdAcceptHeader = zod.object({
 export const PostApiFriendsRequestsFriendshipIdAcceptResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const DeleteApiFriendsFriendUserIdParams = zod.object({
   "friendUserId": zod.uuid()
 })
@@ -1351,6 +1180,9 @@ export const DeleteApiFriendsFriendUserIdHeader = zod.object({
 export const DeleteApiFriendsFriendUserIdResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiFriendsBlockHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -1362,6 +1194,9 @@ export const PostApiFriendsBlockBody = zod.object({
 export const PostApiFriendsBlockResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const DeleteApiFriendsBlockBlockedUserIdParams = zod.object({
   "blockedUserId": zod.uuid()
 })
@@ -1373,6 +1208,9 @@ export const DeleteApiFriendsBlockBlockedUserIdHeader = zod.object({
 export const DeleteApiFriendsBlockBlockedUserIdResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiFriendsReportHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2608,6 +2446,9 @@ export const PutApiProfileNameBody = zod.object({
 export const PutApiProfileNameResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PutApiProfileAiMemoryHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2784,6 +2625,9 @@ export const DeleteApiProfileTourHeader = zod.object({
 export const DeleteApiProfileTourResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PutApiProfileHandleHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2795,6 +2639,9 @@ export const PutApiProfileHandleBody = zod.object({
 export const PutApiProfileHandleResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PutApiProfileSocialOptInHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2817,6 +2664,9 @@ export const PutApiProfileMarketingConsentBody = zod.object({
 export const PutApiProfileMarketingConsentResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const PutApiProfilePublicHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2847,6 +2697,9 @@ export const GetApiProfileExportHeader = zod.object({
 export const GetApiProfileExportResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const GetApiUSlugParams = zod.object({
   "slug": zod.string()
 })
@@ -3154,6 +3007,9 @@ export const GetApiUploadsObjectUserIdFileNameHeader = zod.object({
 export const GetApiUploadsObjectUserIdFileNameResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const GetApiUserFactsHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -3161,6 +3017,9 @@ export const GetApiUserFactsHeader = zod.object({
 export const GetApiUserFactsResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const DeleteApiUserFactsIdParams = zod.object({
   "id": zod.uuid()
 })
@@ -3172,6 +3031,9 @@ export const DeleteApiUserFactsIdHeader = zod.object({
 export const DeleteApiUserFactsIdResponse = zod.void()
 
 
+/**
+ * @deprecated
+ */
 export const DeleteApiUserFactsBulkHeader = zod.object({
   "api-version": zod.string().optional()
 })
