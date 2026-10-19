@@ -26,6 +26,13 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     return right > left && bottom > top ? { left, right, top, bottom } : null
   }
   const name = (node: Element) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}[${node.getAttribute('aria-label') ?? node.getAttribute('data-testid') ?? node.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
+  const layer = (node: Element): Element | Document => {
+    for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
+      if (getComputedStyle(ancestor).position === 'fixed') return ancestor
+    }
+    return document
+  }
+  const controlLayer = layer(element)
   const expand = (box: DOMRect, style: CSSStyleDeclaration) => {
     const outline = style.outlineStyle === 'none' ? 0 : Math.max(0, pixels(style.outlineWidth) + pixels(style.outlineOffset))
     const extent = { left: box.left - outline, right: box.right + outline, top: box.top - outline, bottom: box.bottom + outline }
@@ -58,7 +65,7 @@ export function inspectInteractionFill(element: Element, clearance: number) {
   let hasFill = false
   const interactive = 'button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex]'
   for (const owner of [element, ...element.querySelectorAll('*')]) {
-    if (!visible(owner)) continue
+    if (!visible(owner) || layer(owner) !== controlLayer) continue
     if (owner !== element && owner.matches(interactive)) continue
     const style = getComputedStyle(owner)
     const boxes = [visible(owner) && painted(style) ? expand(owner.getBoundingClientRect(), style) : null,
@@ -79,14 +86,15 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     if (cell && !containedCell) {
       violations.push({ neighbour: 'grid cell edge', distance: Math.min(fill.left - bounds.left, bounds.right - fill.right, fill.top - bounds.top, bounds.bottom - fill.bottom) })
     }
-    const column = element.closest('[data-shell-column]')?.getBoundingClientRect()
+    const columnOwner = element.closest('[data-shell-column]')
+    const column = columnOwner && layer(columnOwner) === controlLayer ? columnOwner.getBoundingClientRect() : null
     if (column && (fill.left < column.left + clearance - 0.1 || fill.right > column.right - clearance + 0.1)) {
       violations.push({ neighbour: 'page column edge', distance: Math.min(fill.left - column.left, column.right - fill.right) })
     }
     return violations
   }
   const neighbours = [...document.body.querySelectorAll('*')].filter((node) =>
-    node !== element && !contentOwner.contains(node) && !node.contains(element) && visible(node) && !node.parentElement?.closest('svg'))
+    node !== element && !contentOwner.contains(node) && !node.contains(element) && layer(node) === controlLayer && visible(node) && !node.parentElement?.closest('svg'))
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
     const style = getComputedStyle(neighbour)
     const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video') ? expand(neighbour.getBoundingClientRect(), style) : null,

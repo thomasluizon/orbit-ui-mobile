@@ -10,6 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
 import { ProfileAccountContent } from '@/app/(app)/profile/_components/profile-account-content'
 import { ListRow } from '@/components/ui/list-row'
@@ -180,16 +181,16 @@ describe('personal ListRow text in Chromium', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button><main style="padding:32px">${markup}</main></body></html>`)
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button><main style="padding:16px">${markup}</main></body></html>`)
       const control = page.getByRole('button', { name: 'Tags', exact: true })
       const fill = control.locator('[data-press-fill]')
       const bounds = (await control.boundingBox())!
       const painted = (await fill.boundingBox())!
-      expect(painted.x).toBe(bounds.x - 16)
-      expect(painted.width).toBe(bounds.width + 32)
+      expect(painted.x).toBe(INTERACTION_FILL_CLEARANCE)
+      expect(width - painted.x - painted.width).toBe(INTERACTION_FILL_CLEARANCE)
       expect(painted.height).toBe(bounds.height)
       await control.evaluate((element) => { element.addEventListener('click', () => element.setAttribute('data-activated', 'true')) })
-      for (const x of [painted.x + 2, painted.x + painted.width - 2]) {
+      for (const x of [bounds.x - 16 + 2, bounds.x + bounds.width + 16 - 2]) {
         await control.evaluate((element) => element.removeAttribute('data-activated'))
         await page.mouse.click(x, painted.y + painted.height / 2)
         expect(await control.getAttribute('data-activated')).toBe('true')

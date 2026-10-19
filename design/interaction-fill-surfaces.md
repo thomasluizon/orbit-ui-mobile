@@ -21,6 +21,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
+| Login legal sentence, including the callback email step | `app/(auth)/login/email-step.tsx` | `components/auth/email-step.tsx`, `app/login-styles.ts` | Terms and privacy links share 24px line spacing; web labels stay whole so their native focus outlines cannot span neighbouring links |
 
 Owners are relative to each app. Negative offsets on calendar time markers and decorative habit
 progress SVGs do not paint interaction fills. ActionRow's negative vertical margin compensates its
@@ -33,6 +34,9 @@ at 320, 412, 600, 1024 and 1352px in both locales. It checks hover, held press a
 computed paint and geometry. Structural wrappers are not separate visual neighbours; their text,
 graphics and painted controls are. PersonalTextAction's visual copy belongs to its overlaid control.
 The title's Chromium unit regression exercises the same inspector without an app server.
+Neighbours share the nearest fixed-position ancestor, including the control itself, or the
+document when there is none. Focus sentinels that transfer focus are skipped by active-element
+identity, and each case reports the inspected-control and skipped-sentinel counts.
 
 The inspector measures painted boxes and visible text or graphics on both sides. Transparent
 target-only geometry is excluded. Text neighbours use their text ranges rather than transparent

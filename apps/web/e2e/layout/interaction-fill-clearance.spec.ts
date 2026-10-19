@@ -26,7 +26,12 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           const controls = page.locator(':is(button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex="0"]):visible:not(:disabled):not([aria-disabled="true"])')
           const count = await controls.count()
           if (hasControls) expect(count, `${route} control inventory`).toBeGreaterThan(0)
-          await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE)
+          const counts = { inspectedControls: 0, skippedSentinels: 0 }
+          try {
+            await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
+          } finally {
+            test.info().annotations.push({ type: 'interaction fill inventory', description: JSON.stringify(counts) })
+          }
         })
       }
     })

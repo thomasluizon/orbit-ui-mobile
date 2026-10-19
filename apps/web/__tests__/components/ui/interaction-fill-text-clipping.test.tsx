@@ -3,12 +3,20 @@ import { resolve } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { createTranslator } from 'next-intl'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
+import { LoginContent } from '@/app/(auth)/login/login-content'
+import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+const loginFlow = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
+vi.mock('@/app/(auth)/login/use-login-flow', () => ({ useLoginFlow: () => loginFlow.current }))
 
 describe('visible neighbouring text in the interaction clearance inspector', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -18,8 +26,33 @@ describe('visible neighbouring text in the interaction clearance inspector', () 
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    const font = readFileSync(require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')).toString('base64')
+    stylesheet += `@font-face { font-family: 'Geist'; src: url(data:font/ttf;base64,${font}); } :root { --font-geist: 'Geist'; }`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('keeps the real legal links clear in keyboard focus at $width in $locale', async ({ width, locale }) => {
+    const fixture = createLoginScreenFixture('email', locale)
+    const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    loginFlow.current = { ...fixture, t, emailFocusRequest: 0 }
+    const markup = renderToStaticMarkup(<main className="flex w-full flex-col items-center"><LoginContent /></main>)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html style="${variables}"><style>${stylesheet}</style>${markup}</html>`)
+      await page.evaluate(() => document.fonts.ready)
+      const links = page.getByRole('link')
+      expect(await links.count()).toBe(2)
+      await page.keyboard.press('Tab')
+      for (const link of await links.all()) {
+        await link.focus()
+        expect(await link.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+        const result = await link.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+        expect(result.hasFill).toBe(true)
+        expect(result.violations.filter((violation) => violation.neighbour.startsWith('a['))).toEqual([])
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 412])('accepts the real truncated personal CheckRow at %s', async (width) => {
     const label = 'A'.repeat(100)

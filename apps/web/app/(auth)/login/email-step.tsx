@@ -56,10 +56,10 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
       </div>
-      <p className="text-xs leading-[1.6] text-[var(--fg-3)]">
+      <p className="text-xs leading-[2] text-[var(--fg-3)]">
         {t.rich('auth.legalConsent', {
-          terms: (chunks) => <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
-          privacy: (chunks) => <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+          terms: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+          privacy: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
         })}
       </p>
     </div>

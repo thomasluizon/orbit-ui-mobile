@@ -18,11 +18,12 @@ async function runAction<Result>(context: string, state: string, action: () => P
   } finally { clearTimeout(timer) }
 }
 
-async function inViewport(control: Locator) {
-  return control.evaluate((element) => {
+async function inViewport(control: Locator, fully = false) {
+  return control.evaluate((element, fully) => {
     const box = element.getBoundingClientRect()
+    if (fully) return box.width > 0 && box.height > 0 && box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight
     return box.width > 0 && box.height > 0 && box.right > 0 && box.left < innerWidth && box.bottom > 0 && box.top < innerHeight
-  }, undefined, { timeout: ACTION_TIMEOUT_MS })
+  }, fully, { timeout: ACTION_TIMEOUT_MS })
 }
 
 async function checkState(control: Locator, context: string, clearance: number) {
@@ -57,19 +58,28 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
   }
   await runAction(context, 'keyboard modality', () => page.keyboard.press('Tab'))
   await runAction(context, 'focus-visible', () => control.focus({ timeout: ACTION_TIMEOUT_MS }))
+  const retainsFocus = await runAction(context, 'read active control', () => control.evaluate((element) => document.activeElement === element, undefined, { timeout: ACTION_TIMEOUT_MS }))
+  if (!retainsFocus) return false
   await runAction(context, 'focus-visible bounds', async () => {
     await control.evaluate(settleAnimations, undefined, { timeout: ACTION_TIMEOUT_MS })
-    if (!await inViewport(control)) throw new Error('control remains outside the viewport after focus')
+    if (!await inViewport(control, true)) throw new Error('control remains outside the viewport after focus')
     expect(await control.evaluate((element) => element.matches(':focus-visible'), undefined, { timeout: ACTION_TIMEOUT_MS }), context).toBe(true)
   })
   await checkState(control, `${context} focus-visible`, clearance)
   await runAction(context, 'blur', () => control.blur({ timeout: ACTION_TIMEOUT_MS }))
+  return true
 }
 
-export async function inspectControls(page: Page, controls: Locator, context: string, clearance: number) {
+export async function inspectControls(page: Page, controls: Locator, context: string, clearance: number,
+  counts = { inspectedControls: 0, skippedSentinels: 0 }) {
+  const inspect = async (control: Locator, label: string) => {
+    if (await inspectControl(page, control, label, clearance)) counts.inspectedControls++
+    else counts.skippedSentinels++
+  }
   const title = controls.and(page.locator('.orbit-habit-rename'))
-  if (await runAction(context, 'find habit title', () => title.count())) await inspectControl(page, title, context, clearance)
+  if (await runAction(context, 'find habit title', () => title.count())) await inspect(title, context)
   const remaining = controls.and(page.locator(':not(.orbit-habit-rename)'))
   const count = await runAction(context, 'count controls', () => remaining.count())
-  for (let index = 0; index < count; index++) await inspectControl(page, remaining.nth(index), `${context}, control ${index}`, clearance)
+  for (let index = 0; index < count; index++) await inspect(remaining.nth(index), `${context}, control ${index}`)
+  return counts
 }

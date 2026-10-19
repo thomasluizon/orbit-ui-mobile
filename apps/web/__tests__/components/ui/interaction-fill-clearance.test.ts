@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
@@ -50,6 +51,16 @@ describe('interaction clearance inspector in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('rejects a focus-revealed control that is only partly inside the viewport', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>a { position:fixed;left:32px;top:-80px;width:160px;height:48px }
+        a:focus-visible { top:-4px;background:gray;outline:none }</style><a href="#content">Keyboard entry</a>`)
+      await expect(inspectControls(page, page.locator('a'), '/settings, 320px, en', INTERACTION_FILL_CLEARANCE))
+        .rejects.toThrow(/focus-visible.*outside the viewport/)
+    } finally { await page.close() }
+  })
+
   it('scrolls an ordinary control into view and measures hover, held press and keyboard focus without activation', async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
@@ -78,10 +89,58 @@ describe('interaction clearance inspector in Chromium', () => {
       await page.setContent(`<style>
         a { position: fixed; left: 32px; top: -80px; width: 160px; height: 48px }
         a:focus-visible { top: 16px; background: gray; outline: none }
-        p { position: fixed; left: 32px; top: 64px; margin: 0 }
-      </style><a href="#content">Keyboard entry</a><p>Focus neighbour</p>`)
+        section { position: fixed; inset: 0 }
+        a { position: absolute }
+        p { position: absolute; left: 32px; top: 64px; margin: 0 }
+      </style><section><a href="#content">Keyboard entry</a><p>Focus neighbour</p></section>`)
       await expect(inspectControls(page, page.locator('a'), '/settings, 320px, en', INTERACTION_FILL_CLEARANCE))
         .rejects.toThrow(/\/settings, 320px, en.*a\[Keyboard entry\].*focus-visible[\s\S]*p\[Focus neighbour\]/)
+    } finally { await page.close() }
+  })
+
+  it.each(['document', 'fixed control', 'fixed parent', 'nested fixed parent'])('ignores overlapping paint in another layer for a %s', async (layer) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      const control = `<button style="${layer === 'fixed control' ? 'position:fixed;' : ''}left:32px;top:32px">Control</button>`
+      const content = layer === 'document' || layer === 'fixed control' ? control
+        : `<section style="position:fixed;inset:0">${layer === 'nested fixed parent' ? `<article style="position:fixed;inset:0">${control}</article>` : control}</section>`
+      await page.setContent(`<style>button { position:absolute;width:160px;height:48px;background:gray;border:0;outline:none }
+        aside { position:${layer === 'document' ? 'fixed' : 'absolute'};left:32px;top:32px;width:160px;height:48px;background:black }
+        p { position:absolute;left:32px;top:32px;margin:0 }</style>${content}<aside><p>Other layer</p></aside>`)
+      const result = await page.getByRole('button').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.hasFill).toBe(true)
+      expect(result.violations).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('counts real focus guards even when a later control fails (collision=%s)', async (collision) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      const options = {
+        stdin: { contents: `import React from 'react'; import { createRoot } from 'react-dom/client';
+          import { FocusGuards } from '@radix-ui/react-focus-guards'; import { FocusScope } from '@radix-ui/react-focus-scope';
+          createRoot(document.getElementById('root')).render(<FocusGuards><FocusScope trapped loop><button>Dialog action</button><p>Neighbour</p></FocusScope></FocusGuards>);`,
+        resolveDir: process.cwd(), loader: 'tsx' },
+        bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+        define: { 'process.env.NODE_ENV': '"production"' },
+      }
+      const script = execFileSync(process.execPath, ['--input-type=module', '-e',
+        `import { build } from 'esbuild'; const result = await build(${JSON.stringify(options)}); process.stdout.write(result.outputFiles[0].text);`], { encoding: 'utf8' })
+      await page.setContent(`<style>span[tabindex="0"] { top:-80px;width:8px;height:8px }
+        #root > div { display:flex;flex-direction:column;gap:32px;padding:32px }
+        button { position:relative;padding:8px;outline:none } p { margin:0 }
+        ${collision ? "button::before { content:'';position:absolute;inset:-32px;background:gray }" : ''}</style><div id="root"></div>`)
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => document.querySelectorAll('body > span[tabindex="0"]').length === 2)
+      const counts = { inspectedControls: 0, skippedSentinels: 0 }
+      const inspection = inspectControls(page, page.locator('button, span[tabindex="0"]'), '/onboarding, 320px, en', INTERACTION_FILL_CLEARANCE, counts)
+      if (collision) {
+        await expect(inspection).rejects.toThrow(/button\[Dialog action\].*hover[\s\S]*p\[Neighbour\]/)
+        expect(counts).toEqual({ inspectedControls: 0, skippedSentinels: 1 })
+      } else {
+        await inspection
+        expect(counts).toEqual({ inspectedControls: 1, skippedSentinels: 2 })
+      }
     } finally { await page.close() }
   })
 
