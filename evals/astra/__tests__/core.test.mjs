@@ -28,6 +28,12 @@ describe('tool evidence', () => {
   it.each([{}, { aiMessage: null }, { aiMessage: '' }, { aiMessage: ' ' }])('rejects missing final text: %j', (response) => {
     expect(() => parseResponse(response)).toThrow('aiMessage')
   })
+  it('grades a budget refusal only in a case expecting the verified HTTP outcome', () => {
+    const output = parseResponse({ error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, '', { response: { status: 403 } })
+    expect(behavior(output, { vars: { expectedHttpStatus: 403, expectations: {} } }).pass).toBe(true)
+    expect(behavior(output, context({})).pass).toBe(false)
+    expect(() => parseResponse({ error: 'Denied', errorCode: 'NO_PERMISSION' }, '', { response: { status: 403 } })).toThrow('unexpected refusal')
+  })
   it('matches a compound operation in either order', () => {
     const calls = [call('update_habit', { habit_id: 'first', title: '  CAMINHADA  diária ' }), call('skip_habit', { habit_id: 'second' })]
     const expectations = { required: [
@@ -63,6 +69,13 @@ describe('tool evidence', () => {
     expect(behavior(envelope([call('bulk_log_habits', { habit_ids: ['second', 'first'] })]), context(expectations)).pass).toBe(true)
     expect(behavior(envelope([call('log_habit', { habit_id: 'first' }), call('log_habit', { habit_id: 'second' })]), context(expectations)).pass).toBe(false)
     expect(behavior(envelope([call('bulk_log_habits', { habit_ids: ['first', 'second'] }), call('bulk_log_habits', {})]), context(expectations)).pass).toBe(false)
+  })
+  it('accepts both verified bulk ID argument forms and rejects extra targets', () => {
+    const expectations = { required: [{ name: 'bulk_log_habits', argumentsAnyOf: [
+      { habit_ids: ['first', 'second'] }, { filter: { habit_ids: ['first', 'second'] } },
+    ] }] }
+    expect(behavior(envelope([call('bulk_log_habits', { filter: { habit_ids: ['second', 'first'] } })]), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([call('bulk_log_habits', { filter: { habit_ids: ['first', 'other'] } })]), context(expectations)).pass).toBe(false)
   })
   it('requires distinct calls for distinct requirements', () => {
     expect(behavior(envelope([call('log_habit', {})]), context({ required: [{ name: 'log_habit' }, { name: 'log_habit' }] })).pass).toBe(false)

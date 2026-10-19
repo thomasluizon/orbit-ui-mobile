@@ -17,7 +17,9 @@ const scratch = []
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true }) })
 
 describe('real promptfoo CLI with an offline provider', () => {
-  it.each([false, true])('runs the production assertions and pass^3 reporter; broken=%s', (broken) => {
+  it.each([
+    [false, false, 'pass'], [true, false, 'fail'], [false, true, 'incomplete'],
+  ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s', (broken, noTrace, status) => {
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
     scratch.push(directory)
     const configPath = resolve(directory, 'config.yaml')
@@ -30,12 +32,12 @@ describe('real promptfoo CLI with an offline provider', () => {
       providers: [{ id: `file://${root}/__tests__/fixtures/target.mjs`, config: { tools: catalog } }],
       defaultTest: { assert: assertions, options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` } },
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water' }, vars: {
-        input: 'Mark Water done', broken, rubric: 'Describe Water only.',
+        input: 'Mark Water done', broken, noTrace, rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
       } }],
       extensions: [`file://${root}/hooks.mjs:afterAll`],
     }))
-    const run = spawnSync(process.execPath, [cli, 'eval', '--config', configPath], {
+    const run = spawnSync(process.execPath, [cli, 'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
       cwd: directory, encoding: 'utf8', timeout: 45000,
       env: { ...process.env, PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
@@ -43,16 +45,18 @@ describe('real promptfoo CLI with an offline provider', () => {
     const summaryPath = resolve(directory, 'reports/summary.json')
     expect(run.error, run.stdout + run.stderr).toBeUndefined()
     const summary = JSON.parse(readFileSync(summaryPath, 'utf8'))
-    if (broken) expect(run.status, run.stdout + run.stderr).not.toBe(0)
+    if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
-    expect(summary.status).toBe(broken ? 'fail' : 'pass')
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken ? 0 : 3, skipped: 0 })
+    expect(summary.status).toBe(status)
+    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken ? 0 : 3, skipped: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
   })
 })
 
 describe('HTTP provider wiring without a server', () => {
-  it.each(['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN'])('renders multipart and the selected credential: %s', async (credentialKey) => {
+  it.each([
+    ['ORBIT_EVAL_TOKEN', 200], ['ORBIT_EVAL_FREE_TOKEN', 200], ['ORBIT_EVAL_BUDGET_TOKEN', 403],
+  ])('renders multipart and the selected credential: %s, status=%s', async (credentialKey, status) => {
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
     vi.stubEnv(credentialKey, 'offline-token')
     let requests = 0
@@ -64,16 +68,18 @@ describe('HTTP provider wiring without a server', () => {
       const form = await request.formData()
       expect(form.get('message')).toBe('Water & Walk? á')
       expect(form.get('history')).toBe('[]')
-      return Response.json({ aiMessage: 'Water is pending.' })
+      return Response.json(status === 200 ? { aiMessage: 'Water is pending.' }
+        : { error: 'Daily AI message limit reached.', errorCode: 'PAY_GATE' }, { status })
     })
-      const provider = await loadApiProvider('http', { options: { config: {
+    const provider = await loadApiProvider('http', { options: { config: {
         ...configuration.providers[0].config,
         url: 'https://astra.invalid/api/chat',
         transformResponse: `file://${root}/response.mjs`,
-      } } })
-      const response = await provider.callApi('Water & Walk? á', { vars: { credentialKey } })
-      expect(response.output).toMatchObject({ answer: 'Water is pending.', httpStatus: 200, trace: { state: 'skipped' } })
-      expect(requests).toBe(1)
+    } } })
+    const response = await provider.callApi('Water & Walk? á', { vars: { credentialKey } })
+    expect(response.output).toMatchObject({ answer: status === 200 ? 'Water is pending.' : 'Daily AI message limit reached.',
+      httpStatus: status, trace: { state: 'skipped' } })
+    expect(requests).toBe(1)
   })
 })
 

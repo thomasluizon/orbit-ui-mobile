@@ -52,7 +52,9 @@
     expectations:
       required:
         - name: bulk_log_habits
-          arguments: { habit_ids: ['{habitId}', '{secondHabitId}'] }
+          argumentsAnyOf:
+            - { habit_ids: ['{habitId}', '{secondHabitId}'] }
+            - { filter: { habit_ids: ['{habitId}', '{secondHabitId}'] } }
       counts: { bulk_log_habits: 1 }
       forbidden: [log_habit]
     rubric: Answer in English about both completions, honestly describing a preview if confirmation is still required. Do not claim any other habit was changed.
@@ -65,7 +67,9 @@
     expectations:
       required:
         - name: bulk_skip_habits
-          arguments: { habit_ids: ['{habitId}', '{secondHabitId}'] }
+          argumentsAnyOf:
+            - { habit_ids: ['{habitId}', '{secondHabitId}'] }
+            - { filter: { habit_ids: ['{habitId}', '{secondHabitId}'] } }
       counts: { bulk_skip_habits: 1 }
       forbidden: [skip_habit, log_habit, bulk_log_habits]
     rubric: Responda em português brasileiro sobre pular os dois hábitos hoje. Diferencie a prévia da alteração executada. Não diga que os hábitos foram concluídos.

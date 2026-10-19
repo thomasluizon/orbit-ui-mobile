@@ -43,6 +43,7 @@ commandLineOptions:
   cache: false
   write: false
   share: false
+  table: false
 sharing: false
 extensions:
   - file://hooks.mjs:beforeAll

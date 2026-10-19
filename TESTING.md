@@ -141,7 +141,8 @@ The structural wrapper delegates nonempty calls to promptfoo's
 JavaScript assertion matches all necessary calls and key arguments without imposing their
 sequence. IDs and enums are exact, arrays match without order, and `{ textContains: ... }`
 normalizes case, accents, and whitespace for free text. `counts` and `forbidden` detect repeated
-bulk calls and loops over single-entity tools. `allowed` restricts ambiguity and guardrail cases
+bulk calls and loops over single-entity tools. `argumentsAnyOf` accepts verified alternative
+argument forms, such as the bulk tools' `habit_ids` and `filter.habit_ids` inputs. `allowed` restricts ambiguity and guardrail cases
 to read or ask tools. The `llm-rubric` assertion receives only `answer`, never tool arguments,
 results, or the raw response. Missing natural-language text fails rather than grading card JSON.
 

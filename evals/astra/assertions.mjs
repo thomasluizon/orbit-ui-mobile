@@ -67,8 +67,9 @@ export function behavior(output, context) {
   // Match distinct calls without imposing a sequence on independent operations.
   const unmatched = [...trace.calls]
   for (const required of expectations.required ?? []) {
+    const argumentChoices = required.argumentsAnyOf ?? [required.arguments ?? {}]
     const index = unmatched.findIndex((call) => call.name === required.name
-      && matchesArguments(call.arguments, required.arguments ?? {})
+      && argumentChoices.some((arguments_) => matchesArguments(call.arguments, arguments_))
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
       && (required.result === undefined || matchesArguments(call.result, required.result)))
     if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name}`)
