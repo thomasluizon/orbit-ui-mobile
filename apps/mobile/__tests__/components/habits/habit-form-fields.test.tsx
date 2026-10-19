@@ -111,6 +111,21 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it.each([false, true])('uses the API sub-habit flag for Pro access %s', async (hasProAccess) => {
+    mockProfileState.hasProAccess = hasProAccess
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded>
+          <Text>sub-habit-editor</Text>
+        </HabitFormFields>,
+      )
+    })
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'sub-habit-editor')).toHaveLength(hasProAccess ? 1 : 0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === ListRow && node.props.title === 'common.upgrade')).toHaveLength(hasProAccess ? 0 : 1)
+    await TestRenderer.act(() => { tree.unmount() })
+  })
+
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     let tree: ReturnType<typeof TestRenderer.create>

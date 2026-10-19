@@ -19,13 +19,13 @@ let queryClient: QueryClient
 function Wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client: queryClient }, children)
 }
-type ProbeResult = ReturnType<typeof useConfig> & { enabled: boolean; unknown: boolean; defaultFlag: boolean }
+type ProbeResult = ReturnType<typeof useConfig> & { enabled: boolean; missing: boolean; defaultFlag: boolean }
 type MountedRenderer = ReturnType<typeof TestRenderer.create> & { unmount: () => void }
 const renderers: MountedRenderer[] = []
 function mount() {
   const result = { current: undefined as unknown as ProbeResult }
   function Probe() {
-    result.current = { ...useConfig(), enabled: useFlag('redesign'), unknown: useFlag('ai_summary'), defaultFlag: useFlag('offline_mode') }
+    result.current = { ...useConfig(), enabled: useFlag('redesign'), missing: useFlag('ai_summary'), defaultFlag: useFlag('sub_habits') }
     return null
   }
   let renderer!: MountedRenderer
@@ -59,12 +59,12 @@ afterEach(() => {
 })
 
 describe('mobile config and flags', () => {
-  it.each([true, false])('returns the resolved flag %s and keeps unknown flags off', async (enabled) => {
+  it.each([true, false])('returns the resolved flag %s and keeps absent flags off', async (enabled) => {
     respond(enabled)
     const { result } = mount()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.enabled).toBe(enabled)
-    expect(result.current.unknown).toBe(false)
+    expect(result.current.missing).toBe(false)
   })
 
   it('keeps every flag off on a cold start, including default-enabled features', () => {

@@ -153,6 +153,13 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it.each([false, true])('uses the API sub-habit flag for Pro access %s', (hasProAccess) => {
+    mockProfileState.hasProAccess = hasProAccess
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+    expect(screen.queryByText('sub-habit-editor') !== null).toBe(hasProAccess)
+    expect(screen.queryByRole('button', { name: /common\.upgrade/ }) !== null).toBe(!hasProAccess)
+  })
+
   it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
     const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
     renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })

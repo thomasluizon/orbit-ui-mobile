@@ -63,7 +63,7 @@ describe('isFeatureEnabled', () => {
 
   it('keeps missing and disabled features off for Pro', () => {
     expect(isFeatureEnabled(config, 'notion_integration', 'pro')).toBe(false)
-    config.features.sub_habits = { enabled: false, planRequirement: 'Pro' }
-    expect(isFeatureEnabled(config, 'sub_habits', 'pro')).toBe(false)
+    const disabled = { ...config, features: { sub_habits: { enabled: false, planRequirement: 'Pro' } } }
+    expect(isFeatureEnabled(disabled, 'sub_habits', 'pro')).toBe(false)
   })
 })

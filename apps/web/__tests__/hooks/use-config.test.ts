@@ -24,7 +24,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 function mount() {
   return renderHook(() => ({
-    ...useConfig(), enabled: useFlag('redesign'), unknown: useFlag('ai_summary'), defaultFlag: useFlag('offline_mode'),
+    ...useConfig(), enabled: useFlag('redesign'), missing: useFlag('ai_summary'), defaultFlag: useFlag('sub_habits'),
   }), { wrapper: Wrapper })
 }
 function respond(enabled: boolean) {
@@ -49,12 +49,12 @@ afterEach(() => {
 })
 
 describe('web config and flags', () => {
-  it.each([true, false])('returns the resolved flag %s and keeps unknown flags off', async (enabled) => {
+  it.each([true, false])('returns the resolved flag %s and keeps absent flags off', async (enabled) => {
     respond(enabled)
     const { result } = mount()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.enabled).toBe(enabled)
-    expect(result.current.unknown).toBe(false)
+    expect(result.current.missing).toBe(false)
   })
 
   it('publishes config after slow session recovery through the redesign fetch adapter', async () => {
