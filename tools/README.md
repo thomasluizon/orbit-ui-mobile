@@ -174,7 +174,7 @@ Complete agreement also writes `__fixtures__/ticket-classifier-calibration.json`
 
 ## Production feature parity
 
-The production feature parity inventory is an audited snapshot. The guard regenerates it from
+The production feature parity inventory is generated locally and never committed. The guard regenerates it from
 `origin/main` and the checked-out source on every pull request to `redesign/main`; each run uploads
 its evidence. `tools/feature-parity-rules.json` carries exact relocations, cited owner removals and
 restoration tickets. A ticket exempts only a gap already present on the pull request base. Once
