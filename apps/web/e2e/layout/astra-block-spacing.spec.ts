@@ -21,8 +21,9 @@ for (const width of [412, 600, 1352]) {
         test('keeps turns and blocks 16 apart and fills the composer column', async ({ page, context }) => {
           let prose = true
           await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => {
-            const message = makeChatBlockLayoutMessage(scenario, prose)
-            const event = chatStreamEventSchema.parse({ type: 'final', response: { ...scenario.fields, aiMessage: message.content, actions: message.actions ?? [] } })
+            const message = makeChatBlockLayoutMessage(scenario, prose, `blocks-${prose}`)
+            const event = chatStreamEventSchema.parse({ type: 'final', response: { ...scenario.fields,
+              pendingOperations: message.pendingOperations, aiMessage: message.content, actions: message.actions ?? [] } })
             return route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` })
           })
           await page.goto('/')
