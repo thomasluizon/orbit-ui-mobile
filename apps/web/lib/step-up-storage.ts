@@ -1,5 +1,5 @@
 import {
-  STEP_UP_ATTEMPT_WINDOW_MS,
+  createStepUpTimingRecord,
   createStepUpSessionState,
   getStepUpStorageKey,
   parseStepUpTimingRecord,
@@ -12,6 +12,9 @@ export const {
   clearStepUpState,
   readApiKeyExpiryDraft,
   retainApiKeyExpiryDraft,
+  rememberApiKeyCreationPermission,
+  readPendingApiKeyPermission,
+  clearPendingApiKeyPermission,
   markStepUpVerified,
   isStepUpVerified,
   hasApiKeyCreationGrant,
@@ -54,16 +57,7 @@ export function beginStepUpChallenge(
   sentAt = Date.now(),
 ): StepUpTimingRecord {
   const previous = readStepUpTiming(operation, accountId)
-  const exhaustedAt =
-    previous?.exhaustedAt !== undefined &&
-    sentAt < previous.exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
-      ? previous.exhaustedAt
-      : undefined
-  const record: StepUpTimingRecord = {
-    operation,
-    sentAt,
-    ...(exhaustedAt !== undefined ? { exhaustedAt } : {}),
-  }
+  const record = createStepUpTimingRecord(operation, sentAt, previous)
   return persistStepUpTiming(record, accountId)
 }
 

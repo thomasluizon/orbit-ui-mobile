@@ -1493,7 +1493,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => field.props.onChangeText(expiry))
     await TestRenderer.act(async () => { findButtonByText(tree, 'profile.apiKeys.create').props.onPress(); await Promise.resolve() })
     expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', expiresAtUtc }),
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', isReadOnly: false, expiresAtUtc }),
     }))
     expect(nodeText(tree.root)).toContain('orb_secret')
   })
@@ -1563,6 +1563,7 @@ describe('ProfileScreen', () => {
       .mockRejectedValueOnce(new Error('failed'))
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     const tree = await renderProfileSubscreen('astra')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     await TestRenderer.act(async () => {
@@ -1594,9 +1595,10 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', scopes: ['fresh:scope'], expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
-    }))
+    expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, {
+      method: 'POST',
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', scopes: ['fresh:scope'], isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+    })
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
 
@@ -1659,7 +1661,7 @@ describe('ProfileScreen', () => {
     })
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), isReadOnly: false, expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
     }))
     expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
     expect(readApiKeyExpiryDraft()).toBe('')
@@ -1701,7 +1703,7 @@ describe('ProfileScreen', () => {
     await submit(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
-      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
+      body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', ...(mode === 'scoped' ? { scopes: ['read_habits'] } : {}), isReadOnly: false, expiresAtUtc: '2099-12-31T23:59:00.000Z' }),
     }))
   })
 
@@ -1776,7 +1778,7 @@ describe('ProfileScreen', () => {
       })
       expect(nodeText(secondTree.root)).toContain('orb_secret')
       expect(mockApiClient).toHaveBeenCalledWith(API.apiKeys.create, expect.objectContaining({
-        body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', expiresAtUtc: null }),
+        body: JSON.stringify({ name: 'profile.apiKeys.newKeyName', isReadOnly: false, expiresAtUtc: null }),
       }))
     } finally {
       clock.mockRestore()
