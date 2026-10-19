@@ -49,6 +49,55 @@ function flattenKeys(value: unknown, prefix = ''): string[] {
 }
 
 describe('privacy policy disclosures', () => {
+  it.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ])('renders cookies, consent, and withdrawal alongside processors in %s', (locale, messages) => {
+    render(React.createElement(TestIntlProvider, { locale, messages }, React.createElement(PrivacyPage)))
+
+    expect(messages.privacy).toHaveProperty('cookies')
+    for (const disclosure of Object.values(messages.privacy.cookies)) {
+      expect(screen.getByText(disclosure)).toBeInTheDocument()
+    }
+    expect(screen.getByText(messages.privacy.thirdParty.sentry)).toBeInTheDocument()
+    const policyText = document.body.textContent
+    expect(policyText.indexOf(messages.privacy.thirdParty.posthog)).toBeLessThan(policyText.indexOf(messages.privacy.cookies.title))
+    expect(policyText.indexOf(messages.privacy.cookies.title)).toBeLessThan(policyText.indexOf(messages.privacy.retention.title))
+  })
+
+  it.each([
+    ['English', en.privacy],
+    ['Portuguese', ptBR.privacy],
+  ])('explains browser storage and website consent in %s', (_locale, privacy) => {
+    expect(privacy).toHaveProperty('cookies')
+    expect(privacy.cookies.essential).toMatch(/auth_token/)
+    expect(privacy.cookies.essential).toMatch(/refresh_token/)
+    expect(privacy.cookies.essential).toMatch(/orbit_analytics_consent/)
+    expect(privacy.cookies.analytics).toMatch(/PostHog/)
+    expect(privacy.cookies.analytics).toMatch(/only after you select Allow|só depois que você escolhe Permitir/)
+    expect(privacy.cookies.analytics).toMatch(/page views|páginas visitadas/)
+    expect(privacy.cookies.analytics).toMatch(/page exits|saídas do site/)
+    expect(privacy.cookies.analytics).toMatch(/Google Play/)
+    expect(privacy.cookies.analytics).toMatch(/linked to your account|associado à sua conta/)
+    expect(privacy.cookies.withdraw).toMatch(/browser settings|configurações do navegador/)
+    expect(privacy.cookies.withdraw).toMatch(/useorbit.org/)
+    expect(privacy.cookies.withdraw).toMatch(/Decline|Recusar/)
+    expect(privacy.cookies.analytics).not.toMatch(/anonymous|anônim/i)
+  })
+
+  it.each([
+    ['English', en.privacy],
+    ['Portuguese', ptBR.privacy],
+  ])('names retained crash identifiers instead of promising identifier removal in %s', (_locale, privacy) => {
+    for (const disclosure of [privacy.thirdParty.sentry, privacy.dataCollected.device]) {
+      expect(disclosure).toMatch(/device and OS|aparelho e do sistema/)
+      expect(disclosure).toMatch(/random installation ID|identificador aleatório da instalação/)
+      expect(disclosure).toMatch(/approximate city|cidade aproximada/)
+      expect(disclosure).toMatch(/IP/)
+      expect(disclosure).not.toMatch(/personal identifiers removed|identificadores pessoais removidos/)
+    }
+  })
+
   it('renders the new processor and retention disclosures on web', () => {
     render(
       React.createElement(
@@ -77,10 +126,11 @@ describe('privacy policy disclosures', () => {
     expect(flattenKeys(ptBR.privacy).sort()).toEqual(flattenKeys(en.privacy).sort())
   })
 
-  it('keeps every processor and retention disclosure owned by both privacy routes', () => {
+  it('keeps every processor, retention, and cookie disclosure owned by both privacy routes', () => {
     const disclosureKeys = [
       ...flattenKeys(en.privacy.thirdParty, 'privacy.thirdParty'),
       ...flattenKeys(en.privacy.retention, 'privacy.retention'),
+      ...flattenKeys(en.privacy.cookies, 'privacy.cookies'),
     ].filter((key) => !key.endsWith('.title') && !key.endsWith('.intro'))
 
     for (const sourceFile of [
@@ -121,8 +171,8 @@ describe('privacy policy disclosures', () => {
   it('discloses AdMob only for older Android versions in both locales', () => {
     expect(en.privacy.thirdParty.admob).toBe('Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.')
     expect(ptBR.privacy.thirdParty.admob).toBe('Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.')
-    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
-    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
+    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and Android crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
+    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e relatórios de falhas no Android com informações do aparelho e do sistema, um identificador aleatório da instalação e a cidade aproximada, estimada pelo endereço IP da conexão. Esses relatórios não incluem nome, e-mail nem dados da conta. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
   })
 
   it.each([
@@ -155,7 +205,7 @@ describe('privacy policy disclosures', () => {
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
     expect(en.privacy.dataResidency.body).toContain('Render hosts the web application, API, and database')
     expect(ptBR.privacy.dataResidency.body).toContain('A Render hospeda o aplicativo web, a API e o banco de dados')
-    expect(en.privacy.lastUpdated).toBe('Last updated: September 2026')
-    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: setembro de 2026')
+    expect(en.privacy.lastUpdated).toBe('Last updated: October 2026')
+    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: outubro de 2026')
   })
 })

@@ -41,6 +41,11 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.s3'),
       t('privacy.thirdParty.turnstile'),
     ] },
+    { label: t('privacy.cookies.title'), body: [
+      t('privacy.cookies.essential'),
+      t('privacy.cookies.analytics'),
+      t('privacy.cookies.withdraw'),
+    ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),
       t('privacy.retention.account'),

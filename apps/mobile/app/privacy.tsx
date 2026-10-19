@@ -115,6 +115,19 @@ export default function PrivacyScreen() {
           />
         </View>
 
+        <SectionLabel>{t('privacy.cookies.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.cookies.essential')}
+          </Text>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.cookies.analytics')}
+          </Text>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.cookies.withdraw')}
+          </Text>
+        </View>
+
         <SectionLabel>{t('privacy.retention.title')}</SectionLabel>
         <View style={styles.bodyBlock}>
           <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
