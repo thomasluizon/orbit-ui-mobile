@@ -139,7 +139,7 @@ jobs:
   release-android:
     name: Build and publish Android app
     needs: publish-design-bundles
-    if: ${{ !cancelled() && (needs.publish-design-bundles.result == 'success' || (inputs.track == 'internal' && needs.publish-design-bundles.result == 'skipped')) }}
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
