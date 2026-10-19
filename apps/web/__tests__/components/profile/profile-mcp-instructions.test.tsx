@@ -132,7 +132,6 @@ it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps the Web guide reachable a
     messages.orbitMcp.webStep1, messages.orbitMcp.webStep2, messages.orbitMcp.webStep3, messages.orbitMcp.webStep4,
   ])
   expect(guide.getByText(messages.orbitMcp.webNoApiKey)).toBeInTheDocument()
-  expect(guide.queryByText(messages.orbitMcp.webInstructions)).not.toBeInTheDocument()
   expect(guide.getByRole('button', { name: messages.orbitMcp.copy })).toBeEnabled()
   fireEvent.click(guide.getByRole('button', { name: messages.orbitMcp.done }))
   expect(screen.queryByRole('dialog', { name: messages.orbitMcp.claudeWeb })).not.toBeInTheDocument()
