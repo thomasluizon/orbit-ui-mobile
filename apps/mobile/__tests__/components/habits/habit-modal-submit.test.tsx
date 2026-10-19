@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-q
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -51,16 +52,18 @@ vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 const { act, create } = require('react-test-renderer') as typeof import('react-test-renderer')
 
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { date?: string }) => key === 'habits.form.startDateValue' ? `Starts on ${values?.date}` : key, i18n: { language: 'en' } }) }))
+
 vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
 
-async function renderSheet(mode: 'create' | 'edit') {
+async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   const onClose = vi.fn()
   let tree!: ReactTestRenderer
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   const element = (open: boolean) => <QueryClientProvider client={client}>
     {mode === 'create'
       ? <CreateHabitModal open={open} onClose={onClose} initialTitle={habit.title} />
-      : <EditHabitModal open={open} onClose={onClose} habit={habit} />}
+      : <EditHabitModal open={open} onClose={onClose} habit={selectedHabit} />}
   </QueryClientProvider>
   await act(() => { tree = create(element(true)); return Promise.resolve() })
   const label = mode === 'create' ? 'habits.createHabit' : 'common.save'
@@ -160,5 +163,20 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     await pressSubmit(submit)
     await settleMutation()
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('habit edit start date', () => {
+  beforeEach(() => { vi.resetAllMocks() })
+
+  it.each([
+    ['2026-08-20', 'Starts on August 20'],
+    ['2026-08-28', 'Starts on August 28'],
+    [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],
+  ])('shows the API start date %s with legacy timestamp compatibility', async (startDate, expected) => {
+    const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
+    const { tree } = await renderSheet('edit', selectedHabit)
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === expected)).toHaveLength(1)
+    await act(() => { tree.update(<></>); return Promise.resolve() })
   })
 })

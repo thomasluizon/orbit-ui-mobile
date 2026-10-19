@@ -2,6 +2,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
+import { formatLocaleDayMonth } from '@orbit/shared/utils'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -55,17 +56,17 @@ vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ Sli
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { date?: string }) => key === 'habits.form.startDateValue' ? `Starts on ${values?.date}` : key, useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 
-async function renderSheet(mode: 'create' | 'edit') {
+async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   const onClose = vi.fn()
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   const element = (open: boolean) => <QueryClientProvider client={client}>
     {mode === 'create'
       ? <CreateHabitModal open={open} onOpenChange={onClose} initialTitle={habit.title} />
-      : <EditHabitModal open={open} onOpenChange={onClose} habit={habit} />}
+      : <EditHabitModal open={open} onOpenChange={onClose} habit={selectedHabit} />}
   </QueryClientProvider>
   let view!: ReturnType<typeof render>
   await act(async () => { view = render(element(true)) })
@@ -135,5 +136,19 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     mutation.mockResolvedValue(habit)
     await act(async () => fireEvent.click(submit))
     await waitFor(() => expect(onClose).toHaveBeenCalledWith(false))
+  })
+})
+
+describe('habit edit start date', () => {
+  beforeEach(() => { vi.resetAllMocks() })
+
+  it.each([
+    ['2026-08-20', 'Starts on August 20'],
+    ['2026-08-28', 'Starts on August 28'],
+    [undefined, `Starts on ${formatLocaleDayMonth('2026-08-29T00:30:00Z', 'en')}`],
+  ])('shows the API start date %s with legacy timestamp compatibility', async (startDate, expected) => {
+    const selectedHabit = { ...habit, startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
+    await renderSheet('edit', selectedHabit)
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 })

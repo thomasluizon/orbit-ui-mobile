@@ -1562,6 +1562,13 @@ describe('sync schemas', () => {
       })
     })
 
+    it('preserves optional habit creation fields in sync responses', () => {
+      const response = createMockSyncChangesV2Response()
+      const fields = { startDate: '2026-08-28', schedule: 'Recurring' }
+      const parsed = syncChangesV2ResponseSchema.parse({ ...response, habits: { ...response.habits, updated: response.habits.updated.map((habit) => ({ ...habit, ...fields })) } })
+      expect(parsed.habits.updated[0]).toMatchObject(fields)
+    })
+
     it('rejects a response whose nested habit drops a required field', () => {
       const response = createMockSyncChangesV2Response()
       const [firstHabit] = response.habits.updated

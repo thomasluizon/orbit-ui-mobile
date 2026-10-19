@@ -12,7 +12,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -532,6 +532,17 @@ describe('HabitDetailScreen', () => {
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
+  })
+
+  it.each([
+    ['2026-08-20', 'Aug 20, 2026'],
+    ['2026-08-28', 'Aug 28, 2026'],
+    [undefined, formatLocaleDate('2026-08-29T00:30:00Z', 'en', { dateStyle: 'medium' })],
+  ])('shows the API start date %s in the detail row with legacy timestamp compatibility', (startDate, expected) => {
+    mocks.detail = { ...makeDetail(), startDate, createdAtUtc: '2026-08-29T00:30:00Z' }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const row = screen.getByText('habits.detail.startedOn').parentElement!
+    expect(within(row).getByText(expected)).toBeInTheDocument()
   })
 
   it('opens Creation controls seeded from the habit in one disclosure', () => {

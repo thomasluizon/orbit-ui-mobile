@@ -1,5 +1,5 @@
 import { formatWeekdaySchedule } from './weekday-schedule'
-import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion } from '../types/habit'
+import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
@@ -730,6 +730,11 @@ export function shouldShowHabitAstraFallback(
 
 export function isHabitAstraLimitReached(used: number, allowance: number): boolean {
   return used >= allowance
+}
+
+export function getHabitDisplayStartDate(habit: Pick<NormalizedHabit, 'startDate' | 'createdAtUtc'>): string {
+  // Preserve older API responses until #227 step 3 removes this fallback: https://github.com/thomasluizon/orbit-tickets/issues/227
+  return habit.startDate ?? habit.createdAtUtc
 }
 
 export function resolveHabitStartDate(

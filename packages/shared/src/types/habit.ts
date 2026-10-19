@@ -2,6 +2,9 @@ import { z } from 'zod'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
+export const habitScheduleSchema = z.enum(['OneTime', 'Recurring', 'Flexible', 'General'])
+export type HabitSchedule = z.infer<typeof habitScheduleSchema>
+
 export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
 export const MAX_HABIT_INTERVAL_WEEKS = 52
 
@@ -81,6 +84,8 @@ const linkedGoalInfoSchema = z.object({
 })
 
 const baseHabitFieldsSchema = z.object({
+  startDate: z.iso.date().optional(),
+  schedule: habitScheduleSchema.optional(),
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
@@ -104,6 +109,8 @@ const baseHabitFieldsSchema = z.object({
 export const habitScheduleChildSchema: z.ZodType<{
   id: string
   createdAtUtc?: string
+  startDate?: string
+  schedule?: HabitSchedule
   title: string
   description: string | null
   emoji?: string | null
@@ -190,6 +197,8 @@ export type PaginatedResponse<T> = {
 export const habitDetailChildSchema: z.ZodType<{
   id: string
   createdAtUtc?: string
+  startDate?: string
+  schedule?: HabitSchedule
   title: string
   description: string | null
   emoji?: string | null
