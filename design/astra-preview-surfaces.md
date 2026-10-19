@@ -18,6 +18,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Stale preview | One stale explanation replaces failure feedback, with Refresh while the intent can still be previewed. |
 | Empty preview | An explicit zero target count or an empty item list without a count renders one localized notice without a frame or approval action. Previews without item details retain their plain confirmation. |
 | Repeated operation | One operation id renders once, with its original reply and saved operation state. |
+| Legacy action labels | Checklist updates, parent changes and goal links use localized labels with the habit name for PascalCase and snake_case tool names. |
 | Tool trace | Completed steps stay after their request and above their own reply blocks. |
 | Frame geometry | The card keeps its 24 inset, 24 header gap and 12 row inset without reserving an absent description. The header count uses tabular sans numerals. |
 | Rejected preview | Rows and actions collapse to the counted rejection sentence stating that nothing was saved. |
