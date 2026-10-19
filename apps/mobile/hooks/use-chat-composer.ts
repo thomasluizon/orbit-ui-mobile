@@ -7,8 +7,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  formatBlockAnswer,
-  recordBlockAnswer,
+  BlockAnswerSubmission,
+  type ChatStreamRequest,
+  type ChatStreamResult,
   type BlockAnswerRequest,
   type BlockAnswerResult,
   buildChatMessageWithFileContent,
@@ -69,10 +70,6 @@ function createChatMessageId(): string {
 }
 
 interface AttemptedSend {
-  messageCost?: 0 | 1;
-  blockAnswer?: BlockAnswerRequest['answer'];
-  onBlockAccepted?: () => void;
-  onBlockResult?: (result: BlockAnswerResult) => void;
   content: string;
   draftContent: string;
   image: ImagePicker.ImagePickerAsset | null;
@@ -406,10 +403,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       activeStepsRef.current = [];
       setActiveSteps([]);
       setIsTyping(false);
-      if (attempted.blockAnswer) {
-        attempted.onBlockResult?.({ ok: false, status: failureInput.status });
-        return;
-      }
       let failedAttempt = attempted;
       if (attempted.restoreDraftOnFailure) {
         setInput(attempted.draftContent);
@@ -465,7 +458,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const applyFinalResponse = useCallback(
-    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost = 1) => {
+    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>) => {
       if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
         const accountGeneration = getAccountGeneration();
         await firstReveal;
@@ -494,14 +487,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
       scrollToBottom();
 
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
-        current
-          ? {
-              ...current,
-              aiMessagesUsed: current.aiMessagesUsed + messageCost,
-            }
-          : current,
-      );
 
       const invalidations = selectActionInvalidations(response.actions);
       if (invalidations.habits || invalidations.tags) {
@@ -534,7 +519,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const buildChatFormData = useCallback(
-    (attempted: AttemptedSend) => {
+    (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>) => {
       const formData = new FormData();
       formData.append("message", attempted.content);
       if (attempted.blockAnswer) formData.append("blockAnswer", JSON.stringify(attempted.blockAnswer));
@@ -563,8 +548,16 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [i18n.language, profile?.uses24HourClock],
   );
 
+  const finishStreamingSend = useCallback((accountGeneration: number, draftMessageId: string | null) => {
+    if (getAccountGeneration() !== accountGeneration) return
+    setIsTyping(false)
+    activeStepsRef.current = []
+    setActiveSteps([])
+    if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
+  }, [setIsTyping, setStreamingMessageId])
+
   const runStreamingSend = useCallback(
-    async (attempted: AttemptedSend) => {
+    async (attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>, onAccepted?: () => void): Promise<ChatStreamResult> => {
       const startingAccountGeneration = getAccountGeneration();
       const ownsAccount = () => getAccountGeneration() === startingAccountGeneration;
       const controller = new AbortController();
@@ -596,26 +589,21 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         armIdleTimer();
         const response = await openChatStream(buildChatFormData(attempted), controller.signal);
 
-        if (!ownsAccount()) return false;
+        if (!ownsAccount()) return { kind: 'cancelled' };
 
         if (!response.ok || !response.body) {
           const errorBody = (await response.json().catch(() => null)) as
             | { error?: string; errorCode?: string }
             | null;
-          if (!ownsAccount()) return false;
-          handleFailedSend(
-            {
+          if (!ownsAccount()) return { kind: 'cancelled' };
+          return { kind: 'failed', failure: {
               status: response.status,
               error: errorBody?.error ?? t("chat.sendError"),
               code: errorBody?.errorCode ?? null,
-            },
-            attempted,
-            draftMessageId,
-          );
-          return false;
+            }, draftMessageId };
         }
 
-        attempted.onBlockAccepted?.();
+        onAccepted?.();
         const outcome = await consumeChatSseStream(
           streamTextChunks(response.body, armIdleTimer),
           {
@@ -637,44 +625,26 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
           },
         );
 
-        if (!ownsAccount()) return false;
+        if (!ownsAccount()) return { kind: 'cancelled' };
 
         if (outcome.kind === "final") {
-          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost ?? 1);
-          attempted.onBlockResult?.({ ok: true });
-          return true;
+          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion);
+          return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' };
         }
         if (outcome.kind === "error") {
-          handleFailedSend(
-            { status: outcome.status, error: outcome.error, code: outcome.code },
-            attempted,
-            draftMessageId,
-          );
-          return false;
+          return { kind: 'failed', failure: { status: outcome.status, error: outcome.error, code: outcome.code }, draftMessageId };
         }
-        handleFailedSend(
-          { status: null, error: t("chat.sendError"), code: null },
-          attempted,
-          draftMessageId,
-        );
-        return false;
+        return { kind: 'failed', failure: { status: null, error: t("chat.sendError"), code: null }, draftMessageId };
       } catch (err: unknown) {
-        if (!ownsAccount()) return false;
-        handleFailedSend(
-          {
+        if (!ownsAccount()) return { kind: 'cancelled' };
+        return { kind: 'failed', failure: {
             status: isAbortError(err) ? 408 : null,
             error: getFriendlyErrorMessage(err, t, "chat.sendError", "generic"),
             code: null,
-          },
-          attempted,
-          draftMessageId,
-        );
-        return false;
+          }, draftMessageId };
       } finally {
         clearTimeout(idleTimer);
-        if (ownsAccount() && useChatStore.getState().streamingMessageId === draftMessageId) {
-          setStreamingMessageId(null);
-        }
+        finishStreamingSend(startingAccountGeneration, draftMessageId);
       }
     },
     [
@@ -682,7 +652,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       appendToMessageContent,
       applyFinalResponse,
       buildChatFormData,
-      handleFailedSend,
+    finishStreamingSend,
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
@@ -691,15 +661,28 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     ],
   );
 
+  const consumeAllowance = useCallback((cost: 0 | 1) => {
+    queryClient.setQueryData<Profile>(profileKeys.detail(), old =>
+      old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + cost } : old,
+    )
+  }, [queryClient])
+
+  const beginSend = useCallback(() => {
+    threadScroll.followLatest();
+    activeStepsRef.current = [];
+    setActiveSteps([]);
+    setSendError(null);
+    setLastFailedSend(null);
+    scrollToBottom();
+    setIsTyping(true);
+    scrollToBottom();
+  }, [scrollToBottom, setIsTyping, threadScroll]);
+
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
-      threadScroll.followLatest();
-      activeStepsRef.current = [];
-      setActiveSteps([]);
-      setSendError(null);
-      setLastFailedSend(null);
+      beginSend();
 
-      if (!isRetry && !attempted.blockAnswer) {
+      if (!isRetry) {
         const userMessage: ChatMessage = {
           id: createChatMessageId(),
           role: "user",
@@ -710,43 +693,28 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         addMessage(userMessage);
       }
 
-      scrollToBottom();
-      setIsTyping(true);
-      scrollToBottom();
-
       const startingAccountGeneration = getAccountGeneration();
-      const succeeded = await runStreamingSend(attempted);
+      const result = await runStreamingSend(attempted);
+      const succeeded = result.kind === 'final';
+      if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId);
+      if (succeeded) consumeAllowance(1);
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
         useChatStore.getState().setContextualSuggestion(null);
       }
       return succeeded;
     }),
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping, threadScroll],
+    [addMessage, beginSend, consumeAllowance, handleFailedSend, runStreamingSend],
   );
 
-  const blockSendInFlight = useRef(false)
-  const sendBlockAnswer = useCallback(async (request: BlockAnswerRequest): Promise<BlockAnswerResult> => {
-    const current = useChatStore.getState()
-    if (blockSendInFlight.current || current.isTyping || current.streamingMessageId !== null || !isOnline ||
-      (request.kind === 'choice' && atMessageLimit)) return { ok: false, status: null }
-    blockSendInFlight.current = true
-    const outcome: { result: BlockAnswerResult } = { result: { ok: false, status: null } }
-    const content = formatBlockAnswer(request.labels, request.answer.freeText, i18n.language)
-    try {
-      await performSend({
-        content, draftContent: '', image: null, preview: null,
-        restoreDraftOnFailure: false, clearDraftOnSuccess: false, restoredDraftRevision: null,
-        onBlockAccepted: () => addMessage({ answerToBlockId: request.answer.blockId, id: createChatMessageId(), role: 'user', content, timestamp: new Date() }),
-        messageCost: request.kind === 'pickList' ? 0 : 1,
-        blockAnswer: request.answer, onBlockResult: result => { outcome.result = result },
-      }, false)
-      recordBlockAnswer(useChatStore.getState(), request.answer.blockId, outcome.result,
-        t('chat.choice.answered', { options: content }), t('chat.choice.closed'), t('chat.choice.alreadyAnswered'))
-      return outcome.result
-    } finally {
-      blockSendInFlight.current = false
-    }
-  }, [addMessage, atMessageLimit, isOnline, i18n.language, performSend, t])
+  const [blockSubmission] = useState(() => new BlockAnswerSubmission())
+  const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
+    blockSubmission.send(request, {
+      isOnline, atMessageLimit, locale: i18n.language,
+      getChat: useChatStore.getState, createMessageId: createChatMessageId,
+      conversation: useUIStore.getState(), beginSend, run: runStreamingSend, consumeAllowance,
+      words: { answered: content => t('chat.choice.answered', { options: content }),
+        closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
+    }), [atMessageLimit, beginSend, blockSubmission, consumeAllowance, isOnline, i18n.language, runStreamingSend, t])
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(
