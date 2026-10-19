@@ -217,6 +217,7 @@ The owner reviewed staging (`redesign/main`) and his phone build and found the r
 `#1424` derives the production inventory for web and Android and checks the redesign against it.
 The generated report at `.claude/manifests/feature-parity.json` records every production source
 location, redesign location, owner-approved removal citation and pending restoration ticket.
+It is generated locally and never committed; CI regenerates and uploads the evidence artifact.
 Regenerate it with `git fetch origin main && node tools/check-feature-parity.mjs --write`.
 Static legal section headings are document content, not capabilities. The scanner rules document
 the production heading renderers; actual actions on legal pages remain capability-bound.
