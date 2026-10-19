@@ -553,7 +553,7 @@ describe('HabitDetailScreen', () => {
     const copy = header.findAll((node: TestNode) => node.type === 'View' && viewStyle(node).width === '100%')[0]!
     expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
     expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
-    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
+    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 12 })
     const views = header.findAll((node: TestNode) => node.type === 'View')
     const controls = views.find((node: TestNode) => viewStyle(node).flexDirection === 'row')!
     expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
@@ -1930,7 +1930,7 @@ describe('HabitDetailScreen', () => {
     expect(date).toBeDefined()
     for (const icon of icons) expect(icon.left).toBeCloseTo(date.left, 1)
     for (const body of geometry.parts.filter((part) => part.slot === 'list-row-body')) {
-      expect(body.left).toBeCloseTo(date.left - 16, 1)
+      expect(body.left).toBeCloseTo(date.left - 12, 1)
       expect(body.right).toBeLessThanOrEqual(width)
     }
     TestRenderer.act(() => tree.unmount())
@@ -1946,8 +1946,8 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!
     TestRenderer.act(() => ask.props.onPressIn())
-    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -16)!
-    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -16, right: -16 })
+    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -12)!
+    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -12, right: -12 })
     TestRenderer.act(() => ask.props.onPressOut())
     TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)

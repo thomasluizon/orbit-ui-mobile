@@ -31,6 +31,8 @@ import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-cha
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
+import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
@@ -2127,6 +2129,8 @@ describe('HabitDetailScreen', () => {
         }, hit)
         expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
         expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+        const fill = await target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+        expect(fill.violations).toEqual([])
         await title.focus()
         expect(await title.evaluate((element) => element === document.activeElement)).toBe(true)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
@@ -2134,7 +2138,7 @@ describe('HabitDetailScreen', () => {
       } finally { await page.close() }
     })
 
-    it.each([412, 1100])('aligns title ink and preserves the base header height at %ipx', async (width) => {
+    it.each([412, 1100])('aligns title ink and reserves fill clearance at %ipx', async (width) => {
       vi.useRealTimers()
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -2160,7 +2164,7 @@ describe('HabitDetailScreen', () => {
             controlsX: controls.getBoundingClientRect().left,
             hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
-            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
+            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 12 + summary.getBoundingClientRect().height,
           }
         }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)

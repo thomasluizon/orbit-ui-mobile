@@ -138,7 +138,7 @@ function rowAccessibilityState(props: ListRowProps) {
 function ColumnFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowInteraction>; tokens?: ReturnType<typeof createTokensV2> }>) {
   if (props.placement !== 'column') return null
   const highlightedStyle = interaction && tokens ? { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' as const } : null
-  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot="list-row-body" style={[styles.outset, hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot="list-row-body" style={[styles.outset, props.action ? { right: 0 } : null, hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
 }
 
 function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowInteraction>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
@@ -148,7 +148,7 @@ function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Re
   const Control = column ? NativePressable : Pressable
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
-  return <Control data-slot={slot} ref={ref} focusOffset={-2} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  return <Control data-slot={slot} ref={ref} focusOffset={-2} hitSlop={column ? { left: 16, right: props.action ? 0 : 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? () => toggle.onChange(!toggle.checked) : props.onClick}
@@ -215,7 +215,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   )
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, props.action ? { gap: 4 } : null]}>
       <RowControl ref={ref} props={props} bodyStyle={bodyStyle} interaction={interaction} tokens={tokens}>{body}</RowControl>
       <RowAction action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
     </View>
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   body: { minHeight: 52, paddingVertical: 12, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
   insetBody: { paddingHorizontal: 16, overflow: 'hidden' },
   columnBody: { position: 'relative' },
-  outset: { minHeight: 52, paddingVertical: 12, position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  outset: { minHeight: 52, paddingVertical: 12, position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },

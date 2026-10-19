@@ -6,7 +6,7 @@ import { ChevronLeft } from '@/components/ui/icons'
 
 /** The touch-floor round control in either header slot: back, or a trailing close. */
 export const APP_BAR_CONTROL_CLASS =
-  'orbit-pill-action flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.96]'
+  'orbit-pill-action flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 active:scale-[0.96]'
 
 export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true, titleIsBrandName = false, titleRef, titleVisual }: Readonly<NavHeaderProps & { titleVisual?: ReactElement; titleIsHeading?: boolean; titleIsBrandName?: boolean; titleRef?: Ref<HTMLHeadingElement> }>) {
   const titleClassName = 'min-w-0 text-start font-mono text-[12px] font-medium text-[var(--fg-1)]'

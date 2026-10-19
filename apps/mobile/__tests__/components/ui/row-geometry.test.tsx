@@ -54,8 +54,8 @@ function assertRow(host: Parameters<typeof measureProfileRow>[0], width: number,
   expect(body).toBeDefined()
   const first = part('list-row-icon') ?? part('list-row-title')!
   const last = part('list-row-chevron') ?? part('list-row-trailing') ?? part('list-row-value') ?? part('list-row-title')!
-  expect(first.left - body.left).toBeCloseTo(16, 1)
-  expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(16, 1)
+  expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
+  expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
   expect(content.style.gap).toBe(12)
   expect(body.style.paddingVertical).toBe(12)
   expect(body.style.minHeight).toBe(part('list-row-description') ? 68 : 52)
@@ -86,8 +86,8 @@ function assertComposition(host: Parameters<typeof measureProfileRow>[0], width:
     const parts = geometry.parts.slice(start + 1, end < 0 ? undefined : end)
     const first = parts.find((part) => part.slot === 'list-row-icon') ?? parts.find((part) => part.slot === 'list-row-title')!
     const last = ['list-row-chevron', 'list-row-trailing', 'list-row-value', 'list-row-title'].map((slot) => parts.find((part) => part.slot === slot)).find(Boolean)!
-    expect(first.left - body.left).toBeCloseTo(16, 1)
-    expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(16, 1)
+    expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
+    expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
     expect(first.left).toBeGreaterThanOrEqual(inset)
     expect(body.right).toBeLessThanOrEqual(width)
     for (const part of parts) expect(Number(part.style.marginHorizontal ?? 0)).toBeGreaterThanOrEqual(0)
@@ -149,13 +149,14 @@ describe('canonical row geometry in Yoga', () => {
       const measured = measureProfileRow(tree.toJSON(), width, scale)
       const body = measured.parts.find((part) => part.slot === 'list-row-body')!
       const checkbox = measured.parts.find((part) => part.slot === 'checkbox-box')!
-      expect(body.style).toMatchObject({ paddingHorizontal: 16, paddingVertical: 12, minHeight: 52, gap: 12 })
+      expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 4, paddingVertical: 0, minHeight: 52, gap: 4 })
       expect(measured.texts[0]!.left - body.left).toBe(16)
       expect(body.right - checkbox.right).toBe(16)
       expect(checkbox).toMatchObject({ width: 24, height: 24 })
       const controls = tree.root.findAll((node) => node.type === Pressable)
       expect(controls).toHaveLength(2)
-      expect(controls[1]!.props.hitSlop).toBe(12)
+      expect(controls[1]!.props.hitSlop).toBeUndefined()
+      expect(measured.controls.find((control) => control.width === 48)?.height).toBe(48)
     } finally { await act(() => tree.update(<></>)) }
     const date = await mount(<DateRow label="Starts" value="September 2" />)
     try { expect(measureProfileRow(date.toJSON(), width, scale).texts[0]!.left).toBe(0) }
@@ -168,7 +169,7 @@ describe('canonical row geometry in Yoga', () => {
       const control = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityRole === 'checkbox')[0]!
       const fill = control.findAll((node) => node.type === View && node.props['data-press-fill'] === '')[0]!
       expect(fill.findAll((node) => node.type === View && node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
-      expect(control.props.hitSlop).toBe(12)
+      expect(control.props.hitSlop).toBeUndefined()
       const geometry = measureProfileRow(tree.toJSON(), 412, 1)
       const body = geometry.parts.find((part) => part.slot === 'list-row-body')!
       const checkbox = geometry.parts.find((part) => part.slot === 'checkbox-box')!
@@ -189,7 +190,7 @@ describe('canonical row geometry in Yoga', () => {
       const geometry = assertComposition(form.toJSON(), width, scale, 16)
       const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
       expect(leading.find((part) => part.left === 56)).toBeDefined()
-      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 16)).toBe(true)
+      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 20)).toBe(true)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
     const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailSchedule habit={habit} summary="Every day" open={false} tokens={tokens} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} /><HabitDetailFields habit={habit} hasProAccess={false} relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></View></QueryClientProvider>)

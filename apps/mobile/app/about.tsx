@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     rowGap: 4,
   },
   accountRow: { minHeight: 48, paddingVertical: 8, position: 'relative', alignItems: 'center' },
-  accountFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  accountFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
   accountText: { minWidth: 0, flexShrink: 1 },
   accountValue: { minWidth: 0, maxWidth: '100%', flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   factLabel: {

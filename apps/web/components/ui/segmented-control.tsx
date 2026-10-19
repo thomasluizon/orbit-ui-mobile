@@ -32,7 +32,7 @@ function SegmentOption<TValue extends string>({
       onClick={onActivate}
       onKeyDown={onKeyDown}
       data-disabled={disabled || undefined}
-      className="orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto px-[8px] py-[4px] rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40"
+      className="orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto px-[8px] py-[4px] rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40"
     >
       <span className="block whitespace-normal [overflow-wrap:anywhere]">{option.label}</span>
     </button>

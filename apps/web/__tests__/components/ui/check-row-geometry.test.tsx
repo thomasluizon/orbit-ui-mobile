@@ -86,7 +86,7 @@ describe('personal checkbox interaction fills in Chromium', () => {
       expect(contents.graphicCount).toBeGreaterThan(0)
       const bounds = (await checkbox.boundingBox())!
       await checkbox.evaluate((element) => element.addEventListener('click', () => element.setAttribute('data-activated', 'true')))
-      await page.mouse.click(bounds.x - 8, bounds.y + bounds.height / 2)
+      await page.mouse.click(bounds.x + 4, bounds.y + bounds.height / 2)
       expect(await checkbox.getAttribute('data-activated')).toBe('true')
       await checkbox.evaluate((element) => element.removeAttribute('data-activated'))
       await checkbox.focus()

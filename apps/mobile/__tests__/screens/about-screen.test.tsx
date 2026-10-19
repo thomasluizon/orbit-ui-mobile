@@ -109,7 +109,7 @@ describe('AboutScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each([600, 1352])('extends the account fill and hit area 16px beyond aligned facts at %i', (width) => {
+  it.each([600, 1352])('keeps the account fill clear of the page edge with its existing hit area at %i', (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
@@ -120,7 +120,7 @@ describe('AboutScreen', () => {
       const fill = measured.boxes.find((box) => box.testID === 'about-account-fill')
       expect(account.left).toBe(version.left)
       expect(account.right).toBe(version.right)
-      expect(fill).toMatchObject({ left: version.left - 16, right: version.right + 16 })
+      expect(fill).toMatchObject({ left: version.left - 12, right: version.right + 12 })
       const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'about-fact-account')[0]!
       expect(control.props.hitSlop).toEqual({ left: 16, right: 16 })
     } finally { TestRenderer.act(() => tree.unmount()) }

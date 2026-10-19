@@ -67,7 +67,7 @@ function SummaryText({ summary, busy }: Readonly<{ summary: string; busy: boolea
     <div className="flex flex-wrap items-center gap-3">
       {clampable ? <button type="button" aria-expanded={expanded} aria-controls={summaryId}
         onClick={() => setExpanded((value) => !value)}
-        className="inline-flex min-h-[48px] items-center gap-2 rounded-[8px] px-3 py-2 text-sm font-medium text-[var(--fg-2)] transition-none hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]">
+        className="inline-flex min-h-[48px] items-center gap-2 rounded-[8px] px-3 py-2 text-sm font-medium text-[var(--fg-2)] transition-none hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]">
         {expanded ? <ChevronsUp size={16} aria-hidden="true" /> : <ChevronsDown size={16} aria-hidden="true" />}
         {expanded ? t('common.seeLess') : t('common.seeMore')}
       </button> : null}

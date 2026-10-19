@@ -194,9 +194,18 @@
   content: '';
   position: absolute;
   inset-block: 0;
-  inset-inline: -16px;
+  inset-inline: -12px;
   border-radius: 12px;
   transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-list-row-shell:has(> .orbit-list-row-action) {
+  gap: 4px;
+}
+
+.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-outset,
+.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-body::before {
+  inset-inline-end: 0;
 }
 
 .orbit-list-row-column [data-slot="list-row-content"] {
@@ -208,7 +217,7 @@
   z-index: 0;
   position: absolute;
   inset-block: 0;
-  inset-inline: -16px;
+  inset-inline: -12px;
   border-radius: 12px;
   pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
@@ -2261,7 +2270,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-check-row-label > .orbit-check-row-fill {
   content: '';
   position: absolute;
-  inset-block: -12px;
+  inset-block: 0;
   inset-inline-start: -12px;
   inset-inline-end: 0;
   border-radius: 12px;
@@ -2271,7 +2280,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-check-row-control > .orbit-check-row-fill {
   content: '';
   position: absolute;
-  inset: -12px;
+  inset: 0;
   border-radius: 12px;
 }
 

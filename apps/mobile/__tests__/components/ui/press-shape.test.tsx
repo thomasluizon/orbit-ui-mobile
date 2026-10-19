@@ -250,7 +250,7 @@ describe('pressed hit area shapes', () => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(control.props.hitSlop).toMatchObject({ left: 16, right: 16 })
       renderer.act(() => control.props.onPressIn?.())
-      expect(calendarEventFill(tree)).toMatchObject({ borderRadius: 12, overflow: 'hidden', left: -16, right: -16, backgroundColor: tokens.bgHover })
+      expect(calendarEventFill(tree)).toMatchObject({ borderRadius: 12, overflow: 'hidden', left: -12, right: -12, backgroundColor: tokens.bgHover })
       renderer.act(() => control.props.onPressOut?.())
       expect(calendarEventFill(tree).backgroundColor).toBe('transparent')
     })
