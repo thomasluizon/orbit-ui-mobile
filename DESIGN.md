@@ -292,7 +292,7 @@ gate cannot be dropped before undo exists.
 this order: an unread proactive check-in, otherwise the returning line, otherwise today's daily
 summary when the account can receive it. The summary keeps its on-demand query, account timezone
 refresh and plan behavior. Its first sentence occupies the same slot; pressing it opens the full
-summary as Astra's first message in the conversation. The AI disclosure remains in empty and populated
+summary as Astra's newest message, preserving the existing conversation. The AI disclosure remains in empty and populated
 conversations. Loading, error and retry use that same line;
 the free plan's line opens upgrade. A disabled summary preference or absent summary leaves no line.
 There is no separate daily-summary section, heading, AI badge, expand control or Astra button on Hoje.

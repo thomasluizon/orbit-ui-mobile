@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
@@ -570,6 +571,28 @@ function findButtonByText(
 
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
+function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
+  const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
+  const contents = row.findAll((node: { type: unknown }) =>
+    typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
+  const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+  const navigates = !(index === 1 && isLifetimePro)
+  if (index === 3) {
+    expect(contents.map((node: { type: unknown }) => node.type)).toEqual(['Text', 'ChevronRight'])
+  } else {
+    expect(icons, String(row.props.title)).toHaveLength(navigates ? 2 : 1)
+    expect(contents[0]!.type).toBe(leadingIcons[index])
+    expect(contents[1]!.type).toBe('Text')
+    expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
+  }
+  if (navigates) {
+    expect(contents.at(-1)!.type).toBe('ChevronRight')
+  }
+  const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
+    node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
+  expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+}
+
 describe('ProfileScreen', () => {
   it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((screen) => ({ locale, screen }))))('renders the drawn subscreen row glyphs in $screen in $locale', async ({ locale, screen }) => {
     translateProMessages(locale as 'en' | 'pt-BR')
@@ -897,23 +920,7 @@ describe('ProfileScreen', () => {
       const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
       const rows = group.findAllByType(ListRow)
       expect(rows).toHaveLength(5)
-      const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
-      for (const [index, row] of rows.entries()) {
-        const contents = row.findAll((node: { type: unknown }) =>
-          typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
-        const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
-        const navigates = !(index === 1 && plan.isLifetimePro)
-        expect(icons, row.props.title).toHaveLength(navigates ? 2 : 1)
-        expect(contents[0].type).toBe(leadingIcons[index])
-        expect(contents[1].type).toBe('Text')
-        expect(icons[0].props.size ?? icons[0].props.width).toBe(24)
-        if (navigates) {
-          expect(contents.at(-1).type).toBe('ChevronRight')
-        }
-        const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
-          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
-        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
-      }
+      for (const [index, row] of rows.entries()) expectProfileRowIcons(row, index, plan.isLifetimePro)
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
       expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))

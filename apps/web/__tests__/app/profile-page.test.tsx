@@ -591,18 +591,24 @@ describe('ProfilePage', () => {
       const group = screen.getByTestId('profile-settings-group-you')
       const rows = group.querySelectorAll('.orbit-list-row-shell')
       expect(rows).toHaveLength(5)
-      for (const row of rows) {
+      for (const [index, row] of rows.entries()) {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
         const navigates = row.querySelector('a') !== null
-        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
-        expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
-        expect(icons[0]!.getAttribute('width')).toBe('24')
-        expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        const hasLeadingIcon = index !== 3
+        expect(icons, title.textContent!).toHaveLength(Number(hasLeadingIcon) + Number(navigates))
+        if (hasLeadingIcon) {
+          expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
+          expect(icons[0]!.getAttribute('width')).toBe('24')
+          expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        } else {
+          expect(row.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+        }
         if (navigates) {
-          expect(title.compareDocumentPosition(icons[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-          expect(icons[1]!.getAttribute('aria-hidden')).toBe('true')
-          expect(icons[1]!.getAttribute('focusable')).toBe('false')
+          const chevron = icons[Number(hasLeadingIcon)]!
+          expect(title.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+          expect(chevron.getAttribute('aria-hidden')).toBe('true')
+          expect(chevron.getAttribute('focusable')).toBe('false')
         }
       }
       const titles = Array.from(group.querySelectorAll('[data-slot="list-row-title"]')).map((node) => node.textContent)

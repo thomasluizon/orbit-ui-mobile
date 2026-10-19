@@ -1068,6 +1068,7 @@ describe('habit tag suggestions', () => {
     tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
     formLocale.language = 'pt-BR'
     await renderTagForm('Run', '   ')
+    expect(tree.root.findAllByType(AstraGlyph)).toHaveLength(0)
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
     expect(button('habits.form.suggestTags').props.accessibilityHint).toBe('habits.form.suggestingTags')
@@ -1076,6 +1077,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => resolve({ tags: [] }))
     expect(text('habits.form.noTagSuggestions')).toHaveLength(1)
     expect(button('habits.form.suggestTags').props.disabled).toBe(false)
+    expect(tree.root.findAllByType(AstraGlyph)).toHaveLength(0)
   })
 
   it('shows request failure inline and permits retry', async () => {
