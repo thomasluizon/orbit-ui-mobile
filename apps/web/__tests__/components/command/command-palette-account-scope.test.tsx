@@ -58,8 +58,10 @@ function buildQueryData(habits: NormalizedHabit[]) {
 
 let habitsQuery: { data?: ReturnType<typeof buildQueryData>; isPending: boolean; isSuccess: boolean }
 
-function renderPalette() {
-  return render(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+async function renderPalette() {
+  const view = render(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+  await screen.findByRole('combobox')
+  return view
 }
 
 /** The palette is on its Log page, which is the state that arms Enter to write. */
@@ -93,7 +95,7 @@ afterEach(() => {
 
 /** An open palette must drop the previous account's selected command page. */
 it('drops the command page so the next account opens a habit instead of logging it', async () => {
-  renderPalette()
+  await renderPalette()
   openTheLogPage()
 
   await replaceAccountWith('user-2')
@@ -108,7 +110,7 @@ it('drops the command page so the next account opens a habit instead of logging 
 })
 
 it('keeps the command page when the same account recovers from a rejected refresh', async () => {
-  renderPalette()
+  await renderPalette()
   openTheLogPage()
 
   await recoverSameAccount('user-1')

@@ -99,10 +99,14 @@ const navItems = [
   { id: 'perfil', label: 'Profile', icon: NavIcon, onSelect: () => mockPush('/profile') },
 ] as const
 
-function renderPalette() {
-  return render(
-    <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />,
-  )
+async function renderPaletteContent(content: ReactNode) {
+  const view = render(content)
+  if (useShellStore.getState().paletteOpen) await screen.findByRole('combobox')
+  return view
+}
+
+async function renderPalette() {
+  return renderPaletteContent(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
 }
 
 beforeEach(() => {
@@ -134,7 +138,7 @@ describe('CommandPalette', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mockSkipHabitMutate.mockImplementation(() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) })
-    render(<CommandPaletteBackground><UpdateAvailableBanner /><AppToastHost /><CommandPalette navItems={navItems} onCreateHabit={vi.fn()} /></CommandPaletteBackground>)
+    await renderPaletteContent(<CommandPaletteBackground><UpdateAvailableBanner /><AppToastHost /><CommandPalette navItems={navItems} onCreateHabit={vi.fn()} /></CommandPaletteBackground>)
     const dialog = screen.getByRole('dialog')
     const region = dialog.querySelector('[data-update-live-region]')
     expect(region).toBeEmptyDOMElement()
@@ -146,34 +150,34 @@ describe('CommandPalette', () => {
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
   })
 
-  it('renders the search input when the palette is open', () => {
-    renderPalette()
+  it('renders the search input when the palette is open', async () => {
+    await renderPalette()
     expect(
       screen.getByRole('combobox', { name: 'command.placeholder' }),
     ).toHaveAttribute('placeholder', 'command.placeholder')
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
   })
 
-  it('names the dialog after the palette title instead of the input placeholder', () => {
-    renderPalette()
+  it('names the dialog after the palette title instead of the input placeholder', async () => {
+    await renderPalette()
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
-  it('does not render the menu when the palette is closed', () => {
+  it('does not render the menu when the palette is closed', async () => {
     useShellStore.setState({ paletteOpen: false })
-    renderPalette()
+    await renderPalette()
     expect(screen.queryByPlaceholderText('command.placeholder')).not.toBeInTheDocument()
   })
 
-  it('runs a navigate command through router.push and closes', () => {
-    renderPalette()
+  it('runs a navigate command through router.push and closes', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('Calendar'))
     expect(mockPush).toHaveBeenCalledWith('/calendar')
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
-  it('renders habits, actions, and destinations in that order', () => {
-    renderPalette()
+  it('renders habits, actions, and destinations in that order', async () => {
+    await renderPalette()
     const groups = Array.from(
       document.querySelectorAll<HTMLElement>('[data-command-group]'),
     )
@@ -187,8 +191,8 @@ describe('CommandPalette', () => {
     expect(screen.getByText('Destinations')).toBeInTheDocument()
   })
 
-  it('offers exactly the four shell destinations', () => {
-    renderPalette()
+  it('offers exactly the four shell destinations', async () => {
+    await renderPalette()
     const destinationGroup = document.querySelector<HTMLElement>(
       '[data-command-group="destinations"]',
     )
@@ -201,14 +205,14 @@ describe('CommandPalette', () => {
     ).toEqual(['Today', 'Calendar', 'Progress', 'Profile'])
   })
 
-  it('jumps to a searched habit via router.push', () => {
-    renderPalette()
+  it('jumps to a searched habit via router.push', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('Run'))
     expect(mockPush).toHaveBeenCalledWith('/habits/h1')
   })
 
-  it('leaves a failed log to the mutation error toast', () => {
-    renderPalette()
+  it('leaves a failed log to the mutation error toast', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('command.logHabit'))
     fireEvent.click(screen.getByText('Run'))
     expect(mockLogHabitMutate).toHaveBeenCalledWith(
@@ -221,7 +225,7 @@ describe('CommandPalette', () => {
     mockSkipHabitMutate.mockImplementation((_input, callbacks: { onError: (error: Error) => void }) => {
       callbacks.onError(new Error('Skip failed'))
     })
-    render(
+    await renderPaletteContent(
       <CommandPaletteBackground>
         <div data-shell-notice=""><AppToastHost /></div>
         <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
@@ -248,7 +252,7 @@ describe('CommandPalette', () => {
       },
     }), { wrapper })
     mockSkipHabitMutate.mockImplementation((input, callbacks) => result.current.mutate(input, callbacks))
-    render(
+    await renderPaletteContent(
       <CommandPaletteBackground>
         <div data-shell-notice=""><AppToastHost /></div>
         <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
@@ -272,7 +276,7 @@ describe('CommandPalette', () => {
         kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
       })
     })
-    render(
+    await renderPaletteContent(
       <CommandPaletteBackground>
         <div data-shell-notice=""><AppToastHost /></div>
         <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
@@ -300,7 +304,7 @@ describe('CommandPalette', () => {
 
   it('closes when Escape is pressed in the focused search input', async () => {
     const user = userEvent.setup()
-    renderPalette()
+    await renderPalette()
     await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -309,7 +313,7 @@ describe('CommandPalette', () => {
 
   it('backs out of a command page before Escape closes the overlay', async () => {
     const user = userEvent.setup()
-    renderPalette()
+    await renderPalette()
     await user.click(screen.getByText('command.logHabit'))
 
     await user.keyboard('{Escape}')
@@ -323,7 +327,7 @@ describe('CommandPalette', () => {
 
   it.each(['log', 'skip'] as const)('keeps the field focused after clicking %s', async (page) => {
     const user = userEvent.setup()
-    renderPalette()
+    await renderPalette()
     await user.click(screen.getByText(`command.${page}Habit`))
     const input = screen.getByRole('combobox')
     expect(input).toHaveFocus()
@@ -333,7 +337,7 @@ describe('CommandPalette', () => {
 
   it('keeps the field focused after Enter opens the skip page', async () => {
     const user = userEvent.setup()
-    renderPalette()
+    await renderPalette()
     const input = screen.getByRole('combobox')
     await waitFor(() => expect(input).toHaveFocus())
     await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
@@ -343,15 +347,15 @@ describe('CommandPalette', () => {
     expect(input).toHaveValue('ab')
   })
 
-  it('renders one keycap per hint and the check command glyph', () => {
-    renderPalette()
+  it('renders one keycap per hint and the check command glyph', async () => {
+    await renderPalette()
     expect(Array.from(document.querySelectorAll('kbd'), (key) => key.textContent)).toEqual(['↑↓', '↵', 'esc'])
     expect(screen.getByText('command.hints.select')).toHaveClass('lowercase')
     expect(screen.getByText('command.logHabit').closest('[cmdk-item]')?.querySelector('svg')).toHaveClass('tabler-icon-check')
   })
 
-  it('shows the key-hint footer with the back hint only on a sub-page', () => {
-    renderPalette()
+  it('shows the key-hint footer with the back hint only on a sub-page', async () => {
+    await renderPalette()
     expect(screen.getByText('command.hints.navigate')).toBeInTheDocument()
     expect(screen.getByText('command.hints.select')).toBeInTheDocument()
     expect(screen.getByText('command.hints.close')).toBeInTheDocument()
@@ -380,7 +384,7 @@ describe('CommandPalette', () => {
     }
 
     useShellStore.setState({ paletteOpen: false })
-    render(<SheetFirstHarness />)
+    await renderPaletteContent(<SheetFirstHarness />)
     const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
 
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
@@ -407,7 +411,7 @@ describe('CommandPalette', () => {
       )
     }
 
-    render(<PaletteFirstHarness />)
+    await renderPaletteContent(<PaletteFirstHarness />)
     const paletteInput = screen.getByPlaceholderText('command.placeholder')
     await waitFor(() => expect(paletteInput).toHaveFocus())
 
@@ -432,8 +436,8 @@ describe('CommandPalette', () => {
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
-  it('returns from a sub-page through the breadcrumb back button', () => {
-    renderPalette()
+  it('returns from a sub-page through the breadcrumb back button', async () => {
+    await renderPalette()
     fireEvent.click(screen.getByText('command.skipHabit'))
     expect(screen.queryByText('command.createHabit')).not.toBeInTheDocument()
 
@@ -452,7 +456,7 @@ describe('CommandPalette', () => {
         ) : null}
       </CommandPaletteBackground>
     )
-    const { rerender } = render(
+    const { rerender } = await renderPaletteContent(
       route('/'),
     )
     const background = document.querySelector('[data-command-palette-background]')
@@ -474,15 +478,15 @@ describe('CommandPalette', () => {
     expect(background).not.toHaveAttribute('inert')
   })
 
-  it('does not expose the removed create goal command', () => {
-    renderPalette()
+  it('does not expose the removed create goal command', async () => {
+    await renderPalette()
 
     expect(screen.queryByText('command.createGoal')).not.toBeInTheDocument()
   })
 
-  it('does not claim no results while the habits query is still loading', () => {
+  it('does not claim no results while the habits query is still loading', async () => {
     habitsQuery = { data: undefined, isPending: true, isSuccess: false }
-    renderPalette()
+    await renderPalette()
     fireEvent.click(screen.getByText('command.logHabit'))
 
     expect(screen.queryByText('command.empty')).not.toBeInTheDocument()
@@ -490,7 +494,7 @@ describe('CommandPalette', () => {
   })
 
   it('focuses the search input on open and keeps Tab inside the panel', async () => {
-    renderPalette()
+    await renderPalette()
     const input = screen.getByPlaceholderText('command.placeholder')
     await waitFor(() => expect(input).toHaveFocus())
 
@@ -504,7 +508,7 @@ describe('CommandPalette', () => {
     document.body.appendChild(trigger)
     trigger.focus()
 
-    const { rerender } = renderPalette()
+    const { rerender } = await renderPalette()
     await waitFor(() =>
       expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus(),
     )

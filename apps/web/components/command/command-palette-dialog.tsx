@@ -1,0 +1,80 @@
+'use client'
+
+import { useCallback, useContext, useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useTranslations } from 'next-intl'
+import { useIsClient } from '@/hooks/use-is-client'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { useShellStore } from '@/stores/shell-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { CommandMenu } from './command-menu'
+import { CommandPalettePortalContext, type CommandPaletteProps } from './command-palette'
+
+/**
+ * Global command palette (Cmd/Ctrl+K). A token-styled portal overlay wrapping the
+ * cmdk menu, dismissed through the shared overlay/escape stack, which also traps
+ * Tab inside the panel and restores focus on close. Mounted app-wide, but the
+ * menu (and its habit query) only mount while `shell-store.paletteOpen`.
+ */
+export function CommandPaletteDialog({ navItems, onCreateHabit }: Readonly<CommandPaletteProps>) {
+  const t = useTranslations()
+  const paletteOpen = useShellStore((state) => state.paletteOpen)
+  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
+  const mounted = useIsClient()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const modalId = `modal:${useId()}`
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const registerPortal = useContext(CommandPalettePortalContext)
+
+  const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
+
+  useEffect(() => {
+    if (!paletteOpen) return
+    registerOpenOverlay(modalId)
+    return () => unregisterOpenOverlay(modalId)
+  }, [modalId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
+
+  useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
+  useModalFocusTrap(paletteOpen, panelRef)
+
+  if (!mounted) return null
+
+  const overlay = paletteOpen ? (
+    <div
+      ref={registerPortal}
+      className="z-modal fixed inset-0 flex items-start justify-center pl-[max(16px,var(--safe-left))] pr-[max(16px,var(--safe-right))] pt-[max(16px,var(--safe-top))] sm:pt-[max(96px,var(--safe-top))]"
+    >
+      <button
+        type="button"
+        aria-label={t('common.close')}
+        tabIndex={-1}
+        className="absolute inset-0 cursor-default bg-[var(--scrim)]"
+        onClick={close}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('command.title')}
+        className="relative flex max-h-[calc(100dvh-max(16px,var(--safe-top))-max(16px,var(--safe-bottom)))] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-max(96px,var(--safe-top))-max(16px,var(--safe-bottom)))]"
+      >
+        <CommandMenu
+          navItems={navItems}
+          onCreateHabit={onCreateHabit}
+          onClose={close}
+        />
+        <UpdateAvailableBanner modalId={modalId} />
+        <div className="empty:hidden shrink-0 px-4 pb-4" data-shell-notice="">
+          <AppToastHost placement="modal" modalId={modalId} />
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  return createPortal(overlay, document.body)
+}
