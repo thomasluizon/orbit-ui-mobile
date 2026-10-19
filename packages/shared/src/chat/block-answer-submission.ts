@@ -4,6 +4,7 @@ import { formatBlockAnswer, recordBlockAnswer, type BlockAnswerRequest, type Blo
 
 export interface ChatStreamRequest<Image> {
   content: string
+  messageCost: 0 | 1
   image: Image | null
   blockAnswer?: BlockAnswer
   messageOrigin?: 'followUp'
@@ -25,7 +26,6 @@ interface BlockSubmissionContext {
   conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void }
   beginSend: () => void
   run: (request: ChatStreamRequest<never>, onAccepted: () => void) => Promise<ChatStreamResult>
-  consumeAllowance: (cost: 0 | 1) => void
   words: { answered: (content: string) => string; closed: string; alreadyAnswered: string }
 }
 
@@ -41,8 +41,11 @@ export class BlockAnswerSubmission {
     try {
       if (!context.conversation.astraConversationOpen) context.conversation.setAstraConversationOpen(true)
       context.beginSend()
-      const outcome = await context.run({ content, image: null, blockAnswer: request.answer, intendedAccountId: context.intendedAccountId }, () => {
-        context.getChat().addMessage({
+      const outcome = await context.run({ content, messageCost: request.kind === 'pickList' ? 0 : 1, image: null, blockAnswer: request.answer, intendedAccountId: context.intendedAccountId }, () => {
+        const current = context.getChat()
+        if (current.messages.some(message => message.role === 'user' &&
+          message.answerToBlockId === request.answer.blockId && message.content === content)) return
+        current.addMessage({
           answerToBlockId: request.answer.blockId, id: context.createMessageId(), role: 'user', content, timestamp: new Date(),
         })
       })
@@ -50,7 +53,6 @@ export class BlockAnswerSubmission {
         ? { ok: true }
         : { ok: false, status: outcome.kind === 'failed' ? outcome.failure.status : null }
       if (outcome.kind === 'cancelled') return result
-      if (result.ok) context.consumeAllowance(request.kind === 'pickList' ? 0 : 1)
       recordBlockAnswer(context.getChat(), request.answer.blockId, result,
         context.words.answered(content), context.words.closed, context.words.alreadyAnswered)
       return result

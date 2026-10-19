@@ -342,7 +342,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     scrollToBottom()
   }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>) => {
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1) => {
     if (draftMessageId && response.parts?.some(part => part?.type === 'block')) {
       const accountGeneration = getAccountGeneration()
       await firstReveal
@@ -370,6 +370,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
     scrollToBottom()
 
+    queryClient.setQueryData<Profile>(profileKeys.detail(), current =>
+      current ? { ...current, aiMessagesUsed: current.aiMessagesUsed + messageCost } : current,
+    )
 
     const invalidations = selectActionInvalidations(response.actions)
     if (invalidations.habits || invalidations.tags) {
@@ -438,11 +441,13 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     return formData
   }, [locale, profile?.uses24HourClock])
 
-  const finishStreamingSend = useCallback((accountGeneration: number, draftMessageId: string | null) => {
+  const finishStreamingSend = useCallback((accountGeneration: number, draftMessageId: string | null, finalReceived: boolean) => {
     if (getAccountGeneration() !== accountGeneration) return
-    setIsTyping(false)
-    activeStepsRef.current = []
-    setActiveSteps([])
+    if (!finalReceived) {
+      setIsTyping(false)
+      activeStepsRef.current = []
+      setActiveSteps([])
+    }
     if (useChatStore.getState().streamingMessageId === draftMessageId) setStreamingMessageId(null)
   }, [setIsTyping, setStreamingMessageId])
 
@@ -457,6 +462,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
 
     let draftMessageId: string | null = null
+    let finalReceived = false
     const firstReveal = { completion: Promise.resolve() }
     const ensureDraftMessage = () => {
       if (draftMessageId) return draftMessageId
@@ -515,7 +521,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (!ownsAccount()) return { kind: 'cancelled' }
 
       if (outcome.kind === 'final') {
-        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion)
+        finalReceived = true
+        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost)
         return ownsAccount() ? { kind: 'final' } : { kind: 'cancelled' }
       }
       if (outcome.kind === 'error') {
@@ -531,7 +538,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         }, draftMessageId }
     } finally {
       clearTimeout(idleTimer)
-      finishStreamingSend(startingAccountGeneration, draftMessageId)
+      finishStreamingSend(startingAccountGeneration, draftMessageId, finalReceived)
     }
   }, [
     addMessage,
@@ -545,12 +552,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     t,
     updateMessage,
   ])
-
-  const consumeAllowance = useCallback((cost: 0 | 1) => {
-    queryClient.setQueryData<Profile>(profileKeys.detail(), old =>
-      old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + cost } : old,
-    )
-  }, [queryClient])
 
   const beginSend = useCallback(() => {
     threadScroll.followLatest(chatContainerRef.current?.scrollTop)
@@ -578,16 +579,15 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       }
 
       const startingAccountGeneration = getAccountGeneration()
-      const result = await runStreamingSend(attempted)
+      const result = await runStreamingSend({ ...attempted, messageCost: 1 })
       const succeeded = result.kind === 'final'
       if (result.kind === 'failed') handleFailedSend(result.failure, attempted, result.draftMessageId)
-      if (succeeded) consumeAllowance(1)
       if (succeeded && getAccountGeneration() === startingAccountGeneration && attempted.contextualRequest && useChatStore.getState().contextualSuggestion === attempted.contextualRequest) {
         useChatStore.getState().setContextualSuggestion(null)
       }
       return succeeded
     }),
-    [addMessage, beginSend, consumeAllowance, handleFailedSend, runStreamingSend],
+    [addMessage, beginSend, handleFailedSend, runStreamingSend],
   )
 
   const [blockSubmission] = useState(() => new BlockAnswerSubmission())
@@ -595,10 +595,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     blockSubmission.send(request, {
       isOnline, atMessageLimit, locale, intendedAccountId: getHeldAccountId(),
       getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(),
-      conversation: useUIStore.getState(), beginSend, run: runStreamingSend, consumeAllowance,
+      conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, consumeAllowance, isOnline, locale, runStreamingSend, t])
+    }), [atMessageLimit, beginSend, blockSubmission, isOnline, locale, runStreamingSend, t])
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, allowance: aiMessagesLimit, send: sendBlockAnswer }
 
   const sendMessage = useCallback(
