@@ -41,7 +41,6 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
       </>}
     >
       <div className="flex min-w-0 max-w-prose flex-col" style={{ gap: 24 }}>
-        <p className="font-sans text-[16px] leading-[1.55] text-[var(--fg-2)] [text-wrap:pretty]">{t('orbitMcp.webInstructions')}</p>
         <ol className="flex list-decimal flex-col font-sans text-[16px] leading-[1.55] text-[var(--fg-1)]" style={{ gap: 12, paddingInlineStart: SPACING.s24 }}>
           <li>{t('orbitMcp.webStep1')}</li>
           <li>{t('orbitMcp.webStep2')}</li>

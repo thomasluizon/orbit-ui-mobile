@@ -1436,9 +1436,10 @@ describe('ProfileScreen', () => {
 
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
     const guide = tree.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === 'orbitMcp.claudeWeb')[0]
-    for (const key of ['webInstructions', 'webStep1', 'webStep2', 'webStep3', 'webStep4', 'webNoApiKey']) {
+    for (const key of ['webStep1', 'webStep2', 'webStep3', 'webStep4', 'webNoApiKey']) {
       expect(nodeText(guide)).toContain(`orbitMcp.${key}`)
     }
+    expect(nodeText(guide)).not.toContain('orbitMcp.webInstructions')
     expect(findButtonByText(tree, 'orbitMcp.copy').props.accessibilityState.disabled).toBe(false)
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
     expect(tree.root.findAllByProps({ title: 'orbitMcp.claudeWeb' })).toHaveLength(0)

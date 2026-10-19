@@ -1140,7 +1140,7 @@ describe('ProfilePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
     const guide = within(await screen.findByRole('dialog', { name: 'orbitMcp.claudeWeb' }))
-    expect(guide.getByText('orbitMcp.webInstructions')).toBeInTheDocument()
+    expect(guide.queryByText('orbitMcp.webInstructions')).not.toBeInTheDocument()
     expect(guide.getAllByRole('listitem').map((step) => step.textContent)).toEqual([
       'orbitMcp.webStep1', 'orbitMcp.webStep2', 'orbitMcp.webStep3', 'orbitMcp.webStep4',
     ])

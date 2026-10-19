@@ -46,7 +46,6 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
       </>}
     >
       <View style={styles.content}>
-        <Text selectable style={[styles.body, { color: tokens.fg2 }]}>{t('orbitMcp.webInstructions')}</Text>
         <View style={styles.steps}>
           {(['webStep1', 'webStep2', 'webStep3', 'webStep4'] as const).map((step, index) => (
             <View key={step} style={styles.step}>

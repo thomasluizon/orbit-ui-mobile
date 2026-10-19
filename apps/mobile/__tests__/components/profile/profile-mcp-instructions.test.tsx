@@ -125,9 +125,12 @@ it('keeps the Web guide reachable after visiting Code', () => {
   expect(textValues()).not.toContain('orbitMcp.connectionInstructions')
   TestRenderer.act(() => button('orbitMcp.claudeWeb').props.onPress())
   TestRenderer.act(() => button('orbitMcp.connectionInstructions').props.onPress())
-  for (const step of ['webInstructions', 'webStep1', 'webStep2', 'webStep3', 'webStep4', 'webNoApiKey']) {
+  for (const step of ['webStep1', 'webStep2', 'webStep3', 'webStep4', 'webNoApiKey']) {
     expect(textValues()).toContain(`orbitMcp.${step}`)
   }
+  const guideCopy = tree.root.findByType('SheetBody').findAllByType(Text).map((node: { props: { children: string } }) => node.props.children)
+  expect(guideCopy).not.toContain('orbitMcp.webInstructions')
+  expect(guideCopy.filter((text: string) => text === 'orbitMcp.webNoApiKey')).toHaveLength(1)
   expect(button('orbitMcp.copy').props.disabled).toBe(false)
   TestRenderer.act(() => button('orbitMcp.done').props.onPress())
   expect(textValues()).not.toContain('orbitMcp.webStep1')
