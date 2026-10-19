@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/auth/verify-code/route'
 import { setSessionCookies } from '@/lib/auth-api'
@@ -116,3 +117,5 @@ describe('signed-out validation language', () => {
     expect(await response.json()).toMatchObject(payload)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

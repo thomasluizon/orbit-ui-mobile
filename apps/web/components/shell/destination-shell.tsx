@@ -28,6 +28,7 @@ import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
+import type { ActiveView } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import {
   resetRouteTransitionIntent,
@@ -244,9 +245,21 @@ function DestinationShellContent({
     [labels],
   )
 
+  const selectHabitView = useCallback((view: ActiveView) => {
+    requestHabitCreateNavigation(() => {
+      useUIStore.getState().clearSelection()
+      useUIStore.getState().setActiveView(view)
+      useUIStore.getState().setAstraConversationOpen(false)
+      router.push('/')
+    })
+  }, [router])
   const commandItems = useMemo<CommandNavigationItem[]>(
-    () => SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: getDestinationIcon(id), onSelect: () => navigate(id) })),
-    [labels, navigate],
+    () => [
+      ...SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: getDestinationIcon(id), onSelect: () => id === 'hoje' ? selectHabitView('today') : navigate(id) })),
+      { id: 'all', label: t('habits.viewAll'), icon: getDestinationIcon('hoje'), onSelect: () => selectHabitView('all') },
+      { id: 'general', label: t('habits.viewGeneral'), icon: getDestinationIcon('hoje'), onSelect: () => selectHabitView('general') },
+    ],
+    [labels, navigate, selectHabitView, t],
   )
 
   const palette = (

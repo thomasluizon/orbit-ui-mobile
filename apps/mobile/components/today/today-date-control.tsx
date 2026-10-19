@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateControlProps } from '@orbit/shared/utils/today-header-menu'
+import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateControlProps as SharedTodayDateControlProps } from '@orbit/shared/utils/today-header-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
@@ -12,6 +13,12 @@ import { useShellHeaderSlot } from '@/components/shell/shell-header-slot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+interface TodayDateControlProps extends SharedTodayDateControlProps {
+  showDate?: boolean
+  beforeDate?: ReactNode
+  searchOpen?: boolean
+}
+
 function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const { t } = useTranslation()
   const frequencyUnit = useUIStore((state) => state.activeFilters.frequencyUnit)
@@ -21,9 +28,10 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
   return <DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+
     <View style={styles.spacer} />
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} onPress={props.onSearch}
+      <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} accessibilityState={{ expanded: props.searchOpen }} onPress={props.onSearch}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <Search size={20} color={tokens.fg2} />
       </Pressable>
@@ -57,7 +65,8 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   const dayName = width / fontScale < 240 ? props.shortDayName ?? props.dayName : props.dayName
   return <>
     {!hosted ? header : null}
-    <View testID="today-date-row" style={styles.row}>
+    {props.beforeDate}
+    {props.showDate !== false ? <View testID="today-date-row" style={styles.row}>
       <Pressable accessibilityRole="button" accessibilityLabel={props.previousLabel} onPress={props.onGoToPreviousDay}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
@@ -78,7 +87,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         style={({ pressed }) => [styles.iconButton, pressed && !props.nextDisabled && { backgroundColor: tokens.bgHover }, props.nextDisabled && styles.disabled]}>
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-    </View>
+    </View> : null}
   </>
 }
 

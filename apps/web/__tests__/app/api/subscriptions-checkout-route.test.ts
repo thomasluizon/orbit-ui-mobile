@@ -1,3 +1,4 @@
+import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/subscriptions/checkout/route'
@@ -78,6 +79,7 @@ describe('subscriptions checkout route', () => {
         body: JSON.stringify({ priceId: 'price_123' }),
         cache: 'no-store',
         headers: {
+          'api-version': '2.0',
           Authorization: `Bearer ${tokenFor('user-1')}`,
           'Content-Type': 'application/json',
           'X-Orbit-Country-Code': 'BR',
@@ -380,3 +382,5 @@ describe('subscriptions checkout route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))

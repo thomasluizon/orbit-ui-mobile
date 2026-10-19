@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackHandler } from '../../test-mocks/react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '@orbit/shared/types/habit'
-import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
+import type { HabitVisibilityView, HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { useDrillNavigation, type DrillNavigationState } from '@/hooks/use-drill-navigation'
 
 const TestRenderer = require('react-test-renderer')
@@ -79,7 +79,7 @@ afterEach(() => {
 
 interface DrillHarness {
   holder: { current: DrillNavigationState }
-  rerender: (habitsById: Map<string, NormalizedHabit>, lastUpdated: number, visibilityOptions?: HabitVisibilityOptions) => void
+  rerender: (habitsById: Map<string, NormalizedHabit>, lastUpdated: number, visibilityOptions?: HabitVisibilityOptions, view?: HabitVisibilityView) => void
 }
 
 function renderDrill(
@@ -87,6 +87,7 @@ function renderDrill(
   lastUpdated = 1,
   visibilityOptions?: HabitVisibilityOptions,
   today?: string,
+  view: HabitVisibilityView = 'today',
 ): DrillHarness {
   const client = new QueryClient()
   clients.push(client)
@@ -95,21 +96,22 @@ function renderDrill(
     habitsById: byId,
     lastUpdated: updated,
     visibilityOptions: options,
-  }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number; visibilityOptions?: HabitVisibilityOptions }>) {
-    holder.current = useDrillNavigation(byId, updated, options, 'today', today)
+    view: activeView,
+  }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number; visibilityOptions?: HabitVisibilityOptions; view: HabitVisibilityView }>) {
+    holder.current = useDrillNavigation(byId, updated, options, activeView, today)
     return null
   }
   let root: { update: (element: React.ReactElement) => void } | null = null
   TestRenderer.act(() => {
     root = TestRenderer.create(
-      <QueryClientProvider client={client}><Harness habitsById={habitsById} lastUpdated={lastUpdated} visibilityOptions={visibilityOptions} /></QueryClientProvider>,
+      <QueryClientProvider client={client}><Harness habitsById={habitsById} lastUpdated={lastUpdated} visibilityOptions={visibilityOptions} view={view} /></QueryClientProvider>,
     )
   })
   return {
     holder,
-    rerender: (byId, updated, options = visibilityOptions) => {
+    rerender: (byId, updated, options = visibilityOptions, activeView = view) => {
       TestRenderer.act(() => {
-        root?.update(<QueryClientProvider client={client}><Harness habitsById={byId} lastUpdated={updated} visibilityOptions={options} /></QueryClientProvider>)
+        root?.update(<QueryClientProvider client={client}><Harness habitsById={byId} lastUpdated={updated} visibilityOptions={options} view={activeView} /></QueryClientProvider>)
       })
     },
   }
@@ -124,6 +126,39 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 describe('mobile useDrillNavigation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [makeChild()] }))
+    const { holder, rerender } = renderDrill(new Map(), 1, undefined, undefined, 'all')
+    await actAsync(() => holder.current.drillInto('p1'))
+    expect(holder.current.currentParent?.id).toBe('p1')
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['child'])
+    rerender(new Map(), 1, undefined, view)
+    expect({ parent: holder.current.currentParent, children: holder.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(holder.current.drillStack).toEqual([])
+    rerender(new Map(), 1, undefined, 'all')
+    expect(holder.current.currentParentId).toBeNull()
+    expect(holder.current.getDrillChildren('p1')).toEqual([])
+  })
+
+  it.each(['today', 'general'] as const)('cancels a pending all drill when changing to %s', async (view) => {
+    let resolveDetail = (_detail: HabitDetail) => {}
+    mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { resolveDetail = resolve }))
+    const { holder, rerender } = renderDrill(new Map(), 1, undefined, undefined, 'all')
+    let pending = Promise.resolve()
+    TestRenderer.act(() => { pending = holder.current.drillInto('p1') })
+    expect(holder.current.drillLoading).toBe(true)
+    rerender(new Map(), 1, undefined, view)
+    expect(holder.current.drillLoading).toBe(false)
+    await actAsync(async () => {
+      resolveDetail(makeDetail({ children: [makeChild()] }))
+      await pending
+    })
+    expect({ parent: holder.current.currentParent, children: holder.current.drillChildren }).toEqual({ parent: null, children: [] })
+    expect(holder.current.drillError).toBe('')
+    rerender(new Map(), 1, undefined, 'all')
+    expect(holder.current.getDrillChildren('p1')).toEqual([])
   })
 
   it('keeps children loading until a rate limited read recovers', async () => {

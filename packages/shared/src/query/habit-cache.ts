@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
-import { buildOptimisticSkipPatch, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
-import { habitKeys } from './keys'
+import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
+import type { HabitListSnapshots } from './keys'
+import { gamificationKeys, habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
   if (!filters.dateFrom) return true
@@ -248,4 +249,43 @@ export function invalidateHabitDependents(queryClient: QueryClient, habitId: str
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
+  void queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() })
+}
+
+export function rollbackDatedHabitLists(
+  queryClient: QueryClient,
+  previousLists: HabitListSnapshots,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): void {
+  for (const [key, previousItems] of previousLists) {
+    const previousHabit = previousItems && findHabitInList(previousItems, habitId)
+    if (!previousHabit) continue
+    const previousOccurrence = previousHabit.instances.find((instance) => instance.date === date)
+
+    queryClient.setQueryData<HabitScheduleItem[]>(key, (currentItems) => {
+      if (!currentItems) return currentItems
+      const currentHabit = findHabitInList(currentItems, habitId)
+      const currentOccurrence = currentHabit?.instances.find((instance) => instance.date === date)
+      const previousCompleted = previousOccurrence?.status === 'Completed'
+      const patchStillApplied = previousCompleted
+        ? currentOccurrence?.status !== 'Completed'
+        : currentOccurrence?.logId === optimisticLogId
+      if (!patchStillApplied) return currentItems
+
+      const restoredItems = optimisticSetDatedCompletion(
+        currentItems,
+        habitId,
+        date,
+        previousCompleted,
+        previousOccurrence?.logId ?? '',
+      )
+      const restoredHabit = findHabitInList(restoredItems, habitId)
+      if (restoredHabit && previousHabit.isLoggedInRange === undefined) {
+        delete restoredHabit.isLoggedInRange
+      }
+      return restoredItems
+    })
+  }
 }

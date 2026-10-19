@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { getTodayBoundary } from '@orbit/shared/utils'
+import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 
 let chunks: ReturnType<typeof createChunks>
 let todayComponents: typeof import('@/app/(app)/today-page-view')
@@ -68,12 +69,15 @@ vi.mock('@/components/habits/habit-list', () => ({
 
 function TodayHarness() {
   const { TodayHeaderRegion, TodayHabitsPanel, TodayOverlays } = todayComponents
+  const search = useHabitViewSearch('today')
   const [today, setToday] = useState('2026-09-13')
   const [isSelectMode, setSelectMode] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [selectedHabitIds, setSelectedHabitIds] = useState(new Set(['walk']))
   const [lastAction, setLastAction] = useState('none')
   const view = {
+    activeView: 'today',
+    search,
     nav: {
       dateStr: '2026-09-06',
       today,
