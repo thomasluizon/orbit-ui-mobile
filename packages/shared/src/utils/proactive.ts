@@ -1,4 +1,29 @@
-export function proactiveActionLabelKey(trigger: string) {
+import type { ProactiveItem } from '../types/proactive'
+import { shouldShowTodayAstraSurface } from './notification-actions'
+import type { ReturningInterval } from './returning-interval'
+
+type TodayAstraLine = { text: string; destination: string } & ({ item: ProactiveItem } | { item: null })
+type ProactiveActionLabelKey = `proactive.actions.${'morningPlan' | 'eveningCheckin' | 'restartAfterMiss' | 'busyCalendarDay' | 'goalBehind' | 'weeklyReview'}` | 'shell.composer.send'
+
+export function getTodayAstraLine(state: {
+  isTodaySelected: boolean
+  inDrillOrSurface: boolean
+  item: ProactiveItem | null
+  returning: ReturningInterval | null
+}, translate: (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded', values?: { days: number }) => string): TodayAstraLine | null {
+  if (!shouldShowTodayAstraSurface(state)) return null
+  if (state.item) return { text: state.item.text, destination: translate('todayAstra.openConversation'), item: state.item }
+  if (!state.returning) return null
+  return {
+    text: state.returning.kind === 'elapsed'
+      ? translate('todayAstra.returningElapsed', { days: state.returning.days })
+      : translate('todayAstra.returningBounded'),
+    destination: translate('todayAstra.viewProgress'),
+    item: null,
+  }
+}
+
+export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {
   switch (trigger) {
     case 'MorningPlan': return 'proactive.actions.morningPlan'
     case 'EveningCheckin': return 'proactive.actions.eveningCheckin'

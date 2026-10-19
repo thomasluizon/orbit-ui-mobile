@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { getProactiveActionReason, proactiveActionLabelKey } from '../utils/proactive'
+import { getProactiveActionReason, getTodayAstraLine, proactiveActionLabelKey } from '../utils/proactive'
+import { createMockProactiveItem } from './factories'
+
+describe('today Astra line', () => {
+  const item = createMockProactiveItem()
+  const available = { isTodaySelected: true, inDrillOrSurface: false, item: null, returning: null }
+  const translate = (key: string, values?: { days: number }) => values ? `${key}:${values.days}` : key
+
+  it('prefers the proactive item over a returning line', () => {
+    expect(getTodayAstraLine({ ...available, item, returning: { kind: 'elapsed', days: 5 } }, translate))
+      .toEqual({ text: item.text, destination: 'todayAstra.openConversation', item })
+  })
+
+  it.each([
+    [{ isTodaySelected: false }, null],
+    [{ inDrillOrSurface: true }, null],
+  ])('suppresses a proactive item when %j', (state, expected) => {
+    expect(getTodayAstraLine({ ...available, item, ...state }, translate)).toBe(expected)
+  })
+
+  it('falls back to each returning interval or no line', () => {
+    expect(getTodayAstraLine({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate))
+      .toEqual({ text: 'todayAstra.returningElapsed:5', destination: 'todayAstra.viewProgress', item: null })
+    expect(getTodayAstraLine({ ...available, returning: { kind: 'bounded' } }, translate))
+      .toEqual({ text: 'todayAstra.returningBounded', destination: 'todayAstra.viewProgress', item: null })
+    expect(getTodayAstraLine(available, translate)).toBeNull()
+  })
+})
 
 describe('proactive action', () => {
   it.each([

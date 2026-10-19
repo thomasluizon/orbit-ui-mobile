@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   getReturningInterval,
-  shouldShowTodayAstraSurface,
+  getTodayAstraLine,
 } from '@orbit/shared/utils'
 import { useProactiveItem } from '@/hooks/use-proactive-item'
 import { useProfile } from '@/hooks/use-profile'
@@ -22,21 +22,10 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const destinationId = useId()
   const { profile } = useProfile()
   const { item: proactive, openItem } = useProactiveItem()
-  const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
-
-  const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
-    ? proactive
-      ? { text: proactive.text, destination: t('todayAstra.openConversation'), item: proactive }
-      : returning
-        ? {
-            text: returning.kind === 'elapsed'
-              ? t('todayAstra.returningElapsed', { days: returning.days })
-              : t('todayAstra.returningBounded'),
-            destination: t('todayAstra.viewProgress'),
-            item: null,
-          }
-        : null
-    : null
+  const line = getTodayAstraLine({
+    isTodaySelected, inDrillOrSurface: suppressed, item: proactive,
+    returning: getReturningInterval(profile?.lastCompletionDate, profile?.timeZone),
+  }, t)
 
   if (!line) return null
 
