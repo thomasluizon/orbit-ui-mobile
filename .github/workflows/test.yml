@@ -187,7 +187,9 @@ jobs:
       - name: Verify every web report arrived
         if: github.base_ref == 'redesign/main'
         run: |
-          test -s apps/web/.artifacts/unit-tests/blobs/jsdom-1.json
+          for shard in $(seq 1 2); do
+            test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
+          done
           for shard in $(seq 1 8); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
           done
@@ -238,7 +240,10 @@ jobs:
         include:
           - project: jsdom
             shard: 1
-            total: 1
+            total: 2
+          - project: jsdom
+            shard: 2
+            total: 2
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
