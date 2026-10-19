@@ -59,7 +59,7 @@
     ],
     "Orbit Busca": [
       "m-route-search",
-      "overlay-command-command-palette",
+      "overlay-command-command-palette-dialog",
       "route-search"
     ],
     "Orbit Calendario": [
