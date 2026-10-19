@@ -141,13 +141,31 @@ describe('ShellWide', () => {
     )
     const bottom = container.querySelector('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
-    const column = pinnedSlot?.parentElement ?? null
+    const column = pinnedSlot?.closest<HTMLElement>('[data-shell-bottom] > div') ?? null
     expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
     expect(column).toContainElement(container.querySelector('[data-shell-fab]'))
     expect(bottom).toContainElement(column)
     expect(bottom).not.toHaveClass('max-w-[740px]')
-    expect(bottom).toHaveClass('pb-[var(--safe-bottom)]')
+    expect(container.querySelector('[data-shell-destination-viewport]')?.parentElement).toHaveClass('pb-[var(--safe-bottom)]')
+  })
+
+  it('keeps the composer mounted when the floating add control changes visibility', () => {
+    function DraftInput() {
+      const [draft, setDraft] = useState('')
+      return <input aria-label="Draft" value={draft} onChange={event => setDraft(event.target.value)} />
+    }
+    const shell = (floating: boolean) => <ShellWide astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
+      composer={<DraftInput />} tabBar={<nav>Tabs</nav>}
+      fab={floating ? <button type="button">Create</button> : undefined} />
+    const { rerender } = render(shell(true))
+    const input = screen.getByRole('textbox', { name: 'Draft' })
+    fireEvent.change(input, { target: { value: 'Keep this draft' } })
+    for (const floating of [false, true]) {
+      rerender(shell(floating))
+      expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(input)
+      expect(input).toHaveValue('Keep this draft')
+    }
   })
 
   it('keeps the wide pinned slot inside the existing content column', () => {

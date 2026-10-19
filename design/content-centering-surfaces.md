@@ -5,8 +5,8 @@
 The page column stays centred in its available container. A web scrollbar's reserved gutter is
 outside that container's usable width. Text inside a centred column retains its own reading
 alignment. The shell's create control floats above notices and the composer without a bottom-chrome
-band or hairline. The scroller reserves 96px of clearance outside its viewport while the
-control is present, so scrolling content cannot pass behind its target. Wide web uses sidebar
+band or hairline. The bottom viewport reserves 96px of clearance inside its scrollable content
+while the control is present, so page content cannot pass behind its target. Wide web uses sidebar
 creation and reserves no floating-control clearance.
 
 The source sweep follows every route's rendered owner and its width constraints. The columns
@@ -17,7 +17,7 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 
 | Screen or surface | Phone | 480 | 840 | 1100 | 1352 | 1200 x 1600 | 1600 x 1200 | Desktop | Owner and result |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Hoje | fixed | fixed | fixed | aligned | aligned | aligned | aligned | aligned | Shell reserves scroller clearance on compact web and at every Android width. |
+| Hoje | fixed | fixed | fixed | aligned | aligned | aligned | aligned | aligned | Shared bottom scrolling keeps floating-add clearance on compact web and at every Android width. |
 | Todos | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Habit-list empty actions centre within their row. |
 | Geral | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | Shares the Todos empty-state owner. |
 | Novo hábito | fixed | fixed | fixed | fixed | fixed | fixed | fixed | fixed | HabitCreateFrame centres the capped form; the submit and explanation retain their responsive shared start edge. |
@@ -66,6 +66,25 @@ Wide web uses sidebar creation and has no floating add target.
 Android mounts the production components and checks their resolved styles and Yoga geometry.
 Its guard proves that the real Fab target lies outside the entire scrolling content region.
 These tests do not measure Android font rendering.
+
+## Short windows
+
+The floating-add reservation, notices and composer share one bottom viewport. Its 64px minimum
+keeps a full one-line composer pill revealable while the reservation scrolls away first. The
+tab bar stays outside that scroller. Content-size and viewport-size changes reveal the trailing
+composer controls without animation. With enough height, the floating target retains its normal
+position above the composer and outside the page scroller.
+
+When the header, minimum page region, composer and tabs cannot fit after safe-area insets,
+the destination itself scrolls inside those insets. Android reuses FlowViewport; compact web
+uses the destination viewport. Header and tab measurements retain taller chrome, and both
+tab bars share their unchanged 80px minimum through `TAB_BAR_MIN_HEIGHT`.
+
+Both centring suites mount the production composer, Fab and BottomTabBar at 840 x 240 and
+360 x 320, with a 48px header and both zero and 24px top/16px bottom insets. They check the minimum viewport, revealability of the input,
+send, attachment and create controls, page separation and the tab bar's window bounds. Android
+also drives the native layout and content-size callbacks to check the initial composer reveal.
+The Yoga adapter includes ScrollView's installed flex and overflow defaults.
 
 `use-content-frame-style.test.tsx` measures every shared Android cap. The web
 `foldable-shell-geometry.test.tsx` checks the corresponding content frame, shared shell,

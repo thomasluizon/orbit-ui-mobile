@@ -403,7 +403,8 @@ describe('Foldable shell geometry', () => {
         scroller.scrollTop = scroller.scrollHeight
         const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
         const last = scroller.lastElementChild!.getBoundingClientRect()
-        const pinned = document.querySelector('[data-shell-pinned-slot]')!.getBoundingClientRect()
+        const viewport = document.querySelector('[data-shell-bottom-viewport]')!
+        const pinned = (getComputedStyle(viewport).display === 'contents' ? document.querySelector('[data-shell-pinned-slot]')! : viewport).getBoundingClientRect()
         return {
           availableWidth: available.width, width: content.width,
           leftGap: content.left - available.left, rightGap: available.right - content.right,

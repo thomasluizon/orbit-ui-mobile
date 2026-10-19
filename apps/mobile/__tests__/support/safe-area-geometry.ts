@@ -6,6 +6,7 @@ export interface GeometryHost {
   props: {
     style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle)
     contentContainerStyle?: ViewStyle
+    horizontal?: boolean
     testID?: string
     accessibilityRole?: string
     accessibilityLabel?: string
@@ -69,6 +70,12 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
   const selected = new Map<string, YogaNode>()
   function build(host: GeometryHost): YogaNode {
     const node = Yoga.Node.create()
+    if (host.type === 'ScrollView') {
+      node.setFlexGrow(1)
+      node.setFlexShrink(1)
+      node.setOverflow(Yoga.OVERFLOW_SCROLL)
+      if (host.props.horizontal) node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+    }
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
     applyStyle(node, style)

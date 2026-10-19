@@ -48,11 +48,12 @@ describe('Shell scrollbar geometry and paint', () => {
       const shell = page.locator('[data-shell-scroller]')
       const gutter = await shell.evaluate(measureScrollbarGutter)
       expect(gutter).toBe(4)
-      const scrollers = page.locator('[data-shell-scroller], [data-shell-header], [data-shell-notice], [data-shell-pinned-slot], [data-shell-fab-clip], [data-scroll-probe], [data-scroll-sibling]')
-      expect(await scrollers.count()).toBe(7)
+      const scrollers = page.locator('[data-shell-scroller], [data-shell-header], [data-shell-bottom-viewport], [data-shell-notice], [data-shell-pinned-slot], [data-shell-fab-clip], [data-scroll-probe], [data-scroll-sibling]')
+      expect(await scrollers.count()).toBe(8)
       for (const scroller of await scrollers.all()) {
         const visible = await scroller.evaluate((element) => element.getClientRects().length > 0)
-        expect.soft(await scroller.evaluate(measureScrollbarGutter), 'vertical gutter').toBe(visible ? gutter : 0)
+        const scrollable = await scroller.evaluate((element) => ['auto', 'scroll'].includes(getComputedStyle(element).overflowY))
+        expect.soft(await scroller.evaluate(measureScrollbarGutter), 'vertical gutter').toBe(visible && scrollable ? gutter : 0)
         const horizontal = await scroller.evaluate((element: HTMLElement) => {
           const style = getComputedStyle(element)
           return element.offsetHeight - element.clientHeight - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth)

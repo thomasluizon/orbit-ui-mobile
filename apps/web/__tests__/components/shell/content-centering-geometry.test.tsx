@@ -14,6 +14,8 @@ import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { Composer } from '@/components/shell/composer'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -44,6 +46,59 @@ describe('page content centring and add control clearance', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }].flatMap(viewport =>
+    [{ top: 0, bottom: 0 }, { top: 24, bottom: 16 }].map(insets => ({ ...viewport, ...insets })),
+  ))(
+    'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom', async (viewport) => {
+      const items = ['hoje', 'calendario', 'progresso', 'perfil'].map(id => ({ id, href: '/', label: id, icon: () => <span style={{ width: 24, height: 24 }} /> }))
+      const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
+        <ShellWide items={items.map(({ id, href, label }) => ({ id, href, label, icon: id }))} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+          header={<button type="button" style={{ height: 48 }}>Hoje</button>}
+          composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
+            onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+            attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+          fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>}
+          tabBar={<BottomTabBar items={items} activeId="hoje" onSelect={vi.fn()} label="Navegação" />}>
+          {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
+        </ShellWide>
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport })
+      try {
+        const session = await page.context().newCDPSession(page)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: 0, right: 0 } })
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const box = (element: Element) => { const bounds = element.getBoundingClientRect(); return { top: bounds.top, bottom: bounds.bottom, height: bounds.height } }
+          const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
+          const viewport = document.querySelector<HTMLElement>('[data-shell-bottom-viewport]')!
+          const controls = [...viewport.querySelectorAll('textarea, button')].map(control => {
+            control.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+            const bounds = control.getBoundingClientRect()
+            const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+            return { control: box(control), hit: target === control || control.contains(target) }
+          })
+          return { pinned: box(pinned), viewport: box(viewport), controls, header: box(document.querySelector('[data-shell-header]')!),
+            scroller: box(document.querySelector('[data-shell-scroller]')!), fab: box(document.querySelector('[data-fab]')!),
+            tabs: box(document.querySelector('[data-shell-tab-bar]')!) }
+        })
+        expect(geometry.pinned.height).toBeGreaterThanOrEqual(56)
+        expect(geometry.viewport.height).toBeGreaterThanOrEqual(64)
+        expect(geometry.controls.length).toBeGreaterThanOrEqual(4)
+        for (const { control, hit } of geometry.controls) {
+          expect(control.top).toBeGreaterThanOrEqual(geometry.viewport.top)
+          expect(control.bottom).toBeLessThanOrEqual(geometry.viewport.bottom)
+          expect(hit).toBe(true)
+        }
+        expect(geometry.viewport.top).toBeGreaterThanOrEqual(geometry.header.bottom)
+        expect(geometry.viewport.top).toBeGreaterThanOrEqual(geometry.scroller.bottom)
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.pinned.top)
+        const tabs = page.locator('[data-shell-tab-bar]')
+        await tabs.evaluate(element => element.scrollIntoView({ block: 'end', behavior: 'instant' }))
+        expect(await tabs.evaluate(element => element.getBoundingClientRect().bottom)).toBeLessThanOrEqual(viewport.height - viewport.bottom)
+      } finally { await page.close() }
+    },
+  )
 
   it.each(windows)('centres Todos actions and the create form at $width by $height', async (viewport) => {
     for (const messages of [ptBR, en]) {
