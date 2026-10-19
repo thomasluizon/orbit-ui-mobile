@@ -654,16 +654,15 @@ describe('label and interaction fill guards in Chromium', () => {
     const row = render(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', personalExpanded: false, onClick: () => {} }))
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main>`)
+      await page.bringToFront()
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main></html>`)
       await loadAppFonts(page)
       await markUserText(page, [email])
       await expectLabelsFit(page, page, [email])
-      await page.getByRole('button', { name: `Account, ${email}` }).evaluate((element) => {
-        const control = element as HTMLElement
-        control.style.setProperty('transition', 'none', 'important')
-        control.style.setProperty('background-color', 'rgb(220, 220, 220)', 'important')
-      })
-      await expectFillShape(page.getByRole('button', { name: `Account, ${email}` }), 'resting')
+      const control = page.getByRole('button', { name: `Account, ${email}` })
+      await control.hover()
+      await expectFillShape(control, 'hover')
     } finally { await page.close(); row.unmount() }
   })
 

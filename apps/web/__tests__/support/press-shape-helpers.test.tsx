@@ -4,9 +4,14 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { ListRow } from '@/components/ui/list-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { PillButton } from '@/components/ui/pill-button'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { expectHoverOnHitArea } from '@/e2e/layout/press-shape-helpers'
+import { expectFullTouchTarget, expectHoverOnHitArea } from '@/e2e/layout/press-shape-helpers'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('press shape hover sampling in Chromium', () => {
@@ -52,6 +57,32 @@ describe('press shape hover sampling in Chromium', () => {
     } finally {
       await page.close()
     }
+  })
+
+  it.each([412, 1280])('measures the real calendar and grouped row fill owners at %spx', async (width) => {
+    const page = await renderPill()
+    await page.setViewportSize({ width, height: 915 })
+    const markup = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-10-12"
+        previousMonthLabel="Previous month" nextMonthLabel="Next month"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-10-12"
+        previousMonthLabel="Previous month" nextMonthLabel="Next month"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
+        period={{ view: 'week', label: 'Week', previousLabel: 'Previous week', nextLabel: 'Next week', onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }} />
+      <SettingsGroup><ListRow title="Settings row" onClick={vi.fn()} /><ListRow title="Next row" onClick={vi.fn()} /></SettingsGroup>
+      <div style={{ padding: 16 }}><ListRow placement="column" title="Column row" onClick={vi.fn()} /></div>
+    </NextIntlClientProvider>)
+    try {
+      await page.locator('body').evaluate((body, markup) => { body.innerHTML = markup }, markup)
+      for (const [label, radius] of [['Previous month', 'pill'], ['Next month', 'pill'], [`September, ${en.calendar.monthPicker}`, 12], ['Previous week', 'pill'], ['Next week', 'pill'], [en.calendar.period.goToCurrent.replace('{period}', 'Week'), 12], ['Settings row', 12], ['Column row', 12]] as const) {
+        const control = page.getByRole('button', { name: label, exact: true })
+        await expectFullTouchTarget(control, radius, '--bg-hover')
+      }
+      await page.addStyleTag({ content: '.orbit-calendar-nav-control::before { inset: 8px; }' })
+      await expect(expectFullTouchTarget(page.getByRole('button', { name: 'Previous month', exact: true }), 'pill', '--bg-hover'))
+        .rejects.toThrow('the fill reaches the left paint edge')
+    } finally { await page.close() }
   })
 
   it('waits for a separate fill layer to lose its previous hover opacity', async () => {

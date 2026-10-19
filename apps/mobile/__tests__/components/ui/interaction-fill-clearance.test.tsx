@@ -171,6 +171,7 @@ describe('Android interaction fill clearance', () => {
       const fill = fillBox(parts, title)
       const actions = parts.find((part) => part.ancestors.length === 2)!
       const summary = parts.find((part) => part.host.type === 'Text' && part.top >= title.bottom && !part.ancestors.includes(title.slot))!
+      expect(parts[1]!.bottom - parts[1]!.top, 'drawn header height').toBeCloseTo(actions.bottom - actions.top + 12 + title.bottom - title.top + 4 + summary.bottom - summary.top)
       expect(fill.top - actions.bottom, 'emoji row to title fill').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(summary.top - fill.bottom, 'title fill to frequency summary').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(fill.left, 'leading page clearance').toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)

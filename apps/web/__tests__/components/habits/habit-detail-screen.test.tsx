@@ -1,3 +1,5 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { readFileSync } from 'node:fs'
@@ -2130,6 +2132,7 @@ describe('HabitDetailScreen', () => {
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
         await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
         const button = title.getByRole('button')
         expect(await button.textContent()).toBe(mocks.detail!.title)
@@ -2142,6 +2145,7 @@ describe('HabitDetailScreen', () => {
         expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
         const hit = await target.evaluate(readExpandedControlGeometry)
         expect(hit.edgeHits).toEqual([true, true, true, true])
+        const paint = await target.evaluate(readControlPaint)
         const clearance = await target.evaluate((element, bounds) => {
           const heading = element.closest('h1')!
           const style = getComputedStyle(element, '::before')
@@ -2155,9 +2159,9 @@ describe('HabitDetailScreen', () => {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
             summaryGap: summary.top - bounds.bottom - outerEdge,
           }
-        }, hit)
+        }, paint.bounds)
         expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
-        expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+        expect(clearance.summaryGap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         const fill = await target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
         expect(fill.violations).toEqual([])
         await title.focus()
@@ -2167,7 +2171,7 @@ describe('HabitDetailScreen', () => {
       } finally { await page.close() }
     })
 
-    it.each([412, 1100])('aligns title ink and reserves fill clearance at %ipx', async (width) => {
+    it.each([320, 412, 600, 1024, 1100, 1352])('aligns title ink and reserves fill clearance at %ipx', async (width) => {
       vi.useRealTimers()
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -2193,13 +2197,26 @@ describe('HabitDetailScreen', () => {
             controlsX: controls.getBoundingClientRect().left,
             hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
-            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 12 + summary.getBoundingClientRect().height,
+            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
           }
         }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
         expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
         expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)
         expect(geometry.rowHeight).toBeCloseTo(geometry.baseHeight, 1)
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
+        await page.addStyleTag({ content: `:root { ${variables} }` })
+        const target = heading.getByRole('button')
+        await target.hover()
+        for (const state of ['hover', 'press'] as const) {
+          if (state === 'press') await page.mouse.down()
+          await target.evaluate(readControlPaint)
+          const fill = await target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+          expect(fill.hasFill, state).toBe(true)
+          expect(fill.violations, state).toEqual([])
+        }
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
       } finally { await page.close() }
     })
 

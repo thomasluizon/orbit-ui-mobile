@@ -1,3 +1,4 @@
+import { readControlPaint } from './control-paint'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { test } from './layout-test'
@@ -39,6 +40,7 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
   expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
   const hit = await target.evaluate(readExpandedControlGeometry)
   expect(hit.edgeHits).toEqual([true, true, true, true])
+  const paint = await target.evaluate(readControlPaint)
   const clearance = await target.evaluate((element, bounds) => {
     const heading = element.closest('h1')!
     const summary = heading.nextElementSibling!.getBoundingClientRect()
@@ -52,7 +54,7 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
       glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
       summaryGap: summary.top - bounds.bottom - outerEdge,
     }
-  }, hit)
+  }, paint.bounds)
   expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
   expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
 }

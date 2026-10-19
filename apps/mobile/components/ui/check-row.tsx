@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0 },
+  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16 },
   calendarDayCopy: { minHeight: 68, paddingVertical: SPACING.s12 },
   personalControl: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, borderRadius: 12, overflow: 'hidden' },

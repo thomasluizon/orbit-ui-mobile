@@ -212,14 +212,14 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
   }
   return (
     <header className="pt-2">
-      <div data-habit-detail-header-row="" className="flex flex-col gap-3">
+      <div data-habit-detail-header-row="" className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
           <div className="flex-1" />
           <PillButton variant="ghost" size="sm" iconOnly label={t('rename')} onClick={() => setEditing(true)}><Pencil size={20} /></PillButton>
           <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </div>
-        <div className="flex min-w-0 w-full flex-col gap-3">
+        <div className="flex min-w-0 w-full flex-col gap-2">
           {editing ? (
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (

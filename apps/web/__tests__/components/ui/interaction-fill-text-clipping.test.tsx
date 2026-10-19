@@ -13,6 +13,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { readControlPaint } from '@/e2e/layout/control-paint'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const loginFlow = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
@@ -64,13 +65,17 @@ describe('visible neighbouring text in the interaction clearance inspector', () 
       const checkbox = page.getByRole('checkbox', { name: label, exact: true })
       await checkbox.hover()
       await checkbox.evaluate(async (element) => { await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)) })
-      const geometry = await checkbox.evaluate((element) => {
+      const paint = await checkbox.evaluate(readControlPaint)
+      const geometry = await checkbox.evaluate((element, fill) => {
         const label = element.closest('[data-slot="list-row-body"]')!.querySelector('[data-personal-text]')!
         const range = document.createRange()
         range.selectNodeContents(label)
-        return { clipped: label.scrollWidth > label.clientWidth, visibleGap: element.getBoundingClientRect().left - label.getBoundingClientRect().right, hiddenTextEnd: range.getBoundingClientRect().right, checkboxStart: element.getBoundingClientRect().left }
-      })
+        return { clipped: label.scrollWidth > label.clientWidth, visibleGap: fill.left - label.getBoundingClientRect().right, hiddenTextEnd: range.getBoundingClientRect().right, checkboxStart: fill.left,
+          targetWidth: element.getBoundingClientRect().width, fillWidth: fill.right - fill.left }
+      }, paint.bounds)
       expect(geometry.clipped).toBe(true)
+      expect(geometry.targetWidth).toBe(48)
+      expect(geometry.fillWidth).toBe(40)
       expect(geometry.visibleGap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(geometry.hiddenTextEnd).toBeGreaterThan(geometry.checkboxStart)
       const result = await checkbox.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)

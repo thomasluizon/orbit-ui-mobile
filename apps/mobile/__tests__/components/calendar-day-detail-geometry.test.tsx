@@ -65,7 +65,7 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
-  it.each([412, 840, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
+  it.each([320, 412, 840, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     const entries = makeCalendarDayCardEntries()
     expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
@@ -93,7 +93,7 @@ describe('Android day card geometry', () => {
           const style = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style
           expect(StyleSheet.flatten(style).minHeight).toBe(68)
           expect(heights.at(-1)![index]).toBeGreaterThanOrEqual(68)
-          if (loggable) expect(StyleSheet.flatten(style).paddingVertical).toBe(0)
+          if (loggable) expect(StyleSheet.flatten(style)).toMatchObject({ paddingVertical: 0, paddingStart: 16, paddingEnd: 16 })
         })
         entries.forEach((entry) => {
           const row = measured.controls.find((control) => control.accessibilityLabel?.startsWith(entry.title))!
@@ -176,7 +176,7 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(0)
       if (loggable) {
         const target = host.children[1].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 4, gap: 0 })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 0 })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
         expect(titleStyle.marginVertical ?? 0).toBe(0)

@@ -1,5 +1,7 @@
 export function readControlPaint(element: Element) {
-  for (const animation of element.getAnimations({ subtree: true })) animation.finish()
+  for (const animation of element.getAnimations({ subtree: true })) {
+    if (animation.effect?.getComputedTiming().endTime !== Infinity) animation.finish()
+  }
   const fill = element.querySelector('[data-press-fill]') ?? element
   const pseudo = fill === element ? ['::before', '::after'].find((layer) => {
     const paint = getComputedStyle(element, layer)

@@ -226,7 +226,7 @@
 .orbit-habit-rename::before {
   content: '';
   position: absolute;
-  inset-block: -8px;
+  inset-block: -4px;
   inset-inline: -12px;
   border-radius: 12px;
   transition: background-color var(--dur-hover) var(--ease-standard);
@@ -245,7 +245,7 @@
 
 .orbit-habit-rename:focus-visible::before {
   outline: 2px solid var(--fg-1);
-  outline-offset: -6px;
+  outline-offset: -2px;
 }
 
 .orbit-habit-rename:is(:active, :focus-visible)::before {

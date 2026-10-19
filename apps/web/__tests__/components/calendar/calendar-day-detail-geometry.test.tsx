@@ -81,7 +81,7 @@ describe('day card compact geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
+  it.each([320, 412, 1280, 1352].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
     const entries = makeCalendarDayCardEntries()
     expect(entries.map((entry) => entry.habitId)).toEqual(['parent-0', 'parent-1', 'parent-2', 'child-0', 'child-1'])
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
@@ -109,7 +109,7 @@ describe('day card compact geometry', () => {
           const labelStyle = getComputedStyle(button)
           const controlFill = row.querySelector('[role="checkbox"] [data-press-fill]')?.getBoundingClientRect()
           const metadataBox = metadata?.getBoundingClientRect()
-          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
+          return { height: rowBox.height, labelHeight: labelBox.height, rowPadding: [rowStyle.paddingTop, rowStyle.paddingBottom, rowStyle.paddingLeft, rowStyle.paddingRight], labelPadding: [labelStyle.paddingTop, labelStyle.paddingBottom], labelMargins: [labelStyle.marginTop, labelStyle.marginBottom], fillsRow: labelBox.top === rowBox.top && labelBox.bottom === rowBox.bottom, controlFill: controlFill ? { width: controlFill.width, height: controlFill.height, separated: controlFill.left >= labelBox.right, contained: controlFill.top >= rowBox.top && controlFill.bottom <= rowBox.bottom } : null, minimum: Number.parseFloat(rowStyle.minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
         }))
         expect(rows).toHaveLength(entries.length)
         rows.forEach((row) => {
@@ -117,7 +117,7 @@ describe('day card compact geometry', () => {
           expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           expect(row.labelHeight, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           if (loggable) {
-            expect(row.rowPadding).toEqual(['0px', '0px'])
+            expect(row.rowPadding).toEqual(['0px', '0px', '16px', '16px'])
             expect(row.labelPadding).toEqual(['12px', '12px'])
             expect(row.labelMargins).toEqual(['0px', '0px'])
             expect(row.fillsRow).toBe(true)
