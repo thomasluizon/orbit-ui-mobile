@@ -55,7 +55,7 @@ export function Proposed({ proposed, scope, label, children, inset = false, keep
       >
         {label}
       </Text> : null}
-      {proposed ? tintProposedChildren(children, createTintAdapter(tokens.fg3)) : Children.map(children, (child) => child)}
+      {proposed ? tintProposedChildren(children, createTintAdapter(tokens.fg3)) : Children.toArray(children)}
       {proposed && inset ? <View
         pointerEvents="none"
         accessible={false}
