@@ -27,6 +27,10 @@ beforeEach(() => {
     ]) cpSync(resolve(root, path), resolve(destination, path), { recursive: true })
     symlinkSync(resolve(root, 'node_modules'), resolve(destination, 'node_modules'), 'junction')
   }
+  cpSync(
+    resolve(root, 'apps/mobile/__tests__/fixtures/native-designs/legacy-widget-layout.fixture'),
+    resolve(legacy, 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml'),
+  )
   for (const [destination, design] of [[legacy, 'legacy'], [redesign, 'redesign']]) {
     const identity = resolve(destination!, 'apps/mobile/lib/design-bundle-identity.ts')
     writeFileSync(identity, readFileSync(identity, 'utf8').replace("= 'redesign'", `= '${design}'`))
@@ -43,10 +47,22 @@ describe('Android design publication guard', () => {
     expect(() => checkDesignBundles(legacy, redesign)).toThrow('Native version mismatch')
   })
 
-  it.each(['legacy', 'redesign'])('rejects native widget rendering drift on %s', side => {
+  it.each(['legacy', 'redesign'])('accepts each binary rendering its own widget on %s', side => {
     const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml')
     writeFileSync(path, `${readFileSync(path, 'utf8')}\n`)
-    expect(() => checkDesignBundles(legacy, redesign)).toThrow('widget_layout.xml')
+    expect(() => checkDesignBundles(legacy, redesign)).not.toThrow()
+  })
+
+  it.each(['legacy', 'redesign'])('rejects losing the optional widget token argument on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/OrbitWidgetModule.kt')
+    writeFileSync(path, readFileSync(path, 'utf8').replace('json: String, token: String?', 'json: String, token: String'))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('OrbitWidgetModule.kt')
+  })
+
+  it.each(['legacy', 'redesign'])('rejects dropping the two-argument widget call on %s', side => {
+    const path = resolve(side === 'legacy' ? legacy : redesign, 'apps/mobile/modules/orbit-widget/src/OrbitWidget.types.ts')
+    writeFileSync(path, readFileSync(path, 'utf8').replace('json: string, token?: string', 'json: string'))
+    expect(() => checkDesignBundles(legacy, redesign)).toThrow('OrbitWidget.types.ts')
   })
 
   it.each(['legacy', 'redesign'])('rejects an additional local native module on %s', side => {
@@ -63,7 +79,7 @@ describe('Android design publication guard', () => {
     writeFileSync(path, JSON.stringify(config))
     expect(() => checkDesignBundles(legacy, redesign)).toThrow('Config plugin')
   })
-  it('accepts two real source trees carrying the union with different bundle identities', () => {
+  it("accepts the shared union with each branch's real widget layout and bundle identity", () => {
     expect(() => checkDesignBundles(legacy, redesign)).not.toThrow()
   })
 

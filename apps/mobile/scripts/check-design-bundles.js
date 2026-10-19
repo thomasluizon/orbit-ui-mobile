@@ -50,7 +50,7 @@ function checkDesignBundles(legacyRoot, redesignRoot) {
   const names = new Set([legacyRoot, redesignRoot].flatMap(root => readdirSync(resolve(root, modulesPath))))
   for (const name of names) {
     const directory = `${modulesPath}/${name}`
-    compareDirectory(legacyRoot, redesignRoot, `${directory}/android`)
+    if (name !== 'orbit-widget') compareDirectory(legacyRoot, redesignRoot, `${directory}/android`)
     requireEqualFile(legacyRoot, redesignRoot, `${directory}/expo-module.config.json`)
     const bridge = name === 'orbit-widget' ? 'src/OrbitWidget.types.ts' : 'index.ts'
     requireEqualFile(legacyRoot, redesignRoot, `${directory}/${bridge}`)
