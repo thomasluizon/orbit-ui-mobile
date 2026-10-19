@@ -54,6 +54,33 @@ describe('Calendar week through the destination shell and route transition', () 
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('keeps the vertical offset when the day pane changes height', async () => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width: 412, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${view.container.innerHTML}`)
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      await scroller.evaluate(async (element) => {
+        const pane = element.querySelector<HTMLElement>('[data-testid="time-grid-day-pane"]')!
+        pane.style.position = 'relative'
+        pane.style.minHeight = '300px'
+        element.scrollTop = 600
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      })
+      expect(await scroller.evaluate((element) => element.scrollTop)).toBe(600)
+      for (const height of [400, 200]) {
+        await scroller.evaluate(async (element, height) => {
+          element.querySelector<HTMLElement>('[data-testid="time-grid-day-pane"]')!.style.minHeight = `${height}px`
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        }, height)
+        expect(await scroller.evaluate((element) => element.scrollTop)).toBe(600)
+      }
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each([412, 600, 1100, 1352].flatMap((width) => [1, 2].flatMap((scale) => (['light', 'dark'] as const).map((theme) => ({ width, scale, theme })))))('pins the week lanes with one hour scroll owner at $width, $scale text, $theme', async ({ width, scale, theme }) => {
     route.pathname = '/calendar'
     const view = renderDestination(weekBody())

@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, isCalendarGridScrollMovement, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 
 import { X } from '@/components/ui/icons';
@@ -382,8 +382,7 @@ export function CalendarTimeGrid({
     if (pending !== undefined) openingOffsets.current.vertical.delete(pending);
     else if (Math.abs(openingScroll.current.top - offset) > 1) {
       const maximumTravel = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height;
-      const isNativeClamp = offset < openingScroll.current.top && Math.abs(maximumTravel - offset) <= 1;
-      if (!isNativeClamp) hasMovedGrid.current = true;
+      if (isCalendarGridScrollMovement(offset, openingScroll.current.top, maximumTravel)) hasMovedGrid.current = true;
     }
     openingScroll.current.top = offset;
     scrollViewToY(gutterScrollRef.current, offset);
@@ -450,8 +449,7 @@ export function CalendarTimeGrid({
               if (pending !== undefined) openingOffsets.current.horizontal.delete(pending);
               else if (Math.abs(openingScroll.current.left - offset) > 1) {
                 const maximumTravel = event.nativeEvent.contentSize.width - event.nativeEvent.layoutMeasurement.width;
-                const isNativeClamp = offset < openingScroll.current.left && Math.abs(maximumTravel - offset) <= 1;
-                if (!isNativeClamp) hasMovedGrid.current = true;
+                if (isCalendarGridScrollMovement(offset, openingScroll.current.left, maximumTravel)) hasMovedGrid.current = true;
               }
               openingScroll.current.left = offset;
             }}
