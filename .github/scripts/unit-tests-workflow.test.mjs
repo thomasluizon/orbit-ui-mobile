@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -15,6 +15,12 @@ test("Unit Tests rejects failed, cancelled and skipped redesign prerequisites", 
   assert.equal(gate.if, "${{ always() }}")
   assert.deepEqual(gate.needs, ["build", "web-tests", "workspace-tests"])
   const step = gate.steps.find((candidate) => candidate.name === "Require every test job")
+  assert.deepEqual(step.env, {
+    BASE_REF: "${{ github.base_ref }}",
+    BUILD_RESULT: "${{ needs.build.result }}",
+    WEB_RESULT: "${{ needs.web-tests.result }}",
+    WORKSPACE_RESULT: "${{ needs.workspace-tests.result }}",
+  })
   for (const build of ["success", "failure", "cancelled", "skipped"]) {
     for (const web of ["success", "failure", "cancelled", "skipped"]) {
       for (const workspaces of ["success", "failure", "cancelled", "skipped"]) {
@@ -82,17 +88,89 @@ test("Unit Tests requires every jsdom and Chromium shard blob to be nonempty", (
   }
 })
 
-test("all other workspaces retain coverage and Sonar consumes the combined artifact", () => {
+test("every non-web test workspace has an independent coverage job", () => {
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+  const directories = manifest.workspaces.flatMap((pattern) => pattern.endsWith("/*")
+    ? readdirSync(join(root, pattern.slice(0, -2)), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory()).map((entry) => `${pattern.slice(0, -2)}/${entry.name}`)
+    : [pattern])
+  const expected = directories.flatMap((directory) => {
+    const workspace = JSON.parse(readFileSync(join(root, directory, "package.json"), "utf8"))
+    return workspace.scripts?.test && workspace.name !== "@orbit/web"
+      ? [{ workspace: workspace.name.replace(/^@orbit\//, ""), directory }]
+      : []
+  })
   const workspaces = workflow.jobs["workspace-tests"]
   assert.equal(workspaces.if, "github.base_ref == 'redesign/main'")
   assert.equal(workspaces.needs, undefined)
-  assert.ok(workspaces.steps.some((step) => step.run === "npx turbo run test --filter='!@orbit/web' --concurrency=1 -- --coverage"))
+  assert.ok(workspaces.strategy, "each non-web test workspace must run in the matrix")
+  assert.equal(workspaces.strategy["fail-fast"], false)
+  assert.deepEqual(Object.keys(workspaces.strategy.matrix), ["include"])
+  const byWorkspace = (left, right) => left.workspace.localeCompare(right.workspace)
+  assert.deepEqual([...workspaces.strategy.matrix.include].sort(byWorkspace), expected.sort(byWorkspace))
+  assert.equal(workspaces.name, "Workspace unit (${{ matrix.workspace }})")
+  assert.ok(workspaces.steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  const upload = workspaces.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
+  assert.equal(upload.with.name, "workspace-unit-coverage-${{ matrix.workspace }}")
+  assert.equal(upload.with.path, ".artifacts/workspace-coverage")
+  assert.equal(upload.with["include-hidden-files"], true)
+  assert.equal(upload.with["if-no-files-found"], "error")
+})
+
+test("workspace coverage keeps its directory tree and the gate rejects missing reports", () => {
+  const workspaces = workflow.jobs["workspace-tests"]
+  const stage = workspaces.steps.find((step) => step.name === "Stage workspace coverage").run
   const gate = workflow.jobs["unit-tests"]
+  const verify = gate.steps.find((step) => step.name === "Verify coverage reports").run
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const run = (command) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, encoding: "utf8" })
+  try {
+    mkdirSync(join(directory, "apps/web/coverage"), { recursive: true })
+    writeFileSync(join(directory, "apps/web/coverage/lcov.info"), "web coverage")
+    for (const { directory: workspace } of workspaces.strategy.matrix.include) {
+      const coverage = join(directory, workspace, "coverage/lcov.info")
+      const staged = join(directory, ".artifacts/workspace-coverage", workspace, "coverage/lcov.info")
+      mkdirSync(dirname(coverage), { recursive: true })
+      const command = stage.replaceAll("${{ matrix.directory }}", workspace)
+      assert.notEqual(run(command).status, 0, `missing ${workspace} coverage must fail staging`)
+      writeFileSync(coverage, "")
+      assert.notEqual(run(command).status, 0, `empty ${workspace} coverage must fail staging`)
+      writeFileSync(coverage, `${workspace} coverage`)
+      const result = run(command)
+      assert.equal(result.status, 0, result.stderr)
+      assert.equal(readFileSync(staged, "utf8"), readFileSync(coverage, "utf8"))
+    }
+    assert.equal(run(verify).status, 0)
+    for (const workspace of ["apps/web", ...workspaces.strategy.matrix.include.map((entry) => entry.directory)]) {
+      const coverage = join(directory, workspace, "coverage/lcov.info")
+      const held = join(directory, "held.info")
+      renameSync(coverage, held)
+      assert.notEqual(run(verify).status, 0, `missing ${workspace} coverage must fail the gate`)
+      writeFileSync(coverage, "")
+      assert.notEqual(run(verify).status, 0, `empty ${workspace} coverage must fail the gate`)
+      renameSync(held, coverage)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test("Unit Tests preserves merged coverage thresholds and Sonar consumes the combined artifact", () => {
+  const gate = workflow.jobs["unit-tests"]
+  const download = gate.steps.find((step) => step.name === "Download workspace coverage")
+  assert.equal(download.if, "github.base_ref == 'redesign/main'")
+  assert.equal(download.with.pattern, "workspace-unit-coverage-*")
+  assert.equal(download.with["merge-multiple"], true)
+  assert.equal(download.with.path, undefined)
   const merge = gate.steps.find((step) => step.name === "Merge web reports and enforce coverage thresholds")
   assert.match(merge.run, /--merge-reports=/)
   assert.match(merge.run, /--coverage/)
   assert.doesNotMatch(merge.run, /thresholds|--project|--shard|--reporter=blob/)
-  assert.ok(gate.steps.some((step) => step.with?.name === "unit-test-coverage"))
+  const upload = gate.steps.find((step) => step.with?.name === "unit-test-coverage")
+  assert.equal(upload.with["if-no-files-found"], "error")
+  for (const directory of ["apps/web", ...workflow.jobs["workspace-tests"].strategy.matrix.include.map((entry) => entry.directory)]) {
+    assert.ok(upload.with.path.split("\n").includes(`${directory}/coverage/lcov.info`))
+  }
   assert.equal(workflow.jobs.sonarcloud.needs, "unit-tests")
   assert.ok(workflow.jobs.sonarcloud.steps.some((step) => step.with?.name === "unit-test-coverage"))
 })
