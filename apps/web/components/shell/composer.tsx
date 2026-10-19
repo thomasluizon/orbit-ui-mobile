@@ -195,6 +195,16 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   </div>
 }
 
+function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
+  if (props.state !== 'idle' || props.value.length === 0) return null
+  return <button type="button" aria-label={props.words.clear} data-composer-clear
+    onMouseDown={event => event.preventDefault()}
+    onClick={() => { props.onChangeValue(''); inputRef.current?.focus() }}
+    className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+    <X size={20} strokeWidth={2} aria-hidden="true" />
+  </button>
+}
+
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
@@ -262,6 +272,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         />}
 
       <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
+        <ClearMessageControl props={props} inputRef={inputRef} />
         <ComposerControls props={props} />
 
       <button

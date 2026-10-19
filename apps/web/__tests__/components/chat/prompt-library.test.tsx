@@ -27,7 +27,7 @@ function Harness({ send = vi.fn(), state = 'idle', recording = false }: Readonly
   const value = useChatStore(store => store.draft)
   const messages = useChatStore(store => store.messages)
   const composerProps: ComposerProps = {
-    words: { placeholder: 'Ask Astra', send: 'Send', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
+    words: { placeholder: 'Ask Astra', send: 'Send', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
     value, onChangeValue: useChatStore.getState().setDraft, onSend: vi.fn(), suggestions: [],
     ...(recording ? { state: 'recording', onVoice: vi.fn(), voiceWords: { start: 'Start', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' } } : state === 'idle' ? { state } : state === 'offline' ? { state: 'offline', limitReason: 'You are offline' } : { state: 'atLimit', limitReason: 'Daily limit reached' }),
   }

@@ -232,6 +232,7 @@
     "composer": {
       "placeholder": "Peça à Astra",
       "send": "Enviar",
+      "clear": "Limpar mensagem",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
       "voice": {

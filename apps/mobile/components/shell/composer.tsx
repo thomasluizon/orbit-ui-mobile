@@ -324,6 +324,16 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
     </InsetFocusPressable>
 }
 
+function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
+  if (props.state !== 'idle' || props.value.length === 0) return null
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.clear}
+    focusColor={tokens.primary}
+    onPress={() => { props.onChangeValue(''); inputRef.current?.focus() }}
+    style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    <X size={20} strokeWidth={2} color={tokens.fg3} />
+  </InsetFocusPressable>
+}
+
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const [focused, setFocused] = useState(false)
   const inputDisabled = props.state !== 'idle'
@@ -341,6 +351,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} />}
 
       <View style={styles.trailingControls}>
+        <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />
         <ComposerControls props={props} tokens={tokens} />
 
       <InsetFocusPressable

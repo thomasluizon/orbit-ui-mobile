@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import { useState } from 'react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -10,6 +11,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
+  clear: 'clear sentinel',
   actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
@@ -48,6 +50,47 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
 }
 
 describe('Composer', () => {
+  it.each([{ messages: en, label: 'Clear message' }, { messages: ptBR, label: 'Limpar mensagem' }])('localizes the clear name to $label', ({ messages, label }) => {
+    render(<Composer {...props({ value: 'draft', words: messages.shell.composer })} />)
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+  })
+
+  it.each(['oi', '   ', '\n'])('shows clear as the first trailing control for typed text %j', value => {
+    render(<Composer {...props({ value, onVoice: vi.fn(), voiceWords })} />)
+    const clear = screen.getByRole('button', { name: words.clear })
+    expect(clear.parentElement).toHaveAttribute('data-composer-trailing-controls')
+    expect(clear.parentElement?.firstElementChild).toBe(clear)
+  })
+
+  it.each(['idle', 'recording', 'transcribing', 'sending', 'offline', 'atLimit'])('hides clear when empty or unavailable in %s', state => {
+    render(<Composer {...props({ state, value: state === 'idle' ? '' : 'draft', onVoice: vi.fn(), voiceWords })} />)
+    expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('clears through value changes and restores focus with an attachment: %s', attached => {
+    const onChangeValue = vi.fn()
+    const onAttachRemove = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = useState('')
+      return <Composer {...props({ value, onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+        ...(attached ? { attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove } : {}) })} />
+    }
+    render(<ControlledComposer />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'First\nSecond' } })
+    expect(screen.getByRole('button', { name: words.send })).toBeEnabled()
+    const clear = screen.getByRole('button', { name: words.clear })
+    clear.focus()
+    fireEvent.click(clear)
+    expect(onChangeValue).toHaveBeenLastCalledWith('')
+    expect(input).toHaveValue('')
+    expect(input).toHaveFocus()
+    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: words.clear })).not.toBeInTheDocument()
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    if (attached) expect(screen.getByText('walk.png')).toBeInTheDocument()
+  })
+
   it('opens and names its menu from the keyboard without changing the draft', async () => {
     render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords })} />)
     const trigger = screen.getByRole('button', { name: words.actions })

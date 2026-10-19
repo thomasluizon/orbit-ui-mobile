@@ -12,7 +12,7 @@ import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 
@@ -64,6 +64,7 @@ const TestRenderer = require('react-test-renderer')
 const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
+  clear: 'clear sentinel',
   actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
@@ -107,6 +108,52 @@ function renderComposer(composerProps: ComposerProps) {
   })
   return tree
 }
+
+it.each([{ messages: en, label: 'Clear message' }, { messages: ptBR, label: 'Limpar mensagem' }])('localizes the clear name to $label', ({ messages, label }) => {
+  const tree = renderComposer(props({ value: 'draft', words: messages.shell.composer }))
+  expect(byLabel(tree.root, label)).toHaveLength(1)
+  TestRenderer.act(() => tree.unmount())
+})
+
+it.each(['oi', '   ', '\n'])('shows clear for typed text %j', value => {
+  const tree = renderComposer(props({ value }))
+  expect(byLabel(tree.root, words.clear)).toHaveLength(1)
+  TestRenderer.act(() => tree.unmount())
+})
+
+it.each(['idle', 'recording', 'transcribing', 'sending', 'offline', 'atLimit'])('hides clear when empty or unavailable in %s', state => {
+  const tree = renderComposer(props({ state, value: state === 'idle' ? '' : 'draft', onVoice: vi.fn(), voiceWords }))
+  expect(byLabel(tree.root, words.clear)).toHaveLength(0)
+  TestRenderer.act(() => tree.unmount())
+})
+
+it.each([false, true])('clears through value changes and focuses the input with an attachment: %s', attached => {
+  const onChangeValue = vi.fn()
+  const onAttachRemove = vi.fn()
+  const focus = vi.fn()
+  __setFocusImpl(focus)
+  function ControlledComposer() {
+    const [value, setValue] = React.useState('')
+    return <Composer {...props({ value, onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
+      ...(attached ? { attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove } : {}) })} />
+  }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+  try {
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText('First\nSecond'))
+    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(false)
+    TestRenderer.act(() => byLabel(tree.root, words.clear)[0].props.onPress())
+    expect(onChangeValue).toHaveBeenLastCalledWith('')
+    const input = tree.root.findByType('TextInput')
+    expect(input.props.value).toBe('')
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ accessibilityLabel: words.placeholder }))
+    expect(__getFocusedNativeTag()).toBe(input.props.__nativeTag)
+    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
+    expect(byLabel(tree.root, words.clear)).toHaveLength(0)
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    if (attached) expect(textValues(tree.root)).toContain('walk.png')
+  } finally { TestRenderer.act(() => tree.unmount()) }
+})
 
 it('keeps one complete suggestion focus outline inside the scroller without resizing chips', () => {
   const tree = renderComposer(props())
@@ -569,6 +616,7 @@ describe('Composer (mobile)', () => {
       ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
     })
     const tree = renderComposer(configuration)
+    const clearWidth = state === 'idle' ? 48 + INTERACTION_FILL_CLEARANCE : 0
         try {
           for (const lineCount of state === 'recording' || state === 'transcribing' ? [1] : [1, 3, 5, 8]) {
             TestRenderer.act(() => tree.update(<Composer {...configuration} value={Array.from({ length: lineCount }, () => 'Typed line').join('\n')} />))
@@ -597,7 +645,7 @@ describe('Composer (mobile)', () => {
                 const slot = nodes.get('composer-text-slot')!
                 expect(input.getComputedHeight()).toBe(24 * fontScale * Math.min(5, lineCount) + 24)
                 expect(field.getComputedHeight()).toBe(input.getComputedHeight() + 8)
-                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0))
+                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - INTERACTION_FILL_CLEARANCE - (withOpener ? 48 : 0) - clearWidth)
                 expect(controlsBounds.left).toBeGreaterThanOrEqual(composerBounds(slot).right)
               } else expect(field.getComputedHeight()).toBe(56)
             } finally { layout.freeRecursive() }

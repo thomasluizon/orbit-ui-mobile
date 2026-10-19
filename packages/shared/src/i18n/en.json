@@ -232,6 +232,7 @@
     "composer": {
       "placeholder": "Ask Astra",
       "send": "Send",
+      "clear": "Clear message",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",
       "voice": {

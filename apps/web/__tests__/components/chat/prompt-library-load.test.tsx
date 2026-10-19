@@ -38,7 +38,7 @@ function conversation(locale: 'en' | 'pt-BR' = 'en') {
     canShowFollowUps: false, isOnline: true, hasProAccess: true, hasGoogleConnection: true, sendMessage: vi.fn(),
     composerProps: {
       state: 'idle', value: 'My unfinished draft', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
-      words: { placeholder: 'Ask Astra', send: 'Send', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
+      words: { placeholder: 'Ask Astra', send: 'Send', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
     },
   } as unknown as Parameters<typeof AstraConversation>[0]['chat']
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><AstraConversation chat={chat} /></NextIntlClientProvider>)

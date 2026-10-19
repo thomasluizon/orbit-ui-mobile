@@ -27,15 +27,15 @@ const cases = [320, 360, 384, 412].flatMap((width) =>
   [en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ width, messages, fontScale }))),
 )
 
-type GeometryScenario = 'idle' | 'typing' | 'longText' | 'sending' | 'recording' | 'transcribing' | 'tray1' | 'tray2' | 'tray3' | 'atLimit' | 'offline' | 'retry'
+type GeometryScenario = 'idle' | 'oneLine' | 'typing' | 'longText' | 'sending' | 'recording' | 'transcribing' | 'tray1' | 'tray2' | 'tray3' | 'atLimit' | 'offline' | 'retry'
 
 function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpener: boolean): ComposerProps {
-  const state = ['typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
+  const state = ['oneLine', 'typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
   return {
     state,
     ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
     ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
-    value: scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
+    value: scenario === 'oneLine' ? 'Oi' : scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
     suggestions: [], words: { ...messages.shell.composer, ...(state === 'offline' ? { placeholder: messages.shell.composer.offline.placeholder } : state === 'atLimit' ? { placeholder: messages.shell.composer.limit.placeholder } : {}) },
     onChangeValue: vi.fn(), onSend: vi.fn(),
     onVoice: vi.fn(), voiceWords: messages.shell.composer.voice,
@@ -60,7 +60,8 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   const { width, fontScale, withOpener, scenario } = context
   const evidence = JSON.stringify({ width, fontScale, withOpener, scenario, measured })
   expect(measured.documentWidth, evidence).toBe(width)
-  expect(measured.controls).toHaveLength(withOpener ? 3 : 2)
+  const hasClear = ['oneLine', 'typing', 'longText'].includes(scenario)
+  expect(measured.controls).toHaveLength((withOpener ? 3 : 2) + (hasClear ? 1 : 0))
   for (const [index, control] of measured.controls.entries()) {
     expect(control.width, evidence).toBe(48)
     expect(control.height, evidence).toBe(48)
@@ -69,20 +70,28 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
     if (index > 0) expect(control.left, evidence).toBeGreaterThanOrEqual(measured.controls[index - 1]!.right)
   }
   expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
-  if (measured.input) {
-    expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE)
-    if (fontScale === 1) {
-      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.contentWidth)
-    }
-    if (scenario === 'longText') {
-      expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
-      expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
-    } else if (scenario !== 'typing') {
-      if (measured.input.placeholderWidth > measured.input.contentWidth) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
-      else expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
-      expect(measured.input.scrollHeight, evidence).toBeLessThanOrEqual(measured.input.height)
-    }
-  } else expect(measured.pill.height, evidence).toBe(56)
+  if (measured.input) assertInputGeometry(measured.input, measured.pill.height, { fontScale, scenario, hasClear }, evidence)
+  else expect(measured.pill.height, evidence).toBe(56)
+}
+
+function assertInputGeometry(input: NonNullable<PillGeometry['input']>, pillHeight: number,
+  { fontScale, scenario, hasClear }: { fontScale: number; scenario: GeometryScenario; hasClear: boolean }, evidence: string) {
+  const clearWidth = hasClear ? 48 + INTERACTION_FILL_CLEARANCE : 0
+  expect(input.width, evidence).toBeGreaterThanOrEqual(136 - INTERACTION_FILL_CLEARANCE - clearWidth)
+  if (fontScale === 1 && !hasClear) expect(input.placeholderWidth, evidence).toBeLessThanOrEqual(input.contentWidth)
+  if (scenario === 'longText') {
+    expect(input.height, evidence).toBe(input.maximumHeight)
+    expect(input.scrollHeight, evidence).toBeGreaterThan(input.height)
+    return
+  }
+  if (scenario === 'oneLine') {
+    expect(pillHeight, evidence).toBe(24 * fontScale + 32)
+    return
+  }
+  if (scenario === 'typing') return
+  if (input.placeholderWidth > input.contentWidth) expect(pillHeight, evidence).toBeGreaterThan(24 * fontScale + 32)
+  else expect(pillHeight, evidence).toBe(24 * fontScale + 32)
+  expect(input.scrollHeight, evidence).toBeLessThanOrEqual(input.height)
 }
 
 const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle', 'namedActions'] as const
@@ -247,7 +256,7 @@ describe('Composer compact geometry in Chromium', () => {
       await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
       const typed = await field.evaluate(measureFieldInset)
       expect(typed.inset).toBe(placeholder.inset)
-      expect(typed.contentWidth).toBe(box.width - 16)
+      expect(typed.contentWidth).toBe(box.width - 16 - 48 - INTERACTION_FILL_CLEARANCE)
       if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
       expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
       expect(typed.scrollHeight).toBe(typed.height)
@@ -738,7 +747,7 @@ describe('Composer compact geometry in Chromium', () => {
   it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
-      for (const withOpener of [true, false]) for (const scenario of ['idle', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
+      for (const withOpener of [true, false]) for (const scenario of ['idle', 'oneLine', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })}</script>`)
         await page.addScriptTag({ content: composerScript })

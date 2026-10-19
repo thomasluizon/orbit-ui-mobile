@@ -84,6 +84,13 @@ describe('shared interaction fill owners in Chromium', () => {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
       await loadAppFonts(page)
+      if (surface === 'composer') {
+        const clear = page.getByRole('button', { name: messages.shell.composer.clear, exact: true })
+        expect(await clear.count()).toBe(1)
+        expect(await clear.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
+        const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
+        expect(new Set(bounds).size).toBe(1)
+      }
       const controls = page.locator('button:not(:disabled):not([aria-disabled="true"]), a[href], [role="switch"]')
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()

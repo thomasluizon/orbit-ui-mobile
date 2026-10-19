@@ -75,6 +75,29 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 describe('Android interaction fill clearance', () => {
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
     (['pressed', 'focused'] as const).map(state => ({ width, messages, state })))))(
+    'clears the composer clear fill at $width while $state', async ({ width, messages, state }) => {
+      let tree!: GeometryTree
+      await act(() => { tree = create(<Composer state="idle" value="Oi" suggestions={[]} words={messages.shell.composer}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
+        attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />) as GeometryTree })
+      try {
+        await setInteraction(tree, messages.shell.composer.clear, state)
+        const parts = measureInteractionFills(tree.toJSON(), Math.min(width, 740), state === 'pressed')
+        const clear = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.clear)!
+        const actions = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.actions)!
+        const send = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === messages.shell.composer.send)!
+        const fill = fillBox(parts, clear)
+        expect(clear.width).toBe(48)
+        expect(clear.bottom - clear.top).toBe(48)
+        expect(actions.left - fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(new Set([clear.top, actions.top, send.top]).size).toBe(1)
+        const field = parts.find(part => part.host.props.testID === 'composer-field')!
+        expect(field.bottom - field.top).toBe(56)
+      } finally { await act(() => tree.unmount()) }
+    })
+
+  it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>
+    (['pressed', 'focused'] as const).map(state => ({ width, messages, state })))))(
     'insets the habit detail composer at $width while $state', async ({ width, messages, state }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       let tree!: GeometryTree

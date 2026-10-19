@@ -845,6 +845,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       inputLabel: t("shell.composer.inputLabel"),
       ...(!isOnline ? { offlineReason: t("shell.composer.offline.reason") } : {}),
       send: t("shell.composer.send"),
+      clear: t("shell.composer.clear"),
       actions: t("shell.composer.actions"),
       suggestionsLabel: t("shell.composer.suggestionsLabel"),
       retry: t("shell.composer.retry"),
