@@ -152,13 +152,12 @@ Batches M (the move to the new stack), 0a, E (Supabase egress) and 1 (close the 
 The owner's order: the landing page first, then every redesign ticket, then feature flags and API versioning. The one-minute load gate is the only launch throttle.
 
 1. The landing page (owner priority over every other ticket):
-   - `#1459` Rebuild the landing page as Pierre's page in Orbit's design, with Astra as the focus (`landing#102`; each round follows the owner's latest review; the round history is in `## Batch history` and on the ticket).
+   - `#1459` Rebuild the landing page as Pierre's page in Orbit's design, with Astra as the focus (`landing#102`; the owner approved the page as served on the staging landing at `2348fc5`, so its design is frozen there and no more visual or judge rounds run; what remains is the `Lighthouse` total blocking time red with no change to what the page shows, then merge; the round history is in `## Batch history` and on the ticket).
 2. The remaining redesign tickets, then the rest of the Astra plan:
    - `#1545` Keep every hover, press and focus fill clear of its neighbours (`ui#1870`).
    - `#1554` A failed or lost Astra block answer reply can be retried without spending the answer or the allowance twice (`orbit-api#777`, api `redesign/main`; release the staging API from api `redesign/main` after it merges).
    - `#1483` Choice and pick list blocks on web and Android (`ui#1857`; merges only after the staging API carries the block answer retry).
-   - `#396` Register an AI tool for the proactive Astra setting so Astra can change it.
-   - `#48` Ground the Astra daily summary in real multi-day adherence data.
+   - `#1556` Name the Astra notifications setting in Astra's change preview on web and Android (the UI half of `#396`, built in parallel against its `setProactiveAstra` action key).
    - `#21` Constrain Astra free text answers to tool returned facts.
    - `#1491` Remove the retired proactive check-in ledger after the expand rollout (waits: the proactive engine runs in production and no instance older than the expand migration runs).
 3. Feature flags and API versioning (owner-approved; the `orbit-api` redesign work reaches `main` ahead of the gate for this, API only; the gate still holds for the web, Android and landing builds):
@@ -180,11 +179,9 @@ These are the gates every later batch runs through. Re-read each ticket against 
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync (same rule).
 - `#1359` Full web Vitest run stalls in its final fork without a completion result.
 - `#1090` Provision the second Claude Max account for workers and Pullfrog (owner-only; waits until the Codex credits run out, standing rule).
-- `#1095` Make headless Claude the committed worker engine, under its own account (after the second account exists).
-- `#1096` Run the Pullfrog primary review on Claude (`orbit-ui-mobile`).
+- `#1095` Move the orbit-ui-mobile harness off OpenAI: headless Claude as the worker engine, the Pullfrog primary review on Claude, and the Codex-only paths deleted (folds `#1096`, `#1099`).
 - `#1097` Run the Pullfrog primary review on Claude (`orbit-api`).
 - `#1098` Run the Pullfrog primary review on Claude (`orbit-landing-page`).
-- `#1099` Delete the Codex-only harness paths (last of the move off OpenAI).
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -222,11 +219,8 @@ API first, deploy, then the UI half in Batch 2b.
 
 Includes the packaging changes (milestone "Packaging: caps, quotas and tiers"), the PostHog work and the redesign polish the freeze moved past the gate (D144).
 
-- `#196` AI quota copy becomes daily across web and mobile.
 - `#237` Sub-habits leave Pro: remove the server gate and unseed the flag (`orbit-api`; deploy it before the UI half).
-- `#238` Sub-habits leave Pro (UI): drop the matrix row and the copy that sells depth.
-- `#195` Habit-limit paywall copy removed; new at-capacity state.
-- `#197` Retrospective unlocks on any Pro plan; remove the yearlyPro entitlement.
+- `#195` Packaging UI: the at-capacity habit state, daily AI quota copy, the Retrospective on any Pro plan, and sub-habits leaving Pro (folds `#196`, `#197`, `#238`).
 - `#62` Show and explain the Pro-days referral reward on the surfaces users actually see (after the referral grant deploys).
 - `#181` Bulk-move selected habits, and open the move picker at the habit's current position (after the bulk reparent endpoint deploys).
 - `#386` Show the billed charge on the subscription screen once the API returns it.
@@ -235,21 +229,14 @@ Includes the packaging changes (milestone "Packaging: caps, quotas and tiers"), 
 - `#222` Linking a habit becomes the primary route into creating a goal.
 - `#213` Define the retention cohort and stand up the recurring read.
 - `#1355` Keep the Progresso streak section the same height for every freeze bank state while it loads.
-- `#1362` Fade the Calendário month day well with its hover fill instead of dropping it in one frame.
-- `#1363` Keep the Calendário day card the same height when the month lands on a day with several habits.
-- `#1373` Fail the Android suite when a Calendários sheet sync label wraps at compact widths.
+- `#1363` Calendário polish: the day card height, the month day well fade, and an Android check that the Calendários sync label never wraps (folds `#1362`, `#1373`).
 - `#1536` Use the shared radius scale on session recovery notices.
 
 ### Batch 3: the landing page and the Play listing, together
 
 - `#249` BRAND.md copy and format cleanups.
-- `#272` A production build fails without `PUBLIC_TURNSTILE_SITE_KEY`, and a malformed key fails the build too.
-- `#273` Turnstile error callback fights its own auto-retry, forcing a reset loop on any persistent error.
-- `#274` Turnstile flexible size overflows the waitlist dialog below about 332 px viewport width.
-- `#276` Turnstile widget keeps its first language and does not follow the runtime language toggle (after the error callback fix when it re-renders the widget).
-- `#278` Turnstile init hangs silently when the script loads but never executes.
-- `#280` Landing analytics consent cannot be withdrawn once granted.
-- `#282` A CTA click between consent grant and PostHog readiness is silently dropped (after the consent withdrawal path).
+- `#272` Harden the waitlist Turnstile widget: the build-time key check, error and retry, flexible size, runtime language and a load timeout (folds `#273`, `#274`, `#276`, `#278`).
+- `#280` Landing analytics consent: let a visitor withdraw it, and never drop a CTA click before PostHog is ready (folds `#282`).
 - `#286` The 404 Lighthouse carve-out records what it excludes but not the measurement that justifies it.
 
 ### Batch 4: the component-library migration
@@ -257,58 +244,43 @@ Includes the packaging changes (milestone "Packaging: caps, quotas and tiers"), 
 D101, and strictly after the redesign ships.
 
 - `#576` Put a headless behaviour layer under our primitives: rn-primitives on mobile, Radix on web (first; the four rebuilds follow it).
-- `#577` Rebuild the anchored menus and popovers on the headless layer, both platforms.
-- `#578` Rebuild the remaining overlays on the headless layer, both platforms.
-- `#579` Rebuild the select and the pickers on the headless layer, both platforms.
-- `#580` Rebuild the toast, tabs and form controls on the headless layer, both platforms.
+- `#577` Rebuild every anchored menu, popover and overlay on the headless layer, both platforms (folds `#578`).
+- `#579` Rebuild the select, the pickers, the toast, the tabs and the form controls on the headless layer, both platforms (folds `#580`).
 
 ### Batch 5: Astra
 
 Milestone "562 Astra" and every Astra or MCP tool ticket.
 
-- `#17` Harden MCP auth and wire content moderation into the chat and MCP input paths.
-- `#18` Bound per-user AI spend and close the residual MCP authz gaps (after the MCP auth hardening; the budget item waits on chat telemetry).
-- `#16` Cut Astra chat input tokens roughly 35 percent via tool gating, schema trim, and a smaller history window.
+- `#17` Harden MCP auth and bound per-user AI spend: content moderation, the tool-boundary scope check, the ownership map, idempotency and a distributed OAuth code (folds `#18`).
 - `#19` Execute Astra bulk intents server side on the full matching set and report the true affected count.
 - `#23` Localize Astra tool result card text via structured message keys in the contract.
-- `#24` Chat surface UX: localized tool-result cards and the preview, confirm, edit pattern for bulk intents (after the message keys ship).
+- `#24` Chat surface UX: localized tool-result cards, every action-chip label, and the preview, confirm, edit pattern for bulk and destructive intents (folds `#49`).
 - `#26` Build the Astra prompt to behavior eval harness and gate launch on it.
-- `#49` Localize the Astra action-chip labels for UpdateChecklist and the other unmapped tool types.
 - `#201` Persist Astra conversations so failures are debuggable.
 - `#202` Astra builds invalid payloads for date-specific tasks and weekday-recurring habits.
 - `#236` Astra's Pro claims still wrong: streak freezes, the Pro list, and completed habits in the habit cap.
-- `#244` Astra crashes the chat turn when asked to log a habit already logged for that date.
-- `#246` Astra cannot unmark a habit: add `unlog_habit` (after the duplicate log fix, which edits the same description line).
+- `#246` Fix Astra's habit logging tools: the duplicate log crash, unlog_habit, habits that are not due, and ownership scoping (folds `#244`, `#247`, `#254`).
 - `#248` The habit list does not refresh after Astra unmarks a habit (after `unlog_habit`).
 - `#245` The agent audit write commits the caller's uncommitted work and loses the row when it matters (deploy alone).
-- `#247` Astra logs habits that are not due, because its habit listing never says so.
-- `#254` Chat habit-tool follow-ups: unproven ownership scoping and the changed failure contract.
-- `#259` Test that `create_goal` enforces `MaxHabitsPerGoal` on the Astra path.
-- `#260` `CanSendAiMessage` is orphaned after the atomic reservation migration.
-- `#264` Add an MCP middleware test that proves the rate limit runs on the real request path.
+- `#264` Close the Astra and MCP test gaps: the MCP rate limit on the real request path, the create_goal habit cap, and the orphaned CanSendAiMessage (folds `#259`, `#260`).
 - `#514` Extend the capability inventory to the MCP surface and to field level, and file the gaps.
-- `#582` Move Astra to the current cheap model tier and send a per-user prompt cache key.
-- `#583` Make every Astra tool schema strict, with enums for every closed set of values (after the model move; both change `AiIntentService.cs`).
+- `#582` Astra model calls: the cheap model tier, a per-user prompt cache key, strict tool schemas, about 35 percent fewer input tokens, and one PostHog LLM event per call (folds `#16`, `#583`, `#584`).
 - `#418` Let Astra retry a rejected tool call safely (after strict schemas, which change the same tool shapes).
-- `#584` Emit one PostHog LLM analytics event per Astra model call.
 
 ### Batch 6: security, correctness and the deletions
 
 A deletion ships as a deprecation, then a code removal, then a table drop, each in its own release. A DTO contraction waits on the `AppConfig.MinSupportedVersion` raise being live in the Play fleet. A deprecation's `[Obsolete]` raises SonarCloud `S1133`: Accept those issues with a comment naming the ticket's removal part, through the signed-in SonarCloud page.
 
 - `#1531` Raise `MinSupportedVersion` to 1.3.38 in production (the owner's yes at the production API release that carries it; it unblocks the contractions below).
-- `#1555` Drop the challenge and accountability tables after the part 1 removal (merged on api `main` as `c75ab1bd`, code only) is released to production with drain evidence.
+- `#1555` Drop the retired challenge, accountability and AI memory tables after their code removals (`c75ab1bd`, and `#235` in `orbit-api#783`) are released to production with drain evidence.
 - `#235` Delete AI memory (API): UserFacts, AiFactExtractionBatches, the batch poller, three chat tools, three MCP tools and the Pro gate.
 - `#239` Delete the social layer (API), part 2: friend graph, feed, cheers, blocks, reports, public profile and the drop migration (after part 1).
 - `#227` Habit model: split StartDate from NextDueDate and replace the three flags with enum HabitSchedule.
 - `#230` API gate parity, part 2: clear the hand-written pragmas and `SuppressMessage` attributes (after the AI memory and social deletions remove the code they sit in).
-- `#685` Delete the colour-scheme write path once no supported client writes it (waits on the `MinSupportedVersion` raise).
+- `#685` Contract the API after the MinSupportedVersion raise: delete the colour-scheme write path and the ad reward profile field and user columns (folds `#765`).
 - `#753` Drop the legacy AdMob privacy disclosure once 1.3.35 is the minimum supported version.
-- `#765` Drop the ad reward profile field and user columns once 1.3.35 is the minimum supported version.
 - `#732` Remove the legacy bulk replay lookup (waits: 30 days after the replay fix reached production).
-- `#1113` Take the `node-forge` fix when one ships (waits on upstream).
-- `#1182` Take the `braces` fix when one ships for the Expo build tooling (waits on upstream).
-- `#1331` Take the `sprintf-js` fix when one ships for the Lighthouse CI tooling (waits on upstream).
+- `#1113` Take the upstream fixes when they ship: node-forge, braces, sprintf-js and the image-size advisories (folds `#1182`, `#1331`, `#311`).
 
 ### Batch 7: the production readiness run
 
@@ -318,7 +290,6 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 - `#32` Triage and root-cause the open web and mobile Sentry issues.
 - `#33` Record the 7 demo clips and 2 landing videos (owner).
 - `#89` Map and migrate every third-party account onto contact@useorbit.org (owner).
-- `#311` Recheck the image-size advisories once a fixed version ships (waits on upstream).
 - `#315` Run /prod-readiness once the board is clear (last).
 
 ## How the work runs
@@ -539,7 +510,9 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot taken at a context relay. Every CI result, approval and staging figure in it may be hours old: refresh it before acting with `gh pr list` in each repository, `node tools/run-status.mjs --session <id>` and `node tools/release-plan.mjs --environment staging --branch redesign/main`.
 
-Latest relay: 2 redesign tickets are open, unchanged (`#1459` in the milestone, plus `#1545`); both have a pull request. The owner-ordered whole-board triage is applied: nine read-only readers verified all 120 tickets against `main` and `redesign/main`; 5 stale tickets were cancelled as not planned with their evidence (`#581`, `#1357`, `#269`, `#270`, `#285`), 10 were folded into the ticket that carries the same change (into `#264`, `#222`, `#1363`, `#276`, `#273`, `#278`, `#272` and `#1536`), 97 bodies were rewritten with verified facts (75 full rewrites that keep every original section the rewrite had no place for, 22 prepended verified sections where the reader saw a trimmed original), 11 titles were corrected. With `#208` and `#218` closed on their merges, the board holds 103 open tickets, and `## The order` places each exactly once (the scratchpad `reconcile.mjs` counts bullet placements: open, placed, unplaced, placed twice, placed closed); the pre-triage order text is `## Batch history`. Merged: `ui#1878` (`#1553` carry, `ae6fe396e`), `orbit-api#780` (`#208` 3D Secure on checkout, api `main` `46e3aac4`), `orbit-api#779` (`#218` part 1 removal, api `main` `c75ab1bd`; tables kept for `#1555`). Pull requests: `ui#1870` (`#1545`) base merge `652b10e5a` pushed with rounds 5 and 6, thread resolved, CI and a fresh review pending; `ui#1857` (`#1483`, `13f4490f0`) approved earlier but its head has no Pullfrog review now and one Layout Guard red (`conversation-suggestion-set.spec.ts:43`, pt-BR 412 at limit false: the empty feed held a button; one of 16 variants), and it merges only after `orbit-api#777` reaches the staging API; `orbit-api#777` (`#1554`) round 2 committed locally as `2486f179` on the base merge `0934cbe1` (report `report-1554-rb2.md`: 10566 tests pass in both locales; the regenerated migration `20261019124138_AddAstraBlockAnswerReplay` follows `AddOwedSubscriptionCancellations`), unpushed; `landing#102` (`#1459`, `670f8d2`) approved, `Lighthouse` red (TBT 349 against 200). The owner's findings on the staging landing (round 29e: the billing choice must sit side by side again, the Grátis and Pro cards must be two compact simple cards, the feature section repeats Caminhar and Beber água and is bloated) are the scratchpad order `order-1459-r29h.md`, not launched, together with the TBT cut; the red-capable repro attempt `lh-red.sh 16 3` (devtools 16x on frozen builds in `lhtree/`) writes its runs to `lhred-16/`. Staging: web `3ec561b8f` (behind `redesign/main`), API `63b88c15`, landing round 29e (`2f2587f`).
+Latest relay: 2 redesign tickets are open, unchanged (`#1459` in the milestone, plus `#1545`); both have a pull request. The owner approved the landing page as served on the staging landing at `2348fc5` (round 29h plus the run's pricing review fix: Anual and Mensal side by side, two compact plan cards with a neutral inline Recomendado badge, one price size, nothing repeated, seven one-card feature rows, one chart). Its design is frozen there; what remains is the `Lighthouse` red (TBT 343 against 200 on `2348fc5`): the whole figure is one `Unattributable` long task of about 393 ms at about 1.36 s in the CI lhr, which the round's cuts did not touch, and the scratchpad `note-1459-tbt.md` holds the diagnosis and the bisect plan (`6d21f58` read 179; bisect `2f2587f`, `2706808`, `670f8d2` on CI). At the owner's order the board was consolidated: 14 same-repository groups folded 30 tickets into their leads (every body kept under `## Folded from #N`), `#1555` widened to the AI memory tables, and the board holds 74 open tickets, each placed once in `## The order`. Merged: `orbit-api#781` (`#396`, Astra switches Astra notifications through `SetProactiveAstraEnabledCommand`, api `redesign/main` `ed660471`) and `orbit-api#782` (`#48`, daily summary grounded in 14 days of done, skipped and missed counts, api `main` `fc5e641f`). Filed and built: `#1556` (`ui#1879`, the preview names the setting). Pull requests: `orbit-api#777` (`#1554`, `db7d3159`: round 2 plus the approved recovery copy) CHANGES_REQUESTED on one P1 thread (do not replay an approvable preview from an older revision, `AstraBlockAnswerService.cs:257`); `ui#1857` (`#1483`, `585737bf0`: the racy empty-introduction spec fixed and proven, old spec 1 of 24 red, new 48 of 48) green but CHANGES_REQUESTED on two P2 threads about a retry meeting the client's daily-limit gate or charge count; `ui#1870` (`#1545`) round 8 `963e90cef` local and unpushed (12 unit files 55 failures to 0, calendar geometry, checkbox alignment and composer focus rings restored with the 4px fill clearance kept; report `report-1545-r8.md`); `orbit-api#783` (`#235` code removal, tables kept) read: two P2s and P3s in `note-783-r1.md`; `orbit-api#784` (`#21`) CHANGES_REQUESTED, unread; `orbit-api#785` (`#746` carry of `46e3aac4` and `c75ab1bd`) approved, unread; `ui#1879` approved at `c474564e8` with the run's local `e8bde1dac` unpushed (capability label map instead of a one-off branch) and a copy finding (the summary and approve labels never say on or off); `ui#1881` (`#1359`, bounded Vitest worker phases, full web run 538 files exit 0) approved, unread; `ui#1880` (the contract rebaseline bot, `main`). Staging: web `3ec561b8f`, API `63b88c15`, landing `2348fc5` (`orbit-build` verified).
+
+Previous relay: 2 redesign tickets are open, unchanged (`#1459` in the milestone, plus `#1545`); both have a pull request. The owner-ordered whole-board triage is applied: nine read-only readers verified all 120 tickets against `main` and `redesign/main`; 5 stale tickets were cancelled as not planned with their evidence (`#581`, `#1357`, `#269`, `#270`, `#285`), 10 were folded into the ticket that carries the same change (into `#264`, `#222`, `#1363`, `#276`, `#273`, `#278`, `#272` and `#1536`), 97 bodies were rewritten with verified facts (75 full rewrites that keep every original section the rewrite had no place for, 22 prepended verified sections where the reader saw a trimmed original), 11 titles were corrected. With `#208` and `#218` closed on their merges, the board holds 103 open tickets, and `## The order` places each exactly once (the scratchpad `reconcile.mjs` counts bullet placements: open, placed, unplaced, placed twice, placed closed); the pre-triage order text is `## Batch history`. Merged: `ui#1878` (`#1553` carry, `ae6fe396e`), `orbit-api#780` (`#208` 3D Secure on checkout, api `main` `46e3aac4`), `orbit-api#779` (`#218` part 1 removal, api `main` `c75ab1bd`; tables kept for `#1555`). Pull requests: `ui#1870` (`#1545`) base merge `652b10e5a` pushed with rounds 5 and 6, thread resolved, CI and a fresh review pending; `ui#1857` (`#1483`, `13f4490f0`) approved earlier but its head has no Pullfrog review now and one Layout Guard red (`conversation-suggestion-set.spec.ts:43`, pt-BR 412 at limit false: the empty feed held a button; one of 16 variants), and it merges only after `orbit-api#777` reaches the staging API; `orbit-api#777` (`#1554`) round 2 committed locally as `2486f179` on the base merge `0934cbe1` (report `report-1554-rb2.md`: 10566 tests pass in both locales; the regenerated migration `20261019124138_AddAstraBlockAnswerReplay` follows `AddOwedSubscriptionCancellations`), unpushed; `landing#102` (`#1459`, `670f8d2`) approved, `Lighthouse` red (TBT 349 against 200). The owner's findings on the staging landing (round 29e: the billing choice must sit side by side again, the Grátis and Pro cards must be two compact simple cards, the feature section repeats Caminhar and Beber água and is bloated) are the scratchpad order `order-1459-r29h.md`, not launched, together with the TBT cut; the red-capable repro attempt `lh-red.sh 16 3` (devtools 16x on frozen builds in `lhtree/`) writes its runs to `lhred-16/`. Staging: web `3ec561b8f` (behind `redesign/main`), API `63b88c15`, landing round 29e (`2f2587f`).
 
 Previous relay: 4 redesign tickets are open, unchanged (`#1459`, `#1438` in the milestone, plus `#1541`, `#1545`); every one has a pull request. The board has 124 open tickets, all placed (`#1553` and `#1548` closed; `#1554` and `#1555` filed). Merged: `ui#1877` (`#1553`) to `main` as `a5b9699c1` (Orbit Staging runs only its embedded bundle; internal releases skip design bundle publication), and `orbit-api#776` (`#1548`) to api `main` as `96023f9a4`. Staging web was released from `redesign/main` `e29f29ac6` (carries `ui#1779` and `ui#1824`; `/api/health` reports that commit); staging API `63b88c15`, staging landing round 29e. Open: `ui#1878` (`#1553` carry into `redesign/main`, `8988af7d4`, CI pending), `ui#1859` (`#1541` and `#1481`, round 1 `d00b4bee4` pushed and its thread resolved: the opened proactive item's text enters the next request's history; CI pending), `ui#1786` (`#1438`, base merge `88bba1304` pushed; CI pending), `ui#1857` (`#1483`, round 2 `8bbbe42e4` pushed, both threads resolved: base merge, a shared `BlockAnswerSubmission` that brings the mobile composer hook to 991 lines, retry tests on `#1554`'s contract; merges only after `orbit-api#777` is on api `redesign/main` and the staging API is released from it), `orbit-api#777` (`#1554`, `7a0de55f`: a failed or lost Astra block answer reply is retried without a second charge; an orchestrator diff read found two P1s, so it does not merge before a review round: `jsonb` loses the discriminator key order so a replay with parts fails on PostgreSQL, and a release after committed tool writes repeats them on retry; plus a stuck claim after a crash and three P3s), `orbit-api#778` (`#746` carry of api `main` `#771` to `#776` into api `redesign/main`, `6586a167`, 10,513 tests in both locale runs), `ui#1870` (`#1545`: round 6 `2bf509b60` is local and unpushed on top of round 5 `fb9aeaa56`; round 5's full guard run passed 295 of 311, and round 6 judges both remaining classes guard defects: the Hoje Create habit button is recreated after Astra closes, and the empty Astra dialog takes focus before its dynamic chunk mounts; the base overlay check on `redesign/main` `a34169759` passed 11 of 11, so it no longer proves the guard red, and the red proof is a head build with the pull request's habit title fill fix reverted), `landing#102` (`#1459`: round 29f `2706808` and round 29g `670f8d2` local and unpushed; 29g answers the Pullfrog P2 on the 24px reach floor at 844x390 and 568x320 with a 188px minimum device and an unpinned short hero; its probe set and Lighthouse A/B run as `landing-probe/r29g-run.sh`). `#218`'s removal decision: the code removal ships now and keeps the tables and EF mappings (the rolling schema barrier puts the contract in a later release); `#1555` drops the tables after that removal is released.
 
@@ -635,7 +608,7 @@ Worktrees: merged tickets' worktrees go with `node tools/teardown-worktree.mjs` 
 
 - Answered: the two SonarCloud `S1133` issues on `orbit-api#753` are Accepted; SonarCloud triage runs through `claude-in-chrome` in the owner's signed-in Chrome, never as an owner step.
 
-- Owner yes needed at the production API release that carries them, not now: `orbit-api#750`'s production IAM policy, the `#738` production JWT configuration and the `#749` production BFF forwarding secret (both applied to staging by target; production env groups unchanged), and the `#1531` production floor raise (1.3.11 to 1.3.38). They block only that release. That release also carries `#718` (`orbit-api#764`), `#1547` (`orbit-api#770`), `#1551` (`orbit-api#774`), `#1549` (`orbit-api#775`), `#1548` (`orbit-api#776`) and, once merged, `#218`'s removal (which needs the `MinSupportedVersion` raise live first) and `#208`'s 3D Secure request (`orbit-api#780`).
+- Owner yes needed at the production API release that carries them, not now: `orbit-api#750`'s production IAM policy, the `#738` production JWT configuration and the `#749` production BFF forwarding secret (both applied to staging by target; production env groups unchanged), and the `#1531` production floor raise (1.3.11 to 1.3.38). They block only that release. That release also carries `#718` (`orbit-api#764`), `#1547` (`orbit-api#770`), `#1551` (`orbit-api#774`), `#1549` (`orbit-api#775`), `#1548` (`orbit-api#776`) `#218`'s removal (`orbit-api#779`, which needs the `MinSupportedVersion` raise live first), `#208`'s 3D Secure request (`orbit-api#780`), and once merged `#235`'s removal (`orbit-api#783`) and `#48`'s summary grounding (`orbit-api#782`).
 
 - THE REDESIGN GATE approval, owed by the owner after he retests Orbit Staging 1.3.82 (141), the build carrying the fixes for his 1.3.80 and 1.3.81 findings (`#1381` to `#1411`). It blocks the merge of `redesign/main` to `main`, Batch 2a onward, `#972` (needs the merge), `#134` (his device check of the three-dot menu) and `#390` (a real phone test). `#1113` waits on an upstream `node-forge` release.
 
@@ -1083,7 +1056,6 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#23` Localize Astra tool result card text via structured message keys in the contract
 - `#24` Chat surface UX: Stage 1, localized tool-result cards, which needs the `#23` message keys (Stages 2 and 3 are merged on `redesign/main`)
 - `#26` Build the Astra prompt to behavior eval harness and gate launch on it
-- `#48` Ground the Astra daily summary in real multi-day adherence data
 - `#49` Localize the Astra action-chip labels for UpdateChecklist and the other unmapped tool types
 - `#201` Persist Astra conversations so failures are debuggable
 - `#202` Astra builds an invalid payload for date-specific tasks
