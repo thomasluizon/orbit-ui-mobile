@@ -259,7 +259,8 @@ describe('Composer compact geometry in Chromium', () => {
       expect(typed.contentWidth).toBe(box.width - 16 - 48 - INTERACTION_FILL_CLEARANCE)
       if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
       expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
-      expect(typed.scrollHeight).toBe(typed.height)
+      if (typed.height === typed.maximumHeight) expect(typed.scrollHeight).toBeGreaterThanOrEqual(typed.height)
+      else expect(typed.scrollHeight).toBe(typed.height)
       for (const control of await page.locator('[data-composer-input-row] button').all()) {
         const bounds = (await control.boundingBox())!
         expect(bounds.width).toBe(48)
@@ -591,7 +592,7 @@ describe('Composer compact geometry in Chromium', () => {
         const field = page.getByRole('textbox')
         expect(await field.evaluate((element) => element === document.activeElement)).toBe(true)
         expect(await readFieldIndicators(field, '[data-composer-input-row]', { forcedColors })).toHaveLength(1)
-        for (const name of [en.shell.composer.actions, en.shell.composer.send]) {
+        for (const name of [en.shell.composer.clear, en.shell.composer.actions, en.shell.composer.send]) {
           await page.keyboard.press('Tab')
           const control = page.getByRole('button', { name, exact: true })
           expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
