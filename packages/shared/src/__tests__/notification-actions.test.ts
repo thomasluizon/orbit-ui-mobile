@@ -3,6 +3,7 @@ import {
   getNotificationDetailActionVisibility,
   getNotificationDestination,
   getNotificationInboxState,
+  isRetiredNotification,
   getNotificationTargetKey,
   isViewableNotificationUrl,
   resolveNotificationUrl,
@@ -13,6 +14,37 @@ import {
 import { createMockNotification } from './factories'
 
 describe('notification-actions', () => {
+  it.each(['/social?tab=buddies', '/social', '/public-profile/123', '/u/thomas'])(
+    'identifies %s as retired',
+    (url) => {
+      expect(isRetiredNotification({ url })).toBe(true)
+      expect(isViewableNotificationUrl(url)).toBe(false)
+    },
+  )
+
+  it.each([
+    { url: '/streak', habitId: null },
+    { url: '/chat', habitId: null },
+    { url: '/calendar-sync?mode=review', habitId: null },
+    { url: '/profile', habitId: null },
+    { url: null, habitId: null },
+    { url: null, habitId: 'habit-1' },
+    { url: '/unknown', habitId: 'habit-1' },
+  ])('keeps $url with $habitId and its destination', ({ url, habitId }) => {
+    const notification = { url, habitId }
+    expect(isRetiredNotification(notification)).toBe(false)
+    expect(getNotificationTargetKey(url, habitId)).toBe(
+      url === '/streak' ? 'nav.progress' : url === '/chat' ? 'nav.today'
+        : url?.startsWith('/calendar-sync') ? 'nav.calendar' : url === '/profile' ? 'nav.profile' : null,
+    )
+  })
+
+  it.each([undefined, '', 'https://orbit.app', '//evil.com'])(
+    'does not classify a non-viewable URL %s as retired',
+    (url) => { expect(isRetiredNotification({ url })).toBe(false) },
+  )
+
+
   it.each([
     ['/', 'nav.today'],
     ['/calendar', 'nav.calendar'],
@@ -50,6 +82,16 @@ describe('notification-actions', () => {
     expect(getNotificationDestination(notification.url, habitId)).toBeNull()
     expect(getNotificationTargetKey(notification.url, habitId)).toBeNull()
     expect(getNotificationDetailActionVisibility(notification).canView).toBe(false)
+  })
+
+  it('subtracts hidden unread rows once while retaining the endpoint total', () => {
+    const retired = createMockNotification({ id: 'retired', url: '/social', isRead: false })
+    const read = createMockNotification({ id: 'read', url: '/u/example', isRead: true })
+    const pending = createMockNotification({ id: 'pending', url: '/streak', isRead: false })
+    const active = createMockNotification({ id: 'active', url: '/unknown', isRead: false })
+    expect(getNotificationInboxState([retired, read, pending, active], 20, ['retired', 'pending']))
+      .toEqual({ visibleNotifications: [active], visibleUnreadCount: 18 })
+    expect(getNotificationInboxState([retired], 0, []).visibleUnreadCount).toBe(0)
   })
 
   it('uses the endpoint total and subtracts only pending unread items', () => {

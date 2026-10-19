@@ -144,9 +144,9 @@ describe('StatTile', () => {
             expect(tile.placeholderRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
             expect(tile.placeholderWidth).toBeGreaterThan(0)
             expect(tile.placeholderWidth).toBeLessThanOrEqual(64)
-            expect(tile.height).toBeCloseTo(32 * fontScale + 22 * 1.4 + 20 + 8 * fontScale, 1)
+            expect(tile.height).toBeCloseTo(32 + 22 * 1.4 + 20 + 8, 1)
             expect(tile.valueHeight).toBeCloseTo(22 * 1.4, 1)
-            expect(tile.gap).toBe(8 * fontScale)
+            expect(tile.gap).toBe(8)
             expect(tile.busy).toBe('true')
             expect(tile.hidden).toBe('true')
           }

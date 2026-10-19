@@ -1,3 +1,4 @@
+import { PADDING, SPACING } from '@orbit/shared/theme'
 import { forwardRef, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -79,13 +80,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'column',
       gap: 24,
       overflow: 'hidden',
-      padding: 32,
+      padding: SPACING.s32,
       borderRadius: 20,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
-    progressCard: { width: '100%', maxWidth: SHARE_CARD_WIDTH, height: 'auto', minHeight: SHARE_CARD_HEIGHT, padding: 24, backgroundColor: tokens.bg },
+    progressCard: { width: '100%', maxWidth: SHARE_CARD_WIDTH, height: 'auto', minHeight: SHARE_CARD_HEIGHT, padding: PADDING.cardInset, backgroundColor: tokens.bg },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',

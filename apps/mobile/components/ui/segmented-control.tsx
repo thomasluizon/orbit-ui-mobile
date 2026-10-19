@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { StyleSheet, Text, useWindowDimensions } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     gap: 4,
     maxWidth: '100%',
-    padding: 4,
+    padding: SPACING.s4,
   },
   fullWidth: { alignSelf: 'stretch', width: '100%' },
   disabled: {
@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     maxWidth: '100%',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.s8,
+    paddingVertical: SPACING.s4,
   },
   unselected: {
     borderColor: 'transparent',

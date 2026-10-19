@@ -55,6 +55,7 @@ const cases = [
       'dataCollected',
       'howWeUse',
       'thirdParty',
+      'cookies',
       'retention',
       'googleScopes',
       'dataResidency',

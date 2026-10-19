@@ -159,6 +159,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
             type="button"
             data-shell-search=""
             onClick={onPalette}
+            aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
             className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
           >
@@ -371,7 +372,7 @@ function ShellWideBackground({
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
-        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}

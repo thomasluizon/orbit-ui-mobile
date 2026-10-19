@@ -1,5 +1,6 @@
 import type { ChatClientContext } from '../types/chat'
 import { resolveHourCycle } from '../utils/locale-format'
+import { CHAT_BLOCK_KINDS } from './block-kinds'
 
 interface ChatClientContextOptions {
   platform: ChatClientContext['platform']
@@ -34,6 +35,8 @@ export function buildChatClientContext({
     supportsPendingOperationChanges: true,
     supportsToolSteps: true,
     supportsFollowUps: true,
+    supportsParts: true,
+    partKinds: [...CHAT_BLOCK_KINDS],
     ...(messageOrigin ? { messageOrigin } : {}),
     ...(entryPointIntent ? { entryPointIntent } : {}),
   }

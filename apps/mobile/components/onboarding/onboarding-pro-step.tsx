@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -82,7 +83,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   return <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
 }
 
-const styles = StyleSheet.create({ root: { paddingVertical: 32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 } })
+const styles = StyleSheet.create({ root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 } })
 
 function ProSkeleton({ color }: Readonly<{ color: string }>) {
   const block = { backgroundColor: color, borderRadius: radius.md }

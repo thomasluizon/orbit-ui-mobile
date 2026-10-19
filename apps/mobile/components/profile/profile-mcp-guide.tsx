@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useTranslation } from 'react-i18next'
+import { SPACING } from '@orbit/shared/theme'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -56,7 +57,7 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
         </View>
         <View>
           <Text selectable style={[styles.endpoint, { color: tokens.fg2 }]}>{endpoint}</Text>
-          <Text accessibilityLiveRegion="polite" style={[styles.note, { color: tokens.statusBadText, paddingTop: copyState === 'error' ? 12 : 0 }]}>{copyState === 'error' ? t('orbitMcp.copyError') : ''}</Text>
+          <Text accessibilityLiveRegion="polite" style={[styles.note, { color: tokens.statusBadText, paddingTop: copyState === 'error' ? SPACING.s12 : SPACING.s0 }]}>{copyState === 'error' ? t('orbitMcp.copyError') : ''}</Text>
         </View>
         <Text selectable style={[styles.note, { color: tokens.fg3 }]}>{t('orbitMcp.webNoApiKey')}</Text>
       </View>

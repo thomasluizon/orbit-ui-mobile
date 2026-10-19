@@ -14,7 +14,6 @@ const ROOT_PATHS: Record<string, string> = { hoje: '/', calendario: '/calendar',
 export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pathname: string; notFound?: boolean }>) {
   const router = useRouter()
   const scrollToTop = useRootScrollReselect()
-  const setActiveView = useUIStore((s) => s.setActiveView)
   const lastDestination = useUIStore((s) => s.lastDestination)
 
   const active = useMemo(
@@ -29,7 +28,6 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
       return
     }
     if (id === 'hoje') {
-      setActiveView('today')
       router.navigate('/(tabs)')
       return
     }

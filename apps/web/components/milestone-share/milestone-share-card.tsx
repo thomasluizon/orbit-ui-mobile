@@ -1,5 +1,8 @@
 'use client'
 
+import { SPACING } from '@orbit/shared/theme'
+
+
 import type { CSSProperties, Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
@@ -8,8 +11,8 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 
 const rarityBadgeStyle: CSSProperties = {
   display: 'inline-block',
-  marginTop: 8,
-  padding: '4px 8px',
+  marginTop: SPACING.s8,
+  padding: "var(--orbit-space-4) var(--orbit-space-8)",
   borderRadius: 8,
   fontSize: 12,
   fontWeight: 600,
@@ -57,7 +60,7 @@ export function MilestoneShareCard({
           color: 'var(--fg-1)',
         }}
       >
-        <div style={{ position: 'relative', padding: 24, background: 'var(--bg-card)' }}>
+        <div style={{ position: 'relative', padding: SPACING.s24, background: 'var(--bg-card)' }}>
           <div className="flex items-center" style={{ gap: 8 }}>
             <OrbitMark size={24} accent />
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em' }}>
@@ -65,23 +68,23 @@ export function MilestoneShareCard({
             </span>
           </div>
 
-          <p style={{ marginTop: 16, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <p style={{ marginTop: SPACING.s16, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {eyebrow}
           </p>
 
           {variant.kind === 'streak' ? (
             <>
               <p
-                style={{ marginTop: 8, fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
+                style={{ marginTop: SPACING.s8, fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
               >
                 {variant.streak} 🔥
               </p>
-              <p style={{ marginTop: 8, fontSize: 16, fontWeight: 500, color: 'var(--fg-2)' }}>
+              <p style={{ marginTop: SPACING.s8, fontSize: 16, fontWeight: 500, color: 'var(--fg-2)' }}>
                 {t('milestoneShare.streakTitle', { count: variant.streak })}
               </p>
             </>
           ) : (
-            <div className="flex items-center" style={{ gap: 16, marginTop: 12 }}>
+            <div className="flex items-center" style={{ gap: 16, marginTop: SPACING.s12 }}>
               <span aria-hidden="true" style={{ fontSize: 44, lineHeight: 1 }}>
                 {achievementEmoji(variant.iconKey)}
               </span>
@@ -100,9 +103,9 @@ export function MilestoneShareCard({
         {referralUrl && (
           <div
             className="flex items-center"
-            style={{ gap: 12, padding: 16, borderTop: '1px solid var(--hairline)' }}
+            style={{ gap: 12, padding: SPACING.s16, borderTop: '1px solid var(--hairline)' }}
           >
-            <div style={{ padding: 4, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
+            <div style={{ padding: SPACING.s4, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
               <ShareCardQr value={referralUrl} size={56} />
             </div>
             <div style={{ minWidth: 0 }}>

@@ -3,7 +3,7 @@
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -81,14 +81,14 @@ export function CalendarSyncEventRow({
         borderRadius: 12,
       }}
     >
-      <PersonalTextAction className="flex-1" label={accessibleLabel} contentClassName="flex items-start" contentStyle={{ gap: 12, paddingBlock: 12, minHeight: TOUCH_TARGET_MIN }} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset overflow-hidden bg-[var(--calendar-event-fill)]" />} control={<button
+      <PersonalTextAction className="flex-1" label={accessibleLabel} contentClassName="flex items-start" contentStyle={{ gap: 12, paddingBlock: SPACING.s12, minHeight: TOUCH_TARGET_MIN }} controlDecoration={<span aria-hidden="true" data-press-fill="" className="orbit-list-row-outset overflow-hidden bg-[var(--calendar-event-fill)]" />} control={<button
         type="button"
         onClick={() => onToggle(event.id)}
         disabled={importIssue !== null}
         aria-pressed={selected}
         aria-describedby={importIssueId}
         className="orbit-list-row-body flex-1 min-w-0 text-start flex items-start appearance-none border-0 bg-transparent cursor-pointer rounded-[12px] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed"
-        style={{ gap: 12, paddingBlock: 12, '--calendar-event-fill': importIssue ? 'var(--bg-elev)' : selected ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent' } as CSSProperties}
+        style={{ gap: 12, paddingBlock: SPACING.s12, '--calendar-event-fill': importIssue ? 'var(--bg-elev)' : selected ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent' } as CSSProperties}
       >
         <span data-slot="list-row-content" id={`${titleId}-details`} data-calendar-event-disclosure="" className="flex-1 min-w-0 block">
           <PersonalText id={titleId}
@@ -97,12 +97,12 @@ export function CalendarSyncEventRow({
               fontSize: 17,
               fontWeight: 500,
               color: importIssue ? 'var(--fg-3)' : 'var(--fg-1)',
-              paddingInline: 0,
+              paddingInline: SPACING.s0,
             }}
            expanded={expanded}>{event.title}</PersonalText>
           <span
             className="flex flex-wrap items-center"
-            style={{ gap: 8, marginTop: 4 }}
+            style={{ gap: 8, marginTop: SPACING.s4 }}
           >
             {event.startDate && (
               <span
@@ -153,7 +153,7 @@ export function CalendarSyncEventRow({
                 className="min-w-0"
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  paddingInline: 0,
+                  paddingInline: SPACING.s0,
                   fontSize: 12,
                   color: 'var(--fg-2)',
                 }}
@@ -169,7 +169,7 @@ export function CalendarSyncEventRow({
                 fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 color: 'var(--status-bad-text)',
-                marginTop: 4,
+                marginTop: SPACING.s4,
               }}
             >
               {importIssueLabel}
@@ -178,7 +178,7 @@ export function CalendarSyncEventRow({
         </span>
         <span
           className="relative shrink-0"
-          style={{ marginTop: 0, opacity: importIssue ? 0.5 : 1 }}
+          style={{ marginTop: SPACING.s0, opacity: importIssue ? 0.5 : 1 }}
         >
           <RadioGlyph selected={selected} size={24} />
         </span>
@@ -192,7 +192,7 @@ export function CalendarSyncEventRow({
           disabled={dismissPending}
           aria-label={t('calendar.autoSync.dismissSuggestion')}
           className="icon-btn touch-target group/dismiss shrink-0 disabled:opacity-50"
-          style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, marginTop: 8, color: 'var(--fg-3)' }}
+          style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, marginTop: SPACING.s8, color: 'var(--fg-3)' }}
         >
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>

@@ -12,10 +12,11 @@ import {
   invalidateHabitDependents,
   restoreCachedHabitLists,
   restoreCachedHabitSkip,
+  rollbackDatedHabitLists,
   updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
-import { buildOptimisticSkipPatch, optimisticPatchHabit, optimisticRemoveHabits, optimisticSkipMarker } from '../utils/habit-optimistic'
+import { buildOptimisticSkipPatch, optimisticPatchHabit, optimisticRemoveHabits, optimisticSetDatedCompletion, optimisticSkipMarker } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
 
 describe('skip undo cache', () => {
@@ -275,6 +276,51 @@ describe('habit mutation settlement', () => {
       habitKeys.summaryPrefix(),
     ]) expect(invalidate).toHaveBeenCalledWith({ queryKey })
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+  })
+})
+
+describe('dated completion rollback', () => {
+  it.each([false, true])('restores the failed toggle while preserving another day, previously completed: %s', (completed) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-10-17'
+    const otherDate = '2026-10-18'
+    const habit = createMockHabitScheduleItem({ isCompleted: completed, isLoggedInRange: completed, instances: [{ date, status: completed ? 'Completed' : 'Pending', logId: completed ? 'original-log' : null }] })
+    client.setQueryData(key, [habit])
+    const snapshot: HabitListSnapshots = [[key, [habit]]]
+    const toggled = optimisticSetDatedCompletion([habit], habit.id, date, !completed, 'optimistic-log')
+    const current = optimisticSetDatedCompletion(toggled, habit.id, otherDate, true, 'other-log')
+    client.setQueryData(key, current)
+    rollbackDatedHabitLists(client, snapshot, habit.id, date, 'optimistic-log')
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      isLoggedInRange: true,
+      instances: [habit.instances[0], { date: otherDate, status: 'Completed', logId: 'other-log' }],
+    })
+    client.clear()
+  })
+
+  it('preserves a newer server log instead of rolling it back with an older failed request', () => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-10-17'
+    const habit = createMockHabitScheduleItem({ instances: [] })
+    client.setQueryData(key, optimisticSetDatedCompletion([habit], habit.id, date, true, 'server-log'))
+    rollbackDatedHabitLists(client, [[key, [habit]]], habit.id, date, 'optimistic-log')
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.instances).toEqual([{ date, status: 'Completed', logId: 'server-log' }])
+    client.clear()
+  })
+
+  it('retains legacy absence of the range flag and ignores missing snapshot habits', () => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-10-17'
+    const habit = createMockHabitScheduleItem({ instances: [] })
+    delete habit.isLoggedInRange
+    client.setQueryData(key, optimisticSetDatedCompletion([habit], habit.id, date, true, 'optimistic-log'))
+    rollbackDatedHabitLists(client, [[habitKeys.list({ search: 'missing' }), undefined], [key, [habit]]], habit.id, date, 'optimistic-log')
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).not.toHaveProperty('isLoggedInRange')
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.instances).toEqual([{ date, status: 'Pending', logId: null }])
+    client.clear()
   })
 })
 

@@ -84,7 +84,7 @@ export function MetaStrip({ tokens, expanded = false }: Readonly<MetaStripProps>
     >
       {tokens.map((token, i) => (
         <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: '0 4px' }}>·</span>}
+          {i > 0 && <span style={{ margin: "var(--orbit-space-0) var(--orbit-space-4)" }}>·</span>}
           {renderMetaToken(token)}
         </Fragment>
       ))}

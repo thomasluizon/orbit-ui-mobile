@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { PADDING } from '@orbit/shared/theme'
 import { isRecapShareEmpty, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
@@ -17,6 +18,24 @@ import { ShareCard } from './share-card'
 
 interface ShareCardSheetProps {
   onClose: () => void
+}
+
+function ShareCardFeedback({ hasError, savedFileName, tokens }: Readonly<{
+  hasError: boolean
+  savedFileName: string | null
+  tokens: ReturnType<typeof createTokensV2>
+}>) {
+  const { t } = useTranslation()
+  return (
+    <View style={hasError || savedFileName ? styles.feedbackGroup : undefined}>
+      <View accessible accessibilityRole="alert" accessibilityLiveRegion="polite">
+        {hasError ? <Text style={[styles.feedback, { color: tokens.statusBadText }]}>{t('shareCard.shareError')}</Text> : null}
+      </View>
+      <View accessible accessibilityLiveRegion="polite">
+        {!hasError && savedFileName ? <Text style={[styles.feedback, { color: tokens.fg2 }]}>{t('shareCard.saved', { file: savedFileName })}</Text> : null}
+      </View>
+    </View>
+  )
 }
 
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
@@ -38,23 +57,25 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
 
   return (
     <Sheet title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onClose={onClose} actions={actions}>
-      <View style={styles.content}>
-        <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
-        {isLoading || (!recap && !isError) ? <View accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('shareCard.loading')} style={styles.loading}>
-          {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
-        </View> : null}
-        {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
-        {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
-        {ready && recap ? <ShareCard ref={shareRef} recap={recap} variant="progress" /> : null}
-        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.feedback, { color: tokens.statusBadText }]}>{hasError ? t('shareCard.shareError') : ''}</Text>
-        <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: tokens.fg2 }]}>{!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}</Text>
+      <View>
+        <View style={styles.content}>
+          <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+          {isLoading || (!recap && !isError) ? <View accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('shareCard.loading')} style={styles.loading}>
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+          </View> : null}
+          {isError ? <ErrorState message={t('shareCard.error')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : null}
+          {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
+          {ready && recap ? <ShareCard ref={shareRef} recap={recap} variant="progress" /> : null}
+        </View>
+        <ShareCardFeedback hasError={hasError} savedFileName={savedFileName} tokens={tokens} />
       </View>
     </Sheet>
   )
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 24, minWidth: 0 },
-  loading: { minHeight: 640, gap: 24, justifyContent: 'center' },
+  content: { gap: PADDING.sectionGap, minWidth: 0 },
+  loading: { minHeight: 640, gap: PADDING.sectionGap, justifyContent: 'center' },
+  feedbackGroup: { paddingTop: PADDING.sectionGap },
   feedback: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
 })

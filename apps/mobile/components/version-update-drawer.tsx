@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -187,7 +188,7 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
-      paddingTop: 8,
+      paddingTop: SPACING.s8,
     },
   })
 }

@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
@@ -180,8 +180,8 @@ const styles = StyleSheet.create({
   bar: {
     borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.s16,
+    paddingVertical: SPACING.s12,
     gap: 8,
   },
   captionRow: {
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: SPACING.s4,
   },
   selectAllFill: {
     position: 'absolute',

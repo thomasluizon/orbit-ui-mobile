@@ -4,11 +4,12 @@ import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowUpRight } from "@/components/ui/icons";
-import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
+import { SPACING, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
   getRelatedSurfaces,
+  getChatMessageParts,
   hasChatProse,
   partitionMessageActions,
   selectMessageOperationBlocks,
@@ -20,35 +21,28 @@ import { useChatStore } from '@/stores/chat-store'
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
-import { GoalListCard } from "@/components/chat/goal-list-card";
-import { HabitListCard } from "@/components/chat/habit-list-card";
-import { MetricsCard } from "@/components/chat/metrics-card";
-import { PeriodInsightCard } from "@/components/chat/period-insight-card";
-import { DaySummaryCard } from "@/components/chat/day-summary-card";
-import { StreakCard } from "@/components/chat/streak-card";
-import { CalendarCard } from "@/components/chat/calendar-card";
-import { RecordListCard } from "@/components/chat/record-list-card";
-import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
+import { ChatBlock } from "@/components/chat/block-registry";
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
-function MessageProse({ message, sourceText, styles }: Readonly<{
+function MessageProse({ message, sourceText, styles, showImage }: Readonly<{
   message: MessageBubbleProps['message'];
   sourceText: string;
+  showImage: boolean;
   styles: ReturnType<typeof createStyles>;
 }>) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
-  if (!isUser && !hasChatProse(sourceText) && !message.imageUrl) return null;
+  if (!isUser && !hasChatProse(sourceText) && !(showImage && message.imageUrl)) return null;
   return (
     <View
       testID="message-prose"
       style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
     >
-      {message.imageUrl && (
+      {showImage && message.imageUrl && (
         <Image
           source={{ uri: message.imageUrl }}
           accessibilityLabel={t("chat.attachmentPreview")}
@@ -59,42 +53,10 @@ function MessageProse({ message, sourceText, styles }: Readonly<{
       )}
 
       <Markdown tone="thread" copyableBlocks={!isUser}>
-        {isUser ? message.content : sourceText}
+        {sourceText}
       </Markdown>
     </View>
   );
-}
-
-function MessageDataLists({
-  message,
-  onActionChipClick,
-}: Readonly<Pick<MessageBubbleProps, "message" | "onActionChipClick">>) {
-  return (
-    <>
-      {message.habitList ? <HabitListCard habitList={message.habitList} /> : null}
-      {message.goalList ? (
-        <GoalListCard
-          goalList={message.goalList}
-          onOpenGoal={(id) => onActionChipClick?.(id, "CreateGoal")}
-        />
-      ) : null}
-    </>
-  );
-}
-
-function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBubbleProps, 'message'> & { isStreaming: boolean }>) {
-  if (isStreaming || message.role === 'user') return null
-  return (
-    <>
-      {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
-      {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
-      {message.daySummary ? <DaySummaryCard daySummary={message.daySummary} /> : null}
-      {message.streak ? <StreakCard streakCard={message.streak} /> : null}
-      {message.calendar ? <CalendarCard calendarCard={message.calendar} /> : null}
-      {message.recordLists?.map((recordList, index) => <RecordListCard key={index} recordList={recordList} />)}
-      {message.accountRows ? <AccountRowsCard accountRows={message.accountRows} /> : null}
-    </>
-  )
 }
 
 export function MessageBubble({
@@ -122,7 +84,7 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
-  const sourceText = stripChatDirectives(message.content, isStreaming);
+  const parts = isUser ? [{ type: "text" as const, text: message.content }] : getChatMessageParts(message, isStreaming);
   const operationBlocks = useMemo(() => selectMessageOperationBlocks(message), [message]);
 
   const {
@@ -153,13 +115,13 @@ export function MessageBubble({
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
-        <MessageProse message={message} sourceText={sourceText} styles={styles} />
-
-        {!isUser ? (
-          <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
-        ) : null}
-
-        <MessageMetricsBlocks message={message} isStreaming={isStreaming} />
+        {parts.map((part, index) => {
+          if (!part) return null;
+          if (part.type === 'block') return <ChatBlock key={index} part={part} onActionChipClick={onActionChipClick} />;
+          return <MessageProse key={index} message={message}
+            sourceText={isUser ? part.text : stripChatDirectives(part.text, isStreaming)}
+            styles={styles} showImage={index === 0} />;
+        })}
 
         {!isUser && relatedSurfaces.length > 0 ? (
           <View style={styles.relatedContainer}>
@@ -321,8 +283,8 @@ function createStyles(tokens: AppTokens) {
     },
     userBubble: {
       backgroundColor: tokens.bgWell,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: SPACING.s16,
+      paddingVertical: SPACING.s12,
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       borderBottomLeftRadius: 16,
@@ -339,7 +301,7 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      marginBottom: 8,
+      marginBottom: SPACING.s8,
     },
     relatedContainer: {
       width: "100%",
@@ -348,8 +310,8 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 12,
       color: tokens.fg3,
-      marginBottom: 4,
-      paddingHorizontal: 4,
+      marginBottom: SPACING.s4,
+      paddingHorizontal: SPACING.s4,
     },
     relatedChips: {
       flexDirection: "row",
@@ -361,7 +323,7 @@ function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 4,
       minHeight: TOUCH_TARGET_MIN,
-      paddingHorizontal: 16,
+      paddingHorizontal: SPACING.s16,
       borderRadius: 999,
       overflow: "hidden",
       backgroundColor: tokens.bgElev,

@@ -3,7 +3,7 @@ import { ActionRow } from './action-row'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -80,7 +80,7 @@ export function Sheet({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height, width } = useWindowDimensions()
   const bodyPaddingHorizontal = minimumBodyWidth == null
-    ? 24
+    ? PADDING.sheetInline
     : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
       minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) ? step : inset
     ), SHEET_BODY_INSETS[0])
@@ -272,7 +272,7 @@ function renderSheetFooter(
 }
 
 function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
-  return [{ maxHeight }, hasFooter ? { paddingBottom: 0 } : null]
+  return [{ maxHeight }, hasFooter ? { paddingBottom: SPACING.s0 } : null]
 }
 
 function createStyles(tokens: Tokens) {
@@ -282,9 +282,9 @@ function createStyles(tokens: Tokens) {
       flexDirection: 'row',
       gap: 16,
       minHeight: 56,
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingHorizontal: PADDING.sheetInline,
+      paddingTop: PADDING.sheetHeaderTop,
+      paddingBottom: PADDING.sheetHeaderBottom,
     },
     title: {
       color: tokens.fg1,
@@ -299,8 +299,8 @@ function createStyles(tokens: Tokens) {
       minWidth: 0,
       minHeight: 48,
       justifyContent: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 8,
+      paddingHorizontal: SPACING.s8,
+      paddingVertical: SPACING.s8,
       borderRadius: 12,
       overflow: 'hidden',
     },
@@ -320,7 +320,7 @@ function createStyles(tokens: Tokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 17,
       lineHeight: 26.35,
-      paddingBottom: 16,
+      paddingBottom: SPACING.s16,
     },
     titleSpacer: {
       flex: 1,
@@ -337,9 +337,9 @@ function createStyles(tokens: Tokens) {
       backgroundColor: tokens.bgHover,
     },
     body: {
-      paddingHorizontal: 24,
-      paddingTop: 8,
-      paddingBottom: 24,
+      paddingHorizontal: PADDING.sheetInline,
+      paddingTop: PADDING.sheetTop,
+      paddingBottom: PADDING.sheetBottom,
     },
     actions: {
       alignItems: 'center',
@@ -347,12 +347,12 @@ function createStyles(tokens: Tokens) {
       flexWrap: 'wrap',
       gap: 8,
       justifyContent: 'flex-end',
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 24,
+      paddingHorizontal: PADDING.sheetInline,
+      paddingTop: PADDING.sheetFooterTop,
+      paddingBottom: PADDING.sheetBottom,
     },
     footer: { backgroundColor: tokens.bgSheet },
-    notice: { paddingHorizontal: 24, paddingVertical: 16 },
+    notice: { paddingHorizontal: PADDING.sheetInline, paddingVertical: SPACING.s16 },
   })
 }
 

@@ -1,5 +1,8 @@
 'use client'
 
+import { PADDING, SPACING } from '@orbit/shared/theme'
+
+
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -68,7 +71,7 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
     <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </div>
   return <div className="flex flex-col gap-2">
-    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: SPACING.s0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
     {state === 'loading' ? <div><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
     {state === 'failed' ? <div className="flex flex-col gap-2"><p role="alert" className="m-0 text-base text-[var(--fg-1)]">{t('calendar.fetchError')}</p><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></div> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
@@ -187,7 +190,7 @@ function CalendarDayRows({
     return (
       // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
       <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <span className="flex min-w-0 items-start" style={{ gap: 8, paddingInline: 16, paddingBlock: 12 }}>
+        <span className="flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
           <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
             <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{value}</span>
@@ -261,8 +264,8 @@ export function CalendarDayDetail({
   const body = (
     <div className="flex flex-col" style={{ gap: 16 }}>
       <div className="flex flex-col" style={{ gap: 4 }}>
-        {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
-        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: 0, visibility: loadingLabel ? 'hidden' : undefined }}>
+        {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: SPACING.s0 }}>{formattedDate}</h2> : null}
+        <p className="font-mono text-xs text-[var(--fg-3)]" style={{ margin: SPACING.s0, visibility: loadingLabel ? 'hidden' : undefined }}>
           {summary}
         </p>
       </div>
@@ -312,7 +315,7 @@ export function CalendarDayDetail({
       aria-busy={loadingLabel ? true : undefined}
       data-field-surface="card"
       className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
-      style={{ padding: 24 }}
+      style={{ padding: PADDING.cardInset }}
     >
       {body}
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>

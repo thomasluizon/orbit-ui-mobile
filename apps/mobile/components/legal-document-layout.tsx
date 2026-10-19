@@ -1,4 +1,4 @@
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   scroll: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
-  document: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, minWidth: 0, paddingHorizontal: 16, paddingTop: 16, gap: 24 },
+  document: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, minWidth: 0, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16, gap: 24 },
   titleBlock: { minWidth: 0, gap: 8 },
   title: { minWidth: 0, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, letterSpacing: -0.44 },
   titleWide: { fontSize: 28, lineHeight: 32.2, letterSpacing: -0.56 },

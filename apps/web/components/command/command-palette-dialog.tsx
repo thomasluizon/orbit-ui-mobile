@@ -33,7 +33,7 @@ export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRe
   const overlay = paletteOpen ? (
     <div
       ref={registerPortal}
-      className="z-modal fixed inset-0 flex items-start justify-center pl-[max(16px,var(--safe-left))] pr-[max(16px,var(--safe-right))] pt-[max(16px,var(--safe-top))] sm:pt-[max(96px,var(--safe-top))]"
+      className="z-modal fixed inset-0 flex items-start justify-center pl-[max(var(--orbit-space-16),var(--safe-left))] pr-[max(var(--orbit-space-16),var(--safe-right))] pt-[max(var(--orbit-space-16),var(--safe-top))] sm:pt-[max(var(--orbit-space-96),var(--safe-top))]"
     >
       <button
         type="button"
@@ -47,7 +47,7 @@ export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRe
         role="dialog"
         aria-modal="true"
         aria-label={t('command.title')}
-        className="relative flex max-h-[calc(100dvh-max(16px,var(--safe-top))-max(16px,var(--safe-bottom)))] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-max(96px,var(--safe-top))-max(16px,var(--safe-bottom)))]"
+        className="relative flex max-h-[calc(100dvh-max(var(--orbit-space-16),var(--safe-top))-max(var(--orbit-space-16),var(--safe-bottom)))] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-max(var(--orbit-space-96),var(--safe-top))-max(var(--orbit-space-16),var(--safe-bottom)))]"
       >
         <CommandMenu
           navItems={navItems}
