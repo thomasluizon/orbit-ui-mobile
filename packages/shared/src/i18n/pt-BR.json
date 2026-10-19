@@ -3406,6 +3406,7 @@
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "keyCreatedWarning": "Copie esta chave agora. Ela não vai aparecer de novo.",
+    "copyError": "Não deu para copiar a URL. Tente de novo ou selecione o texto e copie manualmente.",
     "copied": "Copiado",
     "done": "Concluído",
     "connectionInstructions": "Como conectar",

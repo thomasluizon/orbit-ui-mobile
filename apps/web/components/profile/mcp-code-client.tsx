@@ -7,6 +7,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Copy } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 import { Chip } from '@/components/ui/chip'
+import { ProfileMcpGuide } from '@/components/profile/profile-mcp-guide'
 import { PillButton } from '@/components/ui/pill-button'
 
 function McpCodeConfig({ endpoint }: Readonly<{ endpoint: string }>) {
@@ -58,6 +59,7 @@ export function McpCodeClient({ endpoint }: Readonly<{ endpoint: string }>) {
         <div className="flex min-w-0 flex-col" style={{ gap: 12 }}>
           <p translate="no" className="break-all font-mono text-[12px] text-[var(--fg-2)]">{endpoint}</p>
           <p className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('orbitMcp.webNoApiKey')}</p>
+          <ProfileMcpGuide />
         </div>
       ) : <McpCodeConfig endpoint={endpoint} />}
     </div>

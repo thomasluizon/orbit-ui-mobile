@@ -7,6 +7,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Copy } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 import { Chip } from '@/components/ui/chip'
+import { ProfileMcpGuide } from '@/components/profile/profile-mcp-guide'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -69,6 +70,7 @@ export function McpCodeClient({ endpoint }: Readonly<{ endpoint: string }>) {
         <View style={styles.endpoint}>
           <Text selectable style={[styles.code, { color: tokens.fg2 }]}>{endpoint}</Text>
           <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.webNoApiKey')}</Text>
+          <ProfileMcpGuide />
         </View>
       ) : <McpCodeConfig endpoint={endpoint} />}
     </View>
