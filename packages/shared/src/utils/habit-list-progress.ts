@@ -78,6 +78,25 @@ export function computeParentSettlementDecision(
   return children.loggedDone > 0 ? 'log' : 'skip'
 }
 
+export type ParentPromptDecision =
+  | { type: 'open'; mode: HabitResolutionMode }
+  | { type: 'release' }
+  | { type: 'none' }
+
+export function computeParentPromptDecision(
+  parent: NormalizedHabit | null,
+  children: ParentPromptProgress,
+  promptDate: string,
+  promptedParentIds: ReadonlySet<string>,
+): ParentPromptDecision {
+  if (children.total === 0 || children.done < children.total) {
+    return { type: 'release' }
+  }
+  const mode = computeParentSettlementDecision(parent, children, promptDate)
+  if (!parent || !mode || promptedParentIds.has(parent.id)) return { type: 'none' }
+  return { type: 'open', mode }
+}
+
 /**
  * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent prompt. A
  * sub-habit counts toward `total` when it is due today, overdue, already logged, or was just

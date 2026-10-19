@@ -440,6 +440,7 @@ export type { HabitPickerOption } from './habit-picker'
 export {
   computeHabitDayProgress,
   computeParentSettlementDecision,
+  computeParentPromptDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
@@ -448,6 +449,7 @@ export type {
   ParentPromptProgress,
   ParentPromptProgressOptions,
   ParentSettlementDecision,
+  ParentPromptDecision,
 } from './habit-list-progress'
 export {
   buildGoalTitle,
