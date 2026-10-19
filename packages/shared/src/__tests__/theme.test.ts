@@ -53,7 +53,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'web API-key create request error',
     path: 'apps/web/components/profile/profile-api-keys.tsx',
-    pattern: /\{management\.createKeyError && !scopeOpen \? \(\s*<p role="alert" className="text-sm text-\[var\(--status-bad-text\)\]">\{management\.createKeyError\}<\/p>/,
+    pattern: /\{management\.createKeyError && !creationMode \? \(\s*<p role="alert" className="text-sm text-\[var\(--status-bad-text\)\]">\{management\.createKeyError\}<\/p>/,
   },
   {
     name: 'web list row title',
@@ -118,7 +118,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'mobile API-key create request error',
     path: 'apps/mobile/components/profile/profile-api-keys.tsx',
-    pattern: /\{management\.createKeyError && !scopeOpen \? \(\s*<Text accessibilityRole="alert" style=\{\[styles\.message, \{ color: tokens\.statusBadText \}\]\}>\{management\.createKeyError\}<\/Text>/,
+    pattern: /\{management\.createKeyError && !creationMode \? \(\s*<Text accessibilityRole="alert" style=\{\[styles\.message, \{ color: tokens\.statusBadText \}\]\}>\{management\.createKeyError\}<\/Text>/,
   },
   {
     name: 'mobile habit understanding error',
