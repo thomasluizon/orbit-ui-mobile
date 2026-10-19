@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
   realTimeField: false,
   realReminderSections: false,
   realHeaderRing: false,
+  realChildRows: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -254,8 +255,12 @@ vi.mock('@/components/habits/habit-log-button', async (importOriginal) => {
       : <button type="button" aria-label={props.label} data-logged={props.logged} data-disabled-reason={props.disabledReason} disabled={props.disabled} onClick={props.onPress}>{props.label}</button>,
   }
 })
-vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  return { HabitRow: (props: React.ComponentProps<typeof actual.HabitRow>) => {
+    if (mocks.realChildRows) return <actual.HabitRow {...props} />
+    const { habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions = {} } = props
+    return (
     <div>
       <button
         type="button"
@@ -274,8 +279,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       <button type="button" aria-label={`open-${habit.id}`} onClick={actions.onDetail} />
       <button type="button" aria-label={`delete-${habit.id}`} onClick={actions.onDelete} />
     </div>
-  ),
-}))
+    )
+  } }
+})
 
 function openRescueGate() {
   mocks.logs = []
@@ -470,6 +476,7 @@ describe('HabitDetailScreen', () => {
   })
   beforeEach(() => {
     mocks.realHeaderRing = false
+    mocks.realChildRows = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
@@ -2075,6 +2082,28 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412, 600, 1024, 1352])('clears the unscheduled child explanation at %ipx', async (width) => {
+      vi.useRealTimers()
+      mocks.scopedHabits = new Map()
+      mocks.realChildRows = true
+      const { container } = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root { ${variables} } * { transition:none!important }</style>${container.innerHTML}`)
+        const group = page.getByTestId('detail-children')
+        expect(await group.locator('p').textContent()).toBe('calendar.dayCell.notScheduled')
+        for (const control of await group.locator('button:visible:not(:disabled):not([aria-disabled="true"])').all()) {
+          await control.hover({ timeout: 2000 })
+          const geometry = await control.evaluate((element) => ({
+            bottom: element.getBoundingClientRect().bottom,
+            reasonTop: element.closest('[data-testid="detail-children"]')!.querySelector('p')!.getBoundingClientRect().top,
+          }))
+          expect(geometry.reasonTop - geometry.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        }
+      } finally { await page.close() }
+    })
 
     it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
       vi.useRealTimers()

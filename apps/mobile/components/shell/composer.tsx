@@ -338,6 +338,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       ) : null}
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} />}
 
+      <View style={styles.trailingControls}>
         <ComposerControls props={props} tokens={tokens} />
 
       <InsetFocusPressable
@@ -364,6 +365,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       >
         {props.state === 'sending' ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
       </InsetFocusPressable>
+      </View>
     </View>
   )
 }
@@ -588,6 +590,11 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  trailingControls: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
   },
   textSlot: {
     flex: 1,

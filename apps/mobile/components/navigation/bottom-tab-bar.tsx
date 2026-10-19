@@ -1,4 +1,4 @@
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { TabBarProps } from '@orbit/shared/contracts/navigation'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -21,10 +21,11 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
             accessibilityState={{ selected: active }} testID={`tab-${item.id}-${active ? 'current' : 'inactive'}`}
             onHoverIn={() => setHoveredId(item.id)} onHoverOut={() => setHoveredId(null)}
             onPress={() => onSelect(item.id)} onFocus={() => setFocusedId(item.id)} onBlur={() => setFocusedId(null)}
-            style={[styles.tab, { minWidth: 80 * fontScale }, focusedId === item.id && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]}>
+            style={[styles.tab, { minWidth: 80 * fontScale }]}>
             {({ pressed }) => <>
               {item.icon ? <View testID={`tab-indicator-${item.id}`} style={[styles.indicator, (pressed || hoveredId === item.id) && { backgroundColor: tokens.bgHover }]}>{item.icon({ active })}</View> : null}
               <Text style={[styles.label, { color: active ? tokens.primarySoft : tokens.fg3 }]}>{item.label}</Text>
+              {focusedId === item.id ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.focusIndicator, { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]} /> : null}
             </>}
           </Pressable>
         )
@@ -37,5 +38,6 @@ const styles = StyleSheet.create({
   container: { alignItems: 'stretch', alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', minHeight: 80, borderTopWidth: 1, maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%' },
   tab: { borderRadius: 999, alignItems: 'center', flexGrow: 1, flexBasis: 0, gap: 4, minHeight: 48, justifyContent: 'center', paddingVertical: 12 },
   indicator: { width: 56, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
+  focusIndicator: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 999 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 12, lineHeight: 16 },
 })

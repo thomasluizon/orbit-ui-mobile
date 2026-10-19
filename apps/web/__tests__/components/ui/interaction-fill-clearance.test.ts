@@ -41,6 +41,71 @@ describe('interaction clearance inspector in Chromium', () => {
     } finally { await page.close() }
   }, 5000)
 
+  it('sets keyboard modality without entering an input that replaces the measured control', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>button { padding:16px;border:0;background:gray;outline:none }
+        input { display:block;margin-top:32px }</style><button>Open the conversation</button><input aria-label="Message">`)
+      await page.locator('input').evaluate((input) => input.addEventListener('focus', () => {
+        document.body.dataset.inputFocused = 'true'
+        document.querySelector('button')!.remove()
+      }))
+      await inspectControls(page, page.getByRole('button'), '/, 320px, en', INTERACTION_FILL_CLEARANCE)
+      expect(await page.locator('body').getAttribute('data-input-focused')).toBeNull()
+    } finally { await page.close() }
+  })
+
+  it('measures a focus-opened conversation and restores the remaining control inventory', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>section, [role="dialog"] { padding:32px } [role="dialog"] { position:fixed;inset:0;background:white }
+        button, textarea { padding:8px;border:0;outline:none;background:gray } textarea { display:block;margin:32px 0 }</style>
+        <section><button>Open the conversation</button><textarea aria-label="Message"></textarea><button>Add</button></section>`)
+      await page.locator('textarea').evaluate((input) => input.addEventListener('focus', () => {
+        const section = document.querySelector('section')!
+        section.style.visibility = 'hidden'
+        const dialog = document.createElement('div')
+        dialog.setAttribute('role', 'dialog')
+        dialog.innerHTML = '<textarea aria-label="Conversation message"></textarea>'
+        document.body.append(dialog)
+        dialog.querySelector('textarea')!.focus()
+        document.addEventListener('keydown', function close(event) {
+          if (event.key !== 'Escape') return
+          dialog.remove()
+          section.style.visibility = ''
+          document.removeEventListener('keydown', close)
+        })
+      }))
+      const counts = await inspectControls(page, page.locator('section :is(button, textarea):visible'), '/, 320px, en', INTERACTION_FILL_CLEARANCE)
+      expect(counts).toEqual({ inspectedControls: 3, skippedSentinels: 0 })
+      expect(await page.getByRole('dialog').count()).toBe(0)
+      expect(await page.getByRole('button', { name: 'Add' }).isVisible()).toBe(true)
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('skips installed dialog focus guards without skipping a real collision (collision=%s)', async (collision) => {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 915 } })
+    try {
+      const options = {
+        stdin: { contents: `import React from 'react'; import { createRoot } from 'react-dom/client'; import { Dialog } from '@base-ui/react/dialog';
+          createRoot(document.getElementById('root')).render(<Dialog.Root open modal disablePointerDismissal><Dialog.Portal><Dialog.Viewport><Dialog.Popup aria-label="Onboarding"><input aria-label="Habit" autoFocus /><button>I already have an account</button><p>Neighbour</p></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>);`,
+        resolveDir: process.cwd(), loader: 'tsx' },
+        bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' },
+      }
+      const script = execFileSync(process.execPath, ['--input-type=module', '-e',
+        `import { build } from 'esbuild'; const result = await build(${JSON.stringify(options)}); process.stdout.write(result.outputFiles[0].text);`], { encoding: 'utf8' })
+      await page.setContent(`<style>[role="dialog"] { position:fixed;inset:0;display:flex;flex-direction:column;gap:32px;padding:32px }
+        button { position:relative;padding:16px;border:0;outline:none } button:focus-visible { background:gray } p { margin:0 }
+        ${collision ? "button::before { content:'';position:absolute;inset:0 0 -32px;background:gray }" : ''}</style><div id="root"></div>`)
+      await page.addScriptTag({ content: script })
+      await page.getByRole('dialog').waitFor()
+      const counts = { inspectedControls: 0, skippedSentinels: 0 }
+      const inspection = inspectControls(page, page.locator('button, input, [data-base-ui-focus-guard]'), '/onboarding, 1024px, en', INTERACTION_FILL_CLEARANCE, counts)
+      if (collision) await expect(inspection).rejects.toThrow(/button\[I already have an account\].*hover[\s\S]*p\[Neighbour\]/)
+      else { await inspection; expect(counts.inspectedControls).toBe(2); expect(counts.skippedSentinels).toBeGreaterThan(0) }
+    } finally { await page.close() }
+  })
+
   it('reports a control that remains off-canvas after focus', async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     page.setDefaultTimeout(250)
@@ -113,6 +178,29 @@ describe('interaction clearance inspector in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([false, true])('separates clipped shell content from pinned chrome while retaining same-region neighbours (collision=%s)', async (collision) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>button { position:absolute;left:32px;top:32px;width:160px;height:48px;background:gray;border:0;outline:none }
+        [data-shell-bottom] { position:relative;background:black;height:80px } p { position:absolute;left:32px;top:80px;margin:0 }</style>
+        <main data-shell-scroller><button>Child row</button>${collision ? '<p>Same scroller</p>' : ''}</main>
+        <div data-shell-bottom><nav>Today Calendar Progress Profile</nav><div>Ask Astra</div></div>`)
+      const result = await page.getByRole('button').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.violations).toEqual(collision ? [{ neighbour: 'p[Same scroller]', distance: 0 }] : [])
+    } finally { await page.close() }
+  })
+
+  it.each(['own decoration', 'external decoration', 'visible graphic', 'interactive graphic'])('only excludes the field own decorative SVG: %s', async (kind) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      const svg = `<svg ${kind === 'visible graphic' ? '' : 'aria-hidden="true"'} ${kind === 'interactive graphic' ? 'role="button" tabindex="0"' : ''} style="position:absolute;left:160px;top:40px;width:24px;height:24px;pointer-events:none"></svg>`
+      await page.setContent(`<style>input { margin:32px;width:160px;height:48px;background:gray;border:0;outline:none }</style>
+        <div><input class="orbit-field-hover" aria-label="Search habits">${kind === 'external decoration' ? '' : svg}</div>${kind === 'external decoration' ? svg : ''}`)
+      const result = await page.getByRole('textbox').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      expect(result.violations.some((violation) => violation.neighbour === 'svg[]')).toBe(kind !== 'own decoration')
+    } finally { await page.close() }
+  })
+
   it.each([false, true])('counts real focus guards even when a later control fails (collision=%s)', async (collision) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
@@ -129,7 +217,7 @@ describe('interaction clearance inspector in Chromium', () => {
       await page.setContent(`<style>span[tabindex="0"] { top:-80px;width:8px;height:8px }
         #root > div { display:flex;flex-direction:column;gap:32px;padding:32px }
         button { position:relative;padding:8px;outline:none } p { margin:0 }
-        ${collision ? "button::before { content:'';position:absolute;inset:-32px;background:gray }" : ''}</style><div id="root"></div>`)
+        ${collision ? "button::before { content:'';position:absolute;inset:0 0 -32px;background:gray }" : ''}</style><div id="root"></div>`)
       await page.addScriptTag({ content: script })
       await page.waitForFunction(() => document.querySelectorAll('body > span[tabindex="0"]').length === 2)
       const counts = { inspectedControls: 0, skippedSentinels: 0 }

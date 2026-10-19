@@ -1323,6 +1323,8 @@ may use only the gap to the nearest neighbour minus 4px, the first spacing step.
 4px between the painted fill and neighbouring content, including the page column edge.
 `INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
+Grouped list rows inset their paint and single focus indicator by 4px without reducing the target.
+Adjacent month-navigation and composer action controls reserve the same gap between their targets.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 A grid cell may fill its own column and adjoin another cell, provided its paint and focus
 indicator stay inside that cell; this never permits paint over neighbouring content.

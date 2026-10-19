@@ -33,6 +33,7 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     return document
   }
   const controlLayer = layer(element)
+  const shellRegion = element.closest('[data-shell-scroller], [data-shell-bottom]')
   const expand = (box: DOMRect, style: CSSStyleDeclaration) => {
     const outline = style.outlineStyle === 'none' ? 0 : Math.max(0, pixels(style.outlineWidth) + pixels(style.outlineOffset))
     const extent = { left: box.left - outline, right: box.right + outline, top: box.top - outline, bottom: box.bottom + outline }
@@ -94,7 +95,11 @@ export function inspectInteractionFill(element: Element, clearance: number) {
     return violations
   }
   const neighbours = [...document.body.querySelectorAll('*')].filter((node) =>
-    node !== element && !contentOwner.contains(node) && !node.contains(element) && layer(node) === controlLayer && visible(node) && !node.parentElement?.closest('svg'))
+    node !== element && !contentOwner.contains(node) && !node.contains(element) && layer(node) === controlLayer
+    && (!shellRegion || !node.closest('[data-shell-scroller], [data-shell-bottom]') || node.closest('[data-shell-scroller], [data-shell-bottom]') === shellRegion)
+    && !(element.matches('input.orbit-field-hover, textarea.orbit-field-hover') && node.matches('svg[aria-hidden="true"]:not([tabindex]):not([role])')
+      && node.parentElement === element.parentElement && getComputedStyle(node).pointerEvents === 'none')
+    && visible(node) && !node.parentElement?.closest('svg'))
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
     const style = getComputedStyle(neighbour)
     const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video') ? expand(neighbour.getBoundingClientRect(), style) : null,

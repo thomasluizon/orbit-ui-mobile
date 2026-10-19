@@ -250,7 +250,7 @@ describe('personal ListRow text in Chromium', () => {
         }
         await expect.poll(() => control.getAttribute('data-test-touch-held')).toBeNull()
         await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
-        await expect.poll(() => control.evaluate((element) => {
+        await expect.poll(() => control.evaluate((element, pseudo) => {
           const probe = document.createElement('span')
           probe.style.background = 'var(--bg-hover)'
           probe.style.position = 'fixed'
@@ -258,8 +258,8 @@ describe('personal ListRow text in Chromium', () => {
           document.body.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return getComputedStyle(element).backgroundColor === expected
-        }), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
+          return getComputedStyle(element, pseudo).backgroundColor === expected
+        }, kind === 'body' ? '::before' : null), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
         const corners = await control.evaluate((element) => {
           const style = getComputedStyle(element)
           return [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius]

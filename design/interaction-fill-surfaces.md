@@ -8,6 +8,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Surface | Web owner | Android owner | Reserved clearance |
 |---|---|---|---|
 | Habit rename heading | `components/habits/habit-detail-screen.tsx`, `app/globals.css` | `components/habits/habit-detail-screen.tsx` | 12px between text rows permits the 8px block fill extension; the 12px inline extension leaves 4px inside the page inset |
+| Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Paint and the single focus indicator sit 4px inside each row, retaining the full target and existing content padding |
 | Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 12px inline extension leaves 4px inside the page inset; a trailing row action gets a 4px gap and no fill extension toward it |
 | Personal check rows, including calendar selection | `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/check-row.tsx` | A real 48px checkbox target, a 4px label gap and an internal fill; the label reserves its block padding in layout |
 | About account fact | `app/(app)/about/page.tsx`, shared column CSS | `app/about.tsx` | 12px inline extension leaves 4px inside the page inset |
@@ -17,6 +18,10 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
 | Month and range day grids | `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; circular position rings and 34px status discs retain their size, and every state paints inside its column |
 | Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | A 4px row gap separates contained label and checkbox fills; the card retains 24px padding |
+| Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | 4px between previous, title group and next controls, and between the title and picker; every target remains at least 48px |
+| Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Add or Stop and Send share a 4px gap inside the field; each target remains 48px, with an inset focus indicator |
+| Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 4px inside the full-column target, including at the page edge and in forced colors |
+| Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-row.tsx` | Web reserves 4px above the explanation; Android's existing row spacing already reserves the same clearance |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 4px separation and inset focus; all-day rows retain 4px gaps and column padding; full-column date headers paint inside their own grid cells |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and a 4px checkbox gap; event fills retain 4px before their separate trailing action |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent 12px content gap retains 4px and focus stays inset |
@@ -35,8 +40,12 @@ computed paint and geometry. Structural wrappers are not separate visual neighbo
 graphics and painted controls are. PersonalTextAction's visual copy belongs to its overlaid control.
 The title's Chromium unit regression exercises the same inspector without an app server.
 Neighbours share the nearest fixed-position ancestor, including the control itself, or the
-document when there is none. Focus sentinels that transfer focus are skipped by active-element
-identity, and each case reports the inspected-control and skipped-sentinel counts.
+document when there is none. Shell scroller content and pinned bottom chrome are separate paint
+regions. An aria-hidden, non-interactive SVG inside the same input wrapper belongs to that field.
+Only explicitly marked library focus guards are skipped. Captured control identities survive
+focus-opened overlays; the reached control is measured and the overlay dismissed before continuing.
+Keyboard modality does not traverse an unrelated input. Each case reports the inspected-control
+and skipped-sentinel counts, and bounded active-control reads retry once before failing.
 
 The inspector measures painted boxes and visible text or graphics on both sides. Transparent
 target-only geometry is excluded. Text neighbours use their text ranges rather than transparent

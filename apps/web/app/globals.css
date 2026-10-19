@@ -123,7 +123,18 @@
   min-height: 1.4875rem;
 }
 
-.orbit-list-row-body {
+@layer components {
+  .orbit-list-row-body {
+    position: relative;
+  }
+}
+
+.orbit-list-row-body::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
@@ -168,8 +179,11 @@
 }
 
 .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) {
-  background-color: var(--bg-hover);
   --orbit-list-row-secondary: var(--fg-2);
+}
+
+.orbit-list-row-body:is(:active, :focus-visible):not(:disabled):not(:has(> .orbit-list-row-outset))::before {
+  background-color: var(--bg-hover);
 }
 
 .orbit-list-row-action {
@@ -177,7 +191,6 @@
 }
 
 .orbit-list-row-body:active:not(:disabled):not(:has(:is(button, a, [role="button"]):active)) {
-  background: var(--bg-hover);
   --orbit-list-row-secondary: var(--fg-2);
 }
 
@@ -191,8 +204,16 @@
 }
 }
 
-.orbit-list-row-body:focus-visible,
 .orbit-list-row-action:focus-visible {
+  outline: 2px solid var(--fg-1);
+  outline-offset: -2px;
+}
+
+.orbit-list-row-shell .orbit-list-row-body:focus-visible {
+  outline: none;
+}
+
+.orbit-list-row-body:focus-visible:not(:has(> .orbit-list-row-outset))::before {
   outline: 2px solid var(--fg-1);
   outline-offset: -2px;
 }
@@ -217,13 +238,13 @@
   gap: 4px;
 }
 
-.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-body::after,
-.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-outset,
-.orbit-list-row-shell:has(> .orbit-list-row-action) .orbit-list-row-body::before {
+.orbit-list-row-column:has(> .orbit-list-row-action) .orbit-list-row-body::after,
+.orbit-list-row-column:has(> .orbit-list-row-action) .orbit-list-row-outset,
+.orbit-list-row-column:has(> .orbit-list-row-action) .orbit-list-row-body::before {
   inset-inline-end: 0;
 }
 
-.orbit-list-row-column [data-slot="list-row-content"] {
+.orbit-list-row-shell [data-slot="list-row-content"] {
   position: relative;
   z-index: 1;
 }
@@ -310,8 +331,11 @@
   }
 
   .orbit-list-row-body:hover:not(:disabled):not(:has(:is(button, a, [role="button"]):hover)) {
-    background: var(--bg-hover);
     --orbit-list-row-secondary: var(--fg-2);
+  }
+
+  .orbit-list-row-body:hover:not(:disabled):not(:has(> .orbit-list-row-outset, :is(button, a, [role="button"]):hover))::before {
+    background: var(--bg-hover);
   }
 
   .orbit-list-row-action:hover {
@@ -327,6 +351,23 @@
     color: var(--primary-soft);
     background: var(--primary-dim);
   }
+}
+
+.orbit-tab::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.orbit-tab:focus-visible {
+  outline: none;
+}
+
+.orbit-tab:focus-visible::after {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .orbit-profile-theme-choice[data-selected]:focus-visible {
@@ -1703,6 +1744,17 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   :focus-visible {
     /* WHY: Forced colors mode removes box-shadow focus indicators. */
     outline: 2px solid CanvasText !important;
+  }
+
+  .orbit-tab:focus-visible,
+  .orbit-list-row-body:focus-visible {
+    outline: none !important;
+  }
+
+  .orbit-tab:focus-visible::after,
+  .orbit-list-row-body:focus-visible::before,
+  .orbit-list-row-body:focus-visible > .orbit-list-row-outset {
+    outline-color: Highlight;
   }
 }
 

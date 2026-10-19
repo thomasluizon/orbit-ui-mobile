@@ -144,7 +144,7 @@ function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnTyp
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
   if (reason !== notScheduledReason) return null
-  return <p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p>
+  return <div className="pt-[4px]"><p className="pb-2 text-right text-sm text-[var(--fg-2)]">{reason}</p></div>
 }
 
 function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundary>, t: ReturnType<typeof useTranslations>): string | undefined {
