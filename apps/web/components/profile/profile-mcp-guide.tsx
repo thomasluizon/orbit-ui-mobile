@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { SPACING } from '@orbit/shared/theme'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { PillButton } from '@/components/ui/pill-button'
@@ -41,7 +42,7 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
     >
       <div className="flex min-w-0 max-w-prose flex-col" style={{ gap: 24 }}>
         <p className="font-sans text-[16px] leading-[1.55] text-[var(--fg-2)] [text-wrap:pretty]">{t('orbitMcp.webInstructions')}</p>
-        <ol className="flex list-decimal flex-col font-sans text-[16px] leading-[1.55] text-[var(--fg-1)]" style={{ gap: 12, paddingInlineStart: 24 }}>
+        <ol className="flex list-decimal flex-col font-sans text-[16px] leading-[1.55] text-[var(--fg-1)]" style={{ gap: 12, paddingInlineStart: SPACING.s24 }}>
           <li>{t('orbitMcp.webStep1')}</li>
           <li>{t('orbitMcp.webStep2')}</li>
           <li>{t('orbitMcp.webStep3')}</li>
@@ -49,7 +50,7 @@ function McpWebSheet({ onClose }: Readonly<{ onClose: () => void }>) {
         </ol>
         <div className="flex min-w-0 flex-col">
           <code dir="ltr" translate="no" className="break-all font-mono text-[12px] leading-[1.4] text-[var(--fg-2)]">{endpoint}</code>
-          <p id={copyMessageId} role="status" className="font-sans text-[14px] leading-[1.55] text-[var(--status-bad-text)]" style={{ paddingTop: copyState === 'error' ? 12 : 0 }}>{copyState === 'error' ? t('orbitMcp.copyError') : ''}</p>
+          <p id={copyMessageId} role="status" className="font-sans text-[14px] leading-[1.55] text-[var(--status-bad-text)]" style={{ paddingTop: copyState === 'error' ? SPACING.s12 : SPACING.s0 }}>{copyState === 'error' ? t('orbitMcp.copyError') : ''}</p>
         </div>
         <p className="font-sans text-[14px] leading-[1.55] text-[var(--fg-3)] [text-wrap:pretty]">{t('orbitMcp.webNoApiKey')}</p>
       </div>

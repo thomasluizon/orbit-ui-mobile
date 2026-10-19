@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { SPACING } from '@orbit/shared/theme'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import type { createTokensV2 } from '@/lib/theme'
 import { tagSuggestionStatusKey } from '@orbit/shared/hooks'
@@ -36,7 +37,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled }: Readonly<TagS
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    container: { gap: 16, paddingTop: 16 }, action: { alignSelf: 'flex-start' }, proposals: { gap: 8, padding: 8 },
+    container: { gap: 16, paddingTop: SPACING.s16 }, action: { alignSelf: 'flex-start' }, proposals: { gap: 8, padding: SPACING.s8 },
     hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   })
