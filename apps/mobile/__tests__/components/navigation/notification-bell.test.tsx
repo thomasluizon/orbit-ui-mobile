@@ -11,10 +11,15 @@ const mocks = vi.hoisted(() => ({
   notifications: [] as NotificationItem[],
   isLoading: false,
   isError: false,
+  markAllAsRead: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en' },
+  }),
 }))
 
 vi.mock('@/hooks/use-notifications', () => ({
@@ -25,7 +30,7 @@ vi.mock('@/hooks/use-notifications', () => ({
     refetch: vi.fn(),
   }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
-  useMarkAllNotificationsRead: () => ({ mutate: vi.fn() }),
+  useMarkAllNotificationsRead: () => ({ mutate: mocks.markAllAsRead }),
   useDeleteNotification: () => ({ mutate: vi.fn() }),
   useDeleteAllNotifications: () => ({ mutate: vi.fn() }),
 }))
@@ -83,7 +88,10 @@ type FlatListNode = {
 function render() {
   let tree: {
     root: {
-      findByType: (type: string) => { props: { onPress?: () => void } }
+      findByType: (type: string) => { props: { onPress?: () => void; accessibilityLabel?: string } }
+      findAll: (
+        predicate: (node: { props: { accessibilityLabel?: string; children?: React.ReactNode } }) => boolean,
+      ) => { props: { onPress?: () => void } }[]
       findAllByType: (type: string) => FlatListNode[]
     }
   } | null = null
@@ -109,9 +117,51 @@ beforeEach(() => {
   mocks.notifications = []
   mocks.isLoading = false
   mocks.isError = false
+  mocks.markAllAsRead.mockReset()
 })
 
 describe('NotificationBell list rendering', () => {
+  it.each(['/social?tab=buddies', '/public-profile/123', '/u/thomas'])(
+    'hides %s from the list and unread badge while preserving other rows',
+    (url) => {
+      mocks.notifications = [
+        createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
+        createMockNotification({ id: 'retired', title: 'Retired notification', url }),
+        createMockNotification({ id: 'celebration', title: 'Achievement earned', isRead: true }),
+      ]
+
+      const tree = render()
+      expect(tree.root.findByType('Pressable').props.accessibilityLabel)
+        .toBe('notifications.bellWithCount:{"count":1}')
+      const list = openSheetAndGetList(tree)
+      expect(list.props.data.map((item) => item.id)).toEqual(['streak', 'celebration'])
+      const markAllRead = tree.root.findAll(
+        (node) => node.props.accessibilityLabel === 'notifications.markAllRead',
+      )[0]!
+      TestRenderer.act(() => { markAllRead.props.onPress?.() })
+      expect(mocks.markAllAsRead).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('shows the empty state and no unread badge when every notification is retired', () => {
+    mocks.notifications = ['/social?tab=buddies', '/public-profile/123', '/u/thomas'].map(
+      (url, index) => createMockNotification({ id: `retired-${index}`, url }),
+    )
+
+    const tree = render()
+    expect(tree.root.findByType('Pressable').props.accessibilityLabel).toBe('notifications.bell')
+    const list = openSheetAndGetList(tree)
+    expect(list.props.data).toEqual([])
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'notifications.markAllRead'))
+      .toHaveLength(0)
+    let emptyTree: ReturnType<typeof render> | null = null
+    TestRenderer.act(() => {
+      emptyTree = TestRenderer.create(list.props.ListEmptyComponent)
+    })
+    expect(emptyTree!.root.findAll((node) => node.props.children === 'notifications.empty').length)
+      .toBeGreaterThan(0)
+  })
+
   it('renders notifications through a FlatList instead of a ScrollView', () => {
     mocks.notifications = [
       createMockNotification({ id: 'n-1', title: 'Streak saved' }),

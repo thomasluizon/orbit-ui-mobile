@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 
 vi.mock('next-intl', () => ({
@@ -68,6 +69,43 @@ describe('NotificationBell', () => {
     deleteNotificationMutate.mockReset()
     deleteAllMutate.mockReset()
     showQueued.mockReset()
+  })
+
+  it.each(['/social?tab=buddies', '/public-profile/123', '/u/thomas'])(
+    'hides %s from the list and unread badge while preserving other rows',
+    (url) => {
+      mockNotifications = [
+        createMockNotification({ id: 'streak', title: 'Streak saved', url: '/streak' }),
+        createMockNotification({ id: 'retired', title: 'Retired notification', url }),
+        createMockNotification({ id: 'celebration', title: 'Achievement earned', isRead: true }),
+      ]
+      mockUnreadCount = 2
+
+      render(<NotificationBell />)
+      fireEvent.click(screen.getByLabelText('notifications.bellWithCount:{"count":1}'))
+
+      expect(screen.queryByText('Retired notification')).not.toBeInTheDocument()
+      expect(screen.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+        expect.stringContaining('Streak saved'),
+        expect.stringContaining('Achievement earned'),
+      ])
+      fireEvent.click(screen.getByRole('button', { name: 'notifications.markAllRead' }))
+      expect(markAllAsReadMutate).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('shows the empty state and no unread badge when every notification is retired', () => {
+    mockNotifications = ['/social?tab=buddies', '/public-profile/123', '/u/thomas'].map(
+      (url, index) => createMockNotification({ id: `retired-${index}`, url }),
+    )
+    mockUnreadCount = 3
+
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText('notifications.bell'))
+
+    expect(screen.getByText('notifications.empty')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/notifications.bellWithCount/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'notifications.markAllRead' })).not.toBeInTheDocument()
   })
 
   it('renders the bell button', () => {

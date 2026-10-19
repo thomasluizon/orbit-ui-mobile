@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
   getNotificationGlyph,
+  isRetiredNotification,
   type NotificationGlyph,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -171,7 +172,9 @@ export function NotificationBell() {
   const pendingDeleteIdSet = useMemo(() => new Set(pendingDeleteIds), [pendingDeleteIds])
 
   const visibleNotifications = useMemo(
-    () => notifications.filter((item) => !pendingDeleteIdSet.has(item.id)),
+    () => notifications.filter(
+      (item) => !isRetiredNotification(item) && !pendingDeleteIdSet.has(item.id),
+    ),
     [notifications, pendingDeleteIdSet],
   )
   const visibleUnreadCount = useMemo(
