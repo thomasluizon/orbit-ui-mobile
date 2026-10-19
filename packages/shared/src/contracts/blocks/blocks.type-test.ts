@@ -99,6 +99,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameProps['onEditItem'], ((itemId: string) => void) | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['editLabel'], string | undefined>>,
   Assert<IsExactWidth<ProposedProps['proposed'], boolean>>,
+  Assert<IsExactWidth<ProposedProps['keepMounted'], boolean | undefined>>,
   Assert<IsExactWidth<ProposedProps['scope'], 'field' | 'row' | 'block'>>,
   Assert<IsExactWidth<ProposedProps['label'], string>>,
   Assert<IsExactWidth<ProposedProps['children'], React.ReactNode>>,

@@ -31,6 +31,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
+  applyHabitEmojiSuggestion,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -120,6 +121,8 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
+  const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
+  const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
   const { config } = useConfig()
   const hasProAccess = useHasProAccess()
   const { isOnline } = useOffline()
@@ -239,6 +242,7 @@ export function CreateHabitModal({
       const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
+      setEmojiFailure(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
@@ -357,6 +361,42 @@ export function CreateHabitModal({
     },
     [reportCreateFailure, requestReminderPermission, canUseSubHabits, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
   )
+
+  const handleSuggestEmoji = useCallback(async () => {
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
+    if (!title) return EMPTY_HABIT_FORM_PROPOSAL
+    suggestionRequests.updateContext(suggestionSessionId, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return null
+    const requestRevision = suggestionRevision.advance()
+    setIsEmojiSuggesting(true)
+    setEmojiFailure(null)
+    const isCurrent = () => suggestionRevision.isCurrent(requestRevision) && suggestionRequests.isCurrent(
+      request, coalesceFormText(formHelpers.form.getValues('title')),
+    )
+    try {
+      const response = await suggestion.mutateAsync({ title, language: locale })
+      if (!isCurrent()) return null
+      const patch = buildHabitFormPatchFromSuggestion(response)
+      const appliedEmoji = applyHabitEmojiSuggestion(patch.emoji, formHelpers.form.getValues('emoji'), (emoji) => {
+        formHelpers.form.setValue('emoji', emoji, { shouldDirty: true })
+      })
+      if (appliedEmoji) showSuccess(t('habits.form.aiSuggestApplied'))
+      else showInfo(t('habits.form.aiSuggestEmpty'))
+      return { ...EMPTY_HABIT_FORM_PROPOSAL, setup: appliedEmoji }
+    } catch (error: unknown) {
+      if (!isCurrent()) return null
+      const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
+      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      setEmojiFailure({ title: currentTitle, message, atLimit })
+      showError(message)
+      return EMPTY_HABIT_FORM_PROPOSAL
+    } finally {
+      suggestionRequests.finish()
+      setIsEmojiSuggesting(false)
+    }
+  }, [formHelpers, locale, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(
     async () => {
@@ -492,6 +532,10 @@ export function CreateHabitModal({
             onPhraseOwnershipChange={handlePhraseOwnershipChange}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
+            onSuggestEmoji={handleSuggestEmoji}
+            isEmojiSuggesting={isEmojiSuggesting}
+            emojiSuggestionError={emojiFailure?.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
+            emojiSuggestionLimitReached={emojiFailure?.title === watchedTitle && emojiFailure.atLimit}
             isSuggesting={suggestion.isPending}
             readPhraseLocally
             lockedGeneral={parentHabit?.isGeneral ?? null}

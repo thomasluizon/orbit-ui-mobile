@@ -5,8 +5,7 @@ import { useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { ParentRing } from '@/components/ui/parent-ring'
-import { StatusRing } from '@/components/ui/status-ring'
+import { HabitCheck } from './habit-check'
 import { Menu } from '@/components/ui/menu'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
@@ -43,17 +42,6 @@ function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isD
   if (disabled) return
   const parentAction = isDone ? actions.onUnlog : actions.onLog
   parentAction?.()
-}
-
-function resolveParentRingColors(isBadHabit: boolean) {
-  if (isBadHabit) {
-    return {
-      stroke: 'var(--status-bad)',
-    }
-  }
-  return {
-    stroke: undefined,
-  }
 }
 
 function buildMenuItems(
@@ -103,7 +91,7 @@ interface HabitRowTrailingProps {
 }
 
 function SelectionStatusGlyph({
-  habit, depth, hasChildren, childProgress, state, isDone, canLog,
+  hasChildren, childProgress, state, isDone, canLog,
   completionReadOnly, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
@@ -113,20 +101,19 @@ function SelectionStatusGlyph({
     return (
       <span role="img" aria-label={`${statusName}, ${childProgress?.done ?? 0}/${childProgress?.total ?? 0}`}
         className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
-        <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
-          size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
+        <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
       </span>
     )
   }
   return (
     <span className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
-      <StatusRing status={state} size={depth === 1 ? 24 : 30} label={statusName} />
+      <HabitCheck status={state} label={statusName} unavailable={completionStatusUnavailable} />
     </span>
   )
 }
 
 function InteractiveParentRing({
-  habit, depth, childProgress, state, isDone, canLog, actions,
+  habit, childProgress, state, isDone, canLog, actions,
   completionReadOnly, completionReason, completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
@@ -135,16 +122,15 @@ function InteractiveParentRing({
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   const disabled = completionIsDisabled(completionReadOnly, canLog, isDone)
   return (
-    <button type="button" data-habit-row-control="ring"
+    <button type="button" data-habit-row-control="check"
       aria-label={parentRingLabel(statusLabel, toggleLabel, habit.title, childProgress)}
       onClick={(event) => triggerParentCompletion(event, disabled, isDone, actions)}
       disabled={disabled && !completionReason}
       aria-disabled={disabled && completionReason ? true : undefined}
       aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
       title={disabled ? completionReason : undefined}
-      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
-      <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
-        size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-[22px] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
+      <HabitCheck status={state} progress={childProgress ?? { done: 0, total: 0 }} />
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
     </button>
   )
@@ -161,11 +147,11 @@ function HabitRowCompletion(props: Readonly<HabitRowTrailingProps>) {
   return <CheckCircle state={props.state} unavailable={props.completionStatusUnavailable}
     onToggle={props.onToggleStatus}
     disabled={completionIsDisabled(props.completionReadOnly, props.canLog, props.isDone)}
-    disabledReason={props.completionReason} size={props.depth === 1 ? 24 : 30}
+    disabledReason={props.completionReason}
     ariaLabel={parentRingLabel(statusLabel, toggleLabel, props.habit.title)} />
 }
 
-/** Trailing cluster of a habit row: parent ring or status ring, then overflow. */
+/** Trailing habit check and overflow actions. */
 // react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const {

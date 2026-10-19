@@ -11,14 +11,14 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys } from '@orbit/shared/query'
-import { formatAPIDate, formatAPIDateInTimeZone, millisecondsUntilNextDay } from '@orbit/shared/utils'
+import { getAccountDay, millisecondsUntilNextDay } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useTodayTick } from './use-follow-today-sync'
 
 const TodayContext = createContext<string | null>(null)
 
 function getTodayDate(): string {
-  return formatAPIDate(new Date())
+  return getAccountDay(new Date())
 }
 
 /**
@@ -32,7 +32,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   const timeZone = profile?.timeZone
   const [today, setToday] = useState(getTodayDate)
   const todayRef = useRef(today)
-  const accountDayRef = useRef(timeZone === undefined ? today : formatAPIDateInTimeZone(new Date(), timeZone))
+  const accountDayRef = useRef(getAccountDay(new Date(), timeZone))
 
   const handleRollover = useCallback(() => {
     const nextLocalDay = getTodayDate()
@@ -40,9 +40,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
       todayRef.current = nextLocalDay
       setToday(nextLocalDay)
     }
-    const nextAccountDay = timeZone === undefined
-      ? nextLocalDay
-      : formatAPIDateInTimeZone(new Date(), timeZone)
+    const nextAccountDay = getAccountDay(new Date(), timeZone)
     if (nextAccountDay !== accountDayRef.current) {
       accountDayRef.current = nextAccountDay
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -52,9 +50,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   useTodayTick(handleRollover)
 
   useEffect(() => {
-    accountDayRef.current = timeZone === undefined
-      ? getTodayDate()
-      : formatAPIDateInTimeZone(new Date(), timeZone)
+    accountDayRef.current = getAccountDay(new Date(), timeZone)
     if (timeZone === undefined) return
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout>
     const scheduleRollover = () => {
@@ -89,5 +85,5 @@ export function useToday(timeZone?: string | null): string {
   if (today === null) {
     throw new Error('useToday must be used within a TodayProvider')
   }
-  return timeZone === undefined ? today : formatAPIDateInTimeZone(new Date(), timeZone)
+  return timeZone === undefined ? today : getAccountDay(new Date(), timeZone)
 }

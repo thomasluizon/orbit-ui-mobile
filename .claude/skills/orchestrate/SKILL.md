@@ -1622,7 +1622,7 @@ THIS session. That part is still yours, which is why the invariant says to name 
 A no-flag single ticket still runs locally. Cloud remains bound to `ui` through
 `cloud.repositoryKey`, so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
 **`--parallel` runs up to `caps.parallelTickets`
-local tickets at once**, currently **10**, one worktree each.
+local tickets at once**, as configured in `.claude/orchestrator.json`, one worktree each.
 
 Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
 across the whole fleet: local test, build, signed commit, push and pull request run on this laptop,

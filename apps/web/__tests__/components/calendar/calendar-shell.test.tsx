@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -30,6 +31,39 @@ describe('Calendar shell helpers', () => {
     for (const word of legendWords) expect(screen.getByText(word)).toBeInTheDocument()
   })
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('returns through the %s label with keyboard and stays on today', async (view) => {
+    const onCurrent = vi.fn()
+    const user = userEvent.setup()
+    const header = (isTodaySelected: boolean) => <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08"
+      isTodaySelected={isTodaySelected} previousMonthLabel="Previous" nextMonthLabel="Next"
+      onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={onCurrent} onSelectMonth={vi.fn()}
+      period={view === 'month' ? undefined : { view, label: 'Apr 6 to 12', previousLabel: 'Previous', nextLabel: 'Next',
+        onPrevious: vi.fn(), onNext: vi.fn(), onCurrent }} />
+    const { rerender } = render(header(false))
+    const label = screen.getByText(view === 'month' ? 'April' : 'Apr 6 to 12').closest('button')!
+    await user.click(label)
+    label.focus()
+    await user.keyboard('{Enter} ')
+    expect(onCurrent).toHaveBeenCalledTimes(3)
+    rerender(header(true))
+    expect(label).toHaveAttribute('aria-disabled', 'true')
+    await user.click(label)
+    label.focus()
+    await user.keyboard('{Enter} ')
+    expect(onCurrent).toHaveBeenCalledTimes(3)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('returns through the month label without opening the month picker', () => {
+    const onCurrentMonth = vi.fn()
+    render(<CalendarHeader currentMonth={new Date(2026, 2, 1)} todayKey="2026-04-08"
+      previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()}
+      onNextMonth={vi.fn()} onCurrentMonth={onCurrentMonth} onSelectMonth={vi.fn()} />)
+    fireEvent.click(screen.getByText('March'))
+    expect(onCurrentMonth).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('renders the header, fires month handlers, and opens a year picker', () => {
     const onPreviousMonth = vi.fn()
     const onNextMonth = vi.fn()
@@ -52,14 +86,15 @@ describe('Calendar shell helpers', () => {
     expect(screen.getByText('April')).toBeInTheDocument()
     expect(screen.queryByText('2026')).not.toBeInTheDocument()
 
-    expect(screen.getByText('April').closest('button')).toHaveAttribute('aria-controls')
-    expect(screen.getByText('April').closest('button')).toHaveAccessibleName('April, calendar.monthPicker')
+    expect(screen.getByLabelText('April, calendar.monthPicker')).toHaveAttribute('aria-controls')
+    expect(screen.getByLabelText('April, calendar.monthPicker')).toHaveAccessibleName('April, calendar.monthPicker')
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
     fireEvent.click(screen.getByLabelText('April, calendar.monthPicker'))
     const pickerId = screen.getByLabelText('April, calendar.monthPicker').getAttribute('aria-controls')!
     expect(document.getElementById(pickerId)).toContainElement(screen.getByRole('button', { name: 'Apr' }))
-    fireEvent.click(screen.getByText('calendar.thisMonth'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    fireEvent.click(screen.getByText('April'))
 
     expect(onPreviousMonth).toHaveBeenCalledTimes(1)
     expect(onNextMonth).toHaveBeenCalledTimes(1)
@@ -84,7 +119,7 @@ describe('Calendar shell helpers', () => {
 
   it('visibly identifies the selected month while browsing the picker', () => {
     render(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />)
-    fireEvent.click(screen.getByText('April'))
+    fireEvent.click(screen.getByLabelText('April, calendar.monthPicker'))
     const selected = screen.getByRole('button', { name: 'Apr' })
     expect(selected).toHaveAttribute('aria-pressed', 'true')
     expect(selected).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--fg-1)' })

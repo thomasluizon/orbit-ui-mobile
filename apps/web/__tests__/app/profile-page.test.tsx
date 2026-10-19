@@ -16,6 +16,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
+import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ChevronRight, Trash2 } from '@/components/ui/icons'
 
@@ -425,7 +427,8 @@ describe('ProfilePage', () => {
             overflow: row.scrollWidth > row.clientWidth,
           }
         }))
-        expect(rows).toHaveLength(11)
+        expect(rows).toHaveLength(12)
+        expect(rows.map(({ label }) => label)).toContain((locale === 'en' ? en : ptBR).shareCard.entry)
         for (const row of rows) {
           if (textScale === 1) {
             expect(row.lines, row.label!).toBe(1)
@@ -892,9 +895,10 @@ describe('ProfilePage', () => {
     expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
 
-  it('keeps the share card off Perfil', () => {
+  it('restores the share progress entry beside Wrapped', () => {
     render(<ProfilePage />)
-    expect(screen.queryByRole('button', { name: /shareCard\.entry/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /shareCard\.entry/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /profile\.settingsRows\.wrapped/i })).toHaveAttribute('href', '/wrapped')
   })
 
   it('puts Sign out first in Ending things', () => {
@@ -1006,6 +1010,7 @@ describe('ProfilePage', () => {
     expect(apiKeys.getByText('profile.apiKeys.description')).toBeInTheDocument()
     const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+    expect(apiKeys.queryByRole('button', { name: 'orbitMcp.connectionInstructions' })).not.toBeInTheDocument()
     expect(upgradeRow).toBeEnabled()
 
     fireEvent.click(upgradeRow)
@@ -1055,12 +1060,14 @@ describe('ProfilePage', () => {
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+    expect(apiKeys.queryByRole('button', { name: 'orbitMcp.connectionInstructions' })).not.toBeInTheDocument()
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' }))
 
     expect(
       apiKeys.getByRole('button', { name: 'profile.apiKeys.stepUpAction' }),
     ).toBeInTheDocument()
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+    expect(apiKeys.queryByRole('button', { name: 'orbitMcp.connectionInstructions' })).not.toBeInTheDocument()
   })
 
   it('does not unlock API keys from a manually typed return hint', () => {
@@ -1081,6 +1088,66 @@ describe('ProfilePage', () => {
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' })).toBeInTheDocument()
     expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
+  })
+
+  it('copies the MCP endpoint, disables pending copies and resets on reopening', async () => {
+    mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
+    mockStepUpVerified.current = true
+    let finishCopy!: () => void
+    const writeText = vi.fn(() => new Promise<void>((resolve) => { finishCopy = resolve }))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<ProfileSubscreen screen="astra" />)
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
+    const guide = within(await screen.findByRole('dialog', { name: 'orbitMcp.claudeWeb' }))
+    const endpoint = getMcpEndpointUrl(accountEventApiBase())
+    expect(guide.getByText(endpoint)).toBeInTheDocument()
+    const copy = guide.getByRole('button', { name: 'orbitMcp.copy' })
+    fireEvent.click(copy)
+    expect(writeText).toHaveBeenCalledWith(endpoint)
+    expect(copy).toBeDisabled()
+    fireEvent.click(copy)
+    expect(writeText).toHaveBeenCalledTimes(1)
+    await act(async () => finishCopy())
+    expect(guide.getByRole('button', { name: 'orbitMcp.copied' })).toBeEnabled()
+    fireEvent.click(guide.getByRole('button', { name: 'orbitMcp.done' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'orbitMcp.claudeWeb' })).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
+    expect(await screen.findByRole('button', { name: 'orbitMcp.copy' })).toBeEnabled()
+  })
+
+  it.each(['denied', 'unavailable'])('keeps the MCP endpoint selectable when clipboard is %s', async (failure) => {
+    mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
+    mockStepUpVerified.current = true
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('Clipboard denied')).mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: failure === 'denied' ? { writeText } : undefined })
+    render(<ProfileSubscreen screen="astra" />)
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'orbitMcp.copy' }))
+    expect(await screen.findByText('orbitMcp.copyError')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toHaveAccessibleDescription('orbitMcp.copyError')
+    expect(within(screen.getByRole('dialog', { name: 'orbitMcp.claudeWeb' })).getByText(getMcpEndpointUrl(accountEventApiBase()))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'orbitMcp.copied' })).not.toBeInTheDocument()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.copy' }))
+    expect(await screen.findByRole('button', { name: 'orbitMcp.copied' })).toBeEnabled()
+    expect(screen.queryByText('orbitMcp.copyError')).not.toBeInTheDocument()
+  })
+
+  it('opens the MCP web guide from the verified Astra settings', async () => {
+    mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
+    mockStepUpVerified.current = true
+    render(<ProfileSubscreen screen="astra" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
+    const guide = within(await screen.findByRole('dialog', { name: 'orbitMcp.claudeWeb' }))
+    expect(guide.getByText('orbitMcp.webInstructions')).toBeInTheDocument()
+    expect(guide.getAllByRole('listitem').map((step) => step.textContent)).toEqual([
+      'orbitMcp.webStep1', 'orbitMcp.webStep2', 'orbitMcp.webStep3', 'orbitMcp.webStep4',
+    ])
+    expect(guide.getByText('orbitMcp.webNoApiKey')).toBeInTheDocument()
+    expect(guide.getByRole('button', { name: 'orbitMcp.copy' })).toBeEnabled()
+    fireEvent.click(guide.getByRole('button', { name: 'orbitMcp.done' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'orbitMcp.claudeWeb' })).not.toBeInTheDocument())
   })
 
   it('shows verified keys and submits a free-text scope', async () => {

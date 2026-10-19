@@ -5,7 +5,10 @@
   <string name="widget_tomorrow">Tomorrow</string>
   <string name="widget_of">of</string>
   <string name="widget_completed">completed</string>
-  <string name="widget_streak_unit">days</string>
+  <plurals name="widget_streak_unit">
+    <item quantity="one">day</item>
+    <item quantity="other">days</item>
+  </plurals>
   <string name="widget_all_clear">All clear</string>
   <string name="widget_nothing_scheduled">Nothing scheduled</string>
   <string name="widget_sign_in">Open Orbit to sign in</string>

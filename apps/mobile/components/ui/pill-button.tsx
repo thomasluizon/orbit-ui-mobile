@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   type ViewStyle,
+  type View,
 } from 'react-native'
 import { GOOGLE_SIGN_IN_BUTTON, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
@@ -15,8 +16,19 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
+function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: boolean): Record<ButtonVariant, string> {
+  return {
+    primary: tokens.fgOnPrimary,
+    secondary: tokens.bg,
+    ghost: quiet ? tokens.fg2 : tokens.fg1,
+    destructive: tokens.fgOnBad,
+    caution: tokens.fgOnOverdue,
+  }
+}
+
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
+  buttonRef,
   minimumHeight,
   expanded,
   elevated = false,
@@ -29,6 +41,7 @@ export function Button({
   onHoverOut,
   disabled = false,
   loading = false,
+  focusableWhenLoading = false,
   children,
   accessibleName,
   iconOnly,
@@ -39,22 +52,17 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
+}: Readonly<ButtonProps & { buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()
+  const nativelyDisabled = disabled || (loading && !focusableWhenLoading)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const textColorByVariant: Record<ButtonVariant, string> = {
-    primary: tokens.fgOnPrimary,
-    secondary: tokens.bg,
-    ghost: quiet ? tokens.fg2 : tokens.fg1,
-    destructive: tokens.fgOnBad,
-    caution: tokens.fgOnOverdue,
-  }
+  const textColorByVariant = buttonTextColors(tokens, quiet)
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
@@ -87,17 +95,18 @@ export function Button({
 
   return (
     <Pressable
+      ref={buttonRef}
       hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
       onBlur={() => { setFocused(false); onBlur?.() }}
       onHoverIn={() => { setHovered(true); onHoverIn?.() }}
       onHoverOut={() => { setHovered(false); onHoverOut?.() }}
-      disabled={disabled || loading}
+      disabled={nativelyDisabled}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
-      accessibilityState={{ disabled: disabled || loading, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
+      accessibilityState={{ disabled: nativelyDisabled, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,

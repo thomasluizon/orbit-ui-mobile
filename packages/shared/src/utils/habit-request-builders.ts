@@ -227,7 +227,7 @@ export function buildUpdateHabitRequest(
   }
 
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false
-  if (data.checklistItems.length) request.checklistItems = data.checklistItems
+  request.checklistItems = data.checklistItems
   request.goalIds = selectedGoalIds
   return request
 }

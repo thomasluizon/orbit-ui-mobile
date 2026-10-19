@@ -5,6 +5,7 @@ import {
   nextGoalPosition,
   sortGoalsByPosition,
   updateGoalDetailItem,
+  updateGoalListItem,
   updateGoalProgressDetail,
   updateGoalProgressItem,
   updateGoalStatusDetail,
@@ -109,6 +110,19 @@ describe('goal mutation utils', () => {
         progressPercentage: 10,
       },
     })
+  })
+
+  it.each([
+    { description: '', deadline: null, expected: { description: '', deadline: null } },
+    { description: undefined, deadline: undefined, expected: { description: 'Read daily', deadline: '2026-06-30' } },
+    { description: 'Read more books', deadline: '2026-12-31', expected: { description: 'Read more books', deadline: '2026-12-31' } },
+  ])('applies description $description and deadline $deadline to list and detail caches', ({ description, deadline, expected }) => {
+    const goal = makeGoal({ description: 'Read daily', deadline: '2026-06-30' })
+    const detail = makeDetail(goal)
+    const request = { title: goal.title, targetValue: goal.targetValue, unit: goal.unit, description, deadline }
+    expect.soft(updateGoalListItem(goal, request)).toMatchObject(expected)
+    expect.soft(updateGoalDetailItem(detail, request)?.goal).toMatchObject(expected)
+    expect(goal).toMatchObject({ description: 'Read daily', deadline: '2026-06-30' })
   })
 
   it('marks completed goals with a completion timestamp and 100 percent progress', () => {

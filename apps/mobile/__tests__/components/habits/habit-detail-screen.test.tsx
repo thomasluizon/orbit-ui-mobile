@@ -587,6 +587,12 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ backgroundColor: tokens.bg }}><HabitDetailScreen habitId="habit-1" /></View>) })
     const group = tree.root.findByProps({ testID: 'detail-children' })
     const row = group.findByProps({ testID: 'habit-row' })
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgCard, borderRadius: 20 })
+    expect(StyleSheet.flatten(row.props.style as ViewStyle).borderWidth ?? 0).toBe(0)
+    const outline = row.findByProps({ testID: 'habit-row-outline' })
+    expect(StyleSheet.flatten(outline.props.style)).toMatchObject({ position: 'absolute', borderWidth: 1, borderRadius: 20, borderColor: tokens.hairline })
+    expect(StyleSheet.flatten(group.props.style ?? {})).not.toHaveProperty('backgroundColor')
+    expect(StyleSheet.flatten(group.props.style ?? {})).not.toHaveProperty('borderWidth')
     const body = () => row.findAll((node: TestNode) => node.type === 'Pressable' && typeof node.props.onPressIn === 'function')[0]!
     const measure = (pressed: boolean) => {
       const monogram = row.findAll((node: TestNode) => node.type === 'Text' && node.props.children === 'R')[0]!
@@ -596,7 +602,7 @@ describe('HabitDetailScreen', () => {
         color: StyleSheet.flatten(monogram.props.style as TextStyle).color as string,
         layers: [
           StyleSheet.flatten(tree.root.findAllByType('View')[0]!.props.style).backgroundColor,
-          StyleSheet.flatten(group.props.style as ViewStyle).backgroundColor,
+          StyleSheet.flatten(group.props.style ?? {}).backgroundColor,
           StyleSheet.flatten(row.props.style as ViewStyle).backgroundColor,
           StyleSheet.flatten(style({ pressed })).backgroundColor ?? 'transparent',
           StyleSheet.flatten(well.props.style as ViewStyle).backgroundColor,

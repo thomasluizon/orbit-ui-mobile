@@ -12,7 +12,7 @@ import {
   unsubscribePushForCleanup,
 } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
-import { ApiClientError } from '@orbit/shared'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { getHeldAccountId } from '@/stores/auth-store'
 import {

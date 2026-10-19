@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
-import { T, toolPath } from "./_harness.mjs"
+import { T, check, toolPath } from "./_harness.mjs"
+import { cases as workflowCases } from "./check-release-workflow.mjs"
 import { planRelease, stagingServiceIds, productionServiceIds } from "../release-plan.mjs"
 
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
@@ -7,6 +8,7 @@ const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release
 const FIRST = "a".repeat(40)
 const SECOND = "b".repeat(40)
 const IDS = { api: "srv-aaaaaaaaaaaaaaaaaaaa", web: "srv-bbbbbbbbbbbbbbbbbbbb" }
+const REDESIGN = "srv-cccccccccccccccccccc"
 const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
@@ -18,11 +20,12 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
     const repository = path.match(/^repos\/[^/]+\/([^/]+)\//)?.[1]
     const service = repository === "orbit-api" ? "api" : repository === "orbit-landing-page" ? "landing" : "web"
     if (path.includes("/actions/variables?")) {
-      return { total_count: 4, variables: [
+      return { total_count: 5, variables: [
         { ...clone(renderFixture.variable), name: "RENDER_API_STAGING_SERVICE_ID", value: IDS.api },
         clone(renderFixture.variable),
         { ...clone(renderFixture.variable), name: "RENDER_PRODUCTION_SERVICE_ID", value: IDS.api },
         { ...clone(renderFixture.variable), name: "RENDER_WEB_SERVICE_ID", value: IDS.web },
+        { ...clone(renderFixture.variable), name: "RENDER_WEB_REDESIGN_SERVICE_ID", value: REDESIGN },
       ] }
     }
     if (path.includes("/commits/")) {
@@ -80,6 +83,11 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
       return records
     }
     if (path === `services/${IDS.web}`) return clone(renderFixture.service)
+    if (path === `services/${REDESIGN}`) {
+      const service = clone(renderFixture.service)
+      service.serviceDetails.url = "https://redesign.example.invalid"
+      return service
+    }
     throw new Error(`unexpected Render read: ${path}`)
   }
   const readHealth = (url) => {
@@ -89,7 +97,48 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
   return { read, readRender, readHealth, calls }
 }
 
+async function redesignCases() {
+  const redesignClient = clientFor()
+  const redesignIds = productionServiceIds(redesignClient, "production-redesign")
+  let redesignPlan
+  let redesignError = ""
+  try { redesignPlan = await planRelease(redesignClient, "production-redesign", redesignIds) }
+  catch (error) { redesignError = error.message }
+  T("redesign is an explicit web-only production plan", redesignPlan?.services.length === 1 &&
+    redesignPlan.services[0].name === "web" && redesignPlan.services[0].branch === "redesign/main" &&
+    redesignPlan.environment === "production-redesign", redesignError)
+
+  T("redesign resolves only its own service and branch", redesignIds.web === REDESIGN &&
+    Object.keys(redesignIds).join(",") === "web" &&
+    redesignClient.calls.includes(`services/${REDESIGN}`) &&
+    redesignClient.calls.some((value) => value === "https://redesign.example.invalid/api/health") &&
+    redesignClient.calls.includes("repos/thomasluizon/orbit-ui-mobile/commits/redesign%2Fmain") &&
+    !redesignClient.calls.some((path) => path.includes("android-release") || path.includes("orbit-api") || path.includes("orbit-landing-page")))
+  for (const branch of ["main", "feature/release"]) {
+    let invalidBranch = ""
+    try { await planRelease(clientFor(), "production-redesign", redesignIds, null, branch) }
+    catch (error) { invalidBranch = error.message }
+    T(`redesign refuses ${branch}`, invalidBranch === "invalid branch for environment")
+    check("release-plan.mjs", `CLI redesign refuses ${branch}`, ["--environment", "production-redesign", "--branch", branch], { status: 2 })
+  }
+  check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "redesign/main"], { status: 2 })
+  check("release-plan.mjs", "CLI redesign refuses Android track", ["--environment", "production-redesign", "--track", "open"], { status: 2 })
+  const redesignAhead = await planRelease(clientFor({ ahead: ["web"] }), "production-redesign", redesignIds)
+  T("redesign compares unreleased commits with its own health baseline", redesignAhead.services[0].needsRelease &&
+    redesignAhead.services[0].deployedSha === FIRST && redesignAhead.services[0].commits[0].sha === SECOND)
+  let redesignDivergence = ""
+  try { await planRelease(clientFor({ ahead: ["web"], diverged: ["web"] }), "production-redesign", redesignIds) }
+  catch (error) { redesignDivergence = error.message }
+  T("redesign rejects a divergent production baseline", redesignDivergence.includes("diverged or omitted commits"))
+  const missingRedesign = clientFor()
+  const missingRedesignPlan = await planRelease(missingRedesign, "production-redesign", { web: null })
+  T("missing redesign service is a first deploy without reading the main service", missingRedesignPlan.services[0].noBaseline &&
+    !missingRedesign.calls.some((path) => path.startsWith("services/")))
+}
+
 export async function cases() {
+  workflowCases()
+  await redesignCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
@@ -102,6 +151,7 @@ export async function cases() {
   const idle = clientFor()
   const idlePlan = await planRelease(idle, "production", IDS)
   T("release plan does nothing when every service is current", idlePlan.services.every((service) => !service.needsRelease))
+  T("default production never reads redesign service", !idle.calls.includes(`services/${REDESIGN}`))
   T("release plan preserves dispatch order", idlePlan.services.map((service) => service.name).join(",") === "api,web,landing,android")
   T("production landing uses the discovered service", idle.calls.includes(`services/${LANDING}/deploys?status=live&limit=1`))
 

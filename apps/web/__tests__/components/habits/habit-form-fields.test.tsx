@@ -1,4 +1,7 @@
 import React from 'react'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import type { HabitTag } from '@orbit/shared/types/habit'
+import userEvent from '@testing-library/user-event'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -12,7 +15,8 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 
-const tagMutations = vi.hoisted(() => ({ create: vi.fn() }))
+const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
@@ -63,10 +67,11 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({ tags: [] }),
+  useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
+  useTags: () => ({ tags: tagCollection.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
@@ -131,11 +136,12 @@ function renderForm(
   readPhraseLocally = false,
   lockedGeneral: boolean | null = null,
   onResolveSubHabitProposalReady?: (resolve: () => void) => void,
+  emojiOptions: Pick<React.ComponentProps<typeof HabitFormFields>, 'onSuggestEmoji' | 'isEmojiSuggesting' | 'emojiSuggestionError'> = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const buildForm = (isSuggesting = false) => (
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady} {...emojiOptions}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>
@@ -145,6 +151,81 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it.each(['', '   ', 'Swim'])('reaches the emoji action without replacing setup for title %j', async (title) => {
+    const onSuggestEmoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
+    renderForm(createFormHelpers({ title }), undefined, false, false, null, undefined, { onSuggestEmoji })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button.hasAttribute('disabled')).toBe(!title.trim())
+    if (title.trim()) {
+      const user = userEvent.setup()
+      await user.tab()
+      await user.tab()
+      await user.tab()
+      expect(button).toHaveFocus()
+      await user.keyboard('{Enter}')
+    } else fireEvent.click(button)
+    await waitFor(() => expect(onSuggestEmoji).toHaveBeenCalledTimes(title.trim() ? 1 : 0))
+    if (!title.trim()) expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+  })
+
+  it.each([false, true])('preserves the emoji action through pending and success after moving focus: %j', async (moveFocus) => {
+    let complete!: (proposal: HabitFormProposal) => void
+    const pending = new Promise<HabitFormProposal>((resolve) => { complete = resolve })
+    const onSuggestEmoji = vi.fn(() => pending)
+    const emojiOptions = { onSuggestEmoji, isEmojiSuggesting: false }
+    const view = renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, emojiOptions)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    button.focus()
+    await user.keyboard('{Enter}')
+    emojiOptions.isEmojiSuggesting = true
+    view.rerenderForm(true)
+    const busy = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(busy).toBe(button)
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(busy).not.toBeDisabled()
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{Enter} ')
+    fireEvent.click(busy)
+    expect(onSuggestEmoji).toHaveBeenCalledOnce()
+    const phrase = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    if (moveFocus) await user.click(phrase)
+    await act(async () => { complete(SETUP_PROPOSAL); await pending })
+    emojiOptions.isEmojiSuggesting = false
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiSuggest' })).toBe(button)
+    expect(button.closest('[data-proposed]')).toBeInTheDocument()
+    expect(moveFocus ? phrase : button).toHaveFocus()
+  })
+
+  it('keeps the emoji request visible and busy while blocking competing emoji edits', () => {
+    const onSuggestEmoji = vi.fn()
+    renderForm(createFormHelpers({ title: 'Swim', frequencyUnit: 'Day', frequencyQuantity: 1 }), undefined, false, false, null, undefined, { onSuggestEmoji, isEmojiSuggesting: true })
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeDisabled()
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('explains the emoji allowance boundary and keeps request failures inline', () => {
+    mockProfileState.aiMessagesUsed = 5
+    const emojiOptions = { onSuggestEmoji: vi.fn(), emojiSuggestionError: undefined as string | undefined }
+    const view = renderForm(createFormHelpers({ title: 'Swim' }), undefined, false, false, null, undefined, emojiOptions)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    emojiOptions.emojiSuggestionError = 'Try again'
+    view.rerenderForm()
+    expect(screen.getByRole('alert')).toBe(alert)
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button).toBeDisabled()
+    expect(button.getAttribute('aria-describedby')).toBeTruthy()
+    expect(screen.getByRole('alert')).toHaveTextContent('Try again')
+    expect(button).toHaveAccessibleDescription(expect.stringContaining('Try again'))
+  })
+
   it('announces the details state and identifies the reminders region across toggles', () => {
     renderForm()
     const disclosure = screen.getByRole('button', { name: 'habits.form.moreDetails' })
@@ -615,7 +696,8 @@ describe('HabitFormFields', () => {
     }, true)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
-    await waitFor(() => expect(document.querySelectorAll('[data-proposed]')).toHaveLength(2))
+    await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
+    expect(screen.getByRole('spinbutton').closest('[data-proposed]')).not.toBeNull()
     expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
@@ -779,6 +861,323 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   expect(screen.getByText('habits.form.selectedCount:{"count":1}')).toBeInTheDocument()
 })
 
+it('exposes tag suggestions from the owning habit form', () => {
+  renderForm(createFormHelpers({ title: 'Run', description: 'Outside' }), undefined, true)
+  fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+})
+
+describe('habit tag suggestions', () => {
+  function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
+    const helpers = createFormHelpers({ title, description })
+    function OwningForm() {
+      const tags = useTagSelection(initialIds)
+      return <><output aria-label="Selected tags">{tags.selectedTagIds.join(',')}</output><HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded /></>
+    }
+    const view = render(<OwningForm />)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+    return { ...view, helpers, refresh: () => view.rerender(<OwningForm />) }
+  }
+
+  beforeEach(() => {
+    tagCollection.tags = []
+    tagMutations.suggest.mockReset()
+    tagMutations.create.mockReset()
+    tagMutations.delete.mockReset()
+    formLocale.language = 'en'
+  })
+
+  it.each(['settled', 'pending'])('rejects a deleted existing proposal from a %s request while keeping other proposals', async (phase) => {
+    tagCollection.tags = [
+      { id: 'existing', name: 'Health', color: '#7c3aed' },
+      { id: 'outdoors', name: 'Outdoors', color: '#7c3aed' },
+    ]
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    const proposals = { tags: [
+      { ...tagCollection.tags[0]!, isExisting: true },
+      { ...tagCollection.tags[1]!, isExisting: true },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] }
+    const view = renderTagForm()
+    tagMutations.delete.mockImplementation((id: string) => {
+      tagCollection.tags = tagCollection.tags.filter((tag) => tag.id !== id)
+      view.refresh()
+      return Promise.resolve()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    if (phase === 'settled') await act(async () => complete(proposals))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.form.deleteTag: Health' })) })
+    expect(tagMutations.delete).toHaveBeenCalledWith('existing')
+    if (phase === 'pending') await act(async () => complete(proposals))
+    const staleProposal = screen.queryByRole('button', { name: 'Health', pressed: false })
+    if (staleProposal) await act(async () => { fireEvent.click(staleProposal) })
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: 'Health', pressed: false })).toBeNull()
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors'))
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('outdoors,created'))
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+  })
+
+  it.each(['settled', 'pending', 'error'])('preserves %s suggestion state across tag search changes', async (phase) => {
+    tagCollection.tags = Array.from({ length: 25 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
+    if (phase === 'error') tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable'))
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    const proposals = { tags: [{ name: 'Reading', color: '#000000', isExisting: false, id: null }] }
+    if (phase === 'settled') await act(async () => complete(proposals))
+    if (phase === 'error') expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.searchTags' }), { target: { value: 'Tag 24' } })
+    if (phase === 'pending') {
+      expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+      expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+      await act(async () => complete(proposals))
+    }
+    if (phase === 'error') expect(screen.getByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    else expect(await screen.findByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['success', 'failure'])('preserves proposals and acceptance status across optimistic virtualization: %s', async (outcome) => {
+    tagCollection.tags = Array.from({ length: 20 }, (_, index) => ({ id: `tag-${index}`, name: `Tag ${index}`, color: '#000000' }))
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Reading', color: '#000000', isExisting: false, id: null },
+      { name: 'Outdoors', color: '#000000', isExisting: false, id: null },
+    ] })
+    const view = renderTagForm()
+    let complete!: (response: { id: string }) => void
+    let fail!: (error: Error) => void
+    tagMutations.create.mockImplementation(() => {
+      tagCollection.tags = [...tagCollection.tags, { id: 'optimistic', name: 'Reading', color: '#000000' }]
+      view.refresh()
+      return new Promise((resolve, reject) => { complete = resolve; fail = reject })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
+    expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    if (outcome === 'success') {
+      await act(async () => complete({ id: 'created' }))
+      expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created')
+      expect(screen.queryByRole('button', { name: 'Reading', pressed: false })).toBeNull()
+    } else {
+      await act(async () => {
+        tagCollection.tags = tagCollection.tags.slice(0, 20)
+        view.refresh()
+        fail(new Error('Unavailable'))
+      })
+      expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
+      expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeEnabled()
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests proposals with trimmed context and accepts existing and new tags only on selection', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    tagMutations.create.mockResolvedValue({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toHaveAttribute('data-proposed')
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: 'Outside', language: 'en' })
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('')
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing'))
+    expect(tagMutations.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('existing,created'))
+    expect(tagMutations.create).toHaveBeenCalledWith({ name: 'Reading', color: '#7c3aed' })
+    expect(screen.queryByRole('group', { name: 'habits.form.suggestedTagsLabel' })).toBeNull()
+  })
+
+  it('preserves the action label while loading and announces an empty result', async () => {
+    let resolve!: (response: { tags: [] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    formLocale.language = 'pt-BR'
+    renderTagForm('Run', '   ')
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    fireEvent.click(action)
+    expect(action).toBeDisabled()
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
+    fireEvent.click(action)
+    expect(tagMutations.suggest).toHaveBeenCalledTimes(1)
+    expect(tagMutations.suggest).toHaveBeenCalledWith({ title: 'Run', description: null, language: 'pt-BR' })
+    await act(async () => resolve({ tags: [] }))
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
+    expect(action).toBeEnabled()
+  })
+
+  it('shows request failure inline and permits a successful retry', async () => {
+    tagMutations.suggest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ tags: [] })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('habits.form.suggestTagsError')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions'))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('retains a failed new proposal for retry and disables other actions during acceptance', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] })
+    let reject!: (error: Error) => void
+    tagMutations.create.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail })).mockResolvedValueOnce({ id: 'created' })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
+    expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+    await act(async () => reject(new Error('Unavailable')))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText('Selected tags')).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Reading', pressed: false }))
+    await waitFor(() => expect(screen.getByLabelText('Selected tags')).toHaveTextContent('created'))
+  })
+
+  it.each([['   ', []], ['Run', ['1', '2', '3', '4', '5']]])('disables suggestions with an empty title or full selection: %s', (title, ids) => {
+    const view = renderTagForm(title, '', ids)
+    const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
+    expect(action).toBeDisabled()
+    fireEvent.click(action)
+    expect(tagMutations.suggest).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'habits.form.newTag' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent(title.trim() ? 'habits.form.tagLimit' : 'habits.form.titleRequired')
+    if (!title.trim()) {
+      view.helpers.testValues.title = 'Run'
+      view.refresh()
+      expect(action).toBeEnabled()
+      expect(screen.queryByText('habits.form.titleRequired')).toBeNull()
+    }
+  })
+
+  it('disables remaining proposals at capacity', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    tagMutations.suggest.mockResolvedValue({ tags: [
+      { name: 'Health', color: '#7c3aed', isExisting: true, id: 'existing' },
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+    ] })
+    renderTagForm('Run', '', ['1', '2', '3', '4'])
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    fireEvent.click(within(await screen.findByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Health', pressed: false }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled())
+    expect(tagMutations.create).not.toHaveBeenCalled()
+  })
+
+  it.each(['title', 'description', 'locale', 'returning title', 'account'])('drops an in-flight result when the habit context changes: %s', async (context) => {
+    let resolve!: (response: { tags: { name: string; color: string; isExisting: boolean; id: null }[] }) => void
+    tagMutations.suggest.mockImplementation(() => new Promise((complete) => { resolve = complete }))
+    const view = renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    await act(async () => {
+      if (context === 'locale') formLocale.language = 'pt-BR'
+      else if (context === 'account') advanceAccountGeneration()
+      else view.helpers.testValues[context === 'description' ? 'description' : 'title'] = 'Read'
+      view.refresh()
+    })
+    if (context === 'returning title') await act(async () => { view.helpers.testValues.title = ' Run '; view.refresh() })
+    await act(async () => resolve({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] }))
+    expect(screen.queryByRole('button', { name: 'Outdoors', pressed: false })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeEnabled()
+
+  })
+})
+
+describe('manual schedule creation', () => {
+  beforeEach(() => {
+    formLocale.language = 'en'
+    mockProfileState.aiMessagesUsed = 0
+  })
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+    mockProfileState.aiMessagesUsed = 5
+    const ask = vi.fn()
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-02' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={ask} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    fireEvent.click(screen.getByRole('radio', { name: `habits.form.unit${unit}` }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '12' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '0' } })
+    expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('habits.form.frequencyRequired')
+    expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    expect(helpers.validateAll()).toBeNull()
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
+    expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+    const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    let helpers!: HabitFormHelpers
+    function OwningForm() {
+      helpers = useHabitForm({ initialData: { title: 'Read', dueDate: '2099-01-01' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={() => ({ ...SETUP_PROPOSAL, setup: applySuggestionSchedule(patch, helpers) })} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    const quantity = screen.getByRole('spinbutton', { name: 'habits.form.frequency' })
+    for (const control of [quantity, screen.getByRole('radio', { name: 'habits.form.every' }), screen.getByRole('radio', { name: 'habits.form.unitDay' }), screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })]) {
+      expect(control.closest('[data-proposed]')).not.toBeNull()
+    }
+    expect(quantity).toHaveValue(1)
+    expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-3)')
+    expect(screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'habits.form.describe' }).closest('[data-proposed]')).toBeNull()
+    quantity.focus()
+    if (edit === 'quantity') fireEvent.change(quantity, { target: { value: '2' } })
+    else if (edit === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
+    else if (edit === 'mode') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
+    else fireEvent.click(screen.getByRole('button', { name: edit === 'day' ? helpers.daysList.find((day) => day.value === 'Tuesday')!.accessibleLabel : 'habits.form.repeatMore' }))
+    expect(view.container.querySelector('[data-proposed]')).toBeNull()
+    if (edit === 'quantity') {
+      expect(screen.getByRole('spinbutton')).toBe(quantity)
+      expect(quantity).toHaveFocus()
+      expect(quantity).toHaveValue(2)
+      expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-1)')
+    }
+    expect(helpers.form.getValues('title')).toBe('Read')
+  })
+
+  it('disables manual scheduling for a locked parent', () => {
+    renderForm(createFormHelpers({ title: 'Read', isGeneral: true }), undefined, true, false, true)
+    expect(screen.getByRole('radio', { name: /habits.form.every/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: /habits.form.unitMonth/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toBeDisabled()
+  })
+})
 
 describe('habit end time', () => {
   function EditingForm({ onSave }: { onSave: (requests: unknown[]) => void }) {

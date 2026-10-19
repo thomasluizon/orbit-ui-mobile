@@ -1,4 +1,9 @@
 export const API = {
+  connections: {
+    notion: '/api/connections/notion',
+    notionAuthorize: '/api/connections/notion/authorize',
+    notionCallback: '/api/connections/notion/callback',
+  },
   events: {
     stream: '/api/events',
     ticket: '/api/events/ticket',

@@ -113,6 +113,15 @@ export function buildShareCardStats(
   ]
 }
 
+export function buildProgressShareCardStats(metrics: RetrospectiveMetrics): ShareCardStat[] {
+  return [
+    { labelKey: 'shareCard.stats.completionRate', value: formatCompletionRate(metrics.completionRate) },
+    { labelKey: 'shareCard.stats.completions', value: String(metrics.totalCompletions) },
+    { labelKey: 'shareCard.stats.bestStreak', value: String(metrics.bestStreak) },
+    { labelKey: 'shareCard.stats.activeDays', value: String(metrics.activeDays) },
+  ]
+}
+
 /** Finds the strongest Monday-first weekday and keeps its shared three-letter label key. */
 export function buildShareCardWeekday(weeklyConsistency: readonly number[]): ShareCardWeekday {
   let strongestIndex = 0

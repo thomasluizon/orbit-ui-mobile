@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import { useBilling } from '@/hooks/use-billing'
 
@@ -51,16 +52,29 @@ describe('mobile useBilling', () => {
   })
 
   it('returns null for 404 billing errors', async () => {
-    mocks.apiClient.mockRejectedValue(new Error('Request failed with status 404'))
+    mocks.apiClient.mockRejectedValue(createApiClientError(
+      404,
+      { error: 'This account has no active subscription.' },
+      'Request failed: 404',
+    ))
 
     useBilling(true)
     await expect(mocks.state.lastOptions?.queryFn()).resolves.toBeNull()
   })
 
-  it('rethrows non-404 billing errors', async () => {
-    mocks.apiClient.mockRejectedValue(new Error('Request failed with status 500'))
+  it.each([401, 403, 429, 500])('rethrows billing errors with status %i', async (status) => {
+    const error = createApiClientError(status, { error: 'Upstream error 404' }, `Request failed: ${status}`)
+    mocks.apiClient.mockRejectedValue(error)
 
     useBilling(true)
-    await expect(mocks.state.lastOptions?.queryFn()).rejects.toThrow('500')
+    await expect(mocks.state.lastOptions?.queryFn()).rejects.toBe(error)
+  })
+
+  it('rethrows network errors', async () => {
+    const error = new TypeError('Network request failed')
+    mocks.apiClient.mockRejectedValue(error)
+
+    useBilling(true)
+    await expect(mocks.state.lastOptions?.queryFn()).rejects.toBe(error)
   })
 })

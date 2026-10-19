@@ -42,12 +42,14 @@ export async function setLayoutProfileSession(context: BrowserContext, profile: 
   sessions.set(context, { profile, calendars, tags, fixtureSession })
 }
 
-export async function setLayoutFixtureSession(context: BrowserContext, fixtures: readonly SessionFixture[]): Promise<void> {
+export async function setLayoutFixtureSession(context: BrowserContext, fixtures: readonly SessionFixture[]): Promise<string> {
   const current = sessions.get(context) ?? {}
   const profileFixture = [...fixtures].reverse().find((fixture) => fixture.path === API.profile.get)
   const profile = profileFixture ? profileSchema.parse(profileFixture.body) : current.profile
   const session = current.fixtureSession ?? randomUUID()
   await seedLayoutFixtures(session, fixtures)
-  await writeLayoutSession(context, mintHermeticJwt(profile, current.calendars, current.tags, session), profile)
+  const token = mintHermeticJwt(profile, current.calendars, current.tags, session)
+  await writeLayoutSession(context, token, profile)
   sessions.set(context, { ...current, profile, fixtureSession: session })
+  return token
 }

@@ -817,6 +817,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     isSending,
     streamingMessageId,
     hasProAccess,
+    hasGoogleConnection: profile?.hasGoogleConnection ?? false,
     aiMessagesUsed,
     aiMessagesLimit,
     atMessageLimit,

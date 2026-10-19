@@ -133,6 +133,8 @@ export function GoalLinkedHabitsSection({
   onLinkedHabitNavigate,
   notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
+  const t = useTranslations()
+  const locale = useLocale()
   const adherenceByHabitId = useMemo(
     () => new Map(habitAdherence.map((metrics) => [metrics.habitId, metrics])),
     [habitAdherence],
@@ -148,6 +150,7 @@ export function GoalLinkedHabitsSection({
         {linkedHabits.map((habit) => {
           const adherence = adherenceByHabitId.get(habit.id)
           const value = adherence ? formatValue(adherence.currentStreak) : undefined
+          const description = adherence ? t('goals.metrics.weeklyAdherence', { percent: formatGoalHistoryNumber(Math.round(adherence.weeklyCompletionRate), locale) }) : undefined
           return (
             <li key={habit.id}>
               <ListRow
@@ -155,7 +158,8 @@ export function GoalLinkedHabitsSection({
                 title={habit.title}
                 textMode="personal"
                 value={value}
-                accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
+                description={description}
+                accessibilityLabel={[habit.title, description, value].filter(Boolean).join(', ')}
                 href={`/habits/${habit.id}`}
                 onClick={onLinkedHabitNavigate ? (event) => onLinkedHabitNavigate(habit.id, event) : undefined}
               />

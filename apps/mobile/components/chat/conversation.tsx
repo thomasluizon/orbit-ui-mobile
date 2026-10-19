@@ -1,4 +1,3 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
@@ -6,6 +5,7 @@ import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
   Text,
+  Keyboard,
   AccessibilityInfo,
   Pressable,
   Platform,
@@ -17,7 +17,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey, stripChatDirectives } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -26,8 +26,13 @@ import { PendingReply, type PendingReplyHandle } from "@/components/chat/pending
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { AstraGlyph } from "@/components/ui/astra-glyph";
 import { MotionPressable } from "@/components/ui/motion-pressable";
-import { ChevronDown, X } from "@/components/ui/icons";
+import { ChevronDown, Lightbulb, X } from "@/components/ui/icons";
+import { useChatStore } from '@/stores/chat-store';
+import { Button } from '@/components/ui/pill-button';
+import { ListRow } from '@/components/ui/list-row';
+import { PromptLibrary } from '@/components/chat/prompt-library';
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -52,8 +57,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
       {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
     </View> : null}
   </View>);
-  if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
-  return <View style={{ paddingVertical: 8 }}>
+  if (running) return <View testID="thinking-trace-running" accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
+  return <View testID="thinking-trace-completed" style={{ paddingVertical: 8 }}>
     <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
       <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
@@ -79,6 +84,22 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     return () => { mounted = false; };
   }, [complete, content, messageId, claimAnnouncement]);
   return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+}
+
+function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
+  hasDraft: boolean;
+  disabledReason: string | undefined;
+  onSelect: (id: string, label: string, prompt: string) => void;
+}>) {
+  const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = createTokensV2(currentScheme, currentTheme);
+  const pendingIdea = useChatStore(state => state.contextualSuggestion);
+  if (!pendingIdea?.id.startsWith('prompt-library:')) return null;
+  return <View style={{ paddingHorizontal: 16 }}>
+    {hasDraft ? <Text accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 }}>{t('chat.templates.draftKept')}</Text> : null}
+    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+  </View>;
 }
 
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
@@ -171,7 +192,41 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     setAstraConversationOpen(false);
   }, [setAstraConversationOpen]);
 
-  useOverlayBack(true, closeConversation);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryMounted, setLibraryMounted] = useState(false);
+  const finishLibraryExit = useCallback(() => setLibraryMounted(false), []);
+  const [inputSelection, setInputSelection] = useState<{ start: number; end: number } | undefined>();
+  const libraryTrigger = useRef<{ current: View | null } | null>(null);
+  const returnFocusVersion = useRef(0);
+  const browseHeaderRef = useRef<View>(null);
+  const browseEmptyRef = useRef<View>(null);
+  const disabledReason = promptDisabledReason(chat, t);
+  const openLibrary = (trigger: { current: View | null }) => { returnFocusVersion.current++; Keyboard.dismiss(); libraryTrigger.current = trigger; setLibraryMounted(true); setLibraryOpen(true); };
+  const returnToConversation = () => {
+    setLibraryOpen(false);
+    const version = ++returnFocusVersion.current;
+    requestAnimationFrame(() => {
+      if (version !== returnFocusVersion.current) return;
+      const trigger = libraryTrigger.current?.current ?? browseHeaderRef.current;
+      trigger?.setNativeProps({ hasTVPreferredFocus: true });
+      if (trigger) AccessibilityInfo.sendAccessibilityEvent(trigger, 'focus');
+    });
+  };
+  const selectIdea = (id: string, label: string, prompt: string) => {
+    if (disabledReason) return;
+    if (findPromptSlot(prompt)) {
+      const selection = preparePromptTemplate(useChatStore.getState(), { id, label, prompt });
+      setLibraryOpen(false);
+      if (selection) {
+        useChatStore.getState().setContextualSuggestion(null);
+        setInputSelection(selection);
+      } else returnToConversation();
+    } else {
+      void sendMessage(prompt);
+      returnToConversation();
+    }
+  };
+  useOverlayBack(true, libraryOpen ? returnToConversation : closeConversation);
 
   const handleActionChipClick = useCallback(
     (entityId: string, actionType: string) => {
@@ -196,8 +251,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, []);
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
-    ({ item }) => (
-      <View style={{ gap: 16 }}>
+    ({ item, index }) => (
+      <View style={styles.messageTurn}>
+      {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+        <AstraGlyph size={24} />
+      </View> : null}
+      <View style={styles.messageContent}>
       {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
@@ -213,6 +272,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       />
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+      </View>
       </View>
     ),
     [
@@ -231,6 +291,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       streamingMessageId,
       isTyping,
       verifyStepUpForBubble,
+      styles,
     ],
   );
 
@@ -239,12 +300,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   return (
     <ChatCardOperationContext.Provider value={trackCardOperation}>
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <View style={styles.content}>
+      <View style={styles.content} pointerEvents={libraryOpen ? 'none' : 'auto'} accessibilityElementsHidden={libraryOpen} importantForAccessibility={libraryOpen ? 'no-hide-descendants' : 'auto'}>
         <AppBar
           titleRef={titleRef}
           title={t("chat.title")}
           titleVisual={<AstraGlyph size={16} />}
-          action={
+          action={<>
+            <MotionPressable ref={browseHeaderRef} accessibilityRole="button" accessibilityLabel={t('chat.templates.browse')} onPress={() => openLibrary(browseHeaderRef)} style={({ pressed }) => [styles.headerClose, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Lightbulb size={20} strokeWidth={2} color={tokens.fg1} /></MotionPressable>
             <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={t("common.closeConversation")}
@@ -256,13 +318,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             >
               <X size={20} strokeWidth={2} color={tokens.fg1} />
             </MotionPressable>
-          }
+          </>}
         />
 
         <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
 
         {showSuggestions ? (
-          <ChatEmptyState ref={chatAreaRef} styles={styles} />
+          <ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
             <FlatList
@@ -287,7 +349,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 keyboardScroll.onLayout();
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
-              ListFooterComponent={showPendingReply ? <PendingReply ref={attachPendingReply} /> : activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+              ListFooterComponent={showPendingReply || activeSteps.length > 0 ? <View style={styles.messageTurn}>
+                {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+                  <AstraGlyph size={24} />
+                </View> : null}
+                <View style={styles.messageContent}>
+                  {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={activeSteps} running />}
+                </View>
+              </View> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />
@@ -300,8 +369,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
+          <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
           <Composer
+            inputSelection={inputSelection}
             {...composerProps}
+            onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value); }}
             autoFocus
             suggestions={composerProps.suggestions}
             onInputFocus={keyboardScroll.onComposerFocus}
@@ -309,6 +381,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           />
         </View>
       </View>
+
+      {libraryMounted ? <PromptLibrary visible={libraryOpen} onExitComplete={finishLibraryExit} onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}
 
       {selectedGoalId && (
         <GoalDetailDrawer

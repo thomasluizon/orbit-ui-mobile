@@ -10,9 +10,6 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   logHabit: vi.fn(),
   skipHabit: vi.fn(),
-  setActiveView: vi.fn(),
-  registerOpenOverlay: vi.fn(),
-  unregisterOpenOverlay: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -22,19 +19,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
-vi.mock('@/stores/ui-store', () => ({
+vi.mock('@/stores/ui-store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/stores/ui-store')>(),
   setUIAccountScope: vi.fn(),
-  useUIStore: (selector: (state: {
-    setActiveView: typeof mocks.setActiveView
-    registerOpenOverlay: typeof mocks.registerOpenOverlay
-    unregisterOpenOverlay: typeof mocks.unregisterOpenOverlay
-    openOverlayIds: string[]
-  }) => unknown) => selector({
-    setActiveView: mocks.setActiveView,
-    registerOpenOverlay: mocks.registerOpenOverlay,
-    unregisterOpenOverlay: mocks.unregisterOpenOverlay,
-    openOverlayIds: [],
-  }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
@@ -58,8 +45,10 @@ function buildQueryData(habits: NormalizedHabit[]) {
 
 let habitsQuery: { data?: ReturnType<typeof buildQueryData>; isPending: boolean; isSuccess: boolean }
 
-function renderPalette() {
-  return render(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+async function renderPalette() {
+  const view = render(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+  await screen.findByRole('combobox')
+  return view
 }
 
 /** The palette is on its Log page, which is the state that arms Enter to write. */
@@ -93,7 +82,7 @@ afterEach(() => {
 
 /** An open palette must drop the previous account's selected command page. */
 it('drops the command page so the next account opens a habit instead of logging it', async () => {
-  renderPalette()
+  await renderPalette()
   openTheLogPage()
 
   await replaceAccountWith('user-2')
@@ -108,7 +97,7 @@ it('drops the command page so the next account opens a habit instead of logging 
 })
 
 it('keeps the command page when the same account recovers from a rejected refresh', async () => {
-  renderPalette()
+  await renderPalette()
   openTheLogPage()
 
   await recoverSameAccount('user-1')

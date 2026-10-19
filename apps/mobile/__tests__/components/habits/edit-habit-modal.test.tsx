@@ -331,6 +331,61 @@ describe('EditHabitModal (mobile)', () => {
     expect(mockFormReset).toHaveBeenCalled()
   })
 
+  it.each(['', '   '])('does not request an emoji for an empty title %j', async (title) => {
+    mockGetValues.mockImplementation((field: unknown) => field === 'title' ? title : undefined)
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    await TestRenderer.act(async () => { await tree.root.findAll((node: { type: unknown }) => node.type === 'HabitFormFields')[0]!.props.onSuggestEmoji!() })
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [new Error('offline'), 'habits.form.aiSuggestError'],
+    [{ data: { errorCode: 'PAY_GATE' } }, 'habits.form.aiSuggestLimitReached'],
+  ])('reports an emoji request failure and preserves the draft', async (failure, message) => {
+    mockGetValues.mockImplementation((field: unknown) => field === 'title' ? 'Swim' : undefined)
+    mockSuggestMutateAsync.mockRejectedValue(failure)
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    await TestRenderer.act(async () => { await tree.root.findAll((node: { type: unknown }) => node.type === 'HabitFormFields')[0]!.props.onSuggestEmoji!() })
+    expect(mockShowError).toHaveBeenCalledWith(message)
+    expect(mockSetValue).not.toHaveBeenCalled()
+  })
+
+  it.each(['🏊', null])('requests only an emoji and preserves every other entered habit field: %s', async (emoji) => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      if (field === 'frequencyUnit') return 'Week'
+      if (field === 'frequencyQuantity') return 1
+      if (field === 'days') return []
+      return {}
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestEmoji()
+    })
+
+    expect(mockSetValue.mock.calls).toEqual(emoji ? [['emoji', emoji, { shouldDirty: true }]] : [])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
   it('applies emoji, schedule, and a checklist from an AI suggestion in edit mode', async () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Swim'
@@ -374,6 +429,54 @@ describe('EditHabitModal (mobile)', () => {
       { shouldDirty: true },
     )
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
+
+  it('ignores a pending emoji suggestion after the title changes', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return undefined
+    })
+    mockSuggestMutateAsync.mockImplementation(() => new Promise<HabitSetupSuggestion>((resolve) => {
+      resolveSuggestion = resolve
+    }))
+
+    const tree = await renderModal()
+    const formFields = findFormFields(tree)
+    let proposalPromise!: Promise<HabitFormProposal | null>
+    TestRenderer.act(() => {
+      proposalPromise = formFields.props.onSuggestEmoji()
+    })
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    title = 'Cycle'
+    TestRenderer.act(() => formFields.props.onSuggestionContextChange())
+
+    let proposal: HabitFormProposal | null | undefined
+    await TestRenderer.act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 2,
+        days: [],
+        isFlexible: true,
+        flexibleTarget: 2,
+        dueTime: '07:00',
+        subHabits: [],
+        checklistItems: ['Old checklist'],
+      })
+      proposal = await proposalPromise
+    })
+
+    expect(proposal).toBeNull()
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
   })
 
   it('ignores a pending Astra suggestion after the title changes', async () => {

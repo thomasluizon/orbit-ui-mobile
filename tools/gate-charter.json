@@ -154,22 +154,12 @@
     "snapshot": "none",
     "constants": "none"
   },
-  ".github/workflows/guards.yml#parity": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
   ".github/workflows/guards.yml#performance-workflow": {
     "scope": "changed-files",
     "snapshot": "node tools/generate-performance-workflow.mjs --write",
     "constants": "none"
   },
   ".github/workflows/guards.yml#react-doctor": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
-  ".github/workflows/guards.yml#review-harness": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
@@ -190,6 +180,11 @@
     "constants": "none"
   },
   ".github/workflows/guards.yml#timeless": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/pr-metadata.yml#metadata": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"

@@ -9,9 +9,6 @@ name: Guards
       - opened
       - synchronize
       - reopened
-      - edited
-      - labeled
-      - unlabeled
   push:
     branches:
       - main
@@ -134,18 +131,6 @@ jobs:
         name: "Dash Ban: Baseline only shrinks"
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
-      - id: dashes__3
-        name: "Dash Ban: PR title and body carry no dashes"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot') }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
-          PR_NUMBER="${BASH_REMATCH[1]}"
-          PR_TITLE=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.title')
-          PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
-          node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
       - id: sonar-paths__1
         name: "Sonar Paths: Sonar paths exist"
         run: node tools/check-sonar-paths.mjs
@@ -195,22 +180,6 @@ jobs:
         continue-on-error: true
         run: node tools/check-calibration.mjs
         if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')) }}
-      - id: parity__1
-        name: "Cross-Platform Parity: A UI change lands on both platforms or carries parity:exempt"
-        run: |
-          changed=$(cat "$RUNNER_TEMP/changed-paths.txt")
-          web=$(echo "$changed" | grep -Ec '^apps/web/(app|components|hooks|stores|lib)/' || true)
-          mobile=$(echo "$changed" | grep -Ec '^apps/mobile/(app|components|hooks|stores|lib)/' || true)
-          echo "web-scope files: $web   mobile-scope files: $mobile"
-          if [ "$web" -gt 0 ] && [ "$mobile" -eq 0 ]; then
-            echo "::error::apps/web UI code changed with zero apps/mobile change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add parity:exempt with a one-line PR-body justification for a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
-            exit 1
-          fi
-          if [ "$mobile" -gt 0 ] && [ "$web" -eq 0 ]; then
-            echo "::error::apps/mobile UI code changed with zero apps/web change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add parity:exempt with a one-line PR-body justification for a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
-            exit 1
-          fi
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]') }}
       - id: expo-pin__1
         name: "Expo SDK Pin: Expo-pinned versions still resolve to the SDK set"
         working-directory: apps/mobile
@@ -222,21 +191,6 @@ jobs:
             echo "Expo pin skipped: no dependency manifest changed."
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-      - id: review-harness__1
-        name: "Redesign Review Harness: A UI pull request on redesign/main records what the review skills found"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
-          PR_NUMBER="${BASH_REMATCH[1]}"
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
-          cp "$RUNNER_TEMP/changed-paths.txt" "$RUNNER_TEMP/changed.txt"
-          node tools/check-review-harness.mjs \
-            --base '${{ github.base_ref }}' \
-            --body-file "$RUNNER_TEMP/pr-body.md" \
-            --changed-files-file "$RUNNER_TEMP/changed.txt"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') }}
       - id: performance-workflow__1
         name: "Performance Workflow Drift: Check generated workflow on branch pushes"
         if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
@@ -256,7 +210,7 @@ jobs:
         name: "Gate Charter: Changed gates obey the charter"
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
+             grep -Eq '^\.github/workflows/(guards|test|pr-metadata)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
             node tools/check-gate-charter.mjs
           else
             echo "Gate charter skipped: no registered gate changed."

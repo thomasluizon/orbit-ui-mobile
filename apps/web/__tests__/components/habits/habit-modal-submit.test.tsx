@@ -35,7 +35,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
-vi.mock('@/hooks/use-tags', () => ({
+vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useTags: () => ({ tags: [] }),
   useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
@@ -99,7 +99,9 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(submit).toBeEnabled()
     await act(async () => fireEvent.click(submit))
     await waitFor(() => expect(title).toHaveFocus())
-    expect(screen.getByRole('alert')).toHaveTextContent('habits.form.titleRequired')
+    const error = document.getElementById(title.getAttribute('aria-describedby') ?? '')
+    expect(error).toHaveTextContent('habits.form.titleRequired')
+    expect(error).toHaveAttribute('role', 'alert')
     expect(title).toHaveAttribute('aria-invalid', 'true')
     expect(mutation).not.toHaveBeenCalled()
   })

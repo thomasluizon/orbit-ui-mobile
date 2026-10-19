@@ -34,7 +34,7 @@ for (const width of [320, 412, 1100, 1352]) {
           const header = page.getByTestId('calendar-header-group')
           const navigation = header.locator('[data-testid$="-navigation"]')
           const controls = navigation.getByRole('button')
-          await expect(controls).toHaveCount(3)
+          await expect(controls).toHaveCount(view === 'month' ? 4 : 3)
           await restPointerOutside(header)
           await controls.nth(1).evaluate(async () => {
             await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
@@ -47,15 +47,19 @@ for (const width of [320, 412, 1100, 1352]) {
             return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
               rowLeft: row.left, rowRight: row.right, shadow: style.boxShadow, radius: style.borderRadius }
           }))
-          expect(Math.abs((geometry[0]!.left - geometry[0]!.rowLeft) - (geometry[2]!.rowRight - geometry[2]!.right))).toBeLessThanOrEqual(1)
-          for (const index of [0, 2]) {
+          expect(Math.abs((geometry[0]!.left - geometry[0]!.rowLeft) - (geometry.at(-1)!.rowRight - geometry.at(-1)!.right))).toBeLessThanOrEqual(1)
+          for (const index of [0, geometry.length - 1]) {
             expect(geometry[index]!.width).toBe(48); expect(geometry[index]!.height).toBe(48)
             ring ??= geometry[index]!.shadow
             expect(geometry[index]!.shadow).toBe(ring); expect(ring).toContain('1.5px')
           }
           expect(geometry[1]).toMatchObject({ shadow: 'none', radius: '12px' })
           const title = controls.nth(1)
+          await controls.first().click()
+          await expect(title).toHaveAttribute('aria-disabled', 'false')
           await expectInteractionFill(title)
+          await title.click()
+          await expect(title).toHaveAttribute('aria-disabled', 'true')
           await markRequiredLabels(title)
           await expectLabelsFit(page, navigation)
           await verifyPeriodActions(view, locale, words, controls)

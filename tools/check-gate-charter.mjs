@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, readdirSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, extname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import yaml from "js-yaml"
@@ -26,6 +26,7 @@ const BLOCKING_INVENTORIES = new Set([
   "tools/check-sonar-paths.mjs",
 ])
 const REQUIRED_FIELDS = ["scope", "snapshot", "constants"]
+const GUARD_WORKFLOWS = [".github/workflows/guards.yml", ".github/workflows/pr-metadata.yml"]
 
 function parseArguments(argv) {
   let repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -86,13 +87,19 @@ function workflowJobs(repositoryRoot, path) {
   return groups
 }
 
+function registeredGuardJobs(repositoryRoot) {
+  return Object.fromEntries(GUARD_WORKFLOWS
+    .filter((path) => existsSync(resolve(repositoryRoot, path)))
+    .flatMap((path) => Object.entries(workflowJobs(repositoryRoot, path)).map(([id, job]) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+        throw new Error(`${path}: job ids must contain only letters, digits, underscores, or hyphens`)
+      }
+      return [`${path}#${id}`, job]
+    })))
+}
+
 function guardJobIds(repositoryRoot) {
-  const jobs = Object.keys(workflowJobs(repositoryRoot, ".github/workflows/guards.yml"))
-  if (jobs.some((job) => !/^[a-zA-Z0-9_-]+$/.test(job))) {
-    throw new Error("guards.yml job ids must contain only letters, digits, underscores, or hyphens")
-  }
-  return jobs
-    .map((job) => `.github/workflows/guards.yml#${job}`)
+  return Object.keys(registeredGuardJobs(repositoryRoot))
 }
 
 function runSteps(job) {
@@ -149,6 +156,7 @@ function derivedVariables(script) {
 }
 
 function commandUsesRedirectedChangedFiles(script, command) {
+  if (command.line.includes('--changed-files-file "$RUNNER_TEMP/changed-paths.txt"')) return true
   const before = script.slice(0, command.index)
   const preparedCopy = /\bcp\s+"\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)"\s+"([^"]+)"/.exec(before)
   if (preparedCopy && command.line.includes(`--changed-files-file "${preparedCopy[1]}"`)) return true
@@ -389,6 +397,7 @@ function run(repositoryRoot) {
   }
   const expected = gateIds(repositoryRoot)
   const guardJobs = workflowJobs(repositoryRoot, ".github/workflows/guards.yml")
+  const registeredJobs = registeredGuardJobs(repositoryRoot)
   const declared = Object.keys(charter).sort()
   const problems = []
   for (const id of expected) {
@@ -398,26 +407,27 @@ function run(repositoryRoot) {
     if (!expected.includes(id)) problems.push(`${id}: registry entry names no gate`)
     else {
       problems.push(...validateEntry(id, charter[id]))
-      const guardJob = id.match(/^\.github\/workflows\/guards\.yml#(.+)$/)?.[1]
-      if (guardJob && charter[id]?.scope === "changed-files" &&
-          (guardJob === "design-guard" ? !designGuardUsesChangedFiles(repositoryRoot) : !guardJobUsesChangedFiles(guardJobs[guardJob]))) {
+      const guardJob = id.split("#")[1]
+      const registeredJob = registeredJobs[id]
+      if (registeredJob && charter[id]?.scope === "changed-files" &&
+          (guardJob === "design-guard" ? !designGuardUsesChangedFiles(repositoryRoot) : !guardJobUsesChangedFiles(registeredJob))) {
         problems.push(`${id}: changed-files job has a blocking run that is not scoped to the pull request diff`)
       }
-      if (guardJob && charter[id]?.scope === "whole-tree-advisory" &&
-          !guardJobIsAdvisory(guardJobs[guardJob])) {
+      if (registeredJob && charter[id]?.scope === "whole-tree-advisory" &&
+          !guardJobIsAdvisory(registeredJob)) {
         problems.push(`${id}: whole-tree-advisory job must make its reporting step continue-on-error`)
       }
-      if (guardJob && charter[id]?.scope === "whole-tree-blocking" &&
-          !blockingInventoryRuns(guardJob, guardJobs[guardJob])) {
+      if (registeredJob && charter[id]?.scope === "whole-tree-blocking" &&
+          !blockingInventoryRuns(guardJob, registeredJob)) {
         problems.push(`${id}: whole-tree-blocking job must run its path inventory as a blocking step`)
       }
     }
   }
-  for (const [jobId, job] of Object.entries(guardJobs)) {
+  for (const [jobId, job] of Object.entries(registeredJobs)) {
     const fields = new Set(stringValues(job).flatMap((value) =>
       [...value.matchAll(FROZEN_PULL_REQUEST_FIELD)].map((match) => match[1] ?? match[2])))
     for (const field of fields) {
-      problems.push(`.github/workflows/guards.yml#${jobId}: frozen pull request ${field} must be read from the API at run time`)
+      problems.push(`${jobId}: frozen pull request ${field} must be read from the API at run time`)
     }
   }
   const changedFileRules = declared.filter((id) => id.startsWith("eslint-rules/") && charter[id]?.scope === "changed-files")

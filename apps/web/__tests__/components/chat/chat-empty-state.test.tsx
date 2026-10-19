@@ -86,7 +86,7 @@ describe('ChatEmptyState', () => {
   it('keeps one live suggestion group above the input in an empty conversation', () => {
     const { suggestions } = emptyConversation('idle')
 
-    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+    expect(within(screen.getByRole('feed')).getAllByRole('button').map(button => button.textContent)).toEqual(['chat.templates.browse'])
     const strip = screen.getByRole('group', { name: 'live suggestions' })
     expect(screen.getAllByRole('group', { name: 'live suggestions' })).toHaveLength(1)
     expect(within(strip).getAllByRole('button').map(chip => chip.textContent)).toEqual(suggestions.map(chip => chip.label))
@@ -105,7 +105,7 @@ describe('ChatEmptyState', () => {
     const { suggestions } = emptyConversation('atLimit')
 
     expect(screen.queryByRole('group', { name: 'live suggestions' })).toBeNull()
-    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+    expect(within(screen.getByRole('feed')).getAllByRole('button').map(button => button.textContent)).toEqual(['chat.templates.browse'])
     for (const chip of suggestions) expect(screen.queryByRole('button', { name: chip.label })).toBeNull()
     expect(screen.getByText('No messages today')).toBeInTheDocument()
   })

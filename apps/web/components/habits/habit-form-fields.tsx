@@ -16,6 +16,7 @@ import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { toTime24,
   buildHabitAstraFallbackCopy,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
   createHabitFormController,
@@ -37,7 +38,7 @@ import { validateTagForm, validateEndTime } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
+import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
@@ -51,12 +52,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
+import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { TagPickerField } from './habit-form-fields/tag-picker-field'
+import { TagSuggestions } from './habit-form-fields/tag-suggestions'
+import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 
 function HabitEndTimeField({ formHelpers, dueTime }: Readonly<{ formHelpers: HabitFormHelpers; dueTime: string }>) {
@@ -243,6 +247,10 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
+  isEmojiSuggesting = false,
+  emojiSuggestionError,
+  emojiSuggestionLimitReached = false,
   isSuggesting = false,
   readPhraseLocally = false,
   lockedGeneral = null,
@@ -252,7 +260,8 @@ export function HabitFormFields({
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const locale = resolveSupportedLocale(useLocale())
+  const language = useLocale()
+  const locale = resolveSupportedLocale(language)
   const translate = useCallback(
     (key: string, values?: Record<string, string | number | Date>) => t(key, values),
     [t],
@@ -268,9 +277,9 @@ export function HabitFormFields({
   const emoji = watch('emoji') ?? ''
   const watchedDays = watch('days')
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
-  const frequencyQuantity = watch('frequencyQuantity') ?? 3
   const intervalWeeks = watch('intervalWeeks') ?? 1
   const frequencyUnit = watch('frequencyUnit')
+  const frequencyQuantity = watch('frequencyQuantity') ?? (frequencyUnit ? 0 : 3)
   const isFlexible = watch('isFlexible') ?? false
   const dueDate = watch('dueDate') ?? ''
   const dueTime = watch('dueTime') ?? ''
@@ -311,6 +320,13 @@ export function HabitFormFields({
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const suggestTags = useSuggestTags()
+  const tagSuggestions = useTagSuggestions({
+    availableTags,
+    title, description, language, disabled: tagMutationPending || tags.atTagLimit,
+    request: suggestTags.mutateAsync,
+    accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
+  })
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
 
   useEffect(() => {
@@ -331,6 +347,11 @@ export function HabitFormFields({
     () => buildHabitAstraFallbackCopy(translate, allowance),
     [allowance, translate],
   )
+
+  const emojiAvailability = buildHabitEmojiSuggestionAvailability(title, atMessageLimit || emojiSuggestionLimitReached, {
+    titleRequired: t('habits.form.titleRequired'),
+    limitReached: astraFallbackCopy.limitMessage,
+  })
 
   const controller = useMemo(() => createHabitFormController({
     action: onSuggestSetup,
@@ -406,6 +427,7 @@ export function HabitFormFields({
         dayOptions={daysList}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
+        showCountCorrection={!frequencyUnit || frequencyUnit === 'Week'}
         sentence={sentence}
         consumed={localRead.consumed}
         proposed={proposal.setup}
@@ -414,7 +436,12 @@ export function HabitFormFields({
           controller.setTitle(value)
         }}
         onEmojiSelect={controller.setEmoji}
-        isSuggestionDisabled={isSuggesting}
+        onSuggestEmoji={onSuggestEmoji}
+        canSuggestEmoji={emojiAvailability.canSuggest}
+        isEmojiSuggesting={isEmojiSuggesting}
+        emojiSuggestionHint={emojiAvailability.hint}
+        emojiSuggestionError={emojiSuggestionError}
+        isSuggestionDisabled={isSuggesting && !isEmojiSuggesting}
         onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onQuantityChange={controller.setQuantity}
         labels={understandingLabels}
@@ -457,6 +484,14 @@ export function HabitFormFields({
               if (!detailsOpen && event.propertyName === 'opacity') setDetailsPresented(false)
             }}
           >
+            <HabitScheduleFields
+              proposed={proposal.setup}
+              unit={frequencyUnit ?? null}
+              quantity={watch('frequencyQuantity') ?? null}
+              flexible={isFlexible}
+              disabled={lockedGeneral === true}
+              onChange={controller.setSchedule}
+            />
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
 
             <section className="flex flex-col gap-4">
@@ -510,7 +545,7 @@ export function HabitFormFields({
             <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />
 
             <section>
-              <TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
+              <TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
                   error={newTagErrors.fieldErrors.name}
                   focusRequest={newTagErrors.focusRequest}

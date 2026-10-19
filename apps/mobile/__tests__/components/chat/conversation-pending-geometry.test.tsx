@@ -140,6 +140,14 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     const pending = measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-pending' ? 'pending' : undefined, { width, height: 915 }).get('pending')
     expect(pending).toBeDefined()
     expect(pending!.bottom - pending!.top).toBe(24)
+    const avatars = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')
+    expect(avatars).toHaveLength(1)
+    expect(avatars[0]!.props.accessibilityElementsHidden).toBe(true)
+    const markPosition = measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')!
+    expect(markPosition.width).toBe(24)
+    expect(markPosition.bottom - markPosition.top).toBe(24)
+    expect(markPosition.left).toBe(pending!.left)
+    expect(pending!.top - markPosition.bottom).toBe(8)
     chat.isTyping = false
     chat.streamingMessageId = 'reply'
     chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]
@@ -148,6 +156,8 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     expect(reply).toBeDefined()
     expect(reply!.left).toBe(pending!.left)
     expect(reply!.top).toBe(pending!.top)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')).toHaveLength(1)
+    expect(measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')).toEqual(markPosition)
     const bubble = tree.root.findAll(node => node.type === MessageBubble).at(-1)!
     expect(bubble.props.animateEntry).toBe(false)
   } finally { await act(() => tree.unmount()) }

@@ -23,6 +23,7 @@ import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  applyHabitEmojiSuggestion,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -88,6 +89,8 @@ export function EditHabitModal({
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const suggestion = useHabitSuggestion()
+  const [isEmojiSuggesting, setIsEmojiSuggesting] = useState(false)
+  const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean; habitId: string | null } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
@@ -276,7 +279,7 @@ export function EditHabitModal({
           slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
         }
       : prefill.formValues
-    if (habitChanged) formHelpers.clearBackendErrors()
+    if (habitChanged) { setEmojiFailure(null); formHelpers.clearBackendErrors() }
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
@@ -363,6 +366,43 @@ export function EditHabitModal({
     showError,
     translate,
   ])
+
+  const handleSuggestEmoji = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
+    if (!title) return EMPTY_HABIT_FORM_PROPOSAL
+    suggestionRequests.updateContext(sessionHabitId, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return null
+    const requestRevision = suggestionRevision.advance()
+    setIsEmojiSuggesting(true)
+    setEmojiFailure(null)
+    const isCurrent = () => suggestionRevision.isCurrent(requestRevision) && suggestionRequests.isCurrent(
+      request, coalesceFormText(formHelpers.form.getValues('title')),
+    )
+    try {
+      const response = await suggestion.mutateAsync({ title, language: i18n.language })
+      if (!isCurrent()) return null
+      const patch = buildHabitFormPatchFromSuggestion(response)
+      const appliedEmoji = applyHabitEmojiSuggestion(patch.emoji, formHelpers.form.getValues('emoji'), (emoji) => {
+        formHelpers.form.setValue('emoji', emoji, { shouldDirty: true })
+      })
+      if (appliedEmoji) showSuccess(t('habits.form.aiSuggestApplied'))
+      else showInfo(t('habits.form.aiSuggestEmpty'))
+      return { ...EMPTY_HABIT_FORM_PROPOSAL, setup: appliedEmoji }
+    } catch (error: unknown) {
+      if (!isCurrent()) return null
+      const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
+      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      setEmojiFailure({ title: currentTitle, message, atLimit, habitId: sessionHabitId })
+      showError(message)
+      return EMPTY_HABIT_FORM_PROPOSAL
+    } finally {
+      suggestionRequests.finish()
+      setIsEmojiSuggesting(false)
+    }
+  }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -467,6 +507,10 @@ export function EditHabitModal({
               onSuggestionContextChange={suggestionRevision.advance}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
               onSuggestSetup={handleSuggest}
+              onSuggestEmoji={handleSuggestEmoji}
+              isEmojiSuggesting={isEmojiSuggesting}
+              emojiSuggestionError={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
+              emojiSuggestionLimitReached={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit}
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}

@@ -360,6 +360,21 @@ export const chatPartSchema = z.union([
 export type ChatPart = z.infer<typeof chatPartSchema>
 export type ChatBlockPart = Extract<ChatPart, { type: 'block' }>
 
+const replyCardFieldsShape = {
+  correlationId: z.string().nullable().optional(),
+  relatedSurfaces: z.array(z.string()).nullable().optional(),
+  habitList: habitListCardSchema.nullable().optional(),
+  goalList: goalListCardSchema.nullable().optional(),
+  metricsCard: metricsCardSchema.nullable().optional(),
+  periodInsight: periodInsightCardSchema.nullable().optional(),
+  daySummary: daySummaryCardSchema.nullable().optional(),
+  streak: streakCardSchema.nullable().optional(),
+  calendar: calendarCardSchema.nullable().optional(),
+  recordLists: z.array(recordListCardSchema).nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
+  followUps: z.array(z.string()).nullable().optional(),
+}
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -382,18 +397,7 @@ export const chatMessageSchema = z.object({
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
-  correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).nullable().optional(),
-  habitList: habitListCardSchema.nullable().optional(),
-  goalList: goalListCardSchema.nullable().optional(),
-  metricsCard: metricsCardSchema.nullable().optional(),
-  periodInsight: periodInsightCardSchema.nullable().optional(),
-  daySummary: daySummaryCardSchema.nullable().optional(),
-  streak: streakCardSchema.nullable().optional(),
-  calendar: calendarCardSchema.nullable().optional(),
-  recordLists: z.array(recordListCardSchema).nullable().optional(),
-  accountRows: accountRowsCardSchema.nullable().optional(),
-  followUps: z.array(z.string()).nullable().optional(),
+  ...replyCardFieldsShape,
   toolSteps: z.array(z.object({ domain: z.string(), access: z.string() })).optional(),
   timestamp: z.date(),
 })
@@ -407,18 +411,7 @@ export const chatResponseSchema = z.object({
   operations: z.array(agentOperationResultSchema).nullable().optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
-  correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).nullable().optional(),
-  habitList: habitListCardSchema.nullable().optional(),
-  goalList: goalListCardSchema.nullable().optional(),
-  metricsCard: metricsCardSchema.nullable().optional(),
-  periodInsight: periodInsightCardSchema.nullable().optional(),
-  daySummary: daySummaryCardSchema.nullable().optional(),
-  streak: streakCardSchema.nullable().optional(),
-  calendar: calendarCardSchema.nullable().optional(),
-  recordLists: z.array(recordListCardSchema).nullable().optional(),
-  accountRows: accountRowsCardSchema.nullable().optional(),
-  followUps: z.array(z.string()).nullable().optional(),
+  ...replyCardFieldsShape,
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

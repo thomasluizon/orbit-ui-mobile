@@ -89,7 +89,7 @@ export const apiKeyKeys = {
 
 export const configKeys = {
   all: ['config'] as const,
-  detail: () => [...configKeys.all, 'detail'] as const,
+  detail: (accountId: string | null = null, generation = 0) => [...configKeys.all, 'detail', accountId, generation] as const,
 }
 
 export const checklistTemplateKeys = {
@@ -118,4 +118,9 @@ export const versionCheckKeys = {
 export const uploadMutationKeys = {
   all: ['uploads'] as const,
   sign: () => [...uploadMutationKeys.all, 'sign'] as const,
+}
+
+export const connectionKeys = {
+  all: ['connections'] as const,
+  notion: () => [...connectionKeys.all, 'notion'] as const,
 }

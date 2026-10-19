@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useRouter } from 'next/navigation'
 import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
+import { AstraConnections } from '@/components/profile/astra-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
@@ -63,6 +64,7 @@ function buildAstraRows(
           </RowList>
         ) : null}
       </div>
+      <AstraConnections hasProAccess={Boolean(profile?.hasProAccess)} />
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </div>
   )

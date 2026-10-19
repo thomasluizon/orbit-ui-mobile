@@ -77,6 +77,8 @@ const VERDICTS = {
     "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right.",
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
+  ".claude/skills/flag/SKILL.md":
+    "undeclared, inherits the session: it operates feature flags within the owner's explicit account or global scope and verifies live state before and after each write; scope judgment stays with the calling session.",
   ".claude/skills/handoff/SKILL.md":
     "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session.",
   ".claude/skills/investigate/SKILL.md":

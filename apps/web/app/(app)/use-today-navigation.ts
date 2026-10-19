@@ -19,7 +19,6 @@ export interface TodayDateNavBundle {
   onGoToToday: () => void
   onGoToNextDay: () => void
   previousLabel: string
-  todayLabel: string
   goToTodayLabel: string
   nextLabel: string
 }
@@ -111,7 +110,6 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
       onGoToToday: goToToday,
       onGoToNextDay: goToNextDay,
       previousLabel: t('dates.previousDay'),
-      todayLabel: t('dates.today'),
       goToTodayLabel: t('dates.goToToday'),
       nextLabel: t('dates.nextDay'),
     }),

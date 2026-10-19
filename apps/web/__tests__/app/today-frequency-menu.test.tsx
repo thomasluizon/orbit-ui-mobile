@@ -21,7 +21,7 @@ beforeEach(() => { useUIStore.setState({ activeFilters: {} }) })
 function renderControl(locale: string, words: typeof en | typeof ptBr) {
   return render(<NextIntlClientProvider locale={locale} messages={words}>
     <TodayDateControl dayName={words.dates.today} numericDate="04/09" isTodaySelected nextDisabled={false}
-      previousLabel={words.dates.previousDay} todayLabel={words.dates.today} goToTodayLabel={words.dates.goToToday}
+      previousLabel={words.dates.previousDay} goToTodayLabel={words.dates.goToToday}
       nextLabel={words.dates.nextDay} moreLabel={words.habits.listOptions} menuHeading={words.common.options}
       selectLabel={words.common.select} collapseLabel={words.habits.collapseAll} allCollapsed={false}
       refreshLabel={words.habits.refresh} completedLabel={words.habits.showCompleted} showCompleted={false}

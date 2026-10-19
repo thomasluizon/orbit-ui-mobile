@@ -2,19 +2,19 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_remainder"
     android:layout_width="match_parent"
-    android:layout_height="48dp">
+    android:layout_height="@dimen/widget_row_height">
 
     <TextView
         android:id="@+id/widget_remainder_text"
         android:layout_width="match_parent"
-        android:layout_height="24dp"
+        android:layout_height="@dimen/widget_ring_size"
         android:layout_gravity="center_vertical"
         android:fontFamily="sans-serif"
         android:gravity="center_vertical"
         android:maxLines="1"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
+        android:paddingStart="@dimen/widget_row_inset_inline"
+        android:paddingEnd="@dimen/widget_row_inset_inline"
         android:textColor="@color/widget_fg_3"
-        android:textSize="12sp" />
+        android:textSize="@dimen/widget_label_text_size" />
 
 </FrameLayout>

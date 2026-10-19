@@ -105,5 +105,10 @@ export function useShareCard() {
     }
   }
 
-  return { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download }
+  function resetFeedback() {
+    setHasError(false)
+    setSavedFileName(null)
+  }
+
+  return { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download, resetFeedback }
 }

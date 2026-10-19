@@ -229,7 +229,6 @@ function TodayScreenContent() {
         isTodaySelected={date.dateStr === date.today}
         nextDisabled={date.nextDisabled}
         previousLabel={t('dates.previousDay')}
-        todayLabel={t('dates.today')}
         goToTodayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
         moreLabel={t('habits.listOptions')}

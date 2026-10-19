@@ -9,6 +9,7 @@ interface ButtonBase {
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
+  focusableWhenLoading?: boolean
   minimumHeight?: number
   elevated?: boolean
   disabled?: boolean

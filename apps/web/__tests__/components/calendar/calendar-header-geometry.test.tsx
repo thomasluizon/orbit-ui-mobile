@@ -309,16 +309,15 @@ describe('Calendar header geometry in Chromium', () => {
       const containment = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const scroller = body.querySelector<HTMLElement>('[data-focus-inset]')!
-        const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
         const bodyBox = body.getBoundingClientRect()
         const scrollBox = scroller.getBoundingClientRect()
         return { bodyBottom: bodyBox.bottom - Number.parseFloat(getComputedStyle(body).paddingBottom), scrollBottom: scrollBox.bottom,
-          height: scrollBox.height, outerScroll: body.scrollHeight > body.clientHeight, footerTop: actions.getBoundingClientRect().top }
+          height: scrollBox.height, outerScroll: body.scrollHeight > body.clientHeight, hasActions: document.querySelector('[data-slot="sheet-actions"]') !== null }
       })
       expect(containment.scrollBottom, JSON.stringify(containment)).toBeLessThanOrEqual(containment.bodyBottom + 1)
       expect(containment.height).toBeGreaterThanOrEqual(48)
       expect(containment.outerScroll).toBe(false)
-      expect(containment.scrollBottom).toBeLessThanOrEqual(containment.footerTop)
+      expect(containment.hasActions).toBe(false)
       for (const year of [years[0]!, years.at(-1)!]) {
         await page.evaluate((year) => {
           const target = [...document.querySelectorAll<HTMLButtonElement>('[data-focus-inset] button')].find((button) => button.textContent === String(year))!
@@ -649,7 +648,7 @@ describe('Calendar header geometry in Chromium', () => {
           return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
         })
         expectCalendarSegments(await page.evaluate(measureCalendarSegments), scale)
-        expect(geometry.controls).toHaveLength(3)
+        expect(geometry.controls).toHaveLength(view === 'month' ? 4 : 3)
         if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
         expect(geometry.titleRadius).toBe(12)
         expect(geometry.overflow).toBe(false)
@@ -772,7 +771,7 @@ describe('Calendar header geometry in Chromium', () => {
       for (const textScale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
         const geometry = await page.evaluate(() => {
-          const title = document.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!
+          const title = document.querySelector<HTMLButtonElement>('[data-calendar-month-title]')!
           const titleText = title.querySelector('span')!
           const range = document.createRange()
           range.selectNodeContents(titleText)
@@ -786,6 +785,8 @@ describe('Calendar header geometry in Chromium', () => {
             pageWidth: document.documentElement.clientWidth,
             scrollWidth: document.documentElement.scrollWidth,
             title: titleText.textContent,
+            titleWidth: title.getBoundingClientRect().width,
+            titleFontSize: getComputedStyle(title).fontSize,
             titleLines: new Set([...range.getClientRects()].map((bounds) => Math.round(bounds.top))).size,
             targets,
             segments: segments.map((button) => {
@@ -797,7 +798,7 @@ describe('Calendar header geometry in Chromium', () => {
         })
         expect(geometry.scrollWidth).toBe(geometry.pageWidth)
         expect(geometry.title).toBe(year === 2026 ? 'Fevereiro' : 'fev. 2027')
-        expect(geometry.titleLines).toBe(1)
+        expect(geometry.titleLines, JSON.stringify(geometry)).toBe(1)
         for (const target of geometry.targets) {
           expect(target.width).toBeGreaterThanOrEqual(48)
           expect(target.height).toBeGreaterThanOrEqual(48)

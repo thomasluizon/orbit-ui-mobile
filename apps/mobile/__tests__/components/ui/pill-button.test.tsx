@@ -218,6 +218,19 @@ describe('PillButton (mobile)', () => {
     expect(loading.props.accessibilityState.busy).toBe(true)
   })
 
+  it('keeps a loading action focusable while blocking activation', () => {
+    const onClick = vi.fn()
+    const tree = renderPill(<PillButton loading focusableWhenLoading onClick={onClick}>Save</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    expect(button.props.disabled).toBe(false)
+    expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: false })
+    expect(button.props.onPress).toBeUndefined()
+    expect(flattenStyle(button.props.style({ pressed: true })).transform).toBeUndefined()
+    expect(onClick).not.toHaveBeenCalled()
+    const unavailable = renderPill(<PillButton disabled loading focusableWhenLoading>Save</PillButton>).root.findByType('Pressable')
+    expect(unavailable.props.disabled).toBe(true)
+  })
+
   it.each(['dark', 'light'] as const)('keeps loading and destructive pressed text legible in %s', (mode) => {
     theme.mode = mode
     const tokens = createTokensV2('purple', mode)

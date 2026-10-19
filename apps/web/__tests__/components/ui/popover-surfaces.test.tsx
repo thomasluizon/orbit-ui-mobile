@@ -13,7 +13,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 function TodayControls() {
   return <TodayDateControl dayName="Monday" numericDate="01/01" isTodaySelected nextDisabled={false}
-    previousLabel="Previous" todayLabel="Today" goToTodayLabel="Go to today" nextLabel="Next"
+    previousLabel="Previous" goToTodayLabel="Go to today" nextLabel="Next"
     moreLabel="List options" selectLabel="Select" collapseLabel="Collapse" allCollapsed={false}
     refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
     searchLabel="Search" onSearch={vi.fn()} onToggleSelect={vi.fn()} onToggleCollapse={vi.fn()}

@@ -18,8 +18,26 @@ type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
   isSuggestionDisabled?: boolean
 }
 
+function useEmojiProposal(onSuggestEmoji: HabitUnderstandingProps['onSuggestEmoji'], onEmojiSelect: HabitUnderstandingProps['onEmojiSelect']) {
+  const [emojiProposed, setEmojiProposed] = useState(false)
+  async function suggestEmoji() {
+    const result = await onSuggestEmoji?.()
+    if (result?.setup) setEmojiProposed(true)
+  }
+  function selectEmoji(value: string) {
+    setEmojiProposed(false)
+    onEmojiSelect(value)
+  }
+  return { emojiProposed, selectEmoji, requestEmoji: onSuggestEmoji ? () => { void suggestEmoji() } : undefined }
+}
+
 export function HabitUnderstanding({
   inputRef,
+  onSuggestEmoji,
+  canSuggestEmoji = false,
+  isEmojiSuggesting = false,
+  emojiSuggestionHint,
+  emojiSuggestionError,
   value,
   error,
   emoji,
@@ -32,6 +50,7 @@ export function HabitUnderstanding({
   consumed,
   proposed = false,
   scheduleLocked = false,
+  showCountCorrection = true,
   onValueChange,
   onEmojiSelect,
   isSuggestionDisabled = false,
@@ -47,9 +66,28 @@ export function HabitUnderstanding({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const [focused, setFocused] = useState(false)
+  const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
   const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
+
+  const emojiControl = (
+    <Proposed inset keepMounted proposed={emojiProposed} scope="field" label={labels.proposed}>
+      <HabitEmojiSelector
+        selectedEmoji={emoji}
+        tokens={tokens}
+        styles={formStyles}
+        wellSize={46}
+        onSelect={selectEmoji}
+        onSuggest={requestEmoji}
+        canSuggest={canSuggestEmoji}
+        isSuggesting={isEmojiSuggesting}
+        isDisabled={isSuggestionDisabled || isEmojiSuggesting}
+        suggestionHint={emojiSuggestionHint}
+        suggestionError={emojiSuggestionError}
+      />
+    </Proposed>
+  )
 
   return (
     <View style={styles.container}>
@@ -89,28 +127,24 @@ export function HabitUnderstanding({
         ) : null}
       </View>
 
+      {onSuggestEmoji && !showPreview ? emojiControl : null}
+
       {showPreview ? (
         <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
           <View accessibilityLabel={labels.understood} style={styles.preview}>
             <View style={styles.previewHeader}>
-              <HabitEmojiSelector
-                selectedEmoji={emoji}
-                tokens={tokens}
-                styles={formStyles}
-                wellSize={46}
-                onSelect={onEmojiSelect}
-              />
+              {emojiControl}
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
-            <Text style={styles.sentence}>{sentence}</Text>
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+            <Text style={[styles.sentence, proposed ? { color: tokens.fg3 } : null]}>{sentence}</Text>
+            <ScheduleCorrections proposed={proposed} days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible' && showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
         </Proposed>
       ) : null}
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
           <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
-          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={showCountCorrection} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
         </View>
       ) : null}
     </View>
@@ -168,7 +202,7 @@ function createStyles(tokens: AppTokens) {
       outlineStyle: 'solid',
       backgroundColor: tokens.bgCard,
     },
-    previewHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+    previewHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     sentence: {
       color: tokens.fg1,
@@ -207,21 +241,21 @@ function createStyles(tokens: AppTokens) {
   })
 }
 
-interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels'> {
+interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels' | 'proposed'> {
   showCount: boolean
   tokens: AppTokens
   styles: ReturnType<typeof createStyles>
 }
 
-function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
+function ScheduleCorrections({ proposed = false, days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
   return (
     <>
       <View accessibilityLabel={labels.days} style={styles.days}>
         {dayOptions.map((day) => {
           const selected = daily || days.includes(day.value)
           return (
-            <Pressable focusInset selectionRingWidth={1.5} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
-              <Text style={selected ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
+            <Pressable focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? proposed ? { backgroundColor: tokens.bgWell } : styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
+              <Text style={selected && !proposed ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
             </Pressable>
           )
         })}
@@ -231,7 +265,7 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
           <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
             <Minus size={20} strokeWidth={2} color={tokens.fg2} />
           </Pressable>
-          <Text style={styles.quantity}>{quantity}</Text>
+          <Text style={[styles.quantity, proposed ? { color: tokens.fg3 } : null]}>{quantity}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={labels.more} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(quantity + 1)}>
             <Plus size={20} strokeWidth={2} color={tokens.fg2} />
           </Pressable>

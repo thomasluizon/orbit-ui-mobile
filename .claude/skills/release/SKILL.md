@@ -1,7 +1,7 @@
 ---
 name: release
-description: Plan and run Orbit's manual production or branch-selected staging release in API, web, landing, Android order.
-argument-hint: "[staging <branch>] [--track open|production]"
+description: Plan and run Orbit's manual production, opt-in redesign web, or branch-selected staging release.
+argument-hint: "[staging <branch> | production-redesign] [--track open|production]"
 effort: high
 ---
 
@@ -13,19 +13,23 @@ Only dispatch after the owner invokes a release. Planning is read-only. Never di
 
 Production uses `node tools/release-plan.mjs`, with `--track production` when requested. Staging requires a branch argument: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`. Show each service's branch, deployed SHA or absent baseline, head SHA, and unreleased commits. Show the Android track and its baseline. An empty plan ends without dispatch.
 
+Only when the owner explicitly asks for the redesign production web build, use `node tools/release-plan.mjs --environment production-redesign`. This is a web-only production plan from `redesign/main`, with no Android track. Never include it in a default production or staging release. When the owner asks for both production web builds, finish the requested main production services in order, then plan and release `production-redesign` separately. Its baseline comes from `/api/health` at the URL of `RENDER_WEB_REDESIGN_SERVICE_ID`, independent of `RENDER_WEB_SERVICE_ID`. Its GitHub Deployment environment is `production-redesign`.
+
 The staging API baseline is its current live Render deploy. The web baseline is `/api/health` at the URL in its Render service record. The landing baseline is its current live Render deploy. The UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID` locate the API and web services. The planner locates Render landing services by their `orbit-landing` and `orbit-landing-staging` names. A missing baseline is a first deploy. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch and list the selected branch's commits from the comparison. Stop on a divergent production comparison or remote read failure.
 
 ## Dispatch in plan order
 
-Re-run the same plan immediately before each dispatch. Confirm the selected branch head still equals the planned SHA. Production always selects `main`; staging uses the required branch. For API, web, and landing, run each repository's manual `release.yml` from `main`:
+Re-run the same plan immediately before each dispatch. Confirm the selected branch head still equals the planned SHA. Production selects `main`; `production-redesign` selects only `redesign/main`; staging uses the required branch. For API, web, and landing, run each repository's manual `release.yml` from `main`:
 
 ```text
-gh workflow run release.yml --repo thomasluizon/<repo> --ref main -f environment=<production|staging> -f branch=<selected branch>
+gh workflow run release.yml --repo thomasluizon/<repo> --ref main -f environment=<production|staging|production-redesign> -f branch=<selected branch>
 ```
+
+The `production-redesign` target is valid only for `orbit-ui-mobile`. It reuses the `production` environment's `RENDER_API_KEY` and production build variables, deploys to `RENDER_WEB_REDESIGN_SERVICE_ID`, and verifies that service's Render URL. Keep `NEXT_PUBLIC_SITE_URL` set from `PRODUCTION_NEXT_PUBLIC_SITE_URL` (`https://app.useorbit.org`): the routing Worker serves the redesign on that same public origin for cookies and OAuth callbacks. After verifying the health commit, the workflow requests `/login` on the Render origin with the Worker's `X-Forwarded-Host: <PRODUCTION_WEB_HOST>` and `X-Forwarded-Proto: https` headers, without following redirects. It requires HTTP 200 or a redirect on the public origin that does not loop back to `/login`, and records the status in the step summary. Go-live waits for the Worker-compatible proxy fix in `thomasluizon/orbit-tickets#1501`, alongside infrastructure ticket #1417. The main production public-host smoke job remains specific to `production`.
 
 For a staging Git-backed Render service (API or landing), its workflow first updates the service's tracked branch with `PATCH /v1/services/{serviceId}` and `{"branch":"<selected branch>"}`, then triggers `POST /v1/services/{serviceId}/deploys` with `{"commitId":"<planned SHA>"}`. The update does not itself deploy. Both calls belong to that repository's workflow. The web workflow instead builds the selected branch into an image and deploys its digest. Do not change Render service settings manually while planning.
 
-`gh workflow run` returns no run ID. Record the dispatch time and the repository's `main` SHA, then list recent `workflow_dispatch` runs on `main` with `gh run list --repo thomasluizon/<repo> --workflow release.yml --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch`, and select the unique new run with that `main` SHA. If no unique run matches, stop. Use `node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <main workflow SHA>`. The workflow run head is `main` even when its checkout deploys a staging branch. A ceiling result leaves the release unresolved; do not dispatch the next service.
+`gh workflow run` returns no run ID. Record the dispatch time and the repository's `main` SHA, then list recent `workflow_dispatch` runs on `main` with `gh run list --repo thomasluizon/<repo> --workflow release.yml --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch`, and select the unique new run with that `main` SHA. If no unique run matches, stop. Use `node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <main workflow SHA>`. The workflow run head is `main` even when its checkout deploys staging or `redesign/main`. A ceiling result leaves the release unresolved; do not dispatch the next service.
 
 After success, verify the live service. API: require `https://api.useorbit.org/health` to report `status: Healthy` for production, or the staging service URL's `/health` to be healthy for staging; confirm the Render live deploy commit equals the planned SHA. Web: require the selected Render service URL's `/api/health` to report `status: ok` and the planned `commit`. Landing: require a successful GitHub Deployment for the planned SHA and its URL's `orbit-build` meta tag to equal the SHA. Stop with the run URL and observed value on a mismatch.
 

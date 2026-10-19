@@ -36,6 +36,8 @@ function bundleProfile(kind: 'settings' | 'preferences') {
   const boundaries = {
     '@/components/advanced/advanced-sections': 'export const WidgetInfoOverlay = () => null;',
     '@/hooks/use-profile': 'export const useProfile = () => ({ profile: globalThis.geometryProfile });',
+    '@/hooks/use-wrapped': 'export const useWrapped = () => ({ recap: null, isLoading: false, isError: false, refetch: () => {} });',
+    '@/hooks/use-gamification': 'export const useReportEvent = () => ({ mutate: () => {} });',
     '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: () => {} });',
     'next/navigation': 'export const useRouter = () => ({ push: () => {} });',
     '@/components/ui/sheet': 'export const Sheet = () => null;',

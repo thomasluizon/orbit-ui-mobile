@@ -64,12 +64,13 @@ export function formatAPIDateInTimeZone(date: Date, timeZone?: string | null): s
   return getAccountDateTime(date, timeZone).date
 }
 
+export function getAccountDay(date: Date, timeZone?: string | null): string {
+  return timeZone === undefined ? formatAPIDate(date) : formatAPIDateInTimeZone(date, timeZone)
+}
+
 export function millisecondsUntilNextDay(now: Date, timeZone?: string | null): number {
-  const currentDay = timeZone === undefined ? formatAPIDate(now) : formatAPIDateInTimeZone(now, timeZone)
-  const dayAt = (offset: number) => {
-    const instant = new Date(now.getTime() + offset)
-    return timeZone === undefined ? formatAPIDate(instant) : formatAPIDateInTimeZone(instant, timeZone)
-  }
+  const currentDay = getAccountDay(now, timeZone)
+  const dayAt = (offset: number) => getAccountDay(new Date(now.getTime() + offset), timeZone)
   let before = 0
   let after = 48 * 60 * 60 * 1000
   while (after - before > 1) {

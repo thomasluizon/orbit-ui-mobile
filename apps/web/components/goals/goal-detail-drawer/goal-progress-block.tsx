@@ -33,11 +33,12 @@ function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
 interface GoalProgressBlockProps {
   goal: Goal
   isUpdatingStatus: boolean
+  onEditProgress: () => void
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
 }
 
-export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail }: Readonly<GoalProgressBlockProps>) {
+export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, onEditProgress, refetchDetail }: Readonly<GoalProgressBlockProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const update = useUpdateGoalProgress()
@@ -103,6 +104,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} aria-hidden="true" /></PillButton>
         <span className="text-[14px] text-[var(--fg-3)]">{goal.unit}</span>
         </ActionRow></div>
+        <ActionRow><PillButton variant="ghost" accessibleName={t('goals.updateProgress')} disabled={busy} onClick={onEditProgress}>{t('goals.updateProgress')}</PillButton></ActionRow>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
       <p role="status" aria-live="polite" className="sr-only">{announcement}</p>

@@ -330,6 +330,7 @@
   "command": {
     "title": "What do you want to do",
     "placeholder": "Search or run",
+    "loadFailed": "Search could not open. Try again.",
     "empty": "Nothing by that name.",
     "logHabit": "Log a habit",
     "skipHabit": "Skip a habit",
@@ -409,7 +410,7 @@
     },
     "today": "Today",
     "todayWithDate": "Today, {date}",
-    "goToToday": "Go to today",
+    "goToToday": "Back to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
@@ -675,6 +676,8 @@
     },
     "frequencyLabel": "Frequency",
     "form": {
+      "emojiSuggest": "Suggest an emoji",
+      "emojiSuggesting": "Finding an emoji…",
       "aiSuggest": "Suggest with AI",
       "aiSuggesting": "Thinking…",
       "aiSuggestApplied": "AI suggestion applied",
@@ -762,6 +765,21 @@
       "titleRequired": "Give the habit a title",
       "titleTooLong": "Shorten the habit title to 200 characters or fewer.",
       "descriptionTooLong": "Shorten the habit description to 10,000 characters or fewer.",
+      "frequency": "Frequency",
+      "flexibleDescription": "{unit, select, Day {{n, plural, =0 {Complete # times a day} one {Complete once a day} other {Complete # times a day}}} Week {{n, plural, =0 {Complete # times a week} one {Complete once a week} other {Complete # times a week}}} Month {{n, plural, =0 {Complete # times a month} one {Complete once a month} other {Complete # times a month}}} Year {{n, plural, =0 {Complete # times a year} one {Complete once a year} other {Complete # times a year}}} other {{n, plural, =0 {Complete # times} one {Complete once} other {Complete # times}}}}",
+      "timesPerUnit": "Times per",
+      "every": "Every",
+      "unit": "Unit",
+      "understoodEveryNDays": "Every {count} days",
+      "understoodEveryNDaysAt": "Every {count} days at {time}",
+      "understoodEveryWeek": "Every week",
+      "understoodEveryWeekAt": "Every week at {time}",
+      "understoodEveryNWeeks": "Every {count} weeks",
+      "understoodEveryNWeeksAt": "Every {count} weeks at {time}",
+      "understoodDayOnce": "Once a day",
+      "understoodDayOnceAt": "Once a day at {time}",
+      "understoodDayCount": "{count} times a day",
+      "understoodDayCountAt": "{count} times a day at {time}",
       "frequencyRequired": "Set the frequency to 1 or higher",
       "unitDay": "Day",
       "unitWeek": "Week",
@@ -1079,7 +1097,7 @@
       "agenda": "Agenda"
     },
     "period": {
-      "goToCurrent": "{period}, go to today"
+      "goToCurrent": "{period}, back to today"
     },
     "range": {
       "label": "{start} to {end}",
@@ -1115,7 +1133,6 @@
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",
     "monthPicker": "Month and year",
-    "thisMonth": "This month",
     "legendTitle": "Legend",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
@@ -1216,6 +1233,172 @@
     "liveBlock": {
       "stale": "This block could not be updated. Reload to see the latest state.",
       "error": "We could not update this block. Try again."
+    },
+    "templates": {
+      "title": "Ideas",
+      "browse": "Browse ideas",
+      "back": "Back to conversation",
+      "search": "Search ideas",
+      "forYou": "For you now",
+      "noMatches": "No ideas for “{query}”.",
+      "clearSearch": "Clear search",
+      "more": "More ideas",
+      "previous": "Previous ideas",
+      "draftKept": "Your draft is kept. Clear it to edit this idea.",
+      "categories": {
+        "start": "Start",
+        "remember": "Remember",
+        "many": "Many at once",
+        "restart": "Restart",
+        "understand": "Understand",
+        "calendar": "Calendar"
+      },
+      "items": {
+        "morning": {
+          "label": "Plan my morning",
+          "prompt": "Help me set up a simple morning routine."
+        },
+        "evening": {
+          "label": "Plan my evening",
+          "prompt": "Help me set up a simple evening routine."
+        },
+        "oneHabit": {
+          "label": "Start one habit",
+          "prompt": "Help me start one small habit."
+        },
+        "goalHabits": {
+          "label": "Habits for a goal",
+          "prompt": "Turn my goal of '{'goal'}' into small habits."
+        },
+        "habitReminder": {
+          "label": "Habit with a reminder",
+          "prompt": "Create a habit to '{'habit'}' with a reminder at '{'time'}'."
+        },
+        "smallSteps": {
+          "label": "Break a habit into steps",
+          "prompt": "Break my habit of '{'habit'}' into small steps."
+        },
+        "setReminder": {
+          "label": "Set a reminder",
+          "prompt": "Remind me to '{'habit'}' at '{'time'}'."
+        },
+        "changeReminder": {
+          "label": "Change a reminder",
+          "prompt": "Move the reminder for '{'habit'}' to '{'time'}'."
+        },
+        "dueToday": {
+          "label": "What's still due today?",
+          "prompt": "Which habits are still due today?"
+        },
+        "tonight": {
+          "label": "Plan tonight",
+          "prompt": "Help me plan tonight around my remaining habits."
+        },
+        "reviewReminders": {
+          "label": "Review my reminders",
+          "prompt": "Show me my habit reminders."
+        },
+        "busyReminders": {
+          "label": "Remember on busy days",
+          "prompt": "Help me choose reminders that fit my busy days."
+        },
+        "moveToday": {
+          "label": "Move today's habits",
+          "prompt": "Move today's remaining habits to tomorrow."
+        },
+        "changeTimes": {
+          "label": "Change several times",
+          "prompt": "Help me change the times of several habits together."
+        },
+        "skipToday": {
+          "label": "Skip what's left today",
+          "prompt": "Skip today's remaining habits."
+        },
+        "logMany": {
+          "label": "Log several habits",
+          "prompt": "Log '{'habits'}' as done today."
+        },
+        "tagGroup": {
+          "label": "Tag a group",
+          "prompt": "Add the tag '{'tag'}' to '{'habits'}'."
+        },
+        "pauseMany": {
+          "label": "Pause several habits",
+          "prompt": "Help me pause several habits for this week."
+        },
+        "afterDay": {
+          "label": "Return after a day away",
+          "prompt": "Help me restart after missing a day."
+        },
+        "afterWeek": {
+          "label": "Return after a hard week",
+          "prompt": "Help me restart after a difficult week."
+        },
+        "smallerHabit": {
+          "label": "Make a habit smaller",
+          "prompt": "Help me make my habit of '{'habit'}' smaller."
+        },
+        "keepOne": {
+          "label": "Keep just one habit",
+          "prompt": "Help me choose one habit to return to today."
+        },
+        "lighterWeek": {
+          "label": "Lighten this week",
+          "prompt": "Help me make this week's routine lighter."
+        },
+        "easierTime": {
+          "label": "Find an easier time",
+          "prompt": "Help me find an easier time for '{'habit'}'."
+        },
+        "reviewWeek": {
+          "label": "Review my week",
+          "prompt": "Help me review how my habits went this week."
+        },
+        "missedHabit": {
+          "label": "See what gets missed",
+          "prompt": "Which habit have I been missing most often?"
+        },
+        "streak": {
+          "label": "Understand my streak",
+          "prompt": "Explain how my streak works."
+        },
+        "freezes": {
+          "label": "Understand freezes",
+          "prompt": "Explain how streak freezes work."
+        },
+        "whatWorks": {
+          "label": "See what works for me",
+          "prompt": "Which habits have been easier for me to keep?"
+        },
+        "reviewGoals": {
+          "label": "Review my goals",
+          "prompt": "Help me review progress toward my goals."
+        },
+        "aroundEvents": {
+          "label": "Plan around events",
+          "prompt": "Help me fit today's habits around my calendar events."
+        },
+        "importWeek": {
+          "label": "Import this week",
+          "prompt": "Import this week's Google Calendar events."
+        },
+        "todayEvents": {
+          "label": "Review today's events",
+          "prompt": "Show me today's calendar events."
+        },
+        "findTime": {
+          "label": "Find time for a habit",
+          "prompt": "Find a time for '{'habit'}' around today's events."
+        },
+        "tomorrow": {
+          "label": "Plan tomorrow",
+          "prompt": "Help me plan tomorrow's habits around my calendar events."
+        },
+        "busyDay": {
+          "label": "Ease a busy day",
+          "prompt": "Help me lighten my habits on days with many calendar events."
+        }
+      }
     },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "title": "Astra",
@@ -1874,6 +2057,25 @@
     }
   },
   "profile": {
+    "connections": {
+      "title": "Connections",
+      "googleCalendar": "Google Calendar",
+      "notion": "Notion",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "renew": "Reconnect required",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "choosePages": "Choose pages",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect Notion?",
+      "description": "Astra reads only the pages you choose in Notion.",
+      "disconnectBody": "Astra stops reading your pages and Orbit deletes everything it stored from Notion.",
+      "error": "The connection did not work. Try again.",
+      "offline": "You are offline. Connect to the internet to manage Notion.",
+      "lastSync": "Last sync: {time}",
+      "awaitingSync": "Waiting for the first sync."
+    },
     "submenus": {
       "accountLabel": "{name}, {email}, account",
       "account": "Account",
@@ -2137,6 +2339,11 @@
     }
   },
   "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
     "share": "Share",
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
@@ -2240,7 +2447,7 @@
     "close": "Close privacy policy",
     "title": "Privacy policy",
     "headerTitle": "Privacy",
-    "lastUpdated": "Last updated: September 2026",
+    "lastUpdated": "Last updated: October 2026",
     "intro": {
       "title": "Introduction",
       "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
@@ -2264,6 +2471,7 @@
       "notifications": "To send push notifications and habit reminders you have configured"
     },
     "thirdParty": {
+      "notion": "Notion: read-only access to titles, dates and status of the pages you share, so Astra can suggest tasks and habits. Orbit stores these records in its database hosted by Render in Ohio, United States. Disconnecting deletes the connection and all stored Notion records.",
       "title": "Third-Party Services",
       "intro": "We use the following services to operate Orbit:",
       "google": "Google OAuth: for sign-in directly with Google",
@@ -2288,6 +2496,7 @@
       "body": "All connections to Orbit use HTTPS encryption. Authentication uses rotating refresh sessions. Payment information is handled entirely by Stripe and never touches our servers."
     },
     "retention": {
+      "notion": "Notion: shared page records and encrypted connection credentials are kept while connected. Disconnecting deletes everything Orbit stored from Notion.",
       "title": "How Long We Keep Your Data",
       "intro": "We retain your data only as long as needed to provide the service:",
       "account": "Account data: kept for as long as your account is active.",
@@ -2932,6 +3141,7 @@
       "unitTooLong": "Shorten the goal unit to 50 characters or fewer.",
       "habitLimit": "Link up to 20 habits to this goal.",
       "progressValueInvalid": "Enter a value of 0 or higher",
+      "progressNoteTooLong": "Shorten the note to 500 characters or fewer.",
       "type": "Goal type",
       "typeStandard": "Progress",
       "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",
@@ -3001,6 +3211,13 @@
     "linkedHabits": "Linked habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
+      "title": "Forecast",
+      "projectedCompletion": "Projected completion",
+      "velocity": "Daily pace",
+      "daysToDeadline": "Days to deadline",
+      "noData": "No data",
+      "dailyPace": "{value} {unit}/day",
+      "weeklyAdherence": "Weekly rate: {percent}%",
       "onTrack": "On track",
       "atRisk": "At risk",
       "behind": "Behind schedule",
@@ -3377,6 +3594,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
+    "copyError": "Couldn't copy the URL. Try again or select the text and copy it by hand.",
     "copied": "Copied",
     "done": "Done",
     "connectionInstructions": "Connection Instructions",

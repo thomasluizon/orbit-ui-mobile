@@ -1,6 +1,6 @@
 import type { HabitsFilter, NormalizedHabit } from "../types/habit";
 import type { ShellDestinationId } from "../utils/shell-destinations";
-import { formatAPIDate } from "../utils/dates";
+import { getAccountDay } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
 import {
@@ -48,6 +48,7 @@ function isActiveView(value: unknown): value is ActiveView {
 }
 
 export interface PersistedUIState {
+  dailyStreakMomentDate: string;
   setupChecklistDismissed: boolean;
   activeFilters: HabitsFilter;
   activeView: ActiveView;
@@ -63,6 +64,7 @@ export function migratePersistedUIState(
     : {};
   delete activeFilters.search;
   return {
+    dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
     setupChecklistDismissed: state.setupChecklistDismissed === true,
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
@@ -92,6 +94,12 @@ export interface UIStoreState {
   completeActiveCelebration: (id?: string) => void;
   hasCelebrationInFlight: () => boolean;
 
+  dailyStreakMomentDate: string;
+  showStreakMoment: (
+    streak: number,
+    previousStreak: number | undefined,
+    log: { date?: string; timeZone?: string | null; intent: "log" | "unlog"; countsTowardStreak: boolean },
+  ) => void;
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
   allDoneCelebratedDate: string;
@@ -105,6 +113,7 @@ export interface UIStoreState {
     habitsById: Map<string, NormalizedHabit>,
     childrenByParent: Map<string, string[]>,
     date: string,
+    timeZone?: string | null,
   ) => void;
 
   isSelectMode: boolean;
@@ -150,6 +159,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   const activeFilters = { ...state.activeFilters };
   delete activeFilters.search;
   return {
+    dailyStreakMomentDate: state.dailyStreakMomentDate,
     activeFilters,
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
@@ -226,6 +236,21 @@ export function createUIStoreState(
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
 
+    dailyStreakMomentDate: "",
+    showStreakMoment: (streak, previousStreak, log) => {
+      const today = getAccountDay(new Date(), log.timeZone);
+      if (log.intent !== "log" || !log.countsTowardStreak || (log.date && log.date !== today)) return;
+      if (previousStreak === undefined || streak !== previousStreak + 1) return;
+      set((state) => {
+        if (state.dailyStreakMomentDate === today) return {};
+        const kind = isStreakCelebrationMilestone(streak) ? "streak" : "daily-streak";
+        const moment = enqueueCelebrationItem(
+          state,
+          createCelebrationItem(kind, { streak }, nextCelebrationSequence()),
+        );
+        return { ...moment, dailyStreakMomentDate: today };
+      });
+    },
     activeCelebration: null,
     queuedCelebrations: [],
     streakCelebration: null,
@@ -286,9 +311,9 @@ export function createUIStoreState(
       goalCompletedCelebration: null,
     }),
 
-    checkAllDoneCelebration: (habitsById, childrenByParent, date) => {
+    checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone) => {
       const { allDoneCelebratedDate, enqueueCelebration } = get();
-      const today = formatAPIDate(new Date());
+      const today = getAccountDay(new Date(), timeZone);
 
       if (date !== today) return;
       if (allDoneCelebratedDate === today) return;

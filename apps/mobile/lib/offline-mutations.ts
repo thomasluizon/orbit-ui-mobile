@@ -468,7 +468,7 @@ async function recoverInstalledQueue(): Promise<void> {
     return
   }
   for (const mutation of getAll()) {
-    if (mutation.status === 'syncing') update(mutation.id, { status: 'pending' })
+    if (mutation.status === 'syncing') update(mutation.id, { status: 'failed' })
   }
   installedQueueRecovered = true
   try {
@@ -601,7 +601,12 @@ function isAuthRefreshNetworkError(error: unknown): boolean {
   return error instanceof TypeError && error.name === 'AuthRefreshNetworkError'
 }
 
+function isProDenial(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 403 && error.code === 'PAY_GATE'
+}
+
 function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: number): boolean {
+  if (isProDenial(error)) return true
   if (!(error instanceof Error)) return nextRetries >= maxRetries
 
   const message = error.message.toLowerCase()
@@ -617,6 +622,7 @@ function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: num
 }
 
 function shouldStopFlushing(error: unknown): boolean {
+  if (isProDenial(error)) return false
   if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return true
   if (!(error instanceof Error)) return false
 
@@ -662,10 +668,10 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
       entityType: mutation.entityType,
       tempId: mutation.clientEntityId,
       serverId: null,
-      status: 'pending',
+      status: mutation.status ?? 'pending',
       tombstone: false,
       updatedAt: Date.now(),
-      lastError: null,
+      lastError: mutation.lastError ?? null,
     })
   }
 
@@ -725,9 +731,13 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     }
 
     if (isCurrent?.() === false) throw new Error('Mutation owner changed')
-    const queuedMutationId = await markQueuedMutation(resolvedMutation.type === 'skipHabit'
-      ? { ...resolvedMutation, retries: resolvedMutation.retries + 1, lastError: getErrorMessage(error) }
-      : resolvedMutation)
+    const attemptedMutation = {
+      ...resolvedMutation,
+      status: 'failed' as const,
+      lastError: getErrorMessage(error),
+    }
+    if (resolvedMutation.type === 'skipHabit') attemptedMutation.retries += 1
+    const queuedMutationId = await markQueuedMutation(attemptedMutation)
     return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   } finally {
     setPendingIdempotencyKey(null)

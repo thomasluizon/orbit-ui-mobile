@@ -3,7 +3,7 @@ import {
   type ProposedProps,
 } from '@orbit/shared/contracts/blocks'
 import { tintProposedChildren, type ProposedTintAdapter } from './proposed-tint'
-import { cloneElement, Fragment } from 'react'
+import { Children, cloneElement, Fragment } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, type StyleProp, type TextStyle, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -32,31 +32,31 @@ function createTintAdapter(color: string): ProposedTintAdapter {
   }
 }
 
-export function Proposed({ proposed, scope, label, children, inset = false }: Readonly<ProposedProps>) {
+export function Proposed({ proposed, scope, label, children, inset = false, keepMounted = false }: Readonly<ProposedProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
-  if (!proposed) return children
+  if (!proposed && !keepMounted) return children
 
   return (
     <View
       accessible={false}
       style={{
         borderRadius: PROPOSED_RADIUS[scope],
-        ...(!inset ? { borderColor: tokens.hairlineStrong, borderStyle: 'dashed', borderWidth: 1 } : {}),
+        ...(proposed && !inset ? { borderColor: tokens.hairlineStrong, borderStyle: 'dashed', borderWidth: 1 } : {}),
       }}
-      testID={`proposed-${scope}`}
+      testID={proposed ? `proposed-${scope}` : undefined}
     >
-      <Text
+      {proposed ? <Text
         accessible
         accessibilityLabel={label}
         style={styles.accessibilityLabel}
         testID={`proposed-${scope}-label`}
       >
         {label}
-      </Text>
-      {tintProposedChildren(children, createTintAdapter(tokens.fg3))}
-      {inset ? <View
+      </Text> : null}
+      {proposed ? tintProposedChildren(children, createTintAdapter(tokens.fg3)) : Children.toArray(children)}
+      {proposed && inset ? <View
         pointerEvents="none"
         accessible={false}
         importantForAccessibility="no-hide-descendants"

@@ -124,6 +124,44 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     return tree;
   }
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('returns through the %s label and keeps today inert', (view) => {
+    const onCurrent = vi.fn();
+    for (const isTodaySelected of [false, true]) {
+      let tree!: Tree;
+      TestRenderer.act(() => { tree = mount(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08"
+        isTodaySelected={isTodaySelected} previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={onCurrent} onSelectMonth={vi.fn()} tokens={tokens}
+        period={view === 'month' ? undefined : { view, label: 'Apr 6 to 12', previousLabel: 'Previous', nextLabel: 'Next',
+          onPrevious: vi.fn(), onNext: vi.fn(), onCurrent }} />); });
+      const label = tree.root.findAll((node) => node.type === 'Pressable' &&
+        node.props.accessibilityLabel === (view === 'month' ? 'April, dates.goToToday' : 'calendar.period.goToCurrent:{"period":"Apr 6 to 12"}'))[0]!;
+      expect(label.props.accessibilityState).toEqual({ disabled: isTodaySelected });
+      TestRenderer.act(() => label.props.onFocus({ target: 1, currentTarget: 1 }));
+      const indicators = tree.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style)?.outlineWidth === 2);
+      expect(indicators).toHaveLength(1);
+      TestRenderer.act(() => label.props.onBlur({ target: 1, currentTarget: 1 }));
+      const style = StyleSheet.flatten(label.props.style({ pressed: false }));
+      expect(style.minHeight).toBeGreaterThanOrEqual(48);
+      expect(style.minWidth).toBeGreaterThanOrEqual(48);
+      TestRenderer.act(() => label.props.onPress());
+      expect(onCurrent).toHaveBeenCalledOnce();
+      expect(nativeSheet.present).not.toHaveBeenCalled();
+    }
+  });
+
+  it('returns through the month label without presenting the month picker', () => {
+    const onCurrentMonth = vi.fn();
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarHeader currentMonth={new Date(2026, 2, 1)} todayKey="2026-04-08"
+      previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()}
+      onCurrentMonth={onCurrentMonth} onSelectMonth={vi.fn()} tokens={tokens} />); });
+    const title = tree.root.findAll((node) => node.type === 'Pressable' &&
+      node.props.accessibilityLabel.startsWith('March,'))[0]!;
+    TestRenderer.act(() => title.props.onPress());
+    expect(onCurrentMonth).toHaveBeenCalledOnce();
+    expect(nativeSheet.present).not.toHaveBeenCalled();
+  });
+
   it.each(['light', 'dark'] as const)('paints ghost header controls in %s mode', (mode) => {
     const themedTokens = createTokensV2('purple', mode);
     let tree!: Tree;
@@ -237,13 +275,13 @@ describe('CalendarHeader shared navigation', () => {
     for (const width of [320, 412, 600, 840]) {
       const geometry = measureProfileRow(tree.toJSON().children![0] as Parameters<typeof measureProfileRow>[0], width, 1);
       expect(geometry.height).toBe(48);
-      expect(geometry.controls.map((control) => control.height)).toEqual([48, 48, 48]);
+      expect(geometry.controls.every((control) => control.height >= 48)).toBe(true);
     }
     const controls = tree.root.findAll((node) => node.type === 'Pressable');
-    expect(controls).toHaveLength(3);
-    for (const index of [0, 2]) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+    expect(controls).toHaveLength(view === 'month' ? 4 : 3);
+    for (const index of [0, controls.length - 1]) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
     const title = StyleSheet.flatten(controls[1]!.props.style({ pressed: false }));
-    expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: 16, paddingVertical: 8 });
+    expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: view === 'month' ? 8 : 16, paddingVertical: 8 });
     expect(title.borderWidth).toBeUndefined();
     expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover);
     await TestRenderer.act(() => { controls[1]!.props.onHoverIn?.({}); });
@@ -252,7 +290,7 @@ describe('CalendarHeader shared navigation', () => {
     expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
     await TestRenderer.act(() => { controls[1]!.props.onBlur?.({ target: 1, currentTarget: 1 }); });
     expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe('transparent');
-    expect(Boolean(controls[2]!.props.disabled)).toBe(view === 'range');
+    expect(Boolean(controls.at(-1)!.props.disabled)).toBe(view === 'range');
   });
 });
 

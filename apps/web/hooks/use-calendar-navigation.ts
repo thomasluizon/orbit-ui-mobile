@@ -8,7 +8,8 @@ import { useAccountBoundRouteRequest, useAccountScopedState, useAccountGeneratio
 
 import { getAccountGeneration } from '@/lib/session-epoch'
 
-export type CalendarView = 'month' | 'week' | 'range' | 'agenda'
+import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
+export type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
 
 interface CalendarDates {
   selectedDay: string

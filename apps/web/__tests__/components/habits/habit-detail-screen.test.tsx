@@ -22,6 +22,7 @@ import {
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { Sheet } from '@/components/ui/sheet'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { RouteContext } from '@/components/navigation/route-context'
 import { useChatStore } from '@/stores/chat-store'
@@ -421,6 +422,22 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+  })
+
+  it('exposes the fixture heading after closing a modal above habit detail', async () => {
+    mocks.detail = { ...makeDetail(), children: [], dueTime: '08:00:00' }
+    function DetailWithPrompt() {
+      const [open, setOpen] = React.useState(true)
+      return <><HabitDetailScreen habitId="habit-1" />{open ? <Sheet title={en.marketingConsent.prompt.title} onClose={() => setOpen(false)} /> : null}</>
+    }
+    const view = render(<DetailWithPrompt />)
+    expect(view.container.querySelector('h1')).toHaveTextContent(mocks.detail.title)
+    expect(screen.queryByRole('heading', { level: 1, name: mocks.detail.title })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail.title })).toBeVisible()
+    expect(view.container.querySelector('[aria-busy="true"], .skeleton-pulse')).toBeNull()
   })
 
   it.each([false, true])('leaves focus on the document after a direct load with delayed data=%s', async (delayed) => {
@@ -2056,6 +2073,21 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each(['light', 'dark'] as const)('leaves the child row group without a second surface in %s', async (mode) => {
+      vi.useRealTimers()
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+        const group = await page.getByTestId('detail-children').evaluate((element) => {
+          const paint = getComputedStyle(element)
+          return { background: paint.backgroundColor, shadow: paint.boxShadow, border: paint.borderWidth, gap: paint.rowGap }
+        })
+        expect(group).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px', gap: '12px' })
+      } finally { await page.close() }
+    })
 
     it.each([
       [320, 'dark'], [412, 'dark'], [1100, 'dark'],

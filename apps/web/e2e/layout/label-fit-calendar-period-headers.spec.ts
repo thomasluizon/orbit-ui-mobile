@@ -54,7 +54,12 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
           expect(box.bottom).toBeLessThan(segments.bottom)
           expect(box.width).toBeGreaterThanOrEqual(48)
           expect(box.height).toBeGreaterThanOrEqual(48)
-          await expectInteractionFill(control)
+          if (control === current) {
+            await previous.click()
+            await expect(current).toHaveAttribute('aria-disabled', 'false')
+            await expectInteractionFill(current)
+            await current.click()
+          } else await expectInteractionFill(control)
         }
         expect(await current.evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none')
         await markRequiredLabels(current)

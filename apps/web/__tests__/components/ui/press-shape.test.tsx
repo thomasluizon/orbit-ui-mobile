@@ -185,7 +185,7 @@ describe('interaction fill parity in Chromium', () => {
       <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
       <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: "Week", previousLabel: "Previous week", nextLabel: "Next week", onPrevious: noop, onNext: noop, onCurrent: noop }} />
       <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
-        previousLabel="Previous day" todayLabel="Today" goToTodayLabel="Go to Today" nextLabel="Next day"
+        previousLabel="Previous day" goToTodayLabel="Go to Today" nextLabel="Next day"
         moreLabel="List options" selectLabel="Select" collapseLabel="Collapse" allCollapsed={false}
         refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
         onToggleSelect={noop} onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop}
@@ -208,7 +208,7 @@ describe('interaction fill parity in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
-      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', `Abril, ${ptBr.calendar.monthPicker}`, 'Previous week', 'Next week', 'Week, ir para hoje', ptBr.notifications.bell, 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
+      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', `Abril, ${ptBr.calendar.monthPicker}`, 'Previous week', 'Next week', 'Week, voltar para hoje', ptBr.notifications.bell, 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const bounds = await control.boundingBox()
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(48)

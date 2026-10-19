@@ -1282,6 +1282,63 @@ describe('offline mutations', () => {
     }, undefined)
   })
 
+  it('reports a Pro denial and continues replaying unrelated mutations without retrying the denial', async () => {
+    vi.useFakeTimers()
+    mocks.setOnline(true)
+    const denied = buildQueuedMutation({
+      type: 'createApiKey', scope: 'apiKeys', endpoint: '/api/api-keys',
+      method: 'POST', payload: { name: 'Integration' },
+    })
+    const unrelated = buildQueuedMutation({
+      type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/habit-1',
+      method: 'PUT', payload: { title: 'Read' },
+    })
+    mocks.queued.push(denied, unrelated)
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(403, {
+      error: 'This feature requires a Pro subscription.', errorCode: 'PAY_GATE',
+    }, 'Forbidden'))
+    const droppedListener = vi.fn()
+    const unsubscribe = subscribeDroppedMutations(droppedListener)
+
+    try {
+      const result = await flushQueuedMutations()
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(result).toMatchObject({ succeeded: 1, failed: 1, remaining: 0, replayState: 'idle' })
+      expect(result.droppedMutations).toMatchObject([{ id: denied.id, type: 'createApiKey' }])
+      expect(droppedListener).toHaveBeenCalledExactlyOnceWith(result.droppedMutations[0])
+      expect(useOfflineSyncStore.getState().drops).toEqual([result.droppedMutations[0]])
+      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      expect(mocks.apiClient).toHaveBeenLastCalledWith(unrelated.endpoint, {
+        method: 'PUT', body: JSON.stringify(unrelated.payload), idempotencyKey: unrelated.id,
+      }, undefined)
+      expect(mocks.queued).toEqual([])
+      expect(canAutoFlush()).toBe(true)
+    } finally {
+      unsubscribe()
+      cancelScheduledFlush()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([401, 403])('retains the queue on an HTTP %s session failure', async (status) => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/habit-1',
+      method: 'PUT', payload: { title: 'Read' },
+    })
+    mocks.queued.push(mutation, { ...mutation, id: 'unrelated' })
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(status, null, 'Session expired'))
+
+    const result = await flushQueuedMutations()
+
+    expect(result).toMatchObject({ succeeded: 0, failed: 1, remaining: 2, replayState: 'stopped-for-auth' })
+    expect(result.droppedMutations).toEqual([])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(mocks.remove).not.toHaveBeenCalled()
+    expect(canAutoFlush()).toBe(false)
+  })
+
   it('stops flushing on unauthorized errors and leaves the remaining queue intact', async () => {
     vi.useFakeTimers()
     mocks.setOnline(true)
@@ -3017,7 +3074,7 @@ describe('offline mutation helpers', () => {
       mocks.queued.push({ ...mutation, status: 'syncing' })
       try {
         await expect(replay.flushQueuedMutations()).resolves.toMatchObject({ succeeded: 1, remaining: 0 })
-        expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'pending' })
+        expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'failed' })
         expect(mocks.apiClient).toHaveBeenCalledTimes(1)
         expect(captureError).toHaveBeenCalledTimes(1)
         expect(replay.canAutoFlush()).toBe(true)
@@ -3044,7 +3101,7 @@ describe('offline mutation helpers', () => {
       mocks.queued.push(mutation)
       await flushQueuedMutations()
       await flushQueuedMutations()
-      expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'pending' })
+      expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'failed' })
       expect(mocks.queued).toEqual([])
       expect(write.mock.calls.filter(([key]) => key === recoveryKey)).toHaveLength(1)
     })

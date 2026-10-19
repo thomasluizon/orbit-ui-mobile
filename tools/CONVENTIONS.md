@@ -29,7 +29,7 @@ The dash and Sonar path inventories block across the whole tree so a deleted fil
 The contract snapshot, architecture inventory and critical dependency audit retain their blocking
 whole-tree checks. Other whole-tree scans report findings without failing. A committed inventory
 declares its regeneration command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
-the closed registry across check tools, local ESLint rules, session hooks and the registered guard step groups in `guards.yml`.
+the closed registry across check tools, local ESLint rules, session hooks and the registered guard step groups in `guards.yml` and the separate `pr-metadata.yml` job.
 
 The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 

@@ -3,22 +3,39 @@
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { chatTraceLabelKey, stripChatDirectives } from '@orbit/shared/chat'
+import { chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { ChevronDown, X } from '@/components/ui/icons'
+import { ChevronDown, Lightbulb, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
+import { useChatStore } from '@/stores/chat-store'
+import { Button } from '@/components/ui/pill-button'
+import { ListRow } from '@/components/ui/list-row'
+import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
+
+function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
+  const t = useTranslations()
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => { headingRef.current?.focus() }, [])
+  return <div data-prompt-library="" className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]">
+    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <ErrorState message={t('common.error')} action={<Button variant="ghost" onClick={onRetry}>{t('common.retry')}</Button>} />
+    </div>
+  </div>
+}
 
 function ThinkingTrace({ steps, running }: Readonly<{
   steps: readonly { domain: string; access: string }[]
@@ -32,8 +49,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
     <span>{t(chatTraceLabelKey(step.domain, step.access))}</span>
     {running && index === steps.length - 1 ? <WorkingMark /> : null}
   </div>)
-  if (running) return <div className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
-  return <div className="py-2">
+  if (running) return <div data-thinking-trace="running" className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
+  return <div data-thinking-trace="completed" className="py-2">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-[var(--touch-min)] items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
       {t('chat.trace.steps', { count: steps.length })}
       <ChevronDown aria-hidden="true" size={16} strokeWidth={1.5} className={expanded ? 'rotate-180' : undefined} />
@@ -78,6 +95,20 @@ function moveBetweenTurns(event: KeyboardEvent, feed: HTMLDivElement | null) {
     event.preventDefault()
     next.focus()
   }
+}
+
+function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
+  hasDraft: boolean
+  disabledReason: string | undefined
+  onSelect: (id: string, label: string, prompt: string) => void
+}>) {
+  const t = useTranslations()
+  const pendingIdea = useChatStore(state => state.contextualSuggestion)
+  if (!pendingIdea?.id.startsWith('prompt-library:')) return null
+  return <div className="px-4">
+    {hasDraft ? <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.templates.draftKept')}</p> : null}
+    <ListRow placement="column" title={pendingIdea.label} textMode="label" chevron={false} disabled={hasDraft || !!disabledReason} onClick={() => onSelect(pendingIdea.id.replace('prompt-library:', ''), pendingIdea.label, pendingIdea.prompt)} />
+  </div>
 }
 
 export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
@@ -157,6 +188,48 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
   const [selectedGoalId, setSelectedGoalId] = useAccountScopedState<string | null>(null)
 
+  const [libraryOpen, setLibraryOpen] = useAccountScopedState(false)
+  const [libraryModule, setLibraryModule] = useState<typeof import('./prompt-library') | null>(null)
+  const [libraryLoadFailed, setLibraryLoadFailed] = useState(false)
+  const [libraryLoadAttempt, setLibraryLoadAttempt] = useState(0)
+  useEffect(() => {
+    if (!libraryOpen || libraryModule) return
+    let active = true
+    void import('@/components/chat/prompt-library').then(
+      module => { if (active) setLibraryModule(module) },
+      () => { if (active) setLibraryLoadFailed(true) },
+    )
+    return () => { active = false }
+  }, [libraryOpen, libraryModule, libraryLoadAttempt])
+  const PromptLibrary = libraryModule?.PromptLibrary
+  const [inputSelection, setInputSelection] = useState<{ start: number; end: number } | undefined>()
+  const libraryTrigger = useRef<{ current: HTMLButtonElement | null } | null>(null)
+  const returnFocusVersion = useRef(0)
+  const browseHeaderRef = useRef<HTMLButtonElement>(null)
+  const browseEmptyRef = useRef<HTMLButtonElement>(null)
+  const disabledReason = promptDisabledReason(chat, t)
+  const openLibrary = (trigger: { current: HTMLButtonElement | null }) => { returnFocusVersion.current++; libraryTrigger.current = trigger; setLibraryOpen(true) }
+  const returnToConversation = useCallback(() => {
+    setLibraryOpen(false)
+    const version = ++returnFocusVersion.current
+    requestAnimationFrame(() => { if (version === returnFocusVersion.current) (libraryTrigger.current?.current ?? browseHeaderRef.current)?.focus() })
+  }, [setLibraryOpen])
+  const selectIdea = (id: string, label: string, prompt: string) => {
+    if (disabledReason) return
+    if (findPromptSlot(prompt)) {
+      const selection = preparePromptTemplate(useChatStore.getState(), { id, label, prompt })
+      setLibraryOpen(false)
+      if (selection) {
+        useChatStore.getState().setContextualSuggestion(null)
+        setInputSelection(selection)
+      } else returnToConversation()
+    } else {
+      void sendMessage(prompt)
+      returnToConversation()
+    }
+  }
+
+
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
       setSelectedGoalId(entityId)
@@ -183,6 +256,8 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       moveBetweenTurns(event, chatContainerRef.current)
       if (event.key !== 'Escape' || event.defaultPrevented) return
 
+      if (libraryOpen) { event.preventDefault(); returnToConversation(); return }
+
       const target = event.target
       if (target instanceof HTMLTextAreaElement && target.value.trim().length > 0) {
         return
@@ -201,17 +276,19 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
     document.addEventListener('keydown', handleKeydown)
     return () => document.removeEventListener('keydown', handleKeydown)
-  }, [chatContainerRef, close])
+  }, [chatContainerRef, close, libraryOpen, returnToConversation])
 
   return (
     <ChatCardOperationContext.Provider value={trackCardOperation}>
     <div className="relative flex h-full flex-col">
+      <div className="isolate flex min-h-0 flex-1 flex-col" inert={libraryOpen} aria-hidden={libraryOpen}>
       <div className="relative z-10 shrink-0">
         <AppBar
           title={t('chat.title')}
           titleVisual={<AstraGlyph size={16} />}
           titleIsBrandName
-          action={
+          action={<>
+            <button ref={browseHeaderRef} type="button" aria-label={t('chat.templates.browse')} className={APP_BAR_CONTROL_CLASS} onClick={() => openLibrary(browseHeaderRef)}><Lightbulb size={20} strokeWidth={2} aria-hidden="true" /></button>
             <button
               type="button"
               aria-label={t('common.closeConversation')}
@@ -220,7 +297,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             >
               <X size={20} strokeWidth={2} aria-hidden="true" />
             </button>
-          }
+          </>}
         />
       </div>
       <span role="status" aria-live="polite" className="sr-only">{announcingWork ? t('chat.trace.working') : ''}</span>
@@ -238,7 +315,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState />}
+        {showSuggestions && <ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
 
         <div ref={threadContentRef} className="flex flex-col gap-4">
         {messages.map((msg, index) => (
@@ -248,8 +325,12 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-labelledby={`${senderIdPrefix}-${msg.id}`}
             aria-posinset={index + 1}
             aria-setsize={messages.length}
-            className="flex min-w-0 flex-col gap-[16px]"
+            className="flex min-w-0 flex-col gap-2"
           >
+          {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
+          </span> : null}
+          <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
@@ -266,19 +347,27 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           />
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+          </div>
           </article>
         ))}
-        {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
-          <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
+        {showPendingReply || activeSteps.length > 0 ? <div className="flex min-w-0 flex-col gap-2">
+          {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+            <AstraGlyph size={24} />
+          </span> : null}
+          <div className="flex min-w-0 w-full flex-col gap-4">
+            {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
+              <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
+            </div> : <ThinkingTrace steps={activeSteps} running />}
+          </div>
         </div> : null}
-        {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
         </div>
 
       </div>
 
       <div className="shrink-0">
         {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
-        <Composer {...composerProps} autoFocus suggestions={composerProps.suggestions} />
+        <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
+        <Composer {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={composerProps.suggestions} />
       </div>
 
       {selectedGoalId && (
@@ -289,6 +378,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           goalId={selectedGoalId}
         />
       )}
+      </div>
+      <AnimatePresence initial={false}>{libraryOpen && PromptLibrary ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}</AnimatePresence>
+      {libraryOpen && !PromptLibrary && libraryLoadFailed ? <PromptLibraryLoadFailure onBack={returnToConversation} onRetry={() => setLibraryLoadAttempt(attempt => attempt + 1)} /> : null}
     </div>
     </ChatCardOperationContext.Provider>
   )

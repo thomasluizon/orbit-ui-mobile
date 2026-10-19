@@ -19,6 +19,7 @@ export const ROUTE_TITLE_KEYS = {
   '/upgrade': 'upgrade.pitchTitle',
   '/wrapped': 'wrapped.title',
   '/auth-callback': 'auth.signIn',
+  '/auth-callback/notion': 'profile.connections.notion',
   '/login': 'auth.signIn',
   '/onboarding': 'habits.form.newHabit',
   '/delete-account': 'deleteAccount.title',

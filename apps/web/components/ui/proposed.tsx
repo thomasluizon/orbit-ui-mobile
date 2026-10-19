@@ -3,7 +3,7 @@ import {
   type ProposedProps,
 } from '@orbit/shared/contracts/blocks'
 import { tintProposedChildren, type ProposedTintAdapter } from './proposed-tint'
-import { cloneElement, Fragment, type CSSProperties } from 'react'
+import { Children, cloneElement, Fragment, type CSSProperties } from 'react'
 
 const proposedColorClass = 'text-[var(--fg-3)]'
 const tailwindThemeColorKeys = new Set([
@@ -139,18 +139,18 @@ const tintAdapter: ProposedTintAdapter = {
   },
 }
 
-export function Proposed({ proposed, scope, label, children, inset = false }: Readonly<ProposedProps>) {
-  if (!proposed) return children
+export function Proposed({ proposed, scope, label, children, inset = false, keepMounted = false }: Readonly<ProposedProps>) {
+  if (!proposed && !keepMounted) return children
 
   return (
     <div
-      aria-label={label}
-      className={inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]"}
-      data-proposed=""
-      role="group"
+      aria-label={proposed ? label : undefined}
+      className={!proposed ? undefined : inset ? "outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "border border-dashed border-[var(--hairline-strong)]"}
+      data-proposed={proposed ? '' : undefined}
+      role={proposed ? 'group' : undefined}
       style={{ borderRadius: PROPOSED_RADIUS[scope] }}
     >
-      {tintProposedChildren(children, tintAdapter)}
+      {proposed ? tintProposedChildren(children, tintAdapter) : Children.toArray(children)}
     </div>
   )
 }

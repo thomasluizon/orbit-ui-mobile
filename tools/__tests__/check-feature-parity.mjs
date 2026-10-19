@@ -179,11 +179,42 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
+    const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
+    const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
+    T(`${platform} every MCP web guide capability resolves to reachable rendered output`, beforeGuide.length === (platform === 'web' ? 8 : 3) && beforeGuide.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+    const originalGuide = files[guide]
+    files[guide] = 'export function ProfileMcpGuide() { return null }'
+    const afterGuide = compare(guideCapabilities, scan(current, platform), rules)
+    const selectorCapabilities = new Set([
+      `${platform}:control:orbitMcp.claudeWeb`,
+      `${platform}:${platform === 'web' ? 'control' : 'display'}:orbitMcp.webNoApiKey`,
+    ])
+    T(`${platform} removing the MCP web guide retains only selector-owned capabilities`, afterGuide.every((entry) => entry.disposition === (selectorCapabilities.has(entry.id) ? 'retained' : 'missing')))
+    T(`${platform} deleting the MCP web guide blocks every guide-owned capability`, newLosses(afterGuide, beforeGuide).length === guideCapabilities.length - selectorCapabilities.size)
+    files[guide] = originalGuide
+    const calendarShell = platform === 'web'
+      ? 'apps/web/app/(app)/calendar/_components/calendar-shell.tsx'
+      : 'apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx'
+    const originalCalendarShell = files[calendarShell]
+    for (const direction of ['next', 'previous']) {
+      const ids = [`${platform}:control:common.${direction}Week`]
+      if (platform === 'web') ids.push(`web:control:calendar.agenda.${direction}Day`)
+      const capabilities = inventory.entries.filter((entry) => ids.includes(entry.id))
+      const beforeCalendar = compare(capabilities, scan(current, platform), rules)
+      T(`${platform} ${direction} calendar controls retain their real rendered labels`, beforeCalendar.length === ids.length && beforeCalendar.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0))
+      files[calendarShell] = originalCalendarShell.split('\n').filter((line) => !line.includes(`period?.${direction}Label`)).join('\n')
+      T(`${platform} mutation removes the ${direction} calendar button`, files[calendarShell] !== originalCalendarShell)
+      const afterCalendar = compare(capabilities, scan(current, platform), rules)
+      T(`${platform} shared labels cannot retain deleted ${direction} calendar controls`, afterCalendar.every((entry) => entry.disposition === 'missing'))
+      T(`${platform} deleting the ${direction} calendar button blocks its mapped capabilities`, newLosses(afterCalendar, beforeCalendar).length === ids.length)
+      files[calendarShell] = originalCalendarShell
+    }
     const id = `${platform}:control:chat.attachFile`
     const capability = inventory.entries.filter((entry) => entry.id === id)
     const before = compare(capability, scan(current, platform), rules)
     T(`${platform} attachment control is retained before removing its consumer`, before[0]?.disposition === 'retained')
-    const composer = `apps/${platform}/components/shell/composer.tsx`
+    const composer = 'packages/shared/src/chat/composer-controls.ts'
     const original = files[composer]
     files[composer] = original.split('\n').filter((line) => !line.includes("id: 'file', label: props.attachWords.file") && !line.includes("if (id === 'file') props.onAttachFile?.()")).join('\n')
     T(`${platform} mutation removes the real attachment menu item and selection branch`, files[composer] !== original && !files[composer].includes('props.attachWords.file'))

@@ -848,6 +848,7 @@ describe('habit form helpers', () => {
     controller.setQuantity(2)
     controller.setQuantity(3)
     controller.setIntervalWeeks(2)
+    controller.setSchedule('Month', 4, true)
     expect(setGeneral).toHaveBeenCalledTimes(4)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)
@@ -992,4 +993,29 @@ describe('drawn cadence sentences', () => {
       read.cadence === 'flexible' ? 'Week' : 'Day', read.frequencyQuantity ?? 1,
       read.dueTime ?? '', locale, translate)).toBe(expected)
   })
+})
+
+
+describe('manual schedule understanding', () => {
+  it.each([
+    ['Day', false, 2, 'Every 2 days'],
+    ['Week', false, 1, 'Every week'],
+    ['Week', false, 12, 'Every 12 weeks'],
+    ['Day', true, 1, 'Once a day'],
+    ['Day', true, 3, '3 times a day'],
+    ['Month', true, 4, '4 times a month'],
+    ['Year', true, 4, '4 times a year'],
+  ] as const)('describes %s flexible %s with quantity %i accurately', (unit, flexible, quantity, expected) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const template = en.habits.form[key.replace('habits.form.', '') as keyof typeof en.habits.form]
+      return Object.entries(values ?? {}).reduce((sentence, [name, value]) => sentence.replace(`{${name}}`, String(value)), template)
+    }
+    expect(buildHabitUnderstandingSentence([], [], flexible, unit, quantity, '', 'en', translate)).toBe(expected)
+    expect(buildHabitUnderstandingSentence([], [], flexible, unit, quantity, '08:00', 'en', translate)).toBe(`${expected} at 08:00`)
+  })
+})
+
+
+it.each([0, -1, 1.5, Number.NaN])('does not invent an understanding for invalid quantity %s', (quantity) => {
+  expect(buildHabitUnderstandingSentence([], [], true, 'Month', quantity, '', 'en', vi.fn())).toBe('')
 })

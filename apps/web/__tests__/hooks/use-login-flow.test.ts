@@ -3,7 +3,20 @@ import { LoginContent } from '@/app/(auth)/login/login-content'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, fireEvent, renderHook, waitFor } from '@testing-library/react'
 
+import { NextRequest } from 'next/server'
+
 import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
+import { proxy } from '@/proxy'
+import { resolveSessionTokens } from '@/lib/auth-api'
+
+vi.mock('@/lib/auth-api', () => ({
+  ACCOUNT_ID_HEADER: 'x-account-id',
+  getAccountIdFromToken: vi.fn(() => null),
+  AUTH_COOKIE: 'auth_token',
+  REFRESH_COOKIE: 'refresh_token',
+  resolveSessionTokens: vi.fn(),
+  setSessionCookies: vi.fn(),
+}))
 
 const mocks = vi.hoisted(() => ({
   search: '',
@@ -152,6 +165,23 @@ describe('Google sign in', () => {
   })
 })
 
+it('starts Google sign in through the BFF and preserves the destination', async () => {
+  vi.stubGlobal('location', { assign: mocks.assign })
+  vi.stubEnv('API_BASE', 'https://api.example.test')
+  vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.example.test')
+  vi.mocked(resolveSessionTokens).mockResolvedValue({
+    token: null, expiresAt: null, refreshed: false, refreshFailed: false,
+  })
+  const response = await proxy(new NextRequest('https://app.example.test/habits/new?title=Beber%20%C3%A1gua'))
+  mocks.search = new URL(response.headers.get('location')!).search
+  const { result } = renderHook(() => useLoginFlow())
+
+  act(() => { result.current.signInWithGoogle() })
+
+  expect(mocks.assign).toHaveBeenCalledWith('/api/auth/google/start?purpose=signin')
+  expect(sessionStorage.getItem('auth_return_url')).toBe('/habits/new?title=Beber%20%C3%A1gua')
+})
+
 it('keeps the Astra query from the anonymous notification redirect through Google sign-in', () => {
   vi.stubGlobal('location', { assign: mocks.assign })
   mocks.search = 'astra=open&returnUrl=%2F'
@@ -292,6 +322,33 @@ describe('useLoginFlow send-code step', () => {
 })
 
 describe('useLoginFlow verify-code success', () => {
+  it.each([
+    ['/habits/new?title=X', '/habits/new?title=X'],
+    ['/habits/new?title=Beber%20%C3%A1gua&tag=one&tag=two', '/habits/new?title=Beber%20%C3%A1gua&tag=one&tag=two'],
+    ['/?date=2026-10-03', '/?date=2026-10-03'],
+    ['/habits/new?title=X#draft', '/habits/new?title=X'],
+    ['/habits/new?returnUrl=https%3A%2F%2Fevil.example&googleError=1&email=other%40example.com&code=123456',
+      '/habits/new?returnUrl=https%3A%2F%2Fevil.example&googleError=1&email=other%40example.com&code=123456'],
+  ])('returns a signed-out request for %s to %s after sign in', async (requestedPath, destination) => {
+    vi.stubEnv('API_BASE', 'https://api.example.test')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.example.test')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null, expiresAt: null, refreshed: false, refreshFailed: false,
+    })
+    const response = await proxy(new NextRequest(`https://app.example.test${requestedPath}`))
+    const loginUrl = new URL(response.headers.get('location')!)
+    mocks.search = loginUrl.search
+    const { result } = renderHook(() => useLoginFlow())
+
+    await advanceToCodeStep(result)
+    await act(async () => { await result.current.verifyCode('123456') })
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(destination)
+    expect([...loginUrl.searchParams.keys()]).toEqual(['returnUrl'])
+    expect(result.current.errorMessage).toBeNull()
+    expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ email: 'user@test.com' })
+  })
+
   it('verifies the code, stores the session, and redirects to a safe returnUrl', async () => {
     mocks.search = 'returnUrl=/dashboard'
     const { result } = renderHook(() => useLoginFlow())
@@ -346,17 +403,19 @@ describe('useLoginFlow verify-code success', () => {
     },
   )
 
-  it('rejects a protocol-relative returnUrl and redirects home instead', async () => {
-    mocks.search = 'returnUrl=//evil.example.com'
-    const { result } = renderHook(() => useLoginFlow())
+  it.each(['//evil.example.com', 'https://evil.example.com', 'https://evil.example.com/habits/new?title=X'])(
+    'rejects an unsafe returnUrl %s and redirects home instead', async (returnUrl) => {
+      mocks.search = new URLSearchParams({ returnUrl }).toString()
+      const { result } = renderHook(() => useLoginFlow())
 
-    await advanceToCodeStep(result)
-    await act(async () => {
-      await result.current.verifyCode('123456')
-    })
+      await advanceToCodeStep(result)
+      await act(async () => {
+        await result.current.verifyCode('123456')
+      })
 
-    expect(mocks.push).toHaveBeenCalledWith('/')
-  })
+      expect(mocks.push).toHaveBeenCalledWith('/')
+    },
+  )
 
   it('applies a referral cookie and surfaces the reactivation message on success', async () => {
     document.cookie = 'referral_code=friend-42'

@@ -15,6 +15,7 @@ export {
   parseAPIDate,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAccountDay,
   getAccountDateTime,
   millisecondsUntilNextDay,
   nowDate,
@@ -119,7 +120,7 @@ export {
   validateApiResponse,
   validateApiRequest,
 } from './error-utils'
-export { isFeatureEnabled } from './config'
+export { isFeatureEnabled, resolveFlag } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
@@ -225,6 +226,8 @@ export type {
 export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
+  applyHabitEmojiSuggestion,
+  buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
@@ -266,6 +269,7 @@ export type {
   HabitUnderstandingLabels,
   HabitUnderstandingProps,
   HabitRepeatIntervalProps,
+  HabitScheduleFieldsProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'
@@ -631,6 +635,7 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildProgressShareCardStats,
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,

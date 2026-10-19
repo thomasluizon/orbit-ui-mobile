@@ -12,6 +12,7 @@ import type {
   SetThemePreferenceRequest,
   UserDataExport,
 } from '@orbit/shared'
+import { notionAuthorizeRequestSchema, notionAuthorizationSchema, notionCallbackRequestSchema, type NotionAuthorizeRequest, type NotionCallbackRequest } from '@orbit/shared/types/notion-connection'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
@@ -126,4 +127,22 @@ export async function exportUserData(): Promise<ServerActionResult<UserDataExpor
   return wrapServerAction(() => serverAuthFetch<UserDataExport>(API.profile.export, {
     method: 'GET',
   }))
+}
+
+export async function authorizeNotion(input: NotionAuthorizeRequest, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.connections.notionAuthorize, {
+    method: 'POST', body: JSON.stringify(notionAuthorizeRequestSchema.parse(input)),
+  }, intendedAccountId, notionAuthorizationSchema))
+}
+
+export async function completeNotion(input: NotionCallbackRequest, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate<void>(API.connections.notionCallback, {
+    method: 'POST', body: JSON.stringify(notionCallbackRequestSchema.parse(input)),
+  }, intendedAccountId))
+}
+
+export async function disconnectNotion(intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate<void>(API.connections.notion, {
+    method: 'DELETE',
+  }, intendedAccountId))
 }

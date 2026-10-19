@@ -166,7 +166,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
 
 const noop = () => {}
 const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
-  previousLabel="Previous" todayLabel="Today" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
+  previousLabel="Previous" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
   selectLabel="Select" collapseLabel="Collapse" allCollapsed={false} refreshLabel="Refresh" completedLabel="Completed"
   showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
   onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
@@ -246,7 +246,7 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
         const host = tree.toJSON()
         function checkHeaderIcons(node: Host, inHeader = false) {
           const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(node.props.testID ?? '')
-          if (header && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel !== 'Today') {
+          if (header && node.props.accessibilityRole === 'button') {
             const style = node.props.style
             const rest = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
             const pressed = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
@@ -267,8 +267,9 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
         if (name === 'Hoje') {
           const baseline = measureBell(host, width, 1)
           expect(geometry.bell.right).toBe(baseline.bell.right)
-          if (fontScale === 2) expect(geometry.row.height).toBeGreaterThan(baseline.row.height)
-          const jump = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Today' && node.props.accessibilityRole === 'button')
+          expect(geometry.row.height).toBe(baseline.row.height)
+          expect(geometry.controls).toHaveLength(3)
+          const jump = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Today' && node.props.accessibilityRole === 'button')
           expect(jump).toBeDefined()
         }
         const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'notifications.bell' && node.props.accessibilityRole === 'button')
