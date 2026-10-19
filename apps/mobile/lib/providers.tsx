@@ -47,6 +47,9 @@ import { pinCaptureAnimationDurations } from './capture-animation-pin'
 import { i18n } from './i18n'
 import { PostHogProvider } from 'posthog-react-native'
 import { useConfig } from '@/hooks/use-config'
+import { useFlag } from '@/hooks/use-flag'
+import { launchAccountDesign, rememberAccountDesign } from './design-bundle'
+import { refreshDesignFlag, subscribeToDesignFlag } from './design-flag-refresh'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
 import { retirePersistentReminder } from './retired-persistent-reminder'
 import { captureError } from './sentry'
@@ -94,6 +97,24 @@ function PostHogGate() {
   return null
 }
 
+function DesignFlagGate() {
+  const accountId = useAuthStore((state) => state.isAuthenticated ? state.user?.userId ?? null : null)
+  const redesign = useFlag('redesign')
+  const { resolvedConfig } = useConfig()
+
+  useEffect(() => {
+    if (accountId && resolvedConfig) {
+      void rememberAccountDesign(accountId, redesign).catch(captureError)
+    }
+  }, [accountId, redesign, resolvedConfig])
+
+  useEffect(() => {
+    if (accountId) void refreshDesignFlag()
+  }, [accountId])
+
+  return null
+}
+
 function AuthInitializer({
   capturePreferences,
   children,
@@ -126,13 +147,16 @@ function AuthInitializer({
      * A tuple that changes mid-boot abandons the boot in flight. Without this, the older boot could
      * resolve last and publish its own tuple as applied, gating a render that is already correct.
      */
+    const unsubscribeDesignFlag = subscribeToDesignFlag()
     let abandoned = false
     async function boot() {
       let isAuthenticated = false
 
       try {
         await initialize()
-        isAuthenticated = useAuthStore.getState().isAuthenticated
+        const session = useAuthStore.getState()
+        isAuthenticated = session.isAuthenticated
+        if (await launchAccountDesign(isAuthenticated ? session.user?.userId ?? null : null)) return
       } catch {}
 
       if (capturePreferences) {
@@ -170,6 +194,7 @@ function AuthInitializer({
     void boot()
     return () => {
       abandoned = true
+      unsubscribeDesignFlag()
     }
   }, [captureTuple, capturePreferences, initialize])
 
@@ -181,7 +206,10 @@ function AuthInitializer({
 
       if (nextState === 'active') {
         reconcileSessionOnForeground()
-          .then(syncWidgetDataSafely)
+          .then(() => {
+            syncWidgetDataSafely()
+            void refreshDesignFlag()
+          })
           .catch(() => {})
       }
     }
@@ -211,6 +239,8 @@ function AuthInitializer({
     <CaptureReadinessContext.Provider value={appReady}>
       <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
         <View style={{ flex: 1 }}>
+          <DesignFlagGate />
+          {posthog ? <PostHogGate /> : null}
           <OfflineManager />
           <AccountEventConnection />
           {children}
@@ -252,7 +282,6 @@ export function Providers({ children }: Readonly<ProvidersProps>) {
 
   const content = (
     <QueryClientProvider client={queryClient}>
-      {posthog && <PostHogGate />}
       <ReducedMotionConfig
         mode={captureBuildEnabled ? ReduceMotion.Always : ReduceMotion.System}
       />
