@@ -136,7 +136,7 @@
   content: '';
   position: absolute;
   inset-block: -8px;
-  inset-inline: -16px;
+  inset-inline: -12px;
   border-radius: 12px;
   transition: background-color var(--dur-hover) var(--ease-standard);
 }

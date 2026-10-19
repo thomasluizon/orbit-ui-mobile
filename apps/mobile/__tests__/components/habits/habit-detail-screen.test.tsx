@@ -1092,9 +1092,9 @@ describe('HabitDetailScreen', () => {
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
     expect(textsOf(renameControls[0])).toContain(title)
     expect(StyleSheet.flatten(renameControls[0]!.props.style)).toMatchObject({ minWidth: 48, minHeight: 32, position: 'relative' })
-    expect(renameControls[0]!.props.hitSlop).toEqual({ top: 8, bottom: 8, left: 16, right: 16 })
+    expect(renameControls[0]!.props.hitSlop).toEqual({ top: 8, bottom: 8, left: 12, right: 12 })
     const fill = renameControls[0]!.findAllByType('View').find((node: TestNode) => viewStyle(node).top === -8)!
-    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -16, right: -16, borderRadius: 12 })
+    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -12, right: -12, borderRadius: 12 })
     TestRenderer.act(() => { renameControls[0]!.props.onFocus() })
     expect(viewStyle(fill)).toMatchObject({ outlineWidth: 2, outlineOffset: -6, backgroundColor: createTokensV2('orange', 'dark').bgHover })
     TestRenderer.act(() => { renameControls[0]!.props.onPress() })

@@ -1318,6 +1318,12 @@ past the content on the inline axis and at least 4 on the block axis. Text that 
 control and takes a control's shape. Primary-filled actions use `--primary-hover` on hover and
 `--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
 feedback, including when reduced motion suppresses the scale.
+Interaction fills and focus rings stay inside the control's laid-out box. An outward extension
+may use only the gap to the nearest neighbour minus 4px, the first spacing step. Keep at least
+4px between the painted fill and neighbouring content, including the page column edge.
+`INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
+Reserve the extension in layout; a negative inset never grants permission to overlap.
+
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
 to `--bg-hover`, and light uses the stronger opaque-control hover value.
 

@@ -220,7 +220,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
           <PillButton variant="ghost" size="sm" iconOnly label={t('rename')} onClick={() => setEditing(true)}><Pencil size={20} /></PillButton>
           <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </div>
-        <div className="min-w-0 w-full">
+        <div className="flex min-w-0 w-full flex-col gap-3">
           {editing ? (
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (
@@ -230,7 +230,7 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
               </button>
             </h1>
           )}
-          {summary ? <p className="mt-1 truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
+          {summary ? <p className="truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
         </div>
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] border border-[var(--hairline-strong)]"><PersonalTextDetails lines={1} textStyle={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>{tag.name}</PersonalTextDetails></div>)}</div></div> : null}

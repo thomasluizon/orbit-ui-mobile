@@ -237,7 +237,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TypedTextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
+          {editing ? <TypedTextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
             {({ pressed }) => <>
               <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -6, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
               <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>
@@ -693,9 +693,9 @@ const styles = StyleSheet.create({
   header: { gap: 12 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerSpacer: { flex: 1 },
-  headerCopy: { width: '100%', minWidth: 0, gap: 4 },
+  headerCopy: { width: '100%', minWidth: 0, gap: 12 },
   renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
-  renameFill: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
+  renameFill: { position: 'absolute', top: -8, bottom: -8, left: -12, right: -12, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
