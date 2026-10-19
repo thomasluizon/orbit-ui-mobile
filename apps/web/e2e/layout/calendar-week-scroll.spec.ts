@@ -231,17 +231,18 @@ test.describe('calendar week scroll at 412px', () => {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
         return before === middle && middle === node.scrollLeft
       })).toBe(true)
-      const heldLeft = await scroller.evaluate((node) => node.scrollLeft)
+      const heldPosition = await scroller.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))
       refreshed = true
       await page.clock.setFixedTime(new Date(Date.parse(LAYOUT_FIXED_TIME) + 6 * 60_000))
       const response = page.waitForResponse((response) => response.url().includes(API.habits.calendarMonth))
       await page.evaluate(() => window.dispatchEvent(new Event('focus')))
       await response
       await expect(page.getByTestId('time-grid-all-day-event').first()).toHaveText('Refetched habit 1')
-      await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBe(heldLeft)
+      await waitForWeekGeometry(scroller)
+      await expect.poll(() => scroller.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(heldPosition)
       await page.setViewportSize({ width: 412, height: 800 })
-      await expect(scroller).toBeVisible()
-      expect(await scroller.evaluate((node) => node.scrollLeft)).toBe(heldLeft)
+      await waitForWeekGeometry(scroller)
+      await expect.poll(() => scroller.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(heldPosition)
     })
   }
 })
