@@ -9,6 +9,20 @@ describe('log streak response contracts', () => {
     expect(logHabitResponseSchema.safeParse({ ...response, previousStreak: '0' }).success).toBe(false)
   })
 
+  it('accepts a single replay with an unavailable previous streak', () => {
+    const response = { logId: 'confirmed-log', isFirstCompletionToday: true, previousStreak: null, currentStreak: 1 }
+    expect(logHabitResponseSchema.parse(response)).toEqual(response)
+  })
+
+  it.each([
+    { previousStreak: null, currentStreak: null },
+    { previousStreak: null, currentStreak: 1 },
+    { previousStreak: 0, currentStreak: null },
+  ])('accepts nullable bulk replay fields: %j', (transition) => {
+    const response = { results: [], ...transition }
+    expect(bulkLogResultSchema.parse(response)).toEqual(response)
+  })
+
   it('preserves optional bulk transition fields independently', () => {
     for (const transition of [{}, { previousStreak: 0 }, { currentStreak: 1 }, { previousStreak: 0, currentStreak: 1 }]) {
       const response = { results: [], ...transition }

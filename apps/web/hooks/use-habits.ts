@@ -265,7 +265,7 @@ export function useLogHabit() {
 
       showStreakMoment(
         response.currentStreak,
-        response.previousStreak,
+        response.previousStreak ?? undefined,
         { ...variables, date: context?.occurrenceDate ?? variables.date, timeZone: queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, countsTowardStreak },
       )
       const startsStreak = countsTowardStreak
@@ -907,7 +907,8 @@ export function useBulkLogHabits() {
             const habit = findHabitInList(context.previousLists.flatMap(([, habits]) => habits ?? []), entry.habitId)
             return habit !== null && !habit.isBadHabit
           })
-          if (response.currentStreak !== undefined) showStreakMoment(response.currentStreak, response.previousStreak, { date: today, timeZone: profile?.timeZone, intent: 'log', countsTowardStreak })
+          const currentStreak = response.currentStreak ?? undefined
+          if (currentStreak !== undefined) showStreakMoment(currentStreak, response.previousStreak ?? undefined, { date: today, timeZone: profile?.timeZone, intent: 'log', countsTowardStreak })
         }
         const habitsData = getTodayHabitList(queryClient, today)
         if (habitsData) {

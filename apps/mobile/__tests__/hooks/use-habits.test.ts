@@ -3440,6 +3440,7 @@ describe('response streak authority', () => {
     { name: 'second log', previousStreak: 5, currentStreak: 5, cached: 4, expected: null },
     { name: 'unchanged streak', previousStreak: 0, currentStreak: 0, cached: 2, expected: null },
     { name: 'missing previous streak', currentStreak: 5, cached: 4, expected: null },
+    { name: 'null previous streak replay', previousStreak: null, currentStreak: 1, cached: 2, expected: null },
     { name: 'milestone', previousStreak: 6, currentStreak: 7, cached: 2, expected: 'streak' },
     { name: 'slip', previousStreak: 4, currentStreak: 5, cached: 2, bad: true, expected: null },
   ]
@@ -3464,7 +3465,12 @@ describe('response streak authority', () => {
     }
   })
 
-  it.each([...scenarios, { name: 'missing current streak', previousStreak: 4, currentStreak: undefined, cached: 4, bad: false, expected: null }])('uses the bulk response for $name', async (scenario) => {
+  it.each([
+    ...scenarios,
+    { name: 'null current streak replay', previousStreak: 0, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'null transition replay', previousStreak: null, currentStreak: null, cached: 2, bad: false, expected: null },
+    { name: 'missing current streak', previousStreak: 4, currentStreak: undefined, cached: 4, bad: false, expected: null },
+  ])('uses the bulk response for $name', async (scenario) => {
     const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     mocks.useRealUIStore = true
     store.setState({ activeCelebration: null, queuedCelebrations: [], dailyStreakMomentDate: '' })
