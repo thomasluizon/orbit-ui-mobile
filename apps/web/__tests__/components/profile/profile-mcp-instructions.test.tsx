@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { buildMcpConfigJson } from '@orbit/shared/utils/advanced-settings'
@@ -116,5 +116,25 @@ it('keeps the JSON available when clipboard access is unavailable', async () => 
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.claudeCode }))
   fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.copyConfig }))
   expect(await screen.findByText(en.orbitMcp.configCopyError)).toBeInTheDocument()
+  expect(screen.getByText(/"mcpServers"/).textContent).toBe(buildMcpConfigJson('https://api-staging.useorbit.org/mcp'))
+})
+
+
+it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps the Web guide reachable after visiting Code in %s', async (locale, messages) => {
+  settings.locale = locale
+  renderKeys()
+  fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.claudeCode }))
+  expect(screen.queryByRole('button', { name: messages.orbitMcp.connectionInstructions })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.claudeWeb }))
+  fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.connectionInstructions }))
+  const guide = within(screen.getByRole('dialog', { name: messages.orbitMcp.claudeWeb }))
+  expect(guide.getAllByRole('listitem').map((step) => step.textContent)).toEqual([
+    messages.orbitMcp.webStep1, messages.orbitMcp.webStep2, messages.orbitMcp.webStep3, messages.orbitMcp.webStep4,
+  ])
+  expect(guide.getByText(messages.orbitMcp.webNoApiKey)).toBeInTheDocument()
+  expect(guide.getByRole('button', { name: messages.orbitMcp.copy })).toBeEnabled()
+  fireEvent.click(guide.getByRole('button', { name: messages.orbitMcp.done }))
+  expect(screen.queryByRole('dialog', { name: messages.orbitMcp.claudeWeb })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.claudeCode }))
   expect(screen.getByText(/"mcpServers"/).textContent).toBe(buildMcpConfigJson('https://api-staging.useorbit.org/mcp'))
 })

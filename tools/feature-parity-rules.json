@@ -726,6 +726,12 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:control:orbitMcp.claudeWeb": {
+      "targets": [
+        "mobile:content:orbitMcp.claudeWeb"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
     "mobile:control:orbitMcp.confirm": {
       "targets": [
         "mobile:control:stepUp.confirm"
@@ -1301,6 +1307,12 @@
         "mobile:content:orbitMcp.revealHeading"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:orbitMcp.webNoApiKey": {
+      "targets": [
+        "mobile:content:orbitMcp.webNoApiKey"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
     },
     "mobile:display:profile.deleteAccount.deactivated": {
       "targets": [
@@ -2244,6 +2256,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:orbitMcp.claudeWeb": {
+      "targets": [
+        "web:content:orbitMcp.claudeWeb"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
     "web:control:orbitMcp.confirm": {
       "targets": [
         "web:control:stepUp.confirm"
@@ -2273,6 +2291,42 @@
         "web:control:profile.apiKeys.scopeLabel"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:orbitMcp.webInstructions": {
+      "targets": [
+        "web:content:orbitMcp.webInstructions"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "web:control:orbitMcp.webNoApiKey": {
+      "targets": [
+        "web:content:orbitMcp.webNoApiKey"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "web:control:orbitMcp.webStep1": {
+      "targets": [
+        "web:content:orbitMcp.webStep1"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "web:control:orbitMcp.webStep2": {
+      "targets": [
+        "web:content:orbitMcp.webStep2"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "web:control:orbitMcp.webStep3": {
+      "targets": [
+        "web:content:orbitMcp.webStep3"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
+    },
+    "web:control:orbitMcp.webStep4": {
+      "targets": [
+        "web:content:orbitMcp.webStep4"
+      ],
+      "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
     },
     "web:control:preferences.themeMode": {
       "targets": [

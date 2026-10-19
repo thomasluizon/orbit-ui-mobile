@@ -393,3 +393,10 @@ describe('PillButton', () => {
     expect(screen.getByRole('button', { name: 'Medium' })).toHaveStyle({ height: '50px' })
   })
 })
+
+it('exposes the shared button hint without replacing its label', () => {
+  render(<><p id="tag-context">Use the habit title</p><PillButton descriptionId="tag-context" hint="Suggesting tags" loading>Suggest tags</PillButton></>)
+  const button = screen.getByRole('button', { name: 'Suggest tags' })
+  expect(button).toHaveAccessibleDescription('Use the habit title Suggesting tags')
+  expect(button).toHaveAttribute('aria-busy', 'true')
+})

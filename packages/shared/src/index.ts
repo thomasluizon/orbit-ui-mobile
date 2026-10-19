@@ -27,7 +27,7 @@ export {
   translateErrorKey,
   validateApiResponse,
   validateApiRequest,
-  isFeatureEnabled,
+  resolveFlag,
   buildRecentChatHistory,
   buildCalendarSyncImportRequest,
   type CalendarSyncEvent,
