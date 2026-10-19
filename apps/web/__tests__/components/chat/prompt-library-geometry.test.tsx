@@ -27,7 +27,7 @@ beforeAll(async () => {
   const source = resolve(process.cwd(), 'app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
 })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.doUnmock('@/components/chat/prompt-library') })
 afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
 const cases = [320, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale })))
@@ -82,5 +82,42 @@ it('paints the library above the retained conversation', async () => {
       return !!document.elementFromPoint(280, 24)?.closest('[data-prompt-library]')
     })
     expect(above).toBe(true)
+  } finally { await page.close() }
+})
+
+it.each(cases)('keeps the failed load and its recovery controls visible at $width in $locale', async ({ width, locale }) => {
+  vi.doMock('@/components/chat/prompt-library', () => { throw new Error('Library chunk unavailable') })
+  const messages = locale === 'en' ? en : pt
+  const chat = {
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
+    messages: [], activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: true,
+    canShowFollowUps: false, sendMessage: vi.fn(), composerProps: { suggestions: [] },
+  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
+  const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
+    <div style={{ width, height: 800 }}><AstraConversation chat={chat} /></div>
+  </NextIntlClientProvider>)
+  fireEvent.click(screen.getAllByRole('button', { name: messages.chat.templates.browse })[0]!)
+  await screen.findByRole('alert')
+  const page = await browser.newPage({ viewport: { width, height: 800 } })
+  try {
+    for (const appearance of ['dark', 'light']) {
+      await page.setContent(`<style>${stylesheet}</style><div class="${appearance}">${container.innerHTML}</div>`)
+      await loadAppFonts(page)
+      const library = page.locator('[data-prompt-library]')
+      await markRequiredLabels(library.locator('h1, button'))
+      await expectLabelsFit(page, library)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+      const controls = await library.locator('button').evaluateAll(buttons => buttons.map(button => {
+        const bounds = button.getBoundingClientRect()
+        return { width: bounds.width, height: bounds.height, top: bounds.top, bottom: bounds.bottom }
+      }))
+      expect(controls).toHaveLength(2)
+      for (const control of controls) {
+        expect(control.top).toBeGreaterThanOrEqual(0)
+        expect(control.bottom).toBeLessThanOrEqual(800)
+        expect(control.width).toBeGreaterThan(0)
+      }
+      expect(controls[0]!.height).toBeGreaterThanOrEqual(48)
+    }
   } finally { await page.close() }
 })

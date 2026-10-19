@@ -4,7 +4,6 @@ import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -22,13 +21,21 @@ import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
+import { ErrorState } from '@/components/ui/error-state'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
 
-const PromptLibrary = dynamic(
-  () => import('@/components/chat/prompt-library').then(module => module.PromptLibrary),
-  { ssr: false, loading: () => null },
-)
+function PromptLibraryLoadFailure({ onBack, onRetry }: Readonly<{ onBack: () => void; onRetry: () => void }>) {
+  const t = useTranslations()
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => { headingRef.current?.focus() }, [])
+  return <div data-prompt-library="" className="absolute inset-0 z-[1] flex min-h-0 flex-col bg-[var(--bg)]">
+    <AppBar title={t('chat.templates.title')} titleRef={headingRef} onBack={onBack} backLabel={t('chat.templates.back')} />
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <ErrorState message={t('common.error')} action={<Button variant="ghost" onClick={onRetry}>{t('common.retry')}</Button>} />
+    </div>
+  </div>
+}
 
 function ThinkingTrace({ steps, running }: Readonly<{
   steps: readonly { domain: string; access: string }[]
@@ -182,6 +189,19 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const [selectedGoalId, setSelectedGoalId] = useAccountScopedState<string | null>(null)
 
   const [libraryOpen, setLibraryOpen] = useAccountScopedState(false)
+  const [libraryModule, setLibraryModule] = useState<typeof import('./prompt-library') | null>(null)
+  const [libraryLoadFailed, setLibraryLoadFailed] = useState(false)
+  const [libraryLoadAttempt, setLibraryLoadAttempt] = useState(0)
+  useEffect(() => {
+    if (!libraryOpen || libraryModule) return
+    let active = true
+    void import('@/components/chat/prompt-library').then(
+      module => { if (active) setLibraryModule(module) },
+      () => { if (active) setLibraryLoadFailed(true) },
+    )
+    return () => { active = false }
+  }, [libraryOpen, libraryModule, libraryLoadAttempt])
+  const PromptLibrary = libraryModule?.PromptLibrary
   const [inputSelection, setInputSelection] = useState<{ start: number; end: number } | undefined>()
   const libraryTrigger = useRef<{ current: HTMLButtonElement | null } | null>(null)
   const returnFocusVersion = useRef(0)
@@ -359,7 +379,8 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         />
       )}
       </div>
-      <AnimatePresence initial={false}>{libraryOpen ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}</AnimatePresence>
+      <AnimatePresence initial={false}>{libraryOpen && PromptLibrary ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}</AnimatePresence>
+      {libraryOpen && !PromptLibrary && libraryLoadFailed ? <PromptLibraryLoadFailure onBack={returnToConversation} onRetry={() => setLibraryLoadAttempt(attempt => attempt + 1)} /> : null}
     </div>
     </ChatCardOperationContext.Provider>
   )
