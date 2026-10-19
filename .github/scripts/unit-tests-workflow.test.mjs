@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -39,7 +39,10 @@ test("redesign distributes Chromium without increasing browser concurrency on a 
   assert.deepEqual(web.strategy.matrix.project, ["chromium"])
   assert.deepEqual(web.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
   assert.deepEqual(web.strategy.matrix.total, [8])
-  assert.deepEqual(web.strategy.matrix.include, [{ project: "jsdom", shard: 1, total: 1 }])
+  assert.deepEqual(web.strategy.matrix.include, [
+    { project: "jsdom", shard: 1, total: 2 },
+    { project: "jsdom", shard: 2, total: 2 },
+  ])
   const run = web.steps.find((step) => step.name === "Run web shard with coverage").run
   assert.match(run, /--project=\$\{\{ matrix.project \}\}/)
   assert.match(run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
@@ -50,6 +53,33 @@ test("redesign distributes Chromium without increasing browser concurrency on a 
   assert.equal(upload.if, "${{ always() }}")
   assert.equal(upload.with["include-hidden-files"], true)
   assert.equal(upload.with["if-no-files-found"], "error")
+})
+
+test("Unit Tests requires every jsdom and Chromium shard blob to be nonempty", () => {
+  const step = workflow.jobs["unit-tests"].steps.find((candidate) => candidate.name === "Verify every web report arrived")
+  assert.equal(step.if, "github.base_ref == 'redesign/main'")
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const blobs = join(directory, "apps/web/.artifacts/unit-tests/blobs")
+  const reports = ["jsdom-1.json", "jsdom-2.json", ...Array.from({ length: 8 }, (_, index) => `chromium-${index + 1}.json`)]
+  const verify = () => spawnSync("bash", ["-e", "-c", step.run], { cwd: directory, encoding: "utf8" })
+  try {
+    mkdirSync(blobs, { recursive: true })
+    for (const report of reports) writeFileSync(join(blobs, report), "{}")
+    const complete = verify()
+    assert.equal(complete.status, 0, complete.stderr)
+    for (const report of reports) {
+      const path = join(blobs, report)
+      const held = join(directory, "held.json")
+      renameSync(path, held)
+      assert.notEqual(verify().status, 0, `missing ${report} must fail verification`)
+      writeFileSync(path, "")
+      assert.notEqual(verify().status, 0, `empty ${report} must fail verification`)
+      renameSync(held, path)
+    }
+    assert.equal(verify().status, 0)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test("all other workspaces retain coverage and Sonar consumes the combined artifact", () => {
@@ -78,17 +108,21 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
   }
   try {
     writeFileSync(join(directory, "subject.mjs"), 'export function choose(value) {\n  if (value) {\n    return "chosen"\n  }\n  return "empty"\n}\n')
-    for (const project of ["jsdom", "chromium"]) {
-      writeFileSync(join(directory, `${project}.test.mjs`), `import { expect, test } from "vitest"\nimport { choose } from "./subject.mjs"\ntest("${project}", () => expect(choose(${project === "jsdom"})).toBe("${project === "jsdom" ? "chosen" : "empty"}"))\n`)
+    for (const project of ["jsdom-1", "jsdom-2", "chromium"]) {
+      const jsdom = project.startsWith("jsdom")
+      writeFileSync(join(directory, `${project}.test.mjs`), `import { expect, test } from "vitest"\nimport { choose } from "./subject.mjs"\ntest("${project}", () => expect(choose(${jsdom})).toBe("${jsdom ? "chosen" : "empty"}"))\n`)
     }
     writeFileSync(join(directory, "vitest.config.mjs"), `export default ${JSON.stringify({ test: {
       environment: "node",
       maxWorkers: 1,
       coverage: { provider: "v8", include: ["subject.mjs"], reporter: ["lcov"], thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 } },
-      projects: ["jsdom", "chromium"].map((name) => ({ extends: true, test: { name, include: [`${name}.test.mjs`] } })),
+      projects: ["jsdom", "chromium"].map((name) => ({ extends: true, test: { name, include: [`${name}*.test.mjs`] } })),
     } })}`)
-    for (const project of ["jsdom", "chromium"]) {
-      run(shardCommand.replaceAll("${{ matrix.project }}", project).replaceAll("${{ matrix.shard }}", "1").replaceAll("${{ matrix.total }}", "1"), 0)
+    for (const { project, shard, total } of [{ project: "jsdom", shard: 1, total: 2 }, { project: "jsdom", shard: 2, total: 2 }, { project: "chromium", shard: 1, total: 1 }]) {
+      run(shardCommand.replaceAll("${{ matrix.project }}", project).replaceAll("${{ matrix.shard }}", String(shard)).replaceAll("${{ matrix.total }}", String(total)), 0)
+      for (const kind of ["blobs", "timings"]) {
+        assert.ok(readFileSync(join(directory, `.artifacts/unit-tests/${kind}/${project}-${shard}.json`), "utf8").length > 0)
+      }
     }
     const blob = join(directory, ".artifacts/unit-tests/blobs/chromium-1.json")
     const held = join(directory, "held.json")
