@@ -210,9 +210,10 @@ function ComposerActionIcon({ state, tokens }: Readonly<{ state: ComposerProps['
   return <Plus size={20} strokeWidth={2} color={tokens.fg3} />
 }
 
-function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
+function ComposerControls({ props, tokens, onPaste }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onPaste?: () => void }>) {
   const menu = useAnchoredMenu()
-  const { voiceActive, disabled, label, items } = buildComposerControls(props)
+  const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
+  const items = onPaste ? [{ id: 'paste', label: props.words.paste, icon: 'clipboard' }, ...defaultItems] : defaultItems
   const isRecording = props.state === 'recording'
   const menuOpen = menu.visible && !disabled && !voiceActive
   if (!voiceActive && items.length === 0) return null
@@ -226,15 +227,31 @@ function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerPro
         <ComposerActionIcon state={props.state} tokens={tokens} />
       </InsetFocusPressable>
     </MenuAnchorHost>
-    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => selectComposerAction(props, id)} />
+    <Menu open={menuOpen} anchorRef={menu.anchorRef} title={props.words.actions} items={items} onClose={menu.close} onSelect={id => { if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </View>
 }
 
-function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<{
+function PasteFitMeasure({ props, pasteInMenu, onPasteFit }: Readonly<{
+  props: ComposerProps
+  pasteInMenu: boolean
+  onPasteFit: (fits: boolean) => void
+}>) {
+  const reservedWidth = pasteInMenu && props.value.length === 0 ? styles.iconButton.width + styles.trailingControls.gap : 0
+  return <Text testID="composer-paste-measure" pointerEvents="none" accessible={false}
+    importantForAccessibility="no-hide-descendants"
+    onTextLayout={event => onPasteFit(event.nativeEvent.lines.length <= 1)}
+    style={[styles.placeholder, { opacity: 0, end: styles.placeholder.end + reservedWidth }]}>
+    {props.words.placeholder}
+  </Text>
+}
+
+function ComposerTextInput({ props, tokens, inputRef, onFocusChange, pasteInMenu, onPasteFit }: Readonly<{
   props: MobileComposerProps
   tokens: AppTokensV2
   inputRef: React.RefObject<TextInput | null>
   onFocusChange: (focused: boolean) => void
+  pasteInMenu: boolean
+  onPasteFit: (fits: boolean) => void
 }>) {
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
@@ -276,6 +293,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
           }}
           style={[styles.input, { color: tokens.fg1, height: inputHeight }]}
         />
+        {props.state === 'idle' ? <PasteFitMeasure props={props} pasteInMenu={pasteInMenu} onPasteFit={onPasteFit} /> : null}
         {props.value.length === 0 && measurePlaceholder ? <Text
           testID="composer-placeholder-measure"
           pointerEvents="none"
@@ -327,7 +345,7 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
     </InsetFocusPressable>
 }
 
-function PasteMessageControl({ props, tokens, onPasteText }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; onPasteText: (text: string) => void }>) {
+function PasteMessageControl({ props, tokens, inMenu, onPasteText }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inMenu: boolean; onPasteText: (text: string) => void }>) {
   const active = useRef(false)
   const pending = useRef(false)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
@@ -343,12 +361,15 @@ function PasteMessageControl({ props, tokens, onPasteText }: Readonly<{ props: C
       captureError(error)
     } finally { pending.current = false }
   }
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.paste}
+  return <>
+  {!inMenu ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.words.paste}
     focusColor={tokens.primary}
     onPress={() => void pasteMessage()}
     style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
     <ClipboardIcon size={20} strokeWidth={2} color={tokens.fg3} />
-  </InsetFocusPressable>
+  </InsetFocusPressable> : null}
+  <ComposerControls props={props} tokens={tokens} onPaste={inMenu ? () => void pasteMessage() : undefined} />
+  </>
 }
 
 function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
@@ -363,6 +384,7 @@ function ClearMessageControl({ props, tokens, inputRef }: Readonly<{ props: Comp
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const [focused, setFocused] = useState(false)
+  const [pasteInMenu, setPasteInMenu] = useState(false)
   const pasteFocus = useRef<string | null>(null)
   useEffect(() => {
     if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
@@ -383,14 +405,16 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       {props.onOpenConversation && props.conversationLabel ? (
           <OpenConversationControl props={props} tokens={tokens} />
       ) : null}
-        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} />}
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} onFocusChange={setFocused} pasteInMenu={pasteInMenu} onPasteFit={fits => setPasteInMenu(!fits)} />}
 
       <View style={styles.trailingControls}>
-        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} tokens={tokens} onPasteText={text => {
+        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} tokens={tokens} inMenu={pasteInMenu} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
-        }} /> : <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />}
-        <ComposerControls props={props} tokens={tokens} />
+        }} /> : <>
+          <ClearMessageControl props={props} tokens={tokens} inputRef={inputRef} />
+          <ComposerControls props={props} tokens={tokens} />
+        </>}
 
       <InsetFocusPressable
         testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}

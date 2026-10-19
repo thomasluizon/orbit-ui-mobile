@@ -168,7 +168,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
-function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
+function ComposerControls({ props, onPaste }: Readonly<{ props: WebComposerProps; onPaste?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -176,7 +176,8 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
-  const { voiceActive, disabled, label, items } = buildComposerControls(props)
+  const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
+  const items = onPaste ? [{ id: 'paste', label: props.words.paste, icon: 'clipboard' }, ...defaultItems] : defaultItems
   if (voiceActive) return <div data-composer-controls className="flex shrink-0 items-center">
     <button type="button" aria-label={label} data-focus-on-primary={props.state === 'recording' ? '' : undefined} disabled={props.state === 'transcribing'} onClick={props.onVoice}
       className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${props.state === 'recording' ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent text-[var(--fg-3)]'}`}>
@@ -192,13 +193,13 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
     </button>
-    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => selectComposerAction(props, id)} />
+    <Menu id={menuId} open={open && !disabled} anchorRef={anchorRef} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onClose={() => setOpen(false)} onSelect={id => { if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div>
 }
 
 function subscribeClipboardAvailability() { return () => {} }
 
-function PasteMessageControl({ props, onPasteText }: Readonly<{ props: ComposerProps; onPasteText: (text: string) => void }>) {
+function PasteMessageControl({ props, inMenu, onPasteText }: Readonly<{ props: ComposerProps; inMenu: boolean; onPasteText: (text: string) => void }>) {
   const available = useSyncExternalStore(subscribeClipboardAvailability,
     () => typeof navigator !== 'undefined' && 'clipboard' in navigator && typeof navigator.clipboard.readText === 'function', () => false)
   const active = useRef(false)
@@ -216,13 +217,15 @@ function PasteMessageControl({ props, onPasteText }: Readonly<{ props: ComposerP
       return
     } finally { pending.current = false }
   }
-  if (!available) return null
-  return <button type="button" aria-label={props.words.paste} data-composer-paste
+  return <>
+  {available && !inMenu ? <button type="button" aria-label={props.words.paste} data-composer-paste
     onMouseDown={event => event.preventDefault()}
     onClick={() => void pasteMessage()}
     className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
     <Clipboard size={20} strokeWidth={2} aria-hidden="true" />
-  </button>
+  </button> : null}
+  <ComposerControls props={props} onPaste={available && inMenu ? () => void pasteMessage() : undefined} />
+  </>
 }
 
 function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
@@ -235,8 +238,40 @@ function ClearMessageControl({ props, inputRef }: Readonly<{ props: ComposerProp
   </button>
 }
 
+function usePasteMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>, placeholder: string, state: ComposerProps['state']) {
+  const [inMenu, setInMenu] = useState(false)
+  useEffect(() => {
+    if (state !== 'idle') return
+    const input = inputRef.current
+    if (!input) return
+    const row = input.parentElement!
+    function measure() {
+      if (input!.clientWidth <= 0) return
+      const style = getComputedStyle(input!)
+      const trailing = row.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+      const control = trailing.querySelector('button')!
+      const slotWidth = control.getBoundingClientRect().width + parseFloat(getComputedStyle(trailing).columnGap)
+      const hasSlot = row.querySelector('[data-composer-paste], [data-composer-clear]') !== null
+      const available = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd) - (hasSlot ? 0 : slotWidth)
+      if (available <= 0) return
+      const context = document.createElement('canvas').getContext('2d')!
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+      context.letterSpacing = style.letterSpacing
+      setInMenu(context.measureText(placeholder).width > available)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(row)
+    observer.observe(input)
+    document.fonts.addEventListener('loadingdone', measure)
+    measure()
+    return () => { observer.disconnect(); document.fonts.removeEventListener('loadingdone', measure) }
+  }, [inputRef, placeholder, state])
+  return inMenu
+}
+
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const pasteInMenu = usePasteMenu(inputRef, props.words.placeholder, props.state)
   const pasteFocus = useRef<string | null>(null)
   useEffect(() => {
     if (pasteFocus.current === null || props.value !== pasteFocus.current || props.state !== 'idle') return
@@ -310,11 +345,13 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         />}
 
       <div data-composer-trailing-controls className="flex shrink-0 items-end gap-[4px]">
-        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} onPasteText={text => {
+        {props.state === 'idle' && props.value.length === 0 ? <PasteMessageControl props={props} inMenu={pasteInMenu} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
-        }} /> : <ClearMessageControl props={props} inputRef={inputRef} />}
-        <ComposerControls props={props} />
+        }} /> : <>
+          <ClearMessageControl props={props} inputRef={inputRef} />
+          <ComposerControls props={props} />
+        </>}
 
       <button
         type="button"

@@ -40,24 +40,28 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   await expectOneFieldIndicator(page, field, '[data-composer-input-row]', `composer field in ${mode}`, { forcedColors })
 
   for (const control of [
+    container.getByRole('button', { name: en.shell.composer.clear, exact: true }),
     container.getByRole('button', { name: en.shell.composer.actions, exact: true }),
-    container.getByRole('button', { name: en.shell.composer.send, exact: true }),
   ]) {
     await expect(control).toBeVisible()
     await page.keyboard.press('Tab')
     await expectOneControlRing(control, forcedColors)
   }
-  await container.getByRole('button', { name: en.shell.composer.actions, exact: true }).click()
+  await page.keyboard.press('ArrowDown')
   const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
+  await expect(menu).toBeVisible()
+  await page.keyboard.press('Home')
   for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
     const control = menu.getByRole('menuitem', { name, exact: true })
     await expect(control).toBeVisible()
-    await page.keyboard.press('ArrowDown')
-    await control.focus()
     await expectOneControlRing(control, forcedColors)
+    await page.keyboard.press('ArrowDown')
   }
   await page.keyboard.press('Escape')
   await expect(menu).toBeHidden()
+  await expect(container.getByRole('button', { name: en.shell.composer.actions, exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expectOneControlRing(container.getByRole('button', { name: en.shell.composer.send, exact: true }), forcedColors)
 }
 
 for (const width of [412, 1280] as const) {

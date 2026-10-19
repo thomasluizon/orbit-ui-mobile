@@ -33,8 +33,11 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 The composer slot reaches three surfaces on both platforms: the Hoje dock and habit detail dock
 owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
 conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
-The slot swaps Paste and Clear without changing the attachment tray, Add menu, Send target or pill
-radius. Recording, transcribing, sending, offline and limit states omit both text actions.
+The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.
+When the whole placeholder cannot fit beside the Paste slot, Paste becomes the first item in the
+existing Add menu. The empty field then reclaims the slot; typed text still shows Clear. Placement
+follows the measured placeholder at the current column width and text size. Recording, transcribing,
+sending, offline and limit states omit both text actions.
 
 Owners are relative to each app. Negative offsets on calendar time markers and decorative habit
 progress SVGs do not paint interaction fills. ActionRow's negative vertical margin compensates its

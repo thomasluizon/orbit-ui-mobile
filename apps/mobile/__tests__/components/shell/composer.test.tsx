@@ -1,5 +1,5 @@
 import React from 'react'
-import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -10,12 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Square } from '@/components/ui/icons'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Composer } from '@/components/shell/composer'
+import { Menu } from '@/components/ui/menu'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const clipboard = vi.hoisted(() => ({ getString: vi.fn().mockResolvedValue('') }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
@@ -118,7 +120,60 @@ function renderComposer(composerProps: ComposerProps) {
 describe('clipboard composer control', () => {
   afterEach(() => { clipboard.getString.mockReset().mockResolvedValue(''); useAppToastStore.getState().dismissAllToasts() })
 
-  it.each([en, ptBR])('pastes text, preserves attachments, swaps controls and focuses the end', async messages => {
+  it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+    'moves paste only when the whole placeholder needs its slot at $width', ({ width, messages }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      const configuration = props({ suggestions: [], words: messages.shell.composer,
+        onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
+      const tree = renderComposer(configuration)
+      const config = Yoga.Config.create()
+      let layoutWidth = width
+      function measure() {
+        const nodes = new Map<string, YogaNode>()
+        const layout = composerLayout(tree.toJSON(), config, nodes, 1)
+        layout.calculateLayout(layoutWidth, undefined)
+        const slot = nodes.get('composer-text-slot')!
+        const field = nodes.get('composer-field')!
+        const result = { contentWidth: slot.getComputedWidth() - 16, height: field.getComputedHeight() }
+        layout.freeRecursive()
+        return result
+      }
+      try {
+        const placeholderStyle: TextStyle = { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 }
+        const measurePlaceholder = (available: number) => measureProfileRow({ type: 'Text', props: {
+          style: placeholderStyle,
+        }, children: [messages.shell.composer.placeholder] }, available, 1).texts[0]!
+        for (layoutWidth of [width, width === 320 ? 412 : 320, width]) {
+          __setWindowDimensions({ width: layoutWidth, height: 915, scale: 1, fontScale: 1 })
+          TestRenderer.act(() => tree.update(<Composer {...configuration} />))
+          for (let replay = 0; replay < 2; replay++) {
+            const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
+            const inset = StyleSheet.flatten(measurement.props.style)
+            const candidate = measurePlaceholder(measure().contentWidth - (inset.end - inset.start))
+            const line = { x: 0, y: 0, width: candidate.width, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
+            TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
+            expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(layoutWidth === 320 ? 0 : 1)
+          }
+          const menu = tree.root.findByType(Menu)
+          expect(menu.props.items.some((item: { id: string }) => item.id === 'paste')).toBe(layoutWidth === 320)
+          if (layoutWidth === 320) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
+          const empty = measure()
+          expect(empty.height).toBe(56)
+          expect(measurePlaceholder(empty.contentWidth).lines).toBe(1)
+          const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
+          expect(placeholder.props.children).toBe(messages.shell.composer.placeholder)
+          expect(placeholder.props.numberOfLines).toBe(1)
+          TestRenderer.act(() => tree.update(<Composer {...configuration} value="Draft" />))
+          const typed = measure()
+          const clear = byLabel(tree.root, messages.shell.composer.clear)[0]
+          const slotWidth = StyleSheet.flatten(clear.props.style).width + INTERACTION_FILL_CLEARANCE
+          expect(typed.contentWidth).toBe(empty.contentWidth - (layoutWidth === 320 ? slotWidth : 0))
+        }
+      } finally { TestRenderer.act(() => tree.unmount()); config.free(); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
+
+  it.each([en, ptBR].flatMap(messages => [false, true].map(inMenu => ({ messages, inMenu }))))('pastes text, preserves attachments and focuses the end with menu $inMenu', async ({ messages, inMenu }) => {
     clipboard.getString.mockResolvedValue('Pasted\nmessage')
     const onChangeValue = vi.fn()
     const onAttachRemove = vi.fn()
@@ -126,15 +181,22 @@ describe('clipboard composer control', () => {
       const [value, setValue] = React.useState('')
       return <Composer {...props({ value, words: messages.shell.composer,
         onChangeValue: (next: string) => { onChangeValue(next); setValue(next) },
-        attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove })} />
+        attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], attachWords, onAttachRemove, onAttachFile: vi.fn() })} />
     }
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
     try {
       expect(clipboard.getString).not.toHaveBeenCalled()
       expect(byLabel(tree.root, messages.shell.composer.clear)).toHaveLength(0)
-      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
-      await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
+      if (inMenu) {
+        const line = { x: 0, y: 0, width: 80, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: messages.shell.composer.placeholder }
+        await TestRenderer.act(() => tree.root.findByProps({ testID: 'composer-paste-measure' }).props.onTextLayout({ nativeEvent: { lines: [line, line] } }))
+        expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
+        await TestRenderer.act(async () => { tree.root.findByType(Menu).props.onSelect('paste'); await Promise.resolve() })
+      } else {
+        expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
+        await TestRenderer.act(async () => { byLabel(tree.root, messages.shell.composer.paste)[0]!.props.onPress(); await Promise.resolve() })
+      }
       const input = tree.root.findByType('TextInput')
       expect(input.props.value).toBe('Pasted\nmessage')
       expect(onChangeValue).toHaveBeenCalledExactlyOnceWith('Pasted\nmessage')
@@ -142,7 +204,7 @@ describe('clipboard composer control', () => {
       expect(__getFocusedInputSelection()).toEqual({ start: 14, end: 14 })
       expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(0)
       await TestRenderer.act(() => byLabel(tree.root, messages.shell.composer.clear)[0]!.props.onPress())
-      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(1)
+      expect(byLabel(tree.root, messages.shell.composer.paste)).toHaveLength(inMenu ? 0 : 1)
       expect(input.props.value).toBe('')
       expect(onAttachRemove).not.toHaveBeenCalled()
       expect(tree.root.findAllByProps({ testID: 'composer-attachment-image' }).length).toBeGreaterThan(0)

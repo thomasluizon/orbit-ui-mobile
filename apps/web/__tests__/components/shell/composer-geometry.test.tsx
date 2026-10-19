@@ -1,8 +1,8 @@
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { createRef } from 'react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createRef, useState } from 'react'
 import postcss from 'postcss'
 import { execFileSync } from 'node:child_process'
 import tailwind from '@tailwindcss/postcss'
@@ -54,6 +54,53 @@ interface PillGeometry {
   documentWidth: number
   input: { width: number; contentWidth: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
   controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
+}
+
+async function expectNarrowMenuPaste(page: import('@playwright/test').Page, messages: typeof en) {
+  const measured = await page.locator('[data-composer-input]').evaluate(element => {
+    const style = getComputedStyle(element)
+    const trailing = element.parentElement!.querySelector('[data-composer-trailing-controls]')!
+    const control = trailing.querySelector('button')!.getBoundingClientRect()
+    const context = document.createElement('canvas').getContext('2d')!
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    context.letterSpacing = style.letterSpacing
+    const metrics = context.measureText(element.getAttribute('placeholder')!)
+    return { clientWidth: element.clientWidth, controlWidth: control.width, gap: getComputedStyle(trailing).columnGap,
+      font: style.font, fontSize: style.fontSize, fontStyle: style.fontStyle, fontWeight: style.fontWeight, fontFamily: style.fontFamily,
+      letterSpacing: style.letterSpacing, paddingInlineStart: style.paddingInlineStart, paddingInlineEnd: style.paddingInlineEnd,
+      metrics: Object.fromEntries(Object.keys(Object.getPrototypeOf(metrics)).filter(key => typeof Reflect.get(metrics, key) === 'number').map(key => [key, Reflect.get(metrics, key)])) }
+  })
+  vi.stubGlobal('navigator', { clipboard: { readText: vi.fn().mockResolvedValue('Pasted message') } })
+  function ControlledComposer() {
+    const [value, setValue] = useState('')
+    return <Composer {...geometryProps('idle', messages, true)} value={value} onChangeValue={setValue} />
+  }
+  const view = render(<ControlledComposer />)
+  const field = screen.getByRole('textbox') as HTMLTextAreaElement
+  Object.assign(field.style, { font: measured.font, fontSize: measured.fontSize, fontStyle: measured.fontStyle,
+    fontWeight: measured.fontWeight, fontFamily: measured.fontFamily, letterSpacing: measured.letterSpacing,
+    paddingInlineStart: measured.paddingInlineStart, paddingInlineEnd: measured.paddingInlineEnd })
+  const trailing = field.parentElement!.querySelector<HTMLElement>('[data-composer-trailing-controls]')!
+  trailing.style.columnGap = measured.gap
+  const widthSpy = vi.spyOn(field, 'clientWidth', 'get').mockImplementation(() => measured.clientWidth -
+    (trailing.querySelector('[data-composer-paste], [data-composer-clear]') ? measured.controlWidth + parseFloat(measured.gap) : 0))
+  const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    font: '', letterSpacing: '', measureText: () => measured.metrics,
+  } as unknown as CanvasRenderingContext2D)
+  try {
+    await act(() => document.fonts.dispatchEvent(new Event('loadingdone')))
+    expect(screen.queryByRole('button', { name: messages.shell.composer.paste })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.actions }))
+    const menu = await screen.findByRole('menu')
+    const paste = within(menu).getAllByRole('menuitem')[0]!
+    expect(paste).toHaveAccessibleName(messages.shell.composer.paste)
+    expect(paste.querySelector('[data-icon="clipboard"] svg')).not.toBeNull()
+    fireEvent.click(paste)
+    await waitFor(() => expect(field).toHaveValue('Pasted message'))
+    await waitFor(() => expect(field).toHaveFocus())
+    expect([field.selectionStart, field.selectionEnd]).toEqual([14, 14])
+    expect(screen.getByRole('button', { name: messages.shell.composer.clear })).toBeVisible()
+  } finally { widthSpy.mockRestore(); contextSpy.mockRestore(); view.unmount(); vi.unstubAllGlobals() }
 }
 
 function assertPillGeometry(measured: PillGeometry, context: { width: number; fontScale: number; withOpener: boolean; scenario: GeometryScenario }) {
@@ -151,6 +198,7 @@ describe('Composer compact geometry in Chromium', () => {
         import { AstraConversation } from './components/chat/conversation';
         import { createChatThreadScroll } from '@orbit/shared/hooks';
         const props = JSON.parse(document.getElementById('configuration').textContent);
+        if (props.clipboardText) Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => props.clipboardText } });
         function MountedComposer() {
           const [value, setValue] = useState(props.value);
           const composerProps = {
@@ -193,6 +241,45 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+    'moves paste only when the whole placeholder needs its slot at $width', async ({ width, messages }) => {
+      const configuration = { ...geometryProps('idle', messages, true), clipboardText: 'Pasted message' }
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const input = page.locator('[data-composer-input]')
+        const paste = page.locator('[data-composer-paste]')
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 0 : 1)
+        const empty = await input.evaluate(measureFieldInset)
+        expect(await input.getAttribute('placeholder')).toBe(messages.shell.composer.placeholder)
+        expect(empty.height).toBe(empty.lineHeight + 24)
+        expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe(56)
+        const placeholderWidth = await input.evaluate(element => {
+          const context = document.createElement('canvas').getContext('2d')!
+          const style = getComputedStyle(element)
+          context.font = style.font
+          context.letterSpacing = style.letterSpacing
+          return context.measureText(element.getAttribute('placeholder')!).width
+        })
+        expect(placeholderWidth).toBeLessThanOrEqual(empty.contentWidth)
+        await input.fill('Draft')
+        const typed = await input.evaluate(measureFieldInset)
+        const slot = await page.locator('[data-composer-clear]').evaluate(element =>
+          element.getBoundingClientRect().width + parseFloat(getComputedStyle(element.parentElement!).columnGap))
+        expect(typed.contentWidth).toBe(empty.contentWidth - (width === 320 ? slot : 0))
+        expect(new Set(await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))).size).toBe(1)
+        await page.locator('[data-composer-clear]').click()
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 0 : 1)
+        expect(await input.evaluate(element => element === document.activeElement)).toBe(true)
+        if (width === 320) await expectNarrowMenuPaste(page, messages)
+        await page.setViewportSize({ width: width === 320 ? 412 : 320, height: 915 })
+        await expect.poll(() => paste.count()).toBe(width === 320 ? 1 : 0)
+      } finally { await page.close() }
+    },
+  )
 
   it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages => ({ width, withMessages }))))(
     'contains the prefilled conversation input at $width with messages $withMessages', async ({ width, withMessages }) => {

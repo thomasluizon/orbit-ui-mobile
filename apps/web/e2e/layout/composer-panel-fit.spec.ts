@@ -149,6 +149,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           context.letterSpacing = style.letterSpacing
           return {
             placeholderWidth: context.measureText(input.placeholder).width,
+            pasteInSlot: input.parentElement!.querySelector('[data-composer-paste]') !== null,
             pillHeight: input.parentElement!.getBoundingClientRect().height,
             controls: [...input.parentElement!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
@@ -158,7 +159,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           }
         })
         expect(empty.pillHeight).toBe(56)
-        expect(empty.controls).toHaveLength(3)
+        expect(empty.controls).toHaveLength(empty.pasteInSlot ? 4 : 3)
         expect(new Set(empty.controls.map((control) => control.top)).size).toBe(1)
         for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
         expect(empty.contentWidth).toBeGreaterThanOrEqual(empty.placeholderWidth)
@@ -182,12 +183,17 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           return {
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
             whiteSpace: style.whiteSpace,
+            clearSlot: (() => {
+              const clear = input.parentElement!.querySelector('[data-composer-clear]')!
+              return clear.getBoundingClientRect().width + parseFloat(getComputedStyle(clear.parentElement!).columnGap)
+            })(),
             wordBreak: style.wordBreak,
             left: input.getBoundingClientRect().left,
             right: input.getBoundingClientRect().right,
           }
         })
-        expect(typed.contentWidth).toBe(empty.contentWidth)
+        // WHY: #1565 adds the clear slot after typing when Paste is in Add. https://github.com/thomasluizon/orbit-tickets/issues/1565
+        expect(typed.contentWidth).toBe(empty.contentWidth - (empty.pasteInSlot ? 0 : typed.clearSlot))
         const wrapped = await field.evaluate(measureFieldInset)
         if (width === 320) expect(wrapped.height).toBeGreaterThan(empty.clientHeight)
         expect(wrapped.height).toBeLessThanOrEqual(5 * wrapped.lineHeight + 24)

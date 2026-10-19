@@ -1,11 +1,11 @@
 import { afterEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import type { Locator, Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
@@ -44,6 +44,16 @@ async function reachState(page: Page, control: Locator, state: 'hover' | 'press'
   }
 }
 
+async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, surface: 'composer' | 'composerPaste', width: number, forcedColors: 'active' | 'none') {
+  const control = page.getByRole('button', { name: messages.shell.composer[surface === 'composer' ? 'clear' : 'paste'], exact: true })
+  const pasteInMenu = surface === 'composerPaste' && width === 320
+  await expect.poll(() => control.count()).toBe(pasteInMenu ? 0 : 1)
+  if (!pasteInMenu) expect(await control.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
+  const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
+  expect(new Set(bounds).size).toBe(1)
+  expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe({ active: 60, none: 56 }[forcedColors])
+}
+
 function ownerSurfaces(messages: typeof en | typeof ptBR) {
   return {
     rows: <div style={{ padding: 16 }}><SettingsGroup>
@@ -72,8 +82,30 @@ describe('shared interaction fill owners in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let composerScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
+    composerScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build({
+        stdin: { contents: JSON.parse(process.argv[1]), resolveDir: process.cwd(), loader: 'tsx' },
+        bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+        define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+        plugins: [{ name: 'composer-menu-boundary', setup(builder) {
+          builder.onResolve({ filter: /^@\\/components\\/ui\\/(menu|sheet)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+          builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const Menu = () => null; export const Sheet = () => null;', loader: 'js' }));
+        } }],
+      });
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify(`import React from 'react'; import { createRoot } from 'react-dom/client';
+      import { Composer } from './components/shell/composer';
+      const messages = JSON.parse(document.getElementById('composer-configuration').textContent);
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => '' } });
+      createRoot(document.getElementById('composer-mount')).render(<Composer state="idle" value="" suggestions={[]}
+        words={messages.shell.composer} onChangeValue={() => {}} onSend={() => {}}
+        onOpenConversation={() => {}} conversationLabel={messages.todayAstra.openConversation}
+        onAttachFile={() => {}} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} />);`)],
+      { maxBuffer: 10 * 1024 * 1024 }).toString()
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
@@ -85,20 +117,19 @@ describe('shared interaction fill owners in Chromium', () => {
     const content = (<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <main data-shell-column="" data-focus-inset={surface === 'rows' ? 'panel' : undefined} style={{ maxWidth: 740, margin: 'auto' }}>{ownerSurfaces(messages)[surface]}</main>
     </NextIntlClientProvider>)
-    const markup = surface === 'composerPaste' ? render(content).container.innerHTML : renderToStaticMarkup(content)
+    const markup = surface === 'composerPaste'
+      ? `<main data-shell-column style="max-width:740px;margin:auto"><div id="composer-mount"></div></main><script id="composer-configuration" type="application/json">${JSON.stringify(messages)}</script>`
+      : renderToStaticMarkup(content)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce', forcedColors })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${markup}</html>`)
-      await loadAppFonts(page)
-      if (surface === 'composer' || surface === 'composerPaste') {
-        const clear = page.getByRole('button', { name: messages.shell.composer[surface === 'composer' ? 'clear' : 'paste'], exact: true })
-        expect(await clear.count()).toBe(1)
-        expect(await clear.evaluate(element => element.parentElement!.firstElementChild === element)).toBe(true)
-        const bounds = await page.locator('[data-composer-trailing-controls] button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top))
-        expect(new Set(bounds).size).toBe(1)
-        expect((await page.locator('[data-composer-input-row]').boundingBox())!.height).toBe({ active: 60, none: 56 }[forcedColors])
+      if (surface === 'composerPaste') {
+        await page.addScriptTag({ content: composerScript })
+        await page.locator('[data-composer-input]').waitFor()
       }
+      await loadAppFonts(page)
+      if (surface === 'composer' || surface === 'composerPaste') await assertComposerRow(page, messages, surface, width, forcedColors)
       const controls = page.locator('button:not(:disabled):not([aria-disabled="true"]), a[href], [role="switch"]')
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()
