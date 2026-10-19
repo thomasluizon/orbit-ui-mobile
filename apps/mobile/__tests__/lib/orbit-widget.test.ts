@@ -11,13 +11,18 @@ import { syncWidgetData, toWidgetColors } from '@/lib/orbit-widget'
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(),
-  apiClient: vi.fn(),
+  fetch: vi.fn<typeof fetch>(),
+  refreshSession: vi.fn(),
   syncWidgetData: vi.fn(),
   refreshPersistentReminder: vi.fn(),
 }))
 
 vi.mock('@/lib/secure-store', () => ({ getToken: mocks.getToken }))
-vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
+vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: () => ({ epoch: 1, credentialVersion: 0 }),
+  refreshSession: mocks.refreshSession,
+}))
 vi.mock('@/lib/persistent-reminder', () => ({
   refreshPersistentReminder: mocks.refreshPersistentReminder,
 }))
@@ -29,7 +34,9 @@ const modes: ThemeMode[] = ['dark', 'light']
 describe('syncWidgetData', () => {
   beforeEach(() => {
     mocks.getToken.mockReset().mockResolvedValue('account-a-token')
-    mocks.apiClient.mockReset().mockResolvedValue({ habits: [] })
+    mocks.fetch.mockReset().mockRejectedValue(new Error('Unexpected widget request'))
+    vi.stubGlobal('fetch', mocks.fetch)
+    mocks.refreshSession.mockReset()
     mocks.syncWidgetData.mockReset().mockResolvedValue(undefined)
     mocks.refreshPersistentReminder.mockReset().mockResolvedValue(undefined)
     const loader = Module as typeof Module & { _load: (id: string, ...args: unknown[]) => unknown }
@@ -44,19 +51,63 @@ describe('syncWidgetData', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
-  it('passes the fetching account token to the native cache after an account change', async () => {
-    const payload = { habits: [] }
-    mocks.apiClient.mockImplementation(async () => {
-      await Promise.resolve()
+  it('pairs B payload with B credential when storage changes before request execution', async () => {
+    const payload = { habits: [{ id: 'account-b-habit' }] }
+    mocks.getToken.mockImplementationOnce(() => {
       mocks.getToken.mockResolvedValue('account-b-token')
-      return payload
+      return Promise.resolve('account-a-token')
+    })
+    mocks.fetch.mockImplementation((url, options) => {
+      expect(url).toContain(API.habits.widget)
+      expect(options?.headers).toMatchObject({ Authorization: 'Bearer account-b-token' })
+      return Promise.resolve(new Response(JSON.stringify(payload)))
     })
 
     await syncWidgetData()
 
-    expect(mocks.apiClient).toHaveBeenCalledWith(API.habits.widget)
+    expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+      JSON.stringify(payload), 'account-b-token',
+    )
+    expect(mocks.refreshPersistentReminder).toHaveBeenCalledWith(payload)
+  })
+
+  it.each(['account-b-token', 'account-a-token'])(
+    'pairs a successful B retry with B credential when %s is active at handoff', async (activeToken) => {
+      const payload = { habits: [{ id: 'account-b-habit' }] }
+      mocks.fetch.mockImplementation((_url, options) => {
+        const authorization = new Headers(options?.headers).get('Authorization')
+        if (authorization === 'Bearer account-a-token') {
+          mocks.getToken.mockResolvedValue('account-b-token')
+          return Promise.resolve(new Response(null, { status: 401 }))
+        }
+        expect(authorization).toBe('Bearer account-b-token')
+        mocks.getToken.mockResolvedValue(activeToken)
+        return Promise.resolve(new Response(JSON.stringify(payload)))
+      })
+
+      await syncWidgetData()
+
+      expect(mocks.fetch).toHaveBeenCalledTimes(2)
+      expect(mocks.refreshSession).not.toHaveBeenCalled()
+      expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+        JSON.stringify(payload), 'account-b-token',
+      )
+    },
+  )
+
+  it('keeps A ownership when an A-authorized response arrives after switching to B', async () => {
+    const payload = { habits: [{ id: 'account-a-habit' }] }
+    mocks.fetch.mockImplementation((_url, options) => {
+      expect(options?.headers).toMatchObject({ Authorization: 'Bearer account-a-token' })
+      mocks.getToken.mockResolvedValue('account-b-token')
+      return Promise.resolve(new Response(JSON.stringify(payload)))
+    })
+
+    await syncWidgetData()
+
     expect(mocks.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
       JSON.stringify(payload), 'account-a-token',
     )
@@ -68,14 +119,27 @@ describe('syncWidgetData', () => {
 
     await syncWidgetData()
 
-    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.fetch).not.toHaveBeenCalled()
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
     expect(mocks.refreshPersistentReminder).toHaveBeenCalledWith(null)
   })
 
+  it('does not hand off an anonymously fetched payload after the credential disappears', async () => {
+    mocks.getToken.mockResolvedValueOnce('account-a-token').mockResolvedValue(null)
+    mocks.fetch.mockImplementation((_url, options) => {
+      expect(new Headers(options?.headers).has('Authorization')).toBe(false)
+      return Promise.resolve(new Response(JSON.stringify({ habits: [] })))
+    })
+
+    await syncWidgetData()
+
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
+  })
+
   it('does not write the native cache when the fetch fails', async () => {
     const failure = new Error('Widget fetch failed')
-    mocks.apiClient.mockRejectedValue(failure)
+    mocks.fetch.mockRejectedValue(failure)
 
     await expect(syncWidgetData()).rejects.toThrow(failure)
 
@@ -97,6 +161,7 @@ describe('native widget cache ownership', () => {
 
     expect(nativeSync).not.toMatch(/token\s*\?:\s*getToken\(context\)/)
     expect(nativeSync).toMatch(/if \(token != null\) \{\s*val session = sessionKey\(token\)/)
+    expect(nativeSync).toMatch(/if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences/)
     expect(nativeSync).toMatch(/\n      \}\n      refreshWidgets\(context\)/)
   })
 })

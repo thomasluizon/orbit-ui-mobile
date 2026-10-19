@@ -104,8 +104,10 @@ export async function syncWidgetData(): Promise<void> {
     return
   }
 
-  const { apiClient } = await import('./api-client')
-  const data = await apiClient<unknown>(API.habits.widget)
-  await widgetModule.syncWidgetData(JSON.stringify(data), token)
+  const { apiClientWithAuthorizingToken } = await import('./api-client')
+  const { data, authorizingToken } = await apiClientWithAuthorizingToken<unknown>(API.habits.widget)
+  if (authorizingToken) {
+    await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
+  }
   await refreshPersistentReminder(data)
 }
