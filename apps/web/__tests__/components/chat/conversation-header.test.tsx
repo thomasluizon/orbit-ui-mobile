@@ -113,10 +113,18 @@ it('opens and reopens the proactive message above an existing long streaming thr
   } finally { height.mockRestore(); scroll.mockRestore() }
 })
 
-it('retains the AI disclosure in the populated summary destination', () => {
+it('opens the summary at the end of an existing thread with its AI disclosure', () => {
   useChatStore.setState({ messages: [], proactiveEntryId: null })
+  useChatStore.getState().addMessage({ id: 'earlier', role: 'user', content: 'Earlier conversation', timestamp: new Date() })
   useChatStore.getState().openDailySummary('2026-08-29', 'First sentence. Full guidance.')
-  render(<AstraConversation chat={{ ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }} />)
-  expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
-  expect(screen.getByTestId('astra-ai-disclosure')).toHaveTextContent('aiDisclosure.notMedicalAdvice')
+  const chat = { ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollTo')
+  const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000)
+  try {
+    render(<AstraConversation chat={chat} />)
+    expect(scroll).toHaveBeenLastCalledWith({ top: 2000, behavior: 'auto' })
+    expect(chat.threadScroll.isFollowing()).toBe(true)
+    expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
+    expect(screen.getByTestId('astra-ai-disclosure')).toHaveTextContent('aiDisclosure.notMedicalAdvice')
+  } finally { height.mockRestore(); scroll.mockRestore() }
 })

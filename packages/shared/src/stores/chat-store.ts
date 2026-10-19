@@ -73,9 +73,9 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       const id = `daily-summary-${date}`
       const existing = state.messages.find((message) => message.id === id)
       return {
-        proactiveEntryId: id,
-        messages: [{ id, role: 'ai', content: summary, timestamp: existing?.timestamp ?? new Date() },
-          ...state.messages.filter((message) => message.id !== id)],
+        proactiveEntryId: null,
+        messages: existing ? state.messages : [...state.messages,
+          { id, role: 'ai', content: summary, timestamp: new Date() }],
       }
     }),
     claimProactiveAction: (id) => {

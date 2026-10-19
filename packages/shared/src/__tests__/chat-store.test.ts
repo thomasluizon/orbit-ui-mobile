@@ -58,21 +58,27 @@ describe('shared chat store', () => {
     expect(store.getState().streamingMessageId).toBe('streaming')
   })
 
-  it('reopens the current summary first without duplicating it or interrupting a reply', () => {
+  it('appends a summary once without moving it on reopen or interrupting a reply', () => {
     const store = createStoreHarness()
     store.getState().addMessage({ id: 'streaming', role: 'ai', content: 'Partial', timestamp: new Date() })
     store.getState().setStreamingMessageId('streaming')
+    store.getState().setIsTyping(true)
     store.getState().setDraft('My draft')
     store.getState().openDailySummary('2026-08-29', 'Morning. More guidance.')
+    const summary = store.getState().messages.at(-1)
     store.getState().appendToMessageContent('streaming', ' reply')
+    store.getState().addMessage({ id: 'follow-up', role: 'user', content: 'How should I do that?', timestamp: new Date() })
     store.getState().openDailySummary('2026-08-29', 'Afternoon. Updated guidance.')
     expect(store.getState().messages).toEqual([
-      expect.objectContaining({ role: 'ai', content: 'Afternoon. Updated guidance.' }),
       expect.objectContaining({ id: 'streaming', content: 'Partial reply' }),
+      expect.objectContaining({ role: 'ai', content: 'Morning. More guidance.' }),
+      expect.objectContaining({ id: 'follow-up', content: 'How should I do that?' }),
     ])
-    expect(store.getState().proactiveEntryId).toBe('daily-summary-2026-08-29')
+    expect(store.getState().messages[1]).toBe(summary)
+    expect(store.getState().proactiveEntryId).toBeNull()
     expect(store.getState().draft).toBe('My draft')
     expect(store.getState().streamingMessageId).toBe('streaming')
+    expect(store.getState().isTyping).toBe(true)
   })
 
   it('appends messages and tracks the active streamed message', () => {

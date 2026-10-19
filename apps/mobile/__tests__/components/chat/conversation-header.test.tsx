@@ -171,13 +171,21 @@ it('opens and reopens the proactive message without following a previous streami
   } finally { void TestRenderer.act(() => tree.update(<></>)); __resetTestHostConfig() }
 })
 
-it('retains the AI disclosure in the populated summary destination', async () => {
+it('opens the summary at the end of an existing thread with its AI disclosure', async () => {
   useChatStore.setState({ messages: [], proactiveEntryId: null })
+  useChatStore.getState().addMessage({ id: 'earlier', role: 'user', content: 'Earlier conversation', timestamp: new Date() })
   useChatStore.getState().openDailySummary('2026-08-29', 'First sentence. Full guidance.')
+  const chat = { ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }
   let tree!: ReturnType<typeof TestRenderer.create>
-  await TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={{ ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }} />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={chat} />) })
+  expect(chat.threadScroll.isFollowing()).toBe(true)
   expect(hosts(tree).filter((node) => String(node.type) === 'ChatEmptyStateStub')).toHaveLength(0)
   const list = hosts(tree).find((node) => String(node.type) === 'FlatList')!
+  const scrollToEnd = vi.spyOn(chat.flatListRef.current!, 'scrollToEnd')
+  try {
+    await TestRenderer.act(() => (list.props.onLayout as () => void)())
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+  } finally { scrollToEnd.mockRestore() }
   expect(list.props.ListFooterComponent).toBeTruthy()
   let footer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => { footer = TestRenderer.create(list.props.ListFooterComponent as React.ReactElement) })

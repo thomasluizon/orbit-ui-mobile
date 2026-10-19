@@ -64,7 +64,7 @@ describe('Hoje single summary slot', () => {
     expect(mocks.query).not.toHaveBeenCalled()
   })
 
-  it('opens the whole summary first, preserves the thread and draft, and reuses its message', async () => {
+  it('opens the whole summary after the thread, preserves the draft, and reuses its message', async () => {
     useChatStore.getState().addMessage({ id: 'earlier', role: 'user', content: 'Earlier conversation', timestamp: new Date() })
     const { container } = mount()
     const action = screen.getByRole('button', { name: 'Seu dia começou com uma caminhada.' })
@@ -74,11 +74,11 @@ describe('Hoje single summary slot', () => {
     fireEvent.click(action)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(useChatStore.getState().messages).toEqual([
-      expect.objectContaining({ role: 'ai', content: mocks.summary }),
       expect.objectContaining({ id: 'earlier' }),
+      expect.objectContaining({ role: 'ai', content: mocks.summary }),
     ])
     expect(useChatStore.getState().draft).toBe('Keep my draft')
-    expect(useChatStore.getState().proactiveEntryId).toBe('daily-summary-2026-08-29')
+    expect(useChatStore.getState().proactiveEntryId).toBeNull()
     expect(mocks.query).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'pt-BR', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
   })
 

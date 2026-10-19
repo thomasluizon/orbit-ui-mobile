@@ -613,6 +613,28 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
+  it('keeps an opened daily summary in the next request after ten prior messages', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => {
+      for (let index = 0; index < 10; index += 1) {
+        useChatStore.getState().addMessage({ id: `previous-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Earlier turn ${index}`, timestamp: new Date() })
+      }
+      useChatStore.getState().openDailySummary('2026-09-12', 'Try a short walk after lunch. Keep it comfortable.')
+      useUIStore.getState().setAstraConversationOpen(true)
+    })
+
+    await act(async () => { await result.current.sendMessage('How should I do that?') })
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = mocks.fetch.mock.calls[0]!
+    const formData = request.body as FormData
+    const history = JSON.parse(formData.get('history') as string)
+    expect(history).toHaveLength(10)
+    expect(history.at(-1)).toEqual({ role: 'assistant', content: 'Try a short walk after lunch. Keep it comfortable.' })
+    expect(formData.get('message')).toBe('How should I do that?')
+  })
+
   it('sends Support entry intent on the first and later requests of that conversation', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     const { result } = renderHook(() => useChatComposer())
