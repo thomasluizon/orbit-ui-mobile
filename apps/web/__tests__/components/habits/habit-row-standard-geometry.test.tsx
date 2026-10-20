@@ -453,7 +453,10 @@ async function assertPreviewRow(row: Locator, page: Page, scale: number, describ
 
 async function assertPrimaryFocus(row: Locator, scale: number) {
   const body = row.locator('[data-habit-row-body]')
+  await row.page().keyboard.press('Tab')
   await body.focus()
+  expect(await body.evaluate((element) => element === document.activeElement)).toBe(true)
+  expect(await body.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
   const focus = await body.evaluate((element) => {
     const style = getComputedStyle(element)
     return { outline: style.outlineStyle, width: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, overflow: style.overflow }
