@@ -87,8 +87,8 @@ export class HabitDateEditor {
         if (this.session.isCurrent(ticket, this.adapter.context())) this.adapter.write('dateIssue', 'habits.form.dateStale')
         return
       }
+      this.adapter.write('dateIssue', result === 'proposed' ? '' : 'habits.form.datePhraseUnresolved')
       this.publish({ candidate: this.session.candidate?.date ?? null })
-      if (result === 'unresolved') this.adapter.write('dateIssue', 'habits.form.datePhraseUnresolved')
     } catch (error) {
       if (this.session.isCurrent(ticket, this.adapter.context())) this.publish({ failure: this.adapter.failure(error), capacity: this.adapter.isCapacity(error) })
     } finally {
@@ -97,7 +97,10 @@ export class HabitDateEditor {
     }
   }
 
-  validate(): void { this.sync() }
+  validate(): void {
+    this.sync()
+    if (this.session.candidate) this.adapter.write('dateIssue', 'habits.form.dateConfirmationRequired')
+  }
 
   accept(): boolean {
     const date = this.session.accept(this.adapter.context())

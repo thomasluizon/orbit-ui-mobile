@@ -28,6 +28,7 @@ function DateConsultation({ editor, snapshot }: Readonly<{ editor: HabitDateEdit
   const t = useTranslations()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
+  if (snapshot.candidate) return null
   const atLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)
   const canAsk = snapshot.status === 'unsupported'
   return <>

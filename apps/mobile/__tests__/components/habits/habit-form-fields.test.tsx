@@ -17,7 +17,8 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
-import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, type HabitFormProposal } from '@orbit/shared/utils'
+import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, formatLocaleDate, type HabitFormProposal } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
 
@@ -38,7 +39,7 @@ afterEach(async () => {
 const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
-const formLocale = vi.hoisted((): { language: string; realDates: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realDates: false, theme: 'dark' }))
+const formLocale = vi.hoisted((): { language: string; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
@@ -57,7 +58,10 @@ const testTranslations: Record<string, string> = {
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
   const messages = formLocale.language === 'en' ? en : ptBR
-  const template = key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key]
+  const dateTemplate = formLocale.realDateCopy && ['habits.form.datePhraseUnresolved', 'habits.form.dateProposed', 'habits.form.dateConfirmationRequired'].includes(key)
+    ? Object.entries(messages.habits.form).find(([name]) => key === `habits.form.${name}`)?.[1]
+    : undefined
+  const template = dateTemplate ?? (key === 'habits.form.habitTypeAvoidHint' ? messages.habits.form.habitTypeAvoidHint : testTranslations[key])
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -1573,11 +1577,144 @@ it('keeps a native Astra date proposed until acceptance and moves focus to its c
     await TestRenderer.act(() => input.props.onChangeText('after vacation'))
     await TestRenderer.act(() => button('habits.form.askDate').props.onPress())
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
-    await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.datePhraseUnresolved') })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.dateConfirmationRequired') })
     await TestRenderer.act(() => button('habits.form.acceptDate').props.onPress())
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
     expect(helpers.form.getValues('datePhrase')).toBe('')
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')[0]!.props.focusRequest).toBe(1)
     expect(helpers.validateAll()).toBeNull()
   } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+describe('native date candidate confirmation', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  let helpers: HabitFormHelpers
+  const saved = vi.fn()
+  beforeEach(async () => {
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    dateRequests.request.mockReset()
+    dateRequests.request.mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    saved.mockReset()
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.timeZone = 'UTC'
+    formLocale.realDates = true
+    formLocale.realDateCopy = true
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  })
+  afterEach(async () => {
+    await TestRenderer.act(() => tree?.unmount())
+    vi.useRealTimers()
+    formLocale.realDates = false
+    formLocale.realDateCopy = false
+    formLocale.language = 'en'
+  })
+  function OwningForm() {
+    helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', dueDate: '2026-10-20' } })
+    const save = async () => {
+      if (!await helpers.form.trigger(undefined, { shouldFocus: true }) || helpers.validateAll()) return
+      const values = habitFormSchema.parse(helpers.form.getValues())
+      saved([buildCreateHabitRequest(values, [], [], [], []), buildUpdateHabitRequest(values, helpers.isOneTime, '', [], [])])
+    }
+    return <><HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+      <PillButton onClick={() => void save()}>common.save</PillButton></>
+  }
+  async function mount() { await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) }) }
+  const phraseInput = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
+  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && child.props.children === label).length > 0)
+  const captions = (text: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === text)
+  const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.taskDate,'))[0]!
+  async function propose() {
+    await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
+    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    expect(action('habits.form.acceptDate')).toHaveLength(1)
+  }
+  async function save() {
+    await TestRenderer.act(() => action('common.save')[0]!.props.onPress())
+  }
+
+  it.each(['en', 'pt-BR'])('retires unresolved feedback and the paid action when a date is proposed in %s', async (locale) => {
+    formLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    await mount()
+    await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
+    expect(captions(messages.habits.form.datePhraseUnresolved)).toHaveLength(1)
+    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    expect(captions(messages.habits.form.datePhraseUnresolved)).toHaveLength(0)
+    expect(phraseInput().props.accessibilityHint).not.toContain(messages.habits.form.datePhraseUnresolved)
+    const inputRoot = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && 'data-error' in node.props && node.findAll((child: UnderstandingTestNode) => child === phraseInput()).length > 0)[0]!
+    expect(inputRoot.props['data-error']).toBeUndefined()
+    expect(captions(messages.habits.form.dateProposed).filter((node: UnderstandingTestNode) => node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && String(node.props.children).startsWith('habits.form.askAstraCost'))).toHaveLength(0)
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-20', datePhrase: 'after vacation', dateIssue: '' })
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it.each(['en', 'pt-BR'])('blocks Save on an unaccepted candidate in %s and focuses accurate confirmation guidance', async (locale) => {
+    formLocale.language = locale
+    const confirmation = locale === 'en' ? 'Use the suggested date or choose another in the calendar.' : 'Use a data sugerida ou escolha outra no calendário.'
+    await mount()
+    await propose()
+    await save()
+    expect(saved).not.toHaveBeenCalled()
+    expect(helpers.form.getValues('dueDate')).toBe('2026-10-20')
+    expect(phraseInput().props.accessibilityHint).toContain(confirmation)
+    expect(__getFocusedNativeTag()).toBe(phraseInput().props.__nativeTag)
+    expect(captions(en.habits.form.datePhraseUnresolved)).toHaveLength(0)
+    expect(action('habits.form.acceptDate')).toHaveLength(1)
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it('offers another paid consultation only after the proposed phrase changes', async () => {
+    await mount()
+    await propose()
+    expect(action('habits.form.askDate')).toHaveLength(0)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && String(node.props.children).startsWith('habits.form.askAstraCost'))).toHaveLength(0)
+    await TestRenderer.act(() => phraseInput().props.onChangeText('after my next vacation'))
+    expect(action('habits.form.acceptDate')).toHaveLength(0)
+    expect(action('habits.form.askDate')[0]!.props.disabled).toBe(false)
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
+
+  it('retains failed consultation recovery and clears manual validation after a local date edit', async () => {
+    dateRequests.request.mockRejectedValueOnce(new Error('provider timeout'))
+    await mount()
+    await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
+    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    expect(action('habits.form.askDate')[0]!.props.disabled).toBe(false)
+    expect(captions(en.habits.form.datePhraseUnresolved)).toHaveLength(1)
+    expect(action('habits.form.acceptDate')).toHaveLength(0)
+    await save()
+    expect(saved).not.toHaveBeenCalled()
+    await TestRenderer.act(() => action('habits.form.askDate')[0]!.props.onPress())
+    expect(captions(en.habits.form.datePhraseUnresolved)).toHaveLength(0)
+    await TestRenderer.act(() => phraseInput().props.onChangeText('dia 26'))
+    await save()
+    expect(saved).toHaveBeenCalledOnce()
+    expect(dateRequests.request).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['accept', 'same', 'different'])('saves only the owned date after %s resolves a blocked proposal', async (resolution) => {
+    await mount()
+    await propose()
+    await save()
+    expect(saved).not.toHaveBeenCalled()
+    const date = resolution === 'different' ? '2026-10-27' : '2026-10-26'
+    if (resolution === 'accept') await TestRenderer.act(() => action('habits.form.acceptDate')[0]!.props.onPress())
+    else {
+      await TestRenderer.act(() => picker().props.onPress())
+      const dayLabel = formatLocaleDate(date, formLocale.language, { month: 'long', day: 'numeric', year: 'numeric' })
+      const day = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === dayLabel)[0]!
+      await TestRenderer.act(() => day.props.onPress())
+    }
+    if (resolution === 'accept') expect(__getFocusedNativeTag()).toBe(picker().props.__nativeTag)
+    expect(action('habits.form.acceptDate')).toHaveLength(0)
+    expect(phraseInput().props.accessibilityHint).not.toContain('Use the suggested date or choose another in the calendar.')
+    expect(helpers.form.getValues()).toMatchObject({ dueDate: date, datePhrase: '', dateIssue: '' })
+    await save()
+    expect(saved).toHaveBeenCalledOnce()
+    expect(saved).toHaveBeenLastCalledWith([expect.objectContaining({ dueDate: date, title: 'Read' }), expect.objectContaining({ dueDate: date, title: 'Read' })])
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+  })
 })

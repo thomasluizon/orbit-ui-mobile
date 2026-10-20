@@ -758,6 +758,7 @@
       "askDate": "Consultar Astra",
       "acceptDate": "Usar data",
       "dateProposed": "Astra sugeriu esta data.",
+      "dateConfirmationRequired": "Use a data sugerida ou escolha outra no calendário.",
       "noSchedule": "Sem data",
       "noScheduleHint": "Registre quando acontecer.",
       "startDate": "Início",

@@ -29,6 +29,12 @@ Only a date candidate receives DateField's proposed appearance, using resting fg
 existing dashed perimeter. Acceptance and manual picking restore normal ink. Use date sits in
 ActionRow at the trailing edge and hugs its label on both platforms.
 
+A valid date proposal retires unresolved feedback and the paid consultation action with its cost
+and capacity notices. It retains the phrase and the previously owned date until acceptance or
+manual selection. Submit validates the current candidate explicitly, focuses the date input and
+asks the person to use the suggestion or choose another date. Acceptance and manual selection,
+including the same calendar day, clear confirmation feedback and permit saving the owned date.
+
 ## Production capability audit
 
 The comparison sources are pre-promotion web `dfc321dc1^` and Android release source

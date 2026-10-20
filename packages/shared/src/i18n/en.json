@@ -758,6 +758,7 @@
       "askDate": "Ask Astra",
       "acceptDate": "Use date",
       "dateProposed": "Astra suggested this date.",
+      "dateConfirmationRequired": "Use the suggested date or choose another in the calendar.",
       "noSchedule": "No schedule",
       "noScheduleHint": "Log it whenever it happens.",
       "startDate": "Start",
