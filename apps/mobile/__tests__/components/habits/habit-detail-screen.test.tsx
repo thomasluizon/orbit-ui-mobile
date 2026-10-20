@@ -118,6 +118,7 @@ const mocks = vi.hoisted(() => ({
   hasProAccess: true,
   timeZone: 'UTC',
   profileReady: true,
+  weekStartDay: 1,
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
@@ -305,7 +306,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: mocks.language,
       uses24HourClock: mocks.uses24HourClock,
-      weekStartDay: 1,
+      weekStartDay: mocks.weekStartDay,
       timeZone: mocks.timeZone,
     } : undefined,
   }),
@@ -706,6 +707,7 @@ describe('HabitDetailScreen', () => {
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
     mocks.profileReady = true
+    mocks.weekStartDay = 1
     mocks.scopedCompleteDay = false
     mocks.suggestion = null
     mocks.rescheduleOptions = []
@@ -1337,6 +1339,31 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ testID: `history-day-${example.originalDay}-inside` }).props.outcome).toBe('none')
     expect(tree!.root.findByProps({ testID: `history-day-${example.rejectedDay}-inside` }).props.outcome).toBe('not-scheduled')
     expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1)).toBe('missed')
+  })
+
+  it.each([0, 1] as const)('maps interval weeks into history and strip with week start %i', (weekStartDay) => {
+    mocks.weekStartDay = weekStartDay
+    mocks.logs = []
+    for (const example of [
+      { unit: 'Month', date: '2026-02-28', dueDate: '2026-06-30', scheduled: true },
+      { unit: 'Month', date: '2026-03-31', dueDate: '2026-06-30', scheduled: false },
+      { unit: 'Month', date: '2026-05-31', dueDate: '2026-06-30', scheduled: weekStartDay === 0 },
+      { unit: 'Week', date: '2026-02-14', dueDate: '2026-03-14', scheduled: true },
+      { unit: 'Week', date: '2026-02-21', dueDate: '2026-03-14', scheduled: false },
+    ]) {
+      vi.setSystemTime(new Date(`${example.date}T12:00:00Z`))
+      mocks.detail = habitDetailSchema.parse({ ...makeDetail(), children: [], days: [],
+        createdAtUtc: '2026-01-01T12:00:00Z', frequencyUnit: example.unit, frequencyQuantity: 1,
+        intervalWeeks: 2, scheduledStartDate: '2026-01-31', dueDate: example.dueDate })
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={example.date} />) })
+      const day = Number(example.date.slice(-2))
+      expect(tree.root.findByProps({ testID: `history-day-${day}-inside` }).props.outcome)
+        .toBe(example.scheduled ? 'none' : 'not-scheduled')
+      expect(tree.root.findByProps({ testID: 'detail-strip' }).props.days.at(-1))
+        .toBe(example.scheduled ? 'missed' : 'not-scheduled')
+      TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it('reconciles an explicit-date log and unlog across the mounted detail', async () => {
