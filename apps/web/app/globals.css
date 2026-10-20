@@ -2584,7 +2584,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 .orbit-day-selected { background: var(--selection-bg); }
 
-.orbit-day-target:active .orbit-day-well { background: transparent; transition-duration: 0s; }
+.orbit-day-target:active .orbit-day-well { background: transparent; transition: none; }
 .orbit-day-target:active [data-press-fill] { opacity: 1; }
 
 @media (hover: hover) and (pointer: fine) {
