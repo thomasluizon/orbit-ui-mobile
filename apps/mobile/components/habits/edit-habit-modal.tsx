@@ -30,6 +30,7 @@ import {
   createHabitFormSuggestionRevision,
   extractBackendErrorCode,
   getFriendlyErrorMessage,
+  getHabitDisplayStartDate,
   hasHabitFormProposal,
   rebaseSelectedIds,
   toggleSelectedId,
@@ -515,7 +516,7 @@ export function EditHabitModal({
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
               onUpgrade={navigateToUpgrade}
-              startDate={habit?.createdAtUtc ?? null}
+              startDate={habit && getHabitDisplayStartDate(habit)}
             />
           </View>
         </View>
