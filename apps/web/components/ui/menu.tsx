@@ -89,12 +89,14 @@ function MenuSheet({
   onSelectStart: () => void
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
+  const firstItemRef = useRef<HTMLButtonElement>(null)
 
   return (
-    <Sheet ref={sheetRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={onClose} finalFocus={finalFocus}>
+    <Sheet ref={sheetRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={onClose} initialFocus={firstItemRef} finalFocus={finalFocus}>
       <div id={id} role="menu" aria-label={title} onKeyDown={moveMenuFocus}>
         <MenuItems
           items={items}
+          firstItemRef={firstItemRef}
           onActivate={(id) => {
             onSelectStart()
             closeSheet(() => {
@@ -111,9 +113,10 @@ function MenuSheet({
 interface MenuItemsProps {
   items: readonly MenuItem[]
   onActivate: (id: string) => void
+  firstItemRef?: RefObject<HTMLButtonElement | null>
 }
 
-function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
+function MenuItems({ items, onActivate, firstItemRef }: Readonly<MenuItemsProps>) {
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const rows = orderedItems(items)
   const firstEnabledId = rows.find((item) => !item.disabled || item.badge)?.id
@@ -124,6 +127,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
         return (
           <button
             key={item.id}
+            ref={item.id === firstEnabledId ? firstItemRef : undefined}
             type="button"
             role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
             aria-checked={item.checked}

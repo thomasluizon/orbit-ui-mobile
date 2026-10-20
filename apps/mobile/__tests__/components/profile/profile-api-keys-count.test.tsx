@@ -41,7 +41,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
     : { t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: 'en' } },
 }))
 
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
 vi.mock('@/app/advanced-api-keys', () => ({
   useApiKeyManagement: () => ({

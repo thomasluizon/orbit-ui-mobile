@@ -6,7 +6,7 @@ import { PADDING, SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
@@ -72,7 +72,10 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   </div>
   return <div className="flex flex-col gap-2">
     <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: SPACING.s0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
-    {state === 'loading' ? <div><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
+    {state === 'loading' ? <div className="relative">
+      <p aria-hidden="true" className="invisible m-0 text-sm">{t('calendar.dayDetail.noEventsToImport')}</p>
+      <div className="absolute inset-0"><Skeleton variant="fill" label={t('calendar.fetchingEvents')} /></div>
+    </div> : null}
     {state === 'failed' ? <div className="flex flex-col gap-2"><p role="alert" className="m-0 text-base text-[var(--fg-1)]">{t('calendar.fetchError')}</p><ListRow textMode="label" title={t('common.retry')} onClick={onRetry} /></div> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
@@ -152,6 +155,7 @@ function CalendarDayCheckRow({
 function CalendarDayRows({
   dateStr,
   entries,
+  loadingLabel,
   loggable,
   displayTime,
   pendingEntryStates,
@@ -161,6 +165,7 @@ function CalendarDayRows({
 }: Readonly<{
   dateStr: string
   entries: CalendarDayEntry[]
+  loadingLabel?: string
   loggable: boolean
   displayTime: (time: string) => string
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -173,10 +178,9 @@ function CalendarDayRows({
     const outcome = getEntryOutcome(entry, t)
     const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')
 
-    if (loggable) {
-      return (
+    const row = loggable ? (
         <CalendarDayCheckRow
-          key={`${dateStr}:${entry.habitId}`}
+          disabled={Boolean(loadingLabel)}
           entry={entry}
           value={value}
           isPending={pendingEntryStates.has(entryKey)}
@@ -184,12 +188,9 @@ function CalendarDayRows({
           onEntryChange={onEntryChange}
           onOpenTitle={onOpenTitle}
         />
-      )
-    }
-
-    return (
+      ) : (
       // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
-      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
+      <button disabled={Boolean(loadingLabel)} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
         <span className="relative flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
           <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
@@ -199,6 +200,10 @@ function CalendarDayRows({
         </span>
       </button>
     )
+    return loadingLabel ? <div key={`${dateStr}:${entry.habitId}`} className="relative">
+      <div inert aria-hidden="true" className="invisible">{row}</div>
+      <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
+    </div> : <Fragment key={`${dateStr}:${entry.habitId}`}>{row}</Fragment>
   })
 }
 
@@ -272,23 +277,22 @@ export function CalendarDayDetail({
       {!loadingLabel && filteredEntries.length === 0 ? (
         <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.noHabitsScheduled')}</p>
       ) : null}
-      {loadingLabel ? <div data-testid="calendar-day-skeleton" className="relative">
-        <div inert aria-hidden="true" style={{ visibility: 'hidden' }}>
-          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} value={displayTime('00:00')} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
-        </div>
-        <div className="absolute inset-0 flex items-center"><Skeleton variant="settings" rows={1} label={loadingLabel} /></div>
-      </div> : filteredEntries.length > 0 ? (
-        <div className="flex flex-col">
-          <CalendarDayRows
+      {loadingLabel || filteredEntries.length > 0 ? (
+        <div data-testid={loadingLabel ? 'calendar-day-skeleton' : undefined} className="flex flex-col">
+          {loadingLabel && filteredEntries.length === 0 ? <div className="relative">
+            <p aria-hidden="true" className="invisible m-0 text-sm">{t('calendar.noHabitsScheduled')}</p>
+            <div className="absolute inset-0"><Skeleton variant="fill" label={loadingLabel} /></div>
+          </div> : <CalendarDayRows
             dateStr={dateStr}
             entries={filteredEntries}
+            loadingLabel={loadingLabel}
             loggable={loggable}
             displayTime={displayTime}
             pendingEntryStates={pendingEntryStates}
             onEntryChange={onEntryChange}
             onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
             t={t}
-          />
+          />}
         </div>
       ) : null}
       {goToDay}

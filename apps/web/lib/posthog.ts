@@ -55,8 +55,8 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
 const PREFERENCE_KEY = 'analytics-opt-out'
 function readAnalyticsOptOut(): boolean {
-  if (typeof localStorage === 'undefined') return false
   try {
+    if (typeof localStorage === 'undefined') return false
     return localStorage.getItem(PREFERENCE_KEY) === 'true'
   } catch {
     return true

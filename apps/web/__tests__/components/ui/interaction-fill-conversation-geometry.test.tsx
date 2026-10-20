@@ -53,6 +53,7 @@ function bundleConversation() {
     '@sentry/nextjs': 'export * from "@sentry/browser";',
     'next/link': "import { createElement } from 'react'; export default function Link(props) { return createElement('a', props); }",
     'next/navigation': `const configuration = JSON.parse(document.getElementById('configuration').textContent);
+      export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error';
       export const usePathname = () => ['/chat', '/r/invalid'].includes(configuration.route) ? '/' : configuration.route;
       export const useParams = () => ({}); export const useRouter = () => ({ push: () => {} });`,
     '@/hooks/use-profile': "export const useProfile = () => ({ profile: { name: 'Person', email: 'person@example.test' } });",

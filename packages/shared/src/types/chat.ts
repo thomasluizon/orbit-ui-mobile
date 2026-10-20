@@ -59,6 +59,7 @@ export const aiActionTypeSchema = z.enum([
   'DeleteTag',
   'ReorderGoals',
   'ReorderHabits',
+  'UnlogHabit',
 ])
 
 export type AiActionType = z.infer<typeof aiActionTypeSchema>
@@ -126,6 +127,25 @@ export const suggestedSubHabitSchema = z.object({
 
 export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
+export const toolResultMessageParamsSchema = z.object({
+  entityName: z.string().optional().catch(undefined),
+  count: z.number().int().nonnegative().optional().catch(undefined),
+  totalCount: z.number().int().nonnegative().optional().catch(undefined),
+  skippedCount: z.number().int().nonnegative().optional().catch(undefined),
+  partial: z.boolean().optional().catch(undefined),
+  weekStartDay: z.number().int().optional().catch(undefined),
+  hours: z.number().int().optional().catch(undefined),
+  toolName: z.string().optional().catch(undefined),
+  bulkTool: z.string().optional().catch(undefined),
+  policyReason: z.string().optional().catch(undefined),
+  timeZone: z.string().optional().catch(undefined),
+  language: z.string().optional().catch(undefined),
+  referralCode: z.string().optional().catch(undefined),
+  fieldName: z.string().optional().catch(undefined),
+  actionName: z.string().optional().catch(undefined),
+  entityId: z.string().optional().catch(undefined),
+})
+
 export const actionResultSchema = z
   .object({
     type: z.string(),
@@ -137,6 +157,8 @@ export const actionResultSchema = z
     suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable().optional(),
     conflictWarning: conflictWarningSchema.nullable().optional(),
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
+    messageKey: z.string().optional(),
+    params: toolResultMessageParamsSchema.optional().catch(undefined),
   })
   .superRefine((value, ctx) => {
     if (value.status === 'NeedsClarification' && !value.clarificationRequest) {

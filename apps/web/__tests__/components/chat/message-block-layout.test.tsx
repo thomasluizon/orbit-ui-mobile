@@ -101,7 +101,7 @@ describe('Astra block layout in Chromium', () => {
       confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
       scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
         words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send,
-          actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
+          clear: en.shell.composer.clear, actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
       },
     } as unknown as ChatController
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
@@ -161,7 +161,7 @@ describe('Astra block layout in Chromium', () => {
         activeSteps: steps, showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
         scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
           words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send,
-            actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
+            clear: en.shell.composer.clear, actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
         },
       } as unknown as ChatController
       const surface = (controller: ChatController) => <NextIntlClientProvider locale="en" messages={en}>
@@ -226,7 +226,7 @@ describe('Astra block layout in Chromium', () => {
       activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
       composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
         words: { placeholder: pt.shell.composer.placeholder, send: pt.shell.composer.send,
-          actions: pt.shell.composer.actions, suggestionsLabel: pt.shell.composer.suggestionsLabel },
+          clear: pt.shell.composer.clear, actions: pt.shell.composer.actions, suggestionsLabel: pt.shell.composer.suggestionsLabel },
       },
     } as unknown as ChatController
     const surface = (controller: ChatController) => <NextIntlClientProvider locale="pt-BR" messages={pt}>
@@ -263,7 +263,7 @@ describe('Astra block layout in Chromium', () => {
       sendMessage: vi.fn(), confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
       composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(),
         words: { placeholder: messages.shell.composer.placeholder, send: messages.shell.composer.send,
-          actions: messages.shell.composer.actions, suggestionsLabel: messages.shell.composer.suggestionsLabel },
+          clear: messages.shell.composer.clear, actions: messages.shell.composer.actions, suggestionsLabel: messages.shell.composer.suggestionsLabel },
         suggestions: [{ id: 'one', label: 'Review', onSelect: vi.fn() }, { id: 'two', label: 'Plan', onSelect: vi.fn() }],
       },
     } as unknown as ChatController

@@ -194,6 +194,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#workflow-syntax": {
+    "scope": "whole-tree-blocking",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "actionlint version and archive checksum",
+        "source": ".github/workflows/guards.yml#workflow-syntax__1"
+      }
+    ]
+  },
   ".github/workflows/pr-metadata.yml#metadata": {
     "scope": "changed-files",
     "snapshot": "none",

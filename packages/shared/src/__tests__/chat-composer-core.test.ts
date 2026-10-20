@@ -78,6 +78,37 @@ describe('selectActionInvalidations', () => {
     })
   })
 
+  it('flags habits when an unlog succeeds', () => {
+    expect(selectActionInvalidations([makeAction({ type: 'UnlogHabit' })])).toEqual({
+      habits: true,
+      goals: false,
+      tags: false,
+    })
+  })
+
+  it('flags nothing when an unlog fails', () => {
+    expect(
+      selectActionInvalidations([makeAction({ type: 'UnlogHabit', status: 'Failed' })]),
+    ).toEqual({ habits: false, goals: false, tags: false })
+  })
+
+  it('flags habits and goals when an unlog and goal creation succeed', () => {
+    expect(
+      selectActionInvalidations([
+        makeAction({ type: 'UnlogHabit' }),
+        makeAction({ type: 'CreateGoal' }),
+      ]),
+    ).toEqual({ habits: true, goals: true, tags: false })
+  })
+
+  it('flags nothing for an unknown action type', () => {
+    expect(selectActionInvalidations([makeAction({ type: 'UnknownAction' })])).toEqual({
+      habits: false,
+      goals: false,
+      tags: false,
+    })
+  })
+
   it('flags both when successful habit and goal actions are present', () => {
     expect(
       selectActionInvalidations([

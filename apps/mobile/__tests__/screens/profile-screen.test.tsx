@@ -1,8 +1,9 @@
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { API_BASE } from '@/lib/api-base'
+import { captureError } from '@/lib/sentry'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { __setScrollToImpl, __setWindowDimensions } from '../../test-mocks/react-native'
@@ -161,8 +162,8 @@ vi.mock('expo-sharing', () => {
   return { isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: mockShareAsync }
 })
 
-vi.mock('@react-native-clipboard/clipboard', () => ({
-  default: { setString: vi.fn(), getString: vi.fn() },
+vi.mock('expo-clipboard', () => ({
+  setStringAsync: vi.fn().mockResolvedValue(true), getStringAsync: vi.fn(),
 }))
 
 vi.mock('expo-device', () => ({
@@ -1362,20 +1363,20 @@ describe('ProfileScreen', () => {
   it('copies the MCP endpoint, disables pending copies and resets on reopening', async () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
-    vi.mocked(Clipboard.setString).mockReset()
+    vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true)
     let finishRead!: (value: string) => void
-    vi.mocked(Clipboard.getString).mockReset().mockImplementationOnce(() => new Promise<string>((resolve) => { finishRead = resolve }))
+    vi.mocked(Clipboard.getStringAsync).mockReset().mockImplementationOnce(() => new Promise<string>((resolve) => { finishRead = resolve }))
     const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
     const endpoint = getMcpEndpointUrl(API_BASE)
     const endpointText = tree.root.findAll((node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes(endpoint))[0]
     expect(endpointText.props.selectable).toBe(true)
-    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
-    expect(Clipboard.setString).toHaveBeenCalledWith(endpoint)
+    await TestRenderer.act(async () => { findButtonByText(tree, 'orbitMcp.copy').props.onPress(); await Promise.resolve() })
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(endpoint)
     const pendingCopy = findButtonByText(tree, 'orbitMcp.copy')
     expect(pendingCopy.props.accessibilityState.disabled).toBe(true)
     TestRenderer.act(() => pendingCopy.props.onPress?.())
-    expect(Clipboard.setString).toHaveBeenCalledTimes(1)
+    expect(Clipboard.setStringAsync).toHaveBeenCalledTimes(1)
     await TestRenderer.act(async () => {})
     expect(findButtonByText(tree, 'orbitMcp.copy').props.accessibilityState.disabled).toBe(true)
     expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
@@ -1393,8 +1394,8 @@ describe('ProfileScreen', () => {
   it('keeps the MCP endpoint selectable after a clipboard failure and allows retry', async () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
-    vi.mocked(Clipboard.setString).mockReset().mockImplementationOnce(() => { throw new Error('Clipboard unavailable') })
-    vi.mocked(Clipboard.getString).mockReset().mockResolvedValue(getMcpEndpointUrl(API_BASE))
+    vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true).mockImplementationOnce(() => { throw new Error('Clipboard unavailable') })
+    vi.mocked(Clipboard.getStringAsync).mockReset().mockResolvedValue(getMcpEndpointUrl(API_BASE))
     const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.connectionInstructions').props.onPress())
     await TestRenderer.act(async () => {
@@ -1417,8 +1418,8 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
     const endpoint = getMcpEndpointUrl(API_BASE)
-    vi.mocked(Clipboard.setString).mockReset()
-    const readClipboard = vi.mocked(Clipboard.getString).mockReset().mockResolvedValue(endpoint)
+    vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true)
+    const readClipboard = vi.mocked(Clipboard.getStringAsync).mockReset().mockResolvedValue(endpoint)
     if (failure === 'unchanged content') readClipboard.mockResolvedValueOnce('Previous clipboard content')
     else readClipboard.mockRejectedValueOnce(new Error('Clipboard read unavailable'))
     const tree = await renderProfileSubscreen('astra')
@@ -1429,7 +1430,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
 
-    expect(Clipboard.setString).toHaveBeenCalledWith(endpoint)
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(endpoint)
     expect(nodeText(tree.root)).toContain('orbitMcp.copyError')
     expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
     const endpointText = tree.root.findAll((node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes(endpoint))[0]
@@ -1441,8 +1442,8 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
 
-    expect(Clipboard.setString).toHaveBeenCalledTimes(2)
-    expect(Clipboard.getString).toHaveBeenCalledTimes(2)
+    expect(Clipboard.setStringAsync).toHaveBeenCalledTimes(2)
+    expect(Clipboard.getStringAsync).toHaveBeenCalledTimes(2)
     expect(findButtonByText(tree, 'orbitMcp.copied').props.accessibilityState.disabled).toBe(false)
     expect(nodeText(tree.root)).not.toContain('orbitMcp.copyError')
     TestRenderer.act(() => tree.unmount())
@@ -1662,7 +1663,19 @@ describe('ProfileScreen', () => {
     })
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.expiresAtLabel' }).props.onChangeText('2099-12-31T23:59'))
     await nameAndCreateApiKey(tree)
-    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
+    const copyFailure = new Error('Clipboard unavailable')
+    vi.mocked(captureError).mockClear()
+    vi.mocked(Clipboard.setStringAsync).mockRejectedValueOnce(copyFailure)
+    await TestRenderer.act(async () => { findButtonByText(tree, 'orbitMcp.copy').props.onPress(); await Promise.resolve() })
+    expect(captureError).toHaveBeenCalledWith(copyFailure)
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
+    let finishWrite!: (written: boolean) => void
+    const write = new Promise<boolean>((resolve) => { finishWrite = resolve })
+    vi.mocked(Clipboard.setStringAsync).mockReturnValueOnce(write)
+    await TestRenderer.act(async () => { findButtonByText(tree, 'orbitMcp.copy').props.onPress(); await Promise.resolve() })
+    expect(Clipboard.setStringAsync).toHaveBeenLastCalledWith('orb_first')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
+    await TestRenderer.act(async () => { finishWrite(true); await write })
     expect(nodeText(tree.root)).toContain('orbitMcp.copied')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
 

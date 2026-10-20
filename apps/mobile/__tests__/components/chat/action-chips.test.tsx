@@ -161,12 +161,12 @@ describe('ActionChips (mobile)', () => {
     expect(tree.root.findAllByType('Button')).toHaveLength(0)
   })
 
-  it('localizes unknown operation symbols instead of rendering them', () => {
+  it('keeps legacy content without rendering unknown operation symbols', () => {
     const tree = renderActions([makeActionResult({ type: 'UnexpectedServerSymbol' })])
     const frame = tree.root.findByType('BlockFrame')
 
-    expect(renderedText(frame.props.items[0].label)).toBe('chat.action.completed')
-    expect(JSON.stringify(tree.toJSON())).not.toContain('UnexpectedServerSymbol')
+    expect(renderedText(frame.props.items[0].label)).toBe('Meditate')
+    expect(renderedText(tree.toJSON())).not.toContain('UnexpectedServerSymbol')
   })
   it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full attempted entity %s', async (name) => {
     const label = `Não foi possível criar ${name}`
