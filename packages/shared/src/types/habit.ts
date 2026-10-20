@@ -217,10 +217,22 @@ export const habitDetailChildSchema: z.ZodType<{
   isOverdue?: boolean
   position: number | null
   checklistItems: ChecklistItem[]
+  tags?: HabitTag[] | null
+  reminderEnabled?: boolean | null
+  reminderTimes?: number[] | null
+  scheduledReminders?: ScheduledReminderTime[] | null
+  relativeReminders?: RelativeReminderTime[] | null
+  slipAlertEnabled?: boolean | null
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
   createdAtUtc: z.string().optional(),
   isOverdue: z.boolean().optional(),
+  tags: z.array(habitTagSchema).nullable().optional(),
+  reminderEnabled: z.boolean().nullable().optional(),
+  reminderTimes: z.array(z.number()).nullable().optional(),
+  scheduledReminders: z.array(scheduledReminderTimeSchema).nullable().optional(),
+  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
+  slipAlertEnabled: z.boolean().nullable().optional(),
   children: z.lazy(() => z.array(habitDetailChildSchema)),
 })
 
@@ -228,6 +240,9 @@ export type HabitDetailChild = z.infer<typeof habitDetailChildSchema>
 
 export const habitDetailSchema = baseHabitFieldsSchema.extend({
   createdAtUtc: z.string(),
+  linkedGoals: z.array(linkedGoalInfoSchema).nullable().transform((goals) => goals ?? undefined).optional(),
+  slipAlertEnabled: z.boolean().nullable().transform((enabled) => enabled ?? undefined).optional(),
+  tags: z.array(habitTagSchema).nullable().transform((tags) => tags ?? undefined).optional(),
   reminderEnabled: z.boolean(),
   reminderTimes: z.array(z.number()),
   scheduledReminders: z.array(scheduledReminderTimeSchema),

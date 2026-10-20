@@ -49,6 +49,7 @@ export {
   isHabitCompletedOnDate,
   isHabitSlipping,
   buildHabitDetailReminderRows,
+  needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,

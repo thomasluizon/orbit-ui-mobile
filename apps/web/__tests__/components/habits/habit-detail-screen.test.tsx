@@ -15,6 +15,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
+  makeEnrichedHabitDetail,
   makeHabitScheduleItem,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
@@ -49,7 +50,10 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabitsFallback: null as Map<string, NormalizedHabit> | null,
   allHabitsError: false,
+  allHabitsLoading: false,
+  allHabitsEnabled: undefined as boolean | undefined,
   allHabitsRefetch: vi.fn(),
   scopedLoading: false,
   scopedError: false,
@@ -108,12 +112,13 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false, isError: mocks.metricsError }),
-  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
+  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, _initialItems?: unknown, options?: { completeDay?: boolean; enabled?: boolean }) => {
+    if (!filters.dateFrom) mocks.allHabitsEnabled = options?.enabled
     if (filters.dateFrom) {
       mocks.scopedCompleteDay = options?.completeDay ?? false
       mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
     }
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : (options?.enabled && mocks.allHabitsFallback ? mocks.allHabitsFallback : mocks.allHabits), topLevelHabits: [] }, isLoading: filters.dateFrom ? mocks.scopedLoading : mocks.allHabitsLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 
@@ -210,7 +215,7 @@ vi.mock('@/components/dates/month-grid', () => ({
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
+  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} data-selected-goals={selectedGoalIds.join(",")} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
 }))
 vi.mock('@/components/ui/time-field', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/time-field')>()
@@ -267,6 +272,8 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       <button
         type="button"
         data-testid={`child-${habit.id}`}
+        data-tags={habit.tags.map((tag) => tag.name).join(",")}
+        data-reminder-enabled={habit.reminderEnabled}
         data-state={state}
         data-can-log={canLog}
         data-completion-read-only={completionReadOnly}
@@ -487,7 +494,10 @@ describe('HabitDetailScreen', () => {
     mocks.detail = makeDetail()
     mocks.detailLoading = false
     mocks.detailError = false
+    mocks.allHabitsFallback = null
     mocks.allHabitsError = false
+    mocks.allHabitsLoading = false
+    mocks.allHabitsEnabled = undefined
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -930,14 +940,49 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
   })
 
-  it('retries a list-only load failure', () => {
+  it.each([false, true])('renders detail while the unrelated list is pending and then rejected, legacy=%s', (legacy) => {
+    mocks.detail = legacy ? makeDetail() : makeEnrichedHabitDetail()
+    mocks.allHabits.clear()
+    mocks.allHabitsLoading = true
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+    mocks.allHabitsLoading = false
     mocks.allHabitsError = true
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+    expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
+    expect(mocks.allHabitsEnabled).toBe(legacy)
+    expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('uses own detail controls with a warm list=%s', (warm) => {
+    mocks.detail = makeEnrichedHabitDetail()
+    mocks.allHabits = warm ? new Map([['habit-1', makeScopedParent()]]) : new Map()
+    mocks.scopedHabits.clear()
     render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('Focus')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByRole('switch', { name: 'habits.detail.slipAlert' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '1')
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    expect(screen.getByTestId('goal-linking-field')).toHaveAttribute('data-selected-goals', 'goal-1')
+    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-tags', 'Health')
+    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-reminder-enabled', 'true')
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
-
-    expect(mocks.allHabitsRefetch).toHaveBeenCalledOnce()
-    expect(mocks.refetch).not.toHaveBeenCalled()
+  it('restores older detail controls from the on-demand list fallback', () => {
+    mocks.allHabits.clear()
+    mocks.scopedHabits.clear()
+    mocks.allHabitsFallback = new Map([['habit-1', { ...makeScopedParent(), isBadHabit: true, slipAlertEnabled: true }]])
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(mocks.allHabitsEnabled).toBe(true)
+    expect(screen.getByText('Focus')).toBeInTheDocument()
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '1')
+    expect(screen.getByRole('switch', { name: 'habits.detail.slipAlert' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', (name) => {

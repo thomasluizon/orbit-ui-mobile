@@ -44,6 +44,7 @@ export function useCreateGoal() {
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }
@@ -282,6 +283,7 @@ export function useLinkHabitsToGoal() {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
     },
   })
 }
