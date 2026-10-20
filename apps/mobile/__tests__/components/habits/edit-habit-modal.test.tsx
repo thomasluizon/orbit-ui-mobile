@@ -98,6 +98,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
         return values
       },
       trigger: vi.fn().mockResolvedValue(true),
+      getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
       setValue: mockSetValue,
       formState: { isDirty: false, dirtyFields: {} },
     },

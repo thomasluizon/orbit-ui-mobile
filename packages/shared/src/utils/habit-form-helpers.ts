@@ -875,6 +875,15 @@ export function applyHabitEmojiSuggestion(
   return true
 }
 
+export function reportHabitFormValidationError(
+  message: string,
+  getFieldState: (field: 'itemType' | 'datePhrase') => { invalid: boolean },
+  showError: (message: string) => void,
+): void {
+  if (getFieldState('itemType').invalid || getFieldState('datePhrase').invalid) return
+  showError(message)
+}
+
 export function buildHabitEmojiSuggestionAvailability(
   title: string,
   atLimit: boolean,

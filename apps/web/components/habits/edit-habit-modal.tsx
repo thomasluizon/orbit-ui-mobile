@@ -24,6 +24,7 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -302,7 +303,7 @@ export function EditHabitModal({
       if (!error && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
 
       if (error) {
-        showError(error)
+        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
         return
       }
       const data = habitFormSchema.parse(formHelpers.form.getValues())

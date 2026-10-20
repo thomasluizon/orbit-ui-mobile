@@ -1,5 +1,6 @@
 import { appConfigSchema } from '@orbit/shared/types/config'
-import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
+import { createMockConfigResponse, createMockHabit } from '@orbit/shared/__tests__/factories'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -17,8 +18,11 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { buildCreateHabitRequest, buildUpdateHabitRequest, buildHabitFormPatchFromSuggestion, formatLocaleDate, type HabitFormProposal } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
+import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
 
@@ -42,6 +46,7 @@ const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), dele
 const formLocale = vi.hoisted((): { language: string; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false, timeZone: 'UTC' }))
+const modalFeedback = vi.hoisted(() => ({ showError: vi.fn(), create: vi.fn(), update: vi.fn() }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
@@ -88,8 +93,17 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
   useProfile: () => ({ profile: { timeZone: mockProfileState.timeZone, hasProAccess: mockProfileState.hasProAccess, aiMessagesUsed: mockProfileState.aiMessagesUsed, aiMessagesLimit: 5 } }),
 }))
-vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: modalFeedback.showError }) }))
+vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
+  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
+  useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+}))
+vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
+  useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: tagCollection.tags }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
@@ -1584,6 +1598,122 @@ it('keeps a native Astra date proposed until acceptance and moves focus to its c
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')[0]!.props.focusRequest).toBe(1)
     expect(helpers.validateAll()).toBeNull()
   } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+describe.each(['create', 'edit'] as const)('actual native %s modal submit feedback', (owner) => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  const closed = vi.fn()
+  beforeEach(async () => {
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    modalFeedback.showError.mockReset()
+    modalFeedback.create.mockReset().mockResolvedValue({})
+    modalFeedback.update.mockReset().mockResolvedValue({})
+    closed.mockReset()
+    dateRequests.request.mockReset().mockResolvedValue({ date: '2026-10-26', referenceDate: '2026-10-20' })
+    mockProfileState.aiMessagesUsed = 0
+    mockProfileState.timeZone = 'UTC'
+    formLocale.language = 'en'
+    formLocale.realDates = true
+    formLocale.realDateCopy = true
+    vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    formLocale.realDates = false
+    formLocale.realDateCopy = false
+    formLocale.language = 'en'
+  })
+  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+  const phraseInput = () => input('habits.form.datePhrase')
+  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && child.props.children === label).length > 0)[0]!
+  const captions = (text: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === text)
+  const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
+  async function mount(type: 'task' | 'habit' | null) {
+    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<QueryClientProvider client={new QueryClient()}><FocusProvenanceView>{owner === 'create'
+        ? <CreateHabitModal open onClose={closed} initialTitle="Read" />
+        : <EditHabitModal open onClose={closed} habit={habit} />}</FocusProvenanceView></QueryClientProvider>)
+    })
+    if (type) await TestRenderer.act(() => {
+      tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === (type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit'))[0]!.props.onPress()
+    })
+    expect(input('habits.form.describe').props.value).toBe('Read')
+  }
+  async function submit() {
+    await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
+  }
+
+  it.each([
+    ['en', 'task', 'accept'],
+    ['en', 'habit', 'manual'],
+    ['pt-BR', 'task', 'manual'],
+    ['pt-BR', 'habit', 'accept'],
+  ] as const)('keeps %s %s candidate refusal inline through %s recovery', async (locale, type, recovery) => {
+    formLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    await mount(type)
+    await TestRenderer.act(() => phraseInput().props.onChangeText('after vacation'))
+    await TestRenderer.act(() => action('habits.form.askDate').props.onPress())
+    await submit()
+    expect(phraseInput().props.accessibilityHint).toContain(messages.habits.form.dateConfirmationRequired)
+    expect(__getFocusedNativeTag()).toBe(phraseInput().props.__nativeTag)
+    expect(phraseInput().props.value).toBe('after vacation')
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(closed).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith(type === 'task' ? 'habits.form.taskDate,' : 'habits.form.habitStartDate,'))[0]!
+    const date = recovery === 'accept' ? '2026-10-26' : '2026-10-27'
+    if (recovery === 'accept') {
+      await TestRenderer.act(() => action('habits.form.acceptDate').props.onPress())
+      expect(__getFocusedNativeTag()).toBe(picker().props.__nativeTag)
+    } else {
+      await TestRenderer.act(() => picker().props.onPress())
+      const label = formatLocaleDate(date, locale, { month: 'long', day: 'numeric', year: 'numeric' })
+      await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!.props.onPress())
+    }
+    expect(phraseInput().props.accessibilityHint).not.toContain(messages.habits.form.dateConfirmationRequired)
+    expect(phraseInput().props.value).toBe('')
+    expect(captions(messages.habits.form.dateConfirmationRequired)).toHaveLength(0)
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    await submit()
+    const request = expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date })
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation()).toHaveBeenCalledWith(owner === 'create' ? request : { habitId: 'habit-1', data: request })
+    expect(closed).toHaveBeenCalledOnce()
+    expect(dateRequests.request).toHaveBeenCalledOnce()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
+    await mount(null)
+    expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getValues('itemType')).toBeUndefined()
+    await submit()
+    expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getFieldState('itemType')).toMatchObject({ invalid: true })
+    expect(captions('habits.form.typeRequired')).toHaveLength(1)
+    const taskRadio = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!
+    expect(__getFocusedNativeTag()).toBe(taskRadio.props.__nativeTag)
+    expect(input('habits.form.describe').props.value).toBe('Read')
+    expect(mutation()).not.toHaveBeenCalled()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+    await TestRenderer.act(() => taskRadio.props.onPress())
+    expect(captions('habits.form.typeRequired')).toHaveLength(0)
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(modalFeedback.showError).not.toHaveBeenCalled()
+  })
+
+  it('keeps genuine save failures on the existing global error path', async () => {
+    mutation().mockRejectedValueOnce(new Error('save failed'))
+    await mount('task')
+    await submit()
+    expect(modalFeedback.showError).toHaveBeenCalledOnce()
+    expect(modalFeedback.showError).toHaveBeenCalledWith(owner === 'create' ? 'errors.createHabit' : 'errors.updateHabit')
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(closed).not.toHaveBeenCalled()
+    expect(input('habits.form.describe').props.value).toBe('Read')
+  })
 })
 
 describe('native date candidate confirmation', () => {

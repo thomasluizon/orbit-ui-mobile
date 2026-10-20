@@ -32,6 +32,7 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
+  reportHabitFormValidationError,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -336,7 +337,7 @@ export function CreateHabitModal({
       })
 
       if (error) {
-        showError(error)
+        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
         return
       }
       if (!isOnline) return
