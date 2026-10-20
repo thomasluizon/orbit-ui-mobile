@@ -1,10 +1,12 @@
+import { captureException } from '@sentry/react-native'
 import React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
+import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 
-const clipboard = vi.hoisted(() => ({ setString: vi.fn() }))
+const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 
-vi.mock('@react-native-clipboard/clipboard', () => ({ default: clipboard }))
+vi.mock('expo-clipboard', () => clipboard)
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareBottomSheetScrollView: ({ children }: { children: React.ReactNode }) =>
@@ -19,7 +21,7 @@ vi.mock('@/components/ui/chip', () => ({
   Chip: ({ children, onPress, active }: { children: React.ReactNode; onPress: () => void; active: boolean }) =>
     React.createElement(
       'Pressable',
-      { accessibilityRole: 'button', accessibilityLabel: `chip:${String(children)}`, accessibilityState: { selected: active }, onPress },
+      { accessibilityRole: 'button', accessibilityLabel: `chip:${typeof children === 'string' ? children : ''}`, accessibilityState: { selected: active }, onPress },
       React.createElement('Text', null, children),
     ),
 }))
@@ -34,7 +36,6 @@ vi.mock('@/components/ui/settings-row', () => ({
     React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel, onPress: onToggle }),
 }))
 
-import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 
 interface TestNode {
   type: unknown
@@ -58,14 +59,14 @@ const scopes = [
 
 function byLabel(tree: TestTree, label: string): TestNode | undefined {
   return tree.root.findAll(
-    (node) => typeof node.type === 'string' && node.props?.accessibilityLabel === label,
+    (node) => typeof node.type === 'string' && node.props.accessibilityLabel === label,
   )[0]
 }
 
 function press(tree: TestTree, label: string) {
   const node = byLabel(tree, label)
   if (!node) throw new Error(`no button ${label}`)
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     ;(node.props as { onPress: () => void }).onPress()
   })
 }
@@ -73,7 +74,7 @@ function press(tree: TestTree, label: string) {
 function type(tree: TestTree, label: string, value: string) {
   const node = byLabel(tree, label)
   if (!node) throw new Error(`no input ${label}`)
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     ;(node.props as { onChangeText: (value: string) => void }).onChangeText(value)
   })
 }
@@ -84,7 +85,7 @@ function texts(tree: TestTree): unknown[] {
 
 function renderModal(onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreateResponse | null>, onCreated = vi.fn()) {
   let tree!: TestTree
-  TestRenderer.act(() => {
+  void TestRenderer.act(() => {
     tree = TestRenderer.create(
       <CreateApiKeyModal
         open
@@ -100,7 +101,8 @@ function renderModal(onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiK
 
 describe('CreateApiKeyModal', () => {
   beforeEach(() => {
-    clipboard.setString.mockReset()
+    clipboard.setStringAsync.mockReset().mockResolvedValue(true)
+    vi.mocked(captureException).mockClear()
     vi.useRealTimers()
   })
 
@@ -142,7 +144,7 @@ describe('CreateApiKeyModal', () => {
     press(tree, 'common.selectAll')
     press(tree, 'orbitMcp.readOnlyKeyLabel')
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
 
@@ -156,7 +158,7 @@ describe('CreateApiKeyModal', () => {
     expect(texts(tree)).toContain('orbit_sk_secret')
   })
 
-  it('copies the revealed key to the clipboard', async () => {
+  it.each(['success', 'failure'])('waits for the revealed key clipboard write: %s', async (outcome) => {
     const created: ApiKeyCreateResponse = {
       id: 'k-2',
       name: 'CI key',
@@ -172,13 +174,34 @@ describe('CreateApiKeyModal', () => {
     const onCreateKey = vi.fn().mockResolvedValue(created)
     const { tree } = renderModal(onCreateKey)
     type(tree, 'orbitMcp.keyName', 'CI key')
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
     expect(texts(tree)).toContain('orbit_sk_copyme')
-    press(tree, 'orbitMcp.copy')
-    expect(clipboard.setString).toHaveBeenCalledWith('orbit_sk_copyme')
-    expect(texts(tree)).toContain('orbitMcp.copied')
+    let finishWrite!: (value: boolean) => void
+    let rejectWrite!: (reason: Error) => void
+    const write = new Promise<boolean>((resolve, reject) => {
+      finishWrite = resolve
+      rejectWrite = reject
+    })
+    clipboard.setStringAsync.mockReturnValueOnce(write)
+    await TestRenderer.act(() => {
+      (byLabel(tree, 'orbitMcp.copy')!.props.onPress as () => void)()
+    })
+    expect(clipboard.setStringAsync).toHaveBeenCalledWith('orbit_sk_copyme')
+    expect(texts(tree)).not.toContain('orbitMcp.copied')
+    await TestRenderer.act(async () => {
+      if (outcome === 'success') {
+        finishWrite(true)
+        await write
+      } else {
+        const rejected = expect(write).rejects.toThrow('Clipboard unavailable')
+        rejectWrite(new Error('Clipboard unavailable'))
+        await rejected
+      }
+    })
+    expect(captureException).toHaveBeenCalledTimes(outcome === 'failure' ? 1 : 0)
+    expect(texts(tree).includes('orbitMcp.copied')).toBe(outcome === 'success')
   })
 
   it('clears selected scopes', async () => {
@@ -199,7 +222,7 @@ describe('CreateApiKeyModal', () => {
     type(tree, 'orbitMcp.keyName', 'CI key')
     press(tree, 'common.selectAll')
     press(tree, 'common.clear')
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       press(tree, 'orbitMcp.createKey')
     })
     expect(onCreateKey).toHaveBeenCalledWith(

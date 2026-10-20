@@ -6,7 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as Clipboard from 'expo-clipboard'
 import {
   Check,
   CheckCircle,
@@ -26,6 +26,7 @@ import {
   WIDGET_STEP_KEYS,
   type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
+import { captureError } from '@/lib/sentry'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { Chip } from '@/components/ui/chip'
 import { tintFromPrimary } from '@/lib/theme'
@@ -295,9 +296,7 @@ function McpCodeWell({
     >
       <View style={styles.copyRow}>
         <Pressable
-          onPress={() => {
-            onCopy()
-          }}
+          onPress={onCopy}
           accessibilityRole="button"
           accessibilityLabel={copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
           style={({ pressed }) => [
@@ -346,15 +345,17 @@ export function McpConnectionInstructions({
   const mcpConfigJson = buildMcpConfigJson(mcpEndpointUrl)
 
   function copyEndpoint() {
-    Clipboard.setString(mcpEndpointUrl)
-    setEndpointCopied(true)
-    setTimeout(() => setEndpointCopied(false), 2000)
+    void Clipboard.setStringAsync(mcpEndpointUrl).then(() => {
+      setEndpointCopied(true)
+      setTimeout(() => setEndpointCopied(false), 2000)
+    }).catch(captureError)
   }
 
   function copyConfig() {
-    Clipboard.setString(mcpConfigJson)
-    setConfigCopied(true)
-    setTimeout(() => setConfigCopied(false), 2000)
+    void Clipboard.setStringAsync(mcpConfigJson).then(() => {
+      setConfigCopied(true)
+      setTimeout(() => setConfigCopied(false), 2000)
+    }).catch(captureError)
   }
 
   const codeContent =
