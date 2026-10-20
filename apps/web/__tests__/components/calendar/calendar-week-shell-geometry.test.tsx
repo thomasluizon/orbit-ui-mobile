@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { enUS } from 'date-fns/locale'
@@ -47,12 +48,115 @@ describe('Calendar week through the destination shell and route transition', () 
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let weekScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    weekScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build(JSON.parse(process.argv[1]));
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify({
+      stdin: { contents: `import React from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl';
+        import { enUS } from 'date-fns/locale';
+        import en from '../../packages/shared/src/i18n/en.json';
+        import { CalendarWeekView } from './components/calendar/calendar-week-view';
+        const fixture = JSON.parse(document.getElementById('week-fixture').textContent);
+        const columns = fixture.columns.map(column => ({ ...column, date: new Date(column.date) }));
+        const host = document.querySelector('[data-testid="calendar-time-grid"]').parentElement.parentElement;
+        const root = createRoot(host);
+        function draw(dayMap) {
+          root.render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><div data-live-week="" className="flex min-h-0 flex-1 flex-col">
+            <CalendarWeekView columns={columns} dayMap={dayMap} slideDirection={null} onSelectDay={() => {}}
+              displayTime={time => time} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
+              nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
+          </div></NextIntlClientProvider>);
+        }
+        draw(new Map(fixture.dayMap));
+        document.addEventListener('week-refetch', () => draw(new Map(fixture.dayMap.map(([date, entries]) => [date, entries.slice(0, 2)]))));`,
+      resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+    })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([
+    { width: 320, scale: 1, top: 0 }, { width: 320, scale: 1, top: 123 }, { width: 320, scale: 1, top: 600 },
+    { width: 320, scale: 2, top: 600 }, { width: 412, scale: 1, top: 600 },
+    { width: 600, scale: 1, top: 600 }, { width: 1352, scale: 1, top: 600 },
+  ].flatMap((viewport) => [2, 300, 10_000].map((offset) => ({ ...viewport, offset }))))('settles $offset horizontal pixels on a day boundary at $width, $scale text, $top vertical pixels', async ({ width, scale, top, offset }) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet} :root { font-size: ${16 * scale}px }</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-testid="time-grid-hour-scroller"]').waitFor()
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      const geometry = await scroller.evaluate(async (element, { top, offset }) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        element.scrollTop = top
+        element.scrollLeft = offset
+        let previous = element.scrollLeft
+        let stableFrames = 0
+        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          stableFrames = element.scrollLeft === previous ? stableFrames + 1 : 0
+          previous = element.scrollLeft
+        }
+        const gutter = element.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!.getBoundingClientRect()
+        const headers = [...element.querySelectorAll('[data-testid="time-grid-col-header"]')].map((header) => header.getBoundingClientRect())
+        const firstVisible = headers.find((header) => header.right > gutter.right + 0.5)!
+        return { left: firstVisible.left, gutterRight: gutter.right, top: element.scrollTop, stableFrames, offset: element.scrollLeft, columnWidth: firstVisible.width, lastRight: headers.at(-1)!.right }
+      }, { top, offset })
+      expect(geometry.stableFrames).toBe(4)
+      expect(geometry.left, JSON.stringify(geometry)).toBeCloseTo(geometry.gutterRight, 1)
+      expect(geometry.offset % geometry.columnWidth).toBeCloseTo(0, 1)
+      if (offset === 2) expect(geometry.offset).toBe(0)
+      else expect(geometry.offset).toBeGreaterThan(100)
+      if (offset === 10_000) expect(geometry.lastRight).toBeGreaterThan(geometry.gutterRight)
+      expect(geometry.top).toBe(top)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each(['wheel', 'scrollIntoView', 'keyboard'] as const)('holds a settled %s position through refetch and resize', async (input) => {
+    route.pathname = '/calendar'
+    const view = renderDestination(weekBody())
+    const page = await browser.newPage({ viewport: { width: 412, height: 640 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${view.container.innerHTML}<script id="week-fixture" type="application/json">${JSON.stringify({ columns, dayMap: [...dayMap] })}</script>`)
+      await page.addScriptTag({ content: weekScript })
+      await page.locator('[data-live-week] [data-testid="time-grid-hour-scroller"]').waitFor()
+      const scroller = page.getByTestId('time-grid-hour-scroller')
+      const position = () => scroller.evaluate(async (element) => {
+        let previous = element.scrollLeft
+        let stableFrames = 0
+        for (let frame = 0; frame < 120 && stableFrames < 4; frame++) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          stableFrames = element.scrollLeft === previous ? stableFrames + 1 : 0
+          previous = element.scrollLeft
+        }
+        return { left: element.scrollLeft, top: element.scrollTop }
+      })
+      const opening = await position()
+      expect(opening.left).toBeGreaterThan(100)
+      if (input === 'wheel') { await scroller.hover(); await page.mouse.wheel(-400, 0) }
+      else if (input === 'scrollIntoView') await page.getByTestId('time-grid-col-header').first().evaluate((element) => element.scrollIntoView({ inline: 'start', block: 'nearest' }))
+      else { await page.getByTestId('time-grid-col-header').nth(3).focus(); await page.keyboard.press('ArrowLeft') }
+      await expect.poll(async () => (await position()).left).toBeLessThan(opening.left - 100)
+      const held = await position()
+      expect(held.left % 192).toBe(0)
+      await page.evaluate(() => document.dispatchEvent(new Event('week-refetch')))
+      await expect.poll(() => page.getByTestId('time-grid-all-day-more').count()).toBe(0)
+      expect(await position()).toEqual(held)
+      await page.setViewportSize({ width: 412, height: 560 })
+      expect(await position()).toEqual(held)
+    } finally { await page.close(); view.unmount() }
+  })
 
   it('keeps the vertical offset when the day pane changes height', async () => {
     route.pathname = '/calendar'

@@ -76,6 +76,18 @@ headers in both locales at 320, 412, 600, 1024 and 1352px during hover, held pre
 focus. Android presses each mounted header and checks all four resolved fill insets against the
 shared clearance while keeping the column width and day action.
 
+The web time grid snaps horizontally to the leading edge of each day header, any-time cell and
+hour column, using the time gutter as scroll padding. Leading-edge snap areas prevent free movement
+inside a column wider than the available viewport. Fractional, mid-column and terminal scroll
+offsets settle with a day boundary at the pinned gutter's trailing edge, retaining the header
+fill's 4px clearance. Vertical scrolling remains unsnapped. The opening position still selects
+today's column; trailing space keeps the last boundary reachable in every week.
+Android places the time gutter beside a separate, clipped horizontal column scroller in a flex row;
+its columns cannot scroll beneath the gutter. Chromium shell cases mount the live week grid at
+compact and wide widths, including 320px and doubled text, after small, mid-column and terminal
+offsets while retaining arbitrary vertical offsets. Wheel, keyboard and scroll-into-view cases
+retain their settled position through a refetch and a viewport-height change.
+
 Android's style regression renders the actual habit header with its emoji selector and summary,
 and the shared row, pill, icon pill and chip with adjacent controls. Yoga measures the resolved
 pressed and focused styles, including their painted descendants and outlines. This proves the

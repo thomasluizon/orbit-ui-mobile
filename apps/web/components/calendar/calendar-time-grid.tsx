@@ -220,6 +220,8 @@ export function CalendarTimeGrid({
   const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
+  // WHY: A day wider than the gutter-adjusted snapport must still snap to its leading edge. https://github.com/thomasluizon/orbit-tickets/issues/1564
+  const columnSnapStyle = { scrollSnapAlign: 'start', scrollMarginInlineEnd: `-${columnMinWidth}` } as const
   const columnTrack = `minmax(${columnMinWidth}, 1fr)`
   const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack}) var(--time-grid-trailing-space, 0px)`
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + var(--time-grid-trailing-space, 0px))`
@@ -246,6 +248,10 @@ export function CalendarTimeGrid({
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
       node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
       node.style.scrollPaddingTop = `${pinnedHeight}px`
+      const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
+      const viewportWidth = node.clientWidth - gutter
+      const { trailingSpace } = resolveCalendarGridOpeningScroll(columns.length - 1, minColumnWidth * scale, viewportWidth, columns.length)
+      node.style.setProperty('--time-grid-trailing-space', `${trailingSpace}px`)
       if (hasMovedGrid.current || isLoading || bodyHeight <= 0) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
@@ -254,9 +260,7 @@ export function CalendarTimeGrid({
       const todayColumn = node.querySelector<HTMLElement>('[data-today="true"]')
       const columnWidth = todayColumn?.getBoundingClientRect().width ?? 0
       if (todayColumn && columnWidth > 0) {
-        const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
-        const { left, trailingSpace } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), columnWidth, node.clientWidth - gutter, columns.length)
-        node.style.setProperty('--time-grid-trailing-space', `${trailingSpace}px`)
+        const { left } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), columnWidth, viewportWidth, columns.length)
         node.scrollLeft = left
       }
       openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
@@ -284,7 +288,7 @@ export function CalendarTimeGrid({
       node.removeEventListener('keydown', preserveOpeningPosition)
       node.removeEventListener('pointerdown', releaseOpeningOnScrollbar)
     }
-  }, [columns, perColumn, timeZone, isLoading, isPanePinned])
+  }, [columns, perColumn, timeZone, isLoading, isPanePinned, minColumnWidth])
 
   const isEmpty =
     !isLoading &&
@@ -316,7 +320,7 @@ export function CalendarTimeGrid({
           onTouchMove={() => { hasMovedGrid.current = true }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, scrollSnapType: 'x mandatory', overflowAnchor: 'none', overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div
@@ -329,7 +333,7 @@ export function CalendarTimeGrid({
                 style={{ minHeight: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
               />
               {perColumn.map(({ column }) => (
-                <div key={column.dateStr} style={{ display: 'flex', boxShadow: 'inset 1px 0 0 var(--hairline), inset 0 -1px 0 var(--hairline)' }}>
+                <div key={column.dateStr} style={{ ...columnSnapStyle, display: 'flex', boxShadow: 'inset 1px 0 0 var(--hairline), inset 0 -1px 0 var(--hairline)' }}>
                   <button
                     type="button"
                     data-testid="time-grid-col-header"
@@ -411,6 +415,7 @@ export function CalendarTimeGrid({
                     data-date={column.dateStr}
                     className="flex min-w-0 flex-col"
                     style={{
+                      ...columnSnapStyle,
                       gap: 4,
                       minHeight: 64,
                       padding: "var(--orbit-space-8) var(--orbit-space-4)",
@@ -456,6 +461,7 @@ export function CalendarTimeGrid({
                 data-today={column.isToday}
                 data-date={column.dateStr}
                 style={{
+                  ...columnSnapStyle,
                   position: 'relative',
                   height: 'calc(72rem + var(--time-grid-tail, 128px))',
                   minHeight: '80rem',
