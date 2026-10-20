@@ -465,9 +465,11 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       ) : null}
 
       <ComposerError props={props} tokens={tokens} />
-      <View testID="composer-status-slot" style={props.renewalHint ? { minHeight: TOUCH_TARGET_MIN * 2 } : undefined}>
-        <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
-      </View>
+      {props.renewalHint ? (
+        <View testID="composer-status-slot" style={{ minHeight: TOUCH_TARGET_MIN * 2 }}>
+          <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
+        </View>
+      ) : <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />}
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
       {props.renewalHint ? <Text testID="composer-usage" style={[styles.usage, { color: tokens.fg3 }]}>{props.usageMessage}</Text> : null}
       <RetryControl props={props} tokens={tokens} />

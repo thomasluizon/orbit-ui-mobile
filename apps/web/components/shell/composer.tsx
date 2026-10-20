@@ -349,9 +349,11 @@ export function Composer(props: Readonly<WebComposerProps>) {
       ) : null}
 
       <ComposerError props={props} />
-      <div data-composer-status-slot style={{ minHeight: props.renewalHint ? TOUCH_TARGET_MIN * 2 : undefined }}>
-        <ComposerStatus props={props} />
-      </div>
+      {props.renewalHint ? (
+        <div data-composer-status-slot style={{ minHeight: TOUCH_TARGET_MIN * 2 }}>
+          <ComposerStatus props={props} />
+        </div>
+      ) : <ComposerStatus props={props} />}
       <ComposerInputRow props={props} />
       {props.renewalHint ? <p data-composer-usage className="m-0 t-meta leading-[1.4]" style={{ minHeight: 34 }}>{props.usageMessage}</p> : null}
       <RetryControl props={props} />

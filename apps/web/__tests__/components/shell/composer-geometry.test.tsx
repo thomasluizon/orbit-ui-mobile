@@ -186,6 +186,22 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('keeps the compact composer inset when no daily allowance hint is supplied', async () => {
+    const view = render(<Composer {...geometryProps('idle', en, false)} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.locator('[data-composer-root]').evaluate((root) => {
+        const input = root.querySelector('[data-composer-input-row]')!
+        const style = getComputedStyle(root)
+        return { inset: input.getBoundingClientRect().top - root.getBoundingClientRect().top,
+          expected: Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.paddingTop) }
+      })
+      expect(geometry.inset).toBe(geometry.expected)
+    } finally { view.unmount(); await page.close() }
+  })
+
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['light', 'dark'] as const).map((mode) => ({ width, locale, mode })))))('keeps daily allowance geometry stable at $width in $locale $mode', async ({ width, locale, mode }) => {
     const messages = locale === 'en' ? en : ptBR
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
