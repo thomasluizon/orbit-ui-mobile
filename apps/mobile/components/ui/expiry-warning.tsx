@@ -254,6 +254,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     actionPress: {
       borderRadius: radius.sm,
+      overflow: 'hidden',
       minWidth: TOUCH_TARGET_MIN,
       minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',

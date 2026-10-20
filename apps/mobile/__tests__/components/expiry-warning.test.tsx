@@ -225,6 +225,8 @@ describe('ExpiryWarning', () => {
     const instance = await renderExpiredWarning()
     const tokens = createTokensV2('orange', mode)
     expect(actionStyle(instance)).toMatchObject({
+      borderRadius: radius.sm,
+      overflow: 'hidden',
       minHeight: TOUCH_TARGET_MIN,
       minWidth: TOUCH_TARGET_MIN,
       paddingVertical: SPACING.s8,
