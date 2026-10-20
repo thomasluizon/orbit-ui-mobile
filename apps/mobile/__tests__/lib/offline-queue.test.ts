@@ -1,3 +1,5 @@
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
+import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import type { SQLInputValue } from 'node:sqlite'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
@@ -740,4 +742,36 @@ describe('mobile offline queue', () => {
     expect(queued.map((mutation) => mutation.id)).toEqual(['update-older', 'update-newer'])
     expect(queued[queued.length - 1]?.payload).toEqual({ title: 'Newest' })
   })
+  it('replays an already persisted reminder payload once without changing casing or ownership', async () => {
+    const parsed = habitDetailSchema.parse(reminderWire.HabitDetailResponse)
+    const payload = { title: 'Reminder', reminderEnabled: false,
+      scheduledReminders: parsed.scheduledReminders, relativeReminders: parsed.relativeReminders }
+    const bytes = JSON.stringify(payload)
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state)
+      VALUES (?, ?, ?, ?, ?, ?, 0, 3, ?, ?, 'account')`).run(
+      'persisted-reminder', Date.now(), 'updateHabit', '/api/habits/habit', 'PUT', bytes,
+      JSON.stringify({ scope: 'habits', entityType: 'habit' }), 'account-a',
+    )
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload, account_id, owner_state)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'account')`).run(
+      'other-account-reminder', Date.now(), 'updateHabit', '/api/habits/other', 'PUT', bytes, 'account-b',
+    )
+    expect(getAll()).toHaveLength(1)
+    expect(getAll()[0]?.payload).toEqual(payload)
+    replayMocks.apiClient.mockResolvedValue(undefined)
+    await expect(flushQueuedMutations()).resolves.toMatchObject({ succeeded: 1, remaining: 0 })
+    await expect(flushQueuedMutations()).resolves.toMatchObject({ succeeded: 0, remaining: 0 })
+    expect(replayMocks.apiClient).toHaveBeenCalledExactlyOnceWith('/api/habits/habit', {
+      method: 'PUT', body: bytes, idempotencyKey: 'persisted-reminder',
+    }, undefined)
+    expect(database.prepare('SELECT id, payload, account_id FROM mutation_queue').all()).toEqual([
+      { id: 'other-account-reminder', payload: bytes, account_id: 'account-b' },
+    ])
+    database.prepare('DELETE FROM mutation_queue WHERE id = ?').run('other-account-reminder')
+    expect(habitDetailSchema.parse(reminderWire.HabitDetailResponse).relativeReminders).toEqual(payload.relativeReminders)
+  })
+
+
 })

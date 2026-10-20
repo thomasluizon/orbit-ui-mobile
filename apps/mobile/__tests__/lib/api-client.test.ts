@@ -1,3 +1,6 @@
+import { syncChangesV2ResponseSchema } from '@orbit/shared/types/sync'
+import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
+import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -142,6 +145,40 @@ describe('mobile apiClient', () => {
     routerReplaceMock.mockReset()
     buildAppVersionHeadersMock.mockReset()
     buildAppVersionHeadersMock.mockReturnValue({ 'X-App-Version': '1.1.4' })
+  })
+
+  it.each([
+    [API.habits.create, 'POST'], [API.habits.update('habit'), 'PUT'],
+    [API.habits.bulk, 'POST'], [API.habits.subHabits('parent'), 'POST'],
+  ])('keeps canonical reminder bytes on %s %s and decodes readback', async (endpoint, method) => {
+    getTokenMock.mockResolvedValue('token')
+    const parsed = habitDetailSchema.parse(reminderWire.HabitDetailResponse)
+    const request = { title: 'Reminder', reminderEnabled: false,
+      scheduledReminders: parsed.scheduledReminders, relativeReminders: parsed.relativeReminders }
+    const payload = endpoint === API.habits.bulk ? { habits: [{ ...request, subHabits: [request] }] } : request
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json(reminderWire.HabitDetailResponse))
+    const bytes = JSON.stringify(payload)
+    await apiClient(endpoint, { method, body: bytes })
+    await expect(apiClient(API.habits.get('habit'), undefined, habitDetailSchema)).resolves.toMatchObject({
+      scheduledReminders: request.scheduledReminders, relativeReminders: request.relativeReminders,
+    })
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method, body: bytes })
+    expect(bytes).toContain('"same_day"')
+    expect(bytes).toContain('"day_before"')
+    expect(bytes).not.toContain('SameDay')
+    expect(bytes).not.toContain('DayBefore')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([false, true])('normalizes serialized sync clocks with relative reminders omitted: %s', async (scheduledOnly) => {
+    getTokenMock.mockResolvedValue('token')
+    const response = structuredClone(reminderWire.SyncChangesV2Response)
+    if (scheduledOnly) response.habits.updated[0]!.relativeReminders = []
+    fetchMock.mockResolvedValue(Response.json(response))
+    const parsed = await apiClient(API.sync.changesV2, undefined, syncChangesV2ResponseSchema)
+    expect(parsed.habits.updated[0]?.scheduledReminders.map((reminder) => reminder.when)).toEqual(['same_day', 'day_before'])
+    expect(parsed.habits.updated[0]?.relativeReminders?.map((reminder) => reminder.when)).toEqual(scheduledOnly ? [] : ['same_day', 'day_before'])
   })
 
   it('adds auth and JSON headers for standard requests', async () => {
