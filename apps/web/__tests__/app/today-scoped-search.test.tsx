@@ -40,7 +40,7 @@ function TodaySearchSurface() {
   return <>
     <TodayHeaderRegion view={view} />
     <TodayHabitsPanel view={view} />
-    {view.isSelectMode ? <SelectionTray selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
+    {view.isSelectMode ? <SelectionTray onBulkMove={() => {}} selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
       onSelectAll={view.selection.selectAll} onDeselectAll={view.selection.deselectAll}
       onBulkLog={() => void view.selection.confirmBulkLog()} onBulkSkip={() => void view.selection.confirmBulkSkip()}
       onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)} onCancel={view.toggleSelectMode} /> : null}

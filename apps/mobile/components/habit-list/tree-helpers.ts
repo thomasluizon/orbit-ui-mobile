@@ -26,6 +26,8 @@ interface MoveValidationDeps {
 }
 
 interface MoveParentOptionsDeps {
+  habitsById: Map<string, NormalizedHabit>
+  maxHabitDepth: number
   topLevelHabits: NormalizedHabit[]
   getChildren: (habitId: string) => NormalizedHabit[]
   validateMoveTarget: (
@@ -143,12 +145,23 @@ export function validateMoveTarget(
  *  omitted unless a descendant is still active. */
 export function buildMoveParentOptions(
   deps: MoveParentOptionsDeps,
-  movingHabitId: string,
+  movingHabitId: string | readonly string[] | null,
 ): MoveParentOption[] {
+  if (movingHabitId === null) return []
   const { topLevelHabits, getChildren, validateMoveTarget: validate, t } = deps
 
+  const ids = typeof movingHabitId === 'string' ? [movingHabitId] : movingHabitId
+  const validateSelection = (target: string | null) => {
+    const parents = ids.map((id) => deps.habitsById.get(id)?.parentId)
+    if (parents.length > 0 && parents.every((parent) => parent !== undefined && parent === target)) {
+      return { valid: false, reason: t(ids.length > 1
+        ? 'habits.moveParent.invalidCurrentParentMany' : 'habits.moveParent.invalidCurrentParent') }
+    }
+    if (typeof movingHabitId === 'string') return validate(target, movingHabitId)
+    return validateMoveSelection(deps, ids, target)
+  }
   const options: MoveParentOption[] = []
-  const rootValidation = validate(null, movingHabitId)
+  const rootValidation = validateSelection(null)
 
   options.push({
     id: null,
@@ -164,7 +177,7 @@ export function buildMoveParentOptions(
     const selectableChildren = getChildren(habit.id).filter((child) =>
       isHabitSelectableAsMoveTarget(child, getChildren),
     )
-    const validation = validate(habit.id, movingHabitId)
+    const validation = validateSelection(habit.id)
     options.push({
       id: habit.id,
       label: habit.title,
@@ -220,4 +233,38 @@ export function buildFlatHabitItems(
   }
 
   return items
+}
+
+function validateMoveSelection(
+  { habitsById, maxHabitDepth, t }: MoveParentOptionsDeps,
+  ids: readonly string[],
+  target: string | null,
+): MoveTargetValidation {
+  const invalid = { valid: false, reason: t('habits.moveParent.invalidForSome') }
+  if (target !== null && ids.includes(target)) return invalid
+  const targetHabit = target === null ? null : habitsById.get(target)
+  if (ids.some((id) => {
+    const habit = habitsById.get(id)
+    return !habit || habit.parentId === target || (targetHabit && habit.isGeneral !== targetHabit.isGeneral)
+  })) return invalid
+  const moved = new Set(ids)
+  const parents = new Map(Array.from(habitsById.values(), (habit) => [habit.id, moved.has(habit.id) ? target : habit.parentId]))
+  for (const habit of habitsById.values()) {
+    const visited = new Set<string>()
+    let id: string | null = habit.id
+    let depth = -1
+    while (id !== null) {
+      if (visited.has(id)) return invalid
+      visited.add(id)
+      depth++
+      id = parents.get(id) ?? null
+    }
+    if (depth >= maxHabitDepth && ids.some((source) => visited.has(source))) return invalid
+  }
+  return { valid: true, reason: null }
+}
+
+export function getSharedMoveParentId(habitsById: ReadonlyMap<string, NormalizedHabit>, ids: readonly string[]) {
+  const parents = ids.map((id) => habitsById.get(id)?.parentId)
+  return parents.length > 0 && parents.every((parent) => parent === parents[0]) ? parents[0] : undefined
 }

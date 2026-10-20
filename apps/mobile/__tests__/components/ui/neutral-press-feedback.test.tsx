@@ -19,7 +19,7 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 const noop = () => {}
 
 function selectionTray(allSelected: boolean, disabled: boolean, completionReadOnly = false) {
-  return <SelectionTray count={disabled ? 0 : 2} allSelected={allSelected} completionReadOnly={completionReadOnly}
+  return <SelectionTray onMove={() => {}} moveLabel="Move selected" count={disabled ? 0 : 2} allSelected={allSelected} completionReadOnly={completionReadOnly}
     onSelectAll={noop} onDeselectAll={noop} onLog={noop} onSkip={noop} onDelete={noop} onClose={noop}
     countSuffixLabel="selected" selectAllLabel="Select all" deselectAllLabel="Deselect all"
     logLabel="Log" skipLabel="Skip" deleteLabel="Delete" closeLabel="Close" />
@@ -55,7 +55,7 @@ describe('neutral press feedback on Android', () => {
       <PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton>
       <View style={{ backgroundColor: createTokensV2('orange', mode).bgElev }}><PromptQuietAction accessibleName="Quiet">Quiet</PromptQuietAction></View>
     </>)
-    expect(buttons).toHaveLength(13)
+    expect(buttons).toHaveLength(15)
     for (const button of buttons) {
       const rest = resolvedStyle(button, false)
       expect(rest.backgroundColor ?? 'transparent').toBe('transparent')

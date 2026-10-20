@@ -1,7 +1,8 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search } from '@/components/ui/icons'
+import { plural } from '@/lib/plural'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -27,12 +28,14 @@ interface MoveParentDialogProps {
   visible: boolean
   isPending: boolean
   movingHabitTitle: string | null
-  movingHabitParentId: string | null
+  movingHabitCount?: number
+  error?: string | null
+  movingHabitParentId: string | null | undefined
   options: MoveParentOption[]
-  selectedMoveParentId: string | null
+  selectedMoveParentId: string | null | undefined
   canSubmit: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => void | Promise<boolean>
   onSelectOption: (optionId: string | null) => void
 }
 
@@ -41,12 +44,11 @@ const SEARCH_THRESHOLD = 8
 type Styles = ReturnType<typeof createStyles>
 
 function MoveDialogDescription({
-  title,
-  text,
-  styles,
-}: Readonly<{ title: string | null; text: string; styles: Styles }>) {
-  if (!title) return null
-  return <Text style={styles.moveDialogDescription}>{text}</Text>
+  t, name, count, styles,
+}: Readonly<{ t: MoveParentDialogProps['t']; name: string | null; count?: number; styles: Styles }>) {
+  if (count !== undefined) return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.descriptionMany')}</Text>
+  if (!name) return null
+  return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
 function MoveTargetRow({
@@ -95,6 +97,8 @@ export function MoveParentDialog({
   isPending,
   movingHabitTitle,
   movingHabitParentId,
+  movingHabitCount,
+  error,
   options,
   selectedMoveParentId,
   canSubmit,
@@ -107,7 +111,35 @@ export function MoveParentDialog({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
 
+  const scrollRef = useRef<ScrollView>(null)
+  const viewportLaidOutRef = useRef(false)
+  const contentLaidOutRef = useRef(false)
+  const rowLayouts = useRef(new Map<string, { y: number; height: number }>())
+  const positionOptions = () => {
+    if (hasPositionedRef.current || !scrollRef.current || !viewportLaidOutRef.current || !contentLaidOutRef.current) return
+    const current = movingHabitParentId ? rowLayouts.current.get(movingHabitParentId) : null
+    if (movingHabitParentId && !current) return
+    const previous = Array.from(rowLayouts.current.values()).find((row) => current && row.y + row.height <= current.y && row.y + row.height >= current.y - 4)
+    scrollRef.current.scrollTo({ y: current ? Math.max(0, current.y - (previous?.height ?? current.height)) : 0, animated: false })
+    hasPositionedRef.current = true
+  }
   const [searchQuery, setSearchQuery] = useState('')
+  const hasPositionedRef = useRef(false)
+  useEffect(() => {
+    if (!visible) {
+      hasPositionedRef.current = false
+      rowLayouts.current.clear()
+      viewportLaidOutRef.current = false
+      contentLaidOutRef.current = false
+    }
+  }, [visible])
+  const { title } = moveLabels(t, movingHabitCount)
+  async function confirmMove() {
+    if (await onConfirm() === true) {
+      closeSheet(hideDialog, hideDialog)
+    }
+  }
+
 
   const rootOption = useMemo(
     () => options.find((option) => option.id === null) ?? null,
@@ -134,24 +166,28 @@ export function MoveParentDialog({
   return (
     visible ? (<Sheet
       ref={sheetRef}
+      virtualizedBody
+      boundedBody
       open
       onClose={isPending ? undefined : hideDialog}
-      title={t('habits.moveParent.title')}
+      title={title}
       actions={
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
-          <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
-            {t('habits.moveParent.confirm')}
+          <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={() => void confirmMove()}>
+            {movingHabitCount === undefined ? t('habits.moveParent.confirm')
+              : plural(t('habits.moveParent.confirmMany', { count: movingHabitCount }), movingHabitCount)}
           </PillButton>
         </ActionRow>
       }
     >
-      <View>
+      <View style={{ flexShrink: 1, gap: 8 }}>
         <MoveDialogDescription
-          title={movingHabitTitle}
-          text={t('habits.moveParent.description', { name: movingHabitTitle })}
+          t={t}
+          name={movingHabitTitle}
+          count={movingHabitCount}
           styles={styles}
         />
 
@@ -160,7 +196,11 @@ export function MoveParentDialog({
             <Input
               label={t('habits.moveParent.searchPlaceholder')}
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(query) => {
+                setSearchQuery(query)
+                hasPositionedRef.current = true
+                scrollRef.current?.scrollTo({ y: 0, animated: false })
+              }}
               placeholder={t('habits.moveParent.searchPlaceholder')}
               trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
             />
@@ -171,11 +211,11 @@ export function MoveParentDialog({
           <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
         ) : null}
 
-        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')}>
+        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')} style={{ flexShrink: 1 }}>
           {rootOption ? (
             <MoveTargetRow
               option={rootOption}
-              selected={rootOption.id === selectedMoveParentId}
+              selected={!rootOption.disabled && rootOption.id === selectedMoveParentId}
               isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               tokens={tokens}
@@ -184,27 +224,32 @@ export function MoveParentDialog({
             />
           ) : null}
 
-          <View style={styles.moveOptionsContent}>
+          <ScrollView ref={scrollRef} testID="move-destinations-scroll" style={{ flexShrink: 1 }}
+            keyboardShouldPersistTaps="handled"
+            onLayout={() => { viewportLaidOutRef.current = true; positionOptions() }}
+            onContentSizeChange={() => { contentLaidOutRef.current = true; positionOptions() }}
+            contentContainerStyle={styles.moveOptionsContent}>
             {treeRows.map((option) => (
-              <MoveTargetRow
-                key={option.id}
-                option={option}
-                selected={option.id === selectedMoveParentId}
-                isCurrentParent={option.id === movingHabitParentId}
-                currentLabel={t('habits.moveParent.currentParent')}
-                tokens={tokens}
-                styles={styles}
-                onSelect={onSelectOption}
-              />
+              <View key={option.id} testID={`move-target-${option.id}`} onLayout={({ nativeEvent }) => {
+                rowLayouts.current.set(option.id!, nativeEvent.layout)
+                positionOptions()
+              }}>
+                <MoveTargetRow
+                  option={option}
+                  selected={!option.disabled && option.id === selectedMoveParentId}
+                  isCurrentParent={option.id === movingHabitParentId}
+                  currentLabel={t('habits.moveParent.currentParent')}
+                  tokens={tokens}
+                  styles={styles}
+                  onSelect={onSelectOption}
+                />
+            </View>
             ))}
-          </View>
+          </ScrollView>
         </RadioGroup>
 
-        {isSearchEmpty ? (
-          <Text style={styles.moveDialogEmpty}>
-            {t('habits.moveParent.noSearchResults')}
-          </Text>
-        ) : null}
+        <Text accessibilityLiveRegion="polite" style={styles.moveDialogError}>{error}</Text>
+        <MoveEmptyState t={t} options={options} isSearchEmpty={isSearchEmpty} styles={styles} />
       </View>
     </Sheet>) : null
   )
@@ -241,6 +286,11 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 16,
       lineHeight: 20,
     },
+    moveDialogError: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      color: tokens.fg2,
+    },
     moveDialogEmpty: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
@@ -249,4 +299,23 @@ function createStyles(tokens: AppTokensV2) {
       paddingVertical: SPACING.s16,
     },
   })
+}
+
+function moveLabels(t: MoveParentDialogProps['t'], count?: number) {
+  return {
+    title: t(count === undefined ? 'habits.moveParent.title' : 'habits.moveParent.titleMany'),
+  }
+}
+
+function hasNoDestinations(options: MoveParentOption[]) {
+  return options.length > 0 && options.every((option) => option.disabled)
+}
+
+function MoveEmptyState({ t, options, isSearchEmpty, styles }: Readonly<{
+  t: MoveParentDialogProps['t']; options: MoveParentOption[]; isSearchEmpty: boolean; styles: Styles
+}>) {
+  return <>
+    {hasNoDestinations(options) ? <Text style={styles.moveDialogEmpty}>{t('habits.moveParent.noDestinations')}</Text> : null}
+    {isSearchEmpty ? <Text style={styles.moveDialogEmpty}>{t('habits.moveParent.noSearchResults')}</Text> : null}
+  </>
 }

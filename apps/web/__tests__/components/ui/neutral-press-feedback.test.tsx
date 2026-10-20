@@ -21,7 +21,7 @@ const noop = () => {}
 
 function feedbackControls(allSelected: boolean, unavailable = false, completionReadOnly = false) {
   return <>
-    <SelectionTray selectedCount={unavailable ? 0 : 2} allSelected={allSelected} completionReadOnly={completionReadOnly}
+    <SelectionTray onBulkMove={() => {}} selectedCount={unavailable ? 0 : 2} allSelected={allSelected} completionReadOnly={completionReadOnly}
       onSelectAll={noop} onDeselectAll={noop} onBulkLog={noop} onBulkSkip={noop} onBulkDelete={noop} onCancel={noop} />
     <AstraAllowancePanel profile={createMockProfile()} />
     <PillButton variant="ghost" disabled={unavailable}>Ghost</PillButton>

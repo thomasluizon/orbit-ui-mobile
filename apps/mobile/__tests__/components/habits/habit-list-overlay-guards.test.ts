@@ -26,7 +26,7 @@ const overlays: OverlayGuard[] = [
     name: 'move parent sheet',
     sourcePath: 'components/habit-list/move-parent-dialog.tsx',
     mount: /<Sheet\b/,
-    firstLine: "title={t('habits.moveParent.title')}",
+    firstLine: "title={title}",
   },
   {
     name: 'reschedule sheet',
@@ -59,7 +59,8 @@ describe('habit list overlay caller guards', () => {
     const habitList = source('components/habit-list.tsx')
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
-    expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
+    if (overlay.name === 'move parent sheet') expect(caller).toContain('virtualizedBody')
+    else expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
     expect(habitList).not.toContain('onConfirmSkip=')
     expect(habitList).toMatch(/await skipMutation\.mutateAsync\(\{\s*habitId,\s*date,\s*onUndo:/)

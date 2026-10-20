@@ -1,3 +1,4 @@
+import { getFriendlyErrorMessage, plural } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -48,7 +49,7 @@ import {
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
-import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import {
   EMPTY_HABITS_BY_ID,
   EMPTY_NORMALIZED_HABITS,
@@ -86,6 +87,7 @@ import {
 import {
   buildFlatHabitItems,
   buildMoveParentOptions,
+  getSharedMoveParentId,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
 } from './habit-list/tree-helpers'
@@ -102,6 +104,7 @@ interface HabitListProps {
   searchQuery?: string
   onClearSearch?: () => void
   isSelectMode?: boolean
+  onBulkMove?: (habitIds: string[], parentId: string | null) => Promise<BulkMoveHabitParentResult | undefined>
   selectedHabitIds?: Set<string>
   listHeader?: ReactElement | null
   onCreatePress: () => void
@@ -193,6 +196,7 @@ function ActionRow({
 export interface HabitListHandle {
   allCollapsed: boolean
   allLoadedIds: Set<string>
+  openBulkMove: () => void
   collapseAll: () => void
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
@@ -423,6 +427,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onClearSearch,
       isSelectMode,
       selectedHabitIds,
+      onBulkMove,
       listHeader = null,
       onCreatePress,
       onSeeUpcoming,
@@ -546,10 +551,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
     const [habitToReschedule, setHabitToReschedule] =
       useState<NormalizedHabit | null>(null)
+    const [bulkMovingIds, setBulkMovingIds] = useState<string[] | null>(null)
+    const [moveError, setMoveError] = useState<string | null>(null)
+    const [isMovingParent, setIsMovingParent] = useState(false)
+
     const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
     const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
     const [selectedMoveParentId, setSelectedMoveParentId] = useState<
-      string | null
+      string | null | undefined
     >(null)
     const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
@@ -1235,37 +1244,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [getChildren, habitsById, maxHabitDepth, t],
     )
 
-    const moveParentOptions = useMemo<MoveParentOption[]>(() => {
-      if (!movingHabitId) return []
-      return buildMoveParentOptions(
-        { topLevelHabits, getChildren, validateMoveTarget, t },
-        movingHabitId,
-      )
-    // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits/getChildren are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, movingHabitId, t, topLevelHabits, validateMoveTarget])
-
-    const selectedMoveOption = useMemo(
-      () =>
-        moveParentOptions.find(
-          (option) => option.id === selectedMoveParentId,
-        ) ?? null,
-      [moveParentOptions, selectedMoveParentId],
+    const moveIds = bulkMovingIds ?? [movingHabitId].filter((id): id is string => id !== null)
+    const sharedMoveParentId = getSharedMoveParentId(habitsById, moveIds)
+    const moveParentOptions: MoveParentOption[] = buildMoveParentOptions(
+      { topLevelHabits, getChildren, habitsById, maxHabitDepth, validateMoveTarget, t },
+      bulkMovingIds ?? movingHabitId,
     )
 
-    const canSubmitMoveParent = useMemo(
-      () =>
-        movingHabit !== null &&
-        !moveParentMutation.isPending &&
-        selectedMoveParentId !== movingHabit.parentId &&
-        selectedMoveOption !== null &&
-        !selectedMoveOption.disabled,
-      [
-        moveParentMutation.isPending,
-        movingHabit,
-        selectedMoveOption,
-        selectedMoveParentId,
-      ],
-    )
+    const selectedMoveOption = moveParentOptions.find((option) => option.id === selectedMoveParentId) ?? null
+
+    const canSubmitMoveParent = moveIds.length > 0 && !isMovingParent &&
+      !moveParentMutation.isPending && selectedMoveOption !== null && !selectedMoveOption.disabled
 
     const promptDelete = useCallback((habitId: string) => {
       setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
@@ -1282,44 +1271,61 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [duplicateMutation, habitToDuplicate])
 
-    const closeMoveParentDialog = useCallback(() => {
-      if (moveParentMutation.isPending) return
+    const openBulkMove = useCallback(() => {
+      const ids = Array.from(selectedHabitIds ?? [])
+      if (ids.length === 0 || !onBulkMove) return
+      setBulkMovingIds(ids)
+      setMovingHabitId(null)
+      setMoveError(null)
+      setSelectedMoveParentId(getSharedMoveParentId(habitsById, ids))
+      setShowMoveParentDialog(true)
+    }, [habitsById, onBulkMove, selectedHabitIds])
 
+    function openMoveParentDialog(habitId: string) {
+      const habit = habitsById.get(habitId)
+      if (!habit) return
+      setBulkMovingIds(null)
+      setMoveError(null)
+      setMovingHabitId(habitId)
+      setSelectedMoveParentId(habit.parentId)
+      setShowMoveParentDialog(true)
+    }
+
+    function closeMoveParentDialog() {
       setShowMoveParentDialog(false)
+      setBulkMovingIds(null)
       setMovingHabitId(null)
       setSelectedMoveParentId(null)
-    }, [moveParentMutation.isPending])
+      setMoveError(null)
+    }
 
-    const openMoveParentDialog = useCallback(
-      (habitId: string) => {
-        const habit = habitsById.get(habitId)
-        if (!habit) return
-
-        setMovingHabitId(habitId)
-        setSelectedMoveParentId(habit.parentId)
-        setShowMoveParentDialog(true)
-      },
-      [habitsById],
-    )
-
-    const confirmMoveParent = useCallback(async () => {
-      if (!movingHabitId || !canSubmitMoveParent) return
-
+    async function confirmMoveParent() {
+      if (!canSubmitMoveParent || selectedMoveParentId === undefined) return false
+      setIsMovingParent(true)
+      setMoveError(null)
       try {
-        await moveParentMutation.mutateAsync({
-          habitId: movingHabitId,
-          data: { parentId: selectedMoveParentId },
-        })
-        closeMoveParentDialog()
-      } catch {
+        if (bulkMovingIds && onBulkMove) {
+          const result = await onBulkMove(bulkMovingIds, selectedMoveParentId)
+          if (!result) return false
+          const failed = result.results.filter((item) => item.status === 'Failed')
+          if (failed.length > 0) {
+            setBulkMovingIds(failed.map((item) => item.habitId))
+            setMoveError([plural(t('habits.bulkBar.partialFailure', { count: failed.length }), failed.length),
+              ...new Set(failed.flatMap((item) => item.error ? [item.error] : [])),
+              t('habits.moveParent.errorPartial')].join('\n'))
+            return false
+          }
+        } else if (movingHabitId) {
+          await moveParentMutation.mutateAsync({ habitId: movingHabitId, data: { parentId: selectedMoveParentId } })
+        }
+        return true
+      } catch (error) {
+        setMoveError(getFriendlyErrorMessage(error, t, 'habits.moveParent.errorPartial'))
+        return false
+      } finally {
+        setIsMovingParent(false)
       }
-    }, [
-      canSubmitMoveParent,
-      closeMoveParentDialog,
-      moveParentMutation,
-      movingHabitId,
-      selectedMoveParentId,
-    ])
+    }
 
     const startAddSubHabit = useCallback(
       (parentId: string) => {
@@ -1440,6 +1446,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted,
         checkAndPromptParentLog,
         settleBulkHabitResolutions,
+        openBulkMove,
         refetch: () => {
           void refetch()
         },
@@ -1457,6 +1464,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         collapseAll,
         expandAll,
         markRecentlyCompleted,
+        openBulkMove,
         refetch,
       ],
     )
@@ -1667,16 +1675,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <MoveParentDialog
           t={t}
           visible={showMoveParentDialog}
-          isPending={moveParentMutation.isPending}
+          isPending={isMovingParent}
           movingHabitTitle={movingHabit?.title ?? null}
-          movingHabitParentId={movingHabit?.parentId ?? null}
+          movingHabitParentId={sharedMoveParentId}
+            movingHabitCount={bulkMovingIds?.length}
+            error={moveError}
           options={moveParentOptions}
           selectedMoveParentId={selectedMoveParentId}
           canSubmit={canSubmitMoveParent}
           onClose={closeMoveParentDialog}
-          onConfirm={() => {
-            void confirmMoveParent()
-          }}
+          onConfirm={confirmMoveParent}
           onSelectOption={setSelectedMoveParentId}
         />
       </>

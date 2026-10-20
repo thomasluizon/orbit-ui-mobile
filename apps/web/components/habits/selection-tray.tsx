@@ -4,6 +4,7 @@ import { useId } from 'react'
 import {
   CheckCircle2,
   FastForward,
+  ArrowsMove,
   Trash2,
   X,
   type Icon,
@@ -36,6 +37,7 @@ export interface SelectionTrayProps {
   onDeselectAll: () => void
   onBulkLog: () => void
   onBulkSkip: () => void
+  onBulkMove: () => void
   onBulkDelete: () => void
   onCancel: () => void
   completionReadOnly?: boolean
@@ -86,6 +88,7 @@ export function SelectionTray({
   onDeselectAll,
   onBulkLog,
   onBulkSkip,
+  onBulkMove,
   onBulkDelete,
   onCancel,
   completionReadOnly = false,
@@ -175,6 +178,13 @@ export function SelectionTray({
           onClick={onBulkSkip}
           disabled={nothingSelected || completionReadOnly}
           reason={completionReason}
+        />
+        <BulkBtn
+          icon={ArrowsMove}
+          label={t('habits.bulkBar.move')}
+          iconColor="var(--fg-2)"
+          onClick={onBulkMove}
+          disabled={nothingSelected}
         />
         <BulkBtn
           icon={Trash2}

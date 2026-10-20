@@ -14,6 +14,7 @@ import { habitScheduleItemSchema, skipHabitRequestSchema } from '@orbit/shared/t
 import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
 import { SearchEmpty } from '@/components/search/search-results'
@@ -138,6 +139,7 @@ const skipMutateAsync = vi.fn()
 const bulkDeleteMutateAsync = vi.fn()
 const bulkLogMutateAsync = vi.fn()
 const bulkSkipMutateAsync = vi.fn()
+const moveHabitParentMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
 const toggleSelectMode = vi.fn()
@@ -351,10 +353,11 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
     useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
     useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
-    useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
+    useBulkMoveHabitParent: () => ({ mutateAsync: vi.fn() }),
+  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
     useDuplicateHabit: () => ({ mutateAsync: duplicateMutateAsync }),
     useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
-    useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
   })
 })
 
@@ -603,6 +606,51 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it('still moves one habit from its row menu and closes through the picker', async () => {
+    seedHabits(['source', 'target'].map((id) => createMockHabit({ id, title: id })))
+    moveHabitParentMutateAsync.mockResolvedValue(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    TestRenderer.act(() => {
+      tree!.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit; actions: { onMoveParent: () => void } } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
+    })
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    expect(picker().props.options.find((option: { id: string }) => option.id === 'source').disabled).toBe(true)
+    TestRenderer.act(() => picker().props.onSelectOption('target'))
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirm'); await Promise.resolve() })
+    expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'target' } })
+    expect(picker().props.visible).toBe(false)
+  })
+
+  it('keeps a bulk move open with its destination and retries only the failed habit', async () => {
+    seedHabits(['a', 'b', 'c', 'target'].map((id) => createMockHabit({ id, title: id, parentId: id === 'b' ? 'a' : null })))
+    const onBulkMove = vi.fn()
+      .mockResolvedValueOnce({ results: ['a', 'b', 'c'].map((habitId, index) => ({
+        index, habitId, status: habitId === 'b' ? 'Failed' : 'Success', error: habitId === 'b' ? 'Move refused by server' : null,
+      })) })
+      .mockResolvedValueOnce({ results: [{ index: 0, habitId: 'b', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList ref={ref} filters={{}} showCompleted onCreatePress={vi.fn()}
+        isSelectMode selectedHabitIds={new Set(['a', 'b', 'c'])} onBulkMove={onBulkMove} />)
+    })
+    TestRenderer.act(() => ref.current!.openBulkMove())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    expect(picker().props.movingHabitParentId).toBeUndefined()
+    expect(picker().props.options.filter((option: { id: string; disabled: boolean }) => ['a', 'b', 'c'].includes(option.id)).every((option: { disabled: boolean }) => option.disabled)).toBe(true)
+    TestRenderer.act(() => picker().props.onSelectOption('target'))
+    await TestRenderer.act(async () => { await picker().props.onConfirm() })
+    expect(onBulkMove).toHaveBeenNthCalledWith(1, ['a', 'b', 'c'], 'target')
+    expect(picker().props.visible).toBe(true)
+    expect(picker().props.selectedMoveParentId).toBe('target')
+    expect(picker().props.error).toContain('Move refused by server')
+    expect(picker().props.movingHabitCount).toBe(1)
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirmMany({"count":1})'); await Promise.resolve() })
+    expect(onBulkMove).toHaveBeenNthCalledWith(2, ['b'], 'target')
+    expect(picker().props.visible).toBe(false)
+  })
+
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, normalizeHabitQueryData(createAppendedGeneralSearchItems(matchesDescendant)))

@@ -95,6 +95,7 @@ const habitListRefetch = vi.fn()
 const skipHabitMutateAsync = vi.fn()
 const deleteHabitMutateAsync = vi.fn()
 const duplicateHabitMutateAsync = vi.fn()
+const moveHabitParentMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
@@ -172,7 +173,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: duplicateHabitMutateAsync, isPending: false }),
   useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }),
-  useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
 })
 })
 
@@ -264,6 +265,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       onDuplicate?: () => void
       onDetail?: () => void
       onAddSubHabit?: () => void
+      onMoveParent?: () => void
       onReschedule?: () => void
       onToggleSelection?: () => void
     }
@@ -304,6 +306,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       <button data-testid={`duplicate-${habit.id}`} onClick={actions?.onDuplicate}>
         duplicate
       </button>
+      <button data-testid={`move-${habit.id}`} onClick={actions?.onMoveParent}>Move</button>
       <button data-testid={`detail-${habit.id}`} onClick={actions?.onDetail}>
         detail
       </button>
@@ -447,6 +450,44 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it('still moves one habit from its row menu and closes through the picker', async () => {
+    Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    moveHabitParentMutateAsync.mockResolvedValue(undefined)
+    renderWithProviders(<HabitList filters={{}} />)
+    fireEvent.click(screen.getByTestId('move-source'))
+    const target = await screen.findByRole('radio', { name: /^target/ })
+    expect(screen.getByRole('radio', { name: /^source/ })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(target)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(moveHabitParentMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: 'source', data: { parentId: 'target' } })
+  })
+
+  it('keeps a bulk move open with its destination and retries only the failed habit', async () => {
+    const child = createMockHabitScheduleChild({ id: 'b', title: 'b' })
+    const items = ['a', 'c', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id === 'target' ? 'Destination' : id, children: id === 'a' ? [child] : [] }))
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items))
+    const onBulkMove = vi.fn()
+      .mockResolvedValueOnce({ results: ['a', 'b', 'c'].map((habitId, index) => ({
+        index, habitId, status: habitId === 'b' ? 'Failed' : 'Success', error: habitId === 'b' ? 'Move refused by server' : null,
+      })) })
+      .mockResolvedValueOnce({ results: [{ index: 0, habitId: 'b', status: 'Success' }] })
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={{}} isSelectMode selectedHabitIds={new Set(['a', 'b', 'c'])} onBulkMove={onBulkMove} />)
+    act(() => ref.current!.openBulkMove())
+    const target = await screen.findByRole('radio', { name: /Destination/ })
+    expect(screen.queryByText('habits.moveParent.currentParent')).not.toBeInTheDocument()
+    fireEvent.click(target)
+    fireEvent.click(screen.getByRole('button', { name: /habits.moveParent.confirmMany/ }))
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('Move refused by server'))
+    expect(onBulkMove).toHaveBeenNthCalledWith(1, ['a', 'b', 'c'], 'target')
+    expect(screen.getByRole('radio', { name: /Destination/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /habits.moveParent.confirmMany/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onBulkMove).toHaveBeenNthCalledWith(2, ['b'], 'target')
+  })
+
   it.each(['today', 'all', 'general'] as const)('offers search recovery instead of first run in %s', (view) => {
     dragLocale.english = true
     const clearSearch = vi.fn()

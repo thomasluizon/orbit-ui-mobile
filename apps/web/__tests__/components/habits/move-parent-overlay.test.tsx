@@ -1,5 +1,15 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { bundleGeometry } from '@/__tests__/support/profile-settings-browser'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { afterAll, afterEach, beforeAll, describe, it, expect, vi } from 'vitest'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -27,6 +37,7 @@ function renderOverlay(
   options: MoveParentOption[],
   onSelectOption = vi.fn(),
   selectedMoveParentId: string | null = null,
+  overrides: Partial<Parameters<typeof MoveParentOverlay>[0]> = {},
 ) {
   render(
     <MoveParentOverlay
@@ -41,6 +52,7 @@ function renderOverlay(
       onClose={vi.fn()}
       onConfirm={vi.fn()}
       onSelectOption={onSelectOption}
+      {...overrides}
     />,
   )
   return { onSelectOption }
@@ -200,4 +212,147 @@ describe('MoveParentOverlay', () => {
     expect(within(actions).getByRole('button', { name: 'habits.moveParent.confirm' })).toHaveAttribute('aria-busy', 'true')
     expect(actions.textContent).not.toContain('habits.moveParent.moving')
   })
+})
+
+
+describe('move picker initial positioning', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('positions once at the disabled current parent with a row of context', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.currentParent === 'true' ? 640 : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64)
+    renderOverlay([
+      makeOption({ id: null, label: 'Top level', disabled: false }),
+      ...Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}`,
+        disabled: index === 9, reason: index === 9 ? 'This habit is already here' : null })),
+    ], vi.fn(), 'p9', { movingHabitParentId: 'p9' })
+    const scroll = document.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!
+    expect(scroll.scrollTop).toBe(576)
+    const current = screen.getByRole('radio', { name: /Parent 9/ })
+    expect(current).toHaveAttribute('aria-disabled', 'true')
+    expect(current).toHaveAttribute('aria-checked', 'false')
+    fireEvent.change(screen.getByPlaceholderText('habits.moveParent.searchPlaceholder'), { target: { value: 'Parent' } })
+    expect(scroll.scrollTop).toBe(0)
+  })
+
+  it('opens at zero for root and omits the Current tag for mixed parents', () => {
+    renderOverlay([makeOption({ id: null, label: 'Top level' }), makeOption({ id: 'p', label: 'Parent' })],
+      vi.fn(), null, { movingHabitParentId: undefined, movingHabitCount: 12, error: '2 habits did not move' })
+    expect(document.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!.scrollTop).toBe(0)
+    expect(screen.queryByText('habits.moveParent.currentParent')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.titleMany')
+    expect(screen.getByText('habits.moveParent.descriptionMany')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('2 habits did not move')
+  })
+})
+
+
+describe('bulk move footer geometry in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  let pickerScript: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    pickerScript = bundleGeometry(`
+      import React, { useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { NextIntlClientProvider, useTranslations } from 'next-intl';
+      import en from '../../packages/shared/src/i18n/en.json';
+      import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
+      import { MoveParentOverlay } from './components/habits/habit-list/move-parent-overlay';
+      const root = document.getElementById('root');
+      const parent = root.dataset.parent || null;
+      const locale = root.dataset.locale;
+      function Picker() {
+        const t = useTranslations();
+        const [selected, setSelected] = useState(parent);
+        const options = [{ id: null, label: t('habits.moveParent.toRoot'), emoji: null, depth: 0,
+          childCount: 0, disabled: parent === null, reason: parent === null ? t('habits.moveParent.invalidCurrentParent') : null },
+          ...Array.from({ length: 40 }, (_, index) => ({ id: 'p' + index, label: 'Parent ' + index,
+            emoji: null, depth: index === 19 ? 1 : index === 20 ? 2 : 0, childCount: 0,
+            disabled: 'p' + index === parent, reason: 'p' + index === parent ? t('habits.moveParent.invalidCurrentParent') : null }))];
+        return <MoveParentOverlay t={t} open isMoving={false} movingHabitTitle="Reading"
+          movingHabitParentId={parent} selectedMoveParentId={selected} options={options}
+          canSubmit={false} onClose={() => {}} onConfirm={() => {}} onSelectOption={setSelected} />;
+      }
+      createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider>);
+    `, {
+      '@/components/ui/update-available-banner': 'export const UpdateAvailableBanner = () => null;',
+      '@/components/ui/app-toast-host': 'export const AppToastHost = () => null;',
+    })
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'].flatMap((mode) => ['en', 'pt-BR'].flatMap((locale) =>
+    ['p20', ''].map((parent) => ({ mode, locale, parent })),
+  )))('opens the complete $locale picker at $parent in $mode with focus and position intact', async ({ mode, locale, parent }) => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', mode as 'dark' | 'light'))
+        .map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div id="root" data-parent="${parent}" data-locale="${locale}"></div>`)
+      await page.addScriptTag({ content: pickerScript })
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor({ state: 'visible' })
+      const geometry = await dialog.evaluate((element) => {
+        const scroll = element.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!
+        const current = scroll.querySelector<HTMLElement>('[data-current-parent="true"]')
+        return { offset: scroll.scrollTop, height: scroll.clientHeight, contentHeight: scroll.scrollHeight,
+          scroll: scroll.getBoundingClientRect().toJSON(), current: current?.getBoundingClientRect().toJSON(),
+          focusInside: element.contains(document.activeElement) }
+      })
+      expect(geometry.focusInside).toBe(true)
+      expect(geometry.contentHeight).toBeGreaterThan(geometry.height)
+      if (parent) {
+        expect(geometry.offset).toBeGreaterThan(0)
+        expect(geometry.current!.top).toBeGreaterThan(geometry.scroll.top)
+        expect(geometry.current!.bottom).toBeLessThanOrEqual(geometry.scroll.bottom)
+      } else expect(geometry.offset).toBe(0)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) =>
+    ['dark', 'light'].flatMap((mode) => [12, 100].map((count) => ({ width, locale, mode, count }))),
+  )))('keeps $locale count $count on one line at $width in $mode', async ({ width, locale, mode, count }) => {
+    const translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    renderOverlay([], vi.fn(), null, { movingHabitCount: count, t: (key, values) => translate(key as Parameters<typeof translate>[0], values) })
+    const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
+    const expected = locale === 'en' ? `Move ${count} habits` : `Mover ${count} hábitos`
+    expect(actions.textContent).toContain(expected)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', mode as 'dark' | 'light'))
+        .map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}}</style><div style="width:100%;padding:24px">${actions.outerHTML}</div>`)
+      const button = page.getByRole('button', { name: expected, exact: true })
+      const dimensions = await button.evaluate((element) => ({
+        label: element.querySelector('span')!.getBoundingClientRect().toJSON(),
+        whitespace: getComputedStyle(element).whiteSpace,
+        bounds: element.getBoundingClientRect().toJSON(),
+      }))
+      expect(dimensions.label.left).toBeGreaterThan(dimensions.bounds.left)
+      expect(dimensions.label.right).toBeLessThan(dimensions.bounds.right)
+      expect(dimensions.label.height).toBeLessThan(dimensions.bounds.height)
+      expect(dimensions.whitespace).toBe('nowrap')
+      expect(dimensions.bounds.right).toBeLessThanOrEqual(width)
+      expect(dimensions.bounds.left).toBeGreaterThanOrEqual(0)
+    } finally { await page.close() }
+  })
+})
+
+
+it('clears a picker search after successful confirmation before reopening', async () => {
+  const onClose = vi.fn()
+  renderOverlay(Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` })),
+    vi.fn(), 'p1', { canSubmit: true, onConfirm: vi.fn().mockResolvedValue(true), onClose })
+  const search = screen.getByPlaceholderText('habits.moveParent.searchPlaceholder')
+  fireEvent.change(search, { target: { value: 'Parent 1' } })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' })) })
+  expect(onClose).toHaveBeenCalledOnce()
+  expect(search).toHaveValue('')
 })

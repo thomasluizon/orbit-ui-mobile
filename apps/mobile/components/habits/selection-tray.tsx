@@ -1,7 +1,7 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
-import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
+import { CheckCircle2, FastForward, ArrowsMove, Trash2, X } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -13,6 +13,7 @@ interface SelectionTrayProps {
   onDeselectAll: () => void
   onLog: () => void
   onSkip: () => void
+  onMove: () => void
   onDelete: () => void
   onClose: () => void
   countSuffixLabel: string
@@ -20,6 +21,7 @@ interface SelectionTrayProps {
   deselectAllLabel: string
   logLabel: string
   skipLabel: string
+  moveLabel: string
   deleteLabel: string
   closeLabel: string
   completionReadOnly?: boolean
@@ -37,6 +39,7 @@ export function SelectionTray({
   onDeselectAll,
   onLog,
   onSkip,
+  onMove,
   onDelete,
   onClose,
   countSuffixLabel,
@@ -44,6 +47,7 @@ export function SelectionTray({
   deselectAllLabel,
   logLabel,
   skipLabel,
+  moveLabel,
   deleteLabel,
   closeLabel,
   completionReadOnly = false,
@@ -136,6 +140,25 @@ export function SelectionTray({
           <FastForward
             size={20}
             color={tokens.fg3}
+            strokeWidth={1.8}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={moveLabel}
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onMove}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
+            pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
+            disabled ? styles.disabled : null,
+          ]}
+        >
+          <ArrowsMove
+            size={20}
+            color={tokens.fg2}
             strokeWidth={1.8}
           />
         </Pressable>

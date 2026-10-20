@@ -22,6 +22,7 @@ function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {})
     onDeselectAll: vi.fn(),
     onBulkLog: vi.fn(),
     onBulkSkip: vi.fn(),
+    onBulkMove: vi.fn(),
     onBulkDelete: vi.fn(),
     onCancel: vi.fn(),
     ...overrides,
@@ -40,6 +41,7 @@ describe('SelectionTray', () => {
 
     expect(screen.getByRole('button', { name: 'habits.bulkBar.log' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.bulkBar.skip' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.bulkBar.move' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.bulkBar.delete' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument()
   })
@@ -49,10 +51,12 @@ describe('SelectionTray', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.log' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.skip' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.move' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.bulkBar.delete' }))
 
     expect(props.onBulkLog).toHaveBeenCalled()
     expect(props.onBulkSkip).toHaveBeenCalled()
+    expect(props.onBulkMove).toHaveBeenCalled()
     expect(props.onBulkDelete).toHaveBeenCalled()
   })
 
@@ -199,7 +203,7 @@ describe('SelectionTray painted targets in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${markup}`)
       await page.getByTestId('bulk-action-bar').evaluate((element) => { element.style.transform = 'none' })
       const buttons = page.getByRole('button')
-      expect(await buttons.count()).toBe(5)
+      expect(await buttons.count()).toBe(6)
       for (const button of await buttons.all()) {
         const bounds = await button.boundingBox()
         expect(bounds!.width).toBeGreaterThanOrEqual(48)

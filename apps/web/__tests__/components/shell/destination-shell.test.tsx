@@ -440,7 +440,7 @@ describe('DestinationShell', () => {
         useShellComposerSlot(
           active,
           () => (
-            <SelectionTray
+            <SelectionTray onBulkMove={() => {}}
               selectedCount={1}
               allSelected={false}
               onSelectAll={() => {}}

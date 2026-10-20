@@ -591,7 +591,7 @@
     "filterEmptySubHabits": "No sub-habits match this view.",
     "moveParent": {
       "button": "Move to...",
-      "title": "Move Habit",
+      "title": "Move habit",
       "description": "Choose where to place \"{name}\"",
       "toRoot": "No parent (top level)",
       "destinations": "Destinations",
@@ -601,7 +601,15 @@
       "noSearchResults": "No habits match your search",
       "invalidSelf": "Cannot move under itself",
       "invalidDescendant": "Cannot move under a descendant",
-      "invalidDepth": "Would exceed max depth ({max})"
+      "invalidDepth": "Would exceed max depth ({max})",
+      "titleMany": "Move habits",
+      "descriptionMany": "Choose where to place the selected habits",
+      "invalidForSome": "Some selected habits cannot go here",
+      "invalidCurrentParent": "This habit is already here",
+      "invalidCurrentParentMany": "The selected habits are already here",
+      "noDestinations": "There is nowhere else to put these habits",
+      "errorPartial": "Some habits did not move. Pick a place and try again.",
+      "confirmMany": "Move {count} habit | Move {count} habits"
     },
     "actions": {
       "more": "More actions",
@@ -661,7 +669,8 @@
       "partialFailure": "{count} selected row could not be updated. | {count} selected rows could not be updated.",
       "retryFailed": "Retry failed only",
       "offlineFailure": "Nothing changed because your device is offline.",
-      "connectionRefreshed": "The connection dropped. The list was refreshed."
+      "connectionRefreshed": "The connection dropped. The list was refreshed.",
+      "move": "Move selected"
     },
     "skipHabit": "Skip",
     "frequency": {

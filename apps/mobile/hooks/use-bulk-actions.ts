@@ -2,7 +2,8 @@ import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDateInTimeZone, getTodayBoundary, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { HabitListHandle } from '@/components/habit-list'
 
@@ -44,6 +45,7 @@ export function useBulkActions({
   const bulkDelete = useBulkDeleteHabits()
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
+  const bulkMove = useBulkMoveHabitParent()
   const currentPermission = useRef({ selectedDateStr, completionReadOnly })
   useLayoutEffect(() => {
     currentPermission.current = { selectedDateStr, completionReadOnly }
@@ -137,7 +139,19 @@ export function useBulkActions({
 
   const confirmBulkSkip = () => executeSkip(Array.from(selectedHabitIds))
 
+
+  async function confirmBulkMove(habitIds: string[], parentId: string | null) {
+    const generation = getAccountGeneration()
+    const result = await bulkMove.mutateAsync({ habitIds, parentId })
+    if (getAccountGeneration() !== generation) return
+    const failedIds = failedHabitIds(result.results)
+    if (failedIds.length > 0) onPartialFailure(failedIds)
+    else onSuccess()
+    return result
+  }
+
   return {
+    confirmBulkMove,
     showBulkDeleteConfirm,
     setShowBulkDeleteConfirm,
     confirmBulkDelete,

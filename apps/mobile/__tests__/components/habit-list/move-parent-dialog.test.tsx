@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, View } from 'react-native'
@@ -5,7 +7,7 @@ import {
   MoveParentDialog,
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
-import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig, __setScrollToImpl } from '../../../test-mocks/react-native'
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
@@ -410,4 +412,72 @@ describe('MoveParentDialog', () => {
     )
     expect(busyButtons.length).toBeGreaterThan(0)
   })
+})
+
+
+describe('move picker initial positioning', () => {
+  beforeEach(() => __resetTestHostConfig())
+
+  it('scrolls once without animation and resets to zero after a search keystroke', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    const options = [makeOption({ id: null, label: 'Top level' }),
+      ...Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` }))]
+    const { tree } = renderDialog({ options, movingHabitParentId: 'p9' })
+    const layouts = tree.root.findAll((node) => node.type === View && String(node.props.testID).startsWith('move-target-'))
+    await TestRenderer.act(() => {
+      layouts.forEach((row, index) => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { y: index * 64 + 4, height: 60 } } }))
+    })
+    expect(scrollTo).not.toHaveBeenCalled()
+    const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
+    await TestRenderer.act(() => {
+      (scroll.props.onLayout as () => void)()
+      expect(scrollTo).not.toHaveBeenCalled()
+      ;(scroll.props.onContentSizeChange as () => void)()
+    })
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 520, animated: false })
+    await TestRenderer.act(() => {
+      (findSearchInputs(tree)[0]!.props.onChangeText as (query: string) => void)('Parent')
+    })
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
+  })
+
+  it('opens root at zero and uses the plural title and inline error region', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    const { tree } = renderDialog({ movingHabitParentId: null, movingHabitCount: 100, error: '2 habits did not move' })
+    const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
+    await TestRenderer.act(() => { (scroll.props.onLayout as () => void)(); (scroll.props.onContentSizeChange as () => void)() })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false })
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.moveParent.descriptionMany')
+    expect(flattenRenderedText(tree.toJSON())).toContain('2 habits did not move')
+    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe('habits.moveParent.titleMany')
+  })
+})
+
+
+describe('bulk move translated footer styles', () => {
+  it.each([{ locale: 'en', messages: en, expected: 'Move 100 habits' },
+    { locale: 'pt-BR', messages: ptBR, expected: 'Mover 100 hábitos' }])('keeps intrinsic pills for $locale with three digits', ({ messages, expected }) => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      let value: unknown = messages
+      for (const segment of key.split('.')) value = (value as Record<string, unknown>)[segment]
+      return String(value).replaceAll('{count}', String(params?.count))
+    }
+    const { tree } = renderDialog({ t, movingHabitCount: 100 })
+    expect(flattenRenderedText(tree.toJSON())).toContain(expected)
+    expectSmallSheetActions(tree.root)
+  })
+})
+
+
+it('clears a picker search after successful confirmation before reopening', async () => {
+  const { tree, props } = renderDialog({ options: Array.from({ length: 12 }, (_, index) => makeOption({ id: `p${index}`, label: `Parent ${index}` })),
+    onConfirm: vi.fn().mockResolvedValue(true) })
+  await TestRenderer.act(() => { (findSearchInputs(tree)[0]!.props.onChangeText as (query: string) => void)('Parent 1') })
+  const confirm = tree.root.findAll((node) => node.props.accessibilityRole === 'button'
+    && typeof node.props.onPress === 'function' && flattenInstanceText(node).includes('habits.moveParent.confirm')).at(-1)!
+  await TestRenderer.act(async () => { (confirm.props.onPress as () => void)(); await Promise.resolve() })
+  expect(props.onClose).toHaveBeenCalledOnce()
+  expect(findSearchInputs(tree)[0]!.props.value).toBe('')
 })

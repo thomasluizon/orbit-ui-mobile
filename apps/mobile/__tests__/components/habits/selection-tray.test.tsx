@@ -38,6 +38,7 @@ async function renderBar(
     onDeselectAll: vi.fn(),
     onLog: vi.fn(),
     onSkip: vi.fn(),
+    onMove: vi.fn(),
     onDelete: vi.fn(),
     onClose: vi.fn(),
     countSuffixLabel: 'selected',
@@ -45,6 +46,7 @@ async function renderBar(
     deselectAllLabel: 'Deselect all',
     logLabel: 'Log selected',
     skipLabel: 'Skip selected',
+    moveLabel: 'Move selected',
     deleteLabel: 'Delete selected',
     closeLabel: 'Cancel',
     ...overrides,
@@ -70,7 +72,7 @@ function findButtonByLabel(tree: RenderedTree, label: string): RenderedNode {
 describe('SelectionTray', () => {
   it('paints every action across its whole target without invisible slop', async () => {
     const { tree, props } = await renderBar()
-    for (const label of [props.logLabel, props.skipLabel, props.deleteLabel, props.closeLabel]) {
+    for (const label of [props.logLabel, props.skipLabel, props.moveLabel, props.deleteLabel, props.closeLabel]) {
       const button = findButtonByLabel(tree, label)
       const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
       expect(button.props.hitSlop).toBeUndefined()
@@ -112,7 +114,7 @@ describe('SelectionTray', () => {
   it('disables log, skip, and delete at zero selection but keeps close active', async () => {
     const { tree } = await renderBar({ count: 0 })
 
-    for (const label of ['Log selected', 'Skip selected', 'Delete selected']) {
+    for (const label of ['Log selected', 'Skip selected', 'Move selected', 'Delete selected']) {
       const button = findButtonByLabel(tree, label)
       expect(button.props.disabled).toBe(true)
       expect(
@@ -128,12 +130,14 @@ describe('SelectionTray', () => {
     await TestRenderer.act(() => {
       ;(findButtonByLabel(tree, 'Log selected').props.onPress as () => void)()
       ;(findButtonByLabel(tree, 'Skip selected').props.onPress as () => void)()
+      ;(findButtonByLabel(tree, 'Move selected').props.onPress as () => void)()
       ;(findButtonByLabel(tree, 'Delete selected').props.onPress as () => void)()
       ;(findButtonByLabel(tree, 'Cancel').props.onPress as () => void)()
     })
 
     expect(props.onLog).toHaveBeenCalled()
     expect(props.onSkip).toHaveBeenCalled()
+    expect(props.onMove).toHaveBeenCalled()
     expect(props.onDelete).toHaveBeenCalled()
     expect(props.onClose).toHaveBeenCalled()
   })
