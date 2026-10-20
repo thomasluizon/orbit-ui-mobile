@@ -65,7 +65,9 @@ function ApiKeyDetails({ apiKey }: Readonly<{ apiKey: ApiKey }>) {
           <Text selectable style={textStyle}>{apiKey.lastUsedAtUtc ? displayDateMedium(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}</Text>
         </View>
       </View>
-      {apiKey.expiresAtUtc ? <Text selectable style={textStyle}>{t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })}</Text> : null}
+      <Text selectable style={textStyle}>{apiKey.expiresAtUtc
+        ? t('orbitMcp.expiresOn', { date: displayDateMedium(apiKey.expiresAtUtc) })
+        : t('common.never')}</Text>
     </View>
   )
 }
@@ -308,6 +310,13 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
   const [showStepUp, setShowStepUp] = useState(false)
 
   if (!showStepUp) {
+    let keyCountLabel: string | undefined
+    if (activeApiKeyCount === 0) {
+      keyCountLabel = t('profile.apiKeys.noKeys')
+    } else if (activeApiKeyCount != null) {
+      keyCountLabel = t('profile.apiKeys.activeCount', { count: activeApiKeyCount })
+    }
+
     return (
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
@@ -316,9 +325,7 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
           icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.open')}
           wrapTitle
-          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
-            ? t('profile.apiKeys.noKeys')
-            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          value={keyCountLabel}
           wrapValue
           onClick={() => setShowStepUp(true)}
         />

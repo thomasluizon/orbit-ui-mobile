@@ -268,6 +268,19 @@ export const cases = () => {
     load(`apps/${platform}`)
     load('packages/shared/src')
     const current = { paths: new Set(Object.keys(files)), read: (path) => files[path] }
+    const keyOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
+    const noExpiryId = `${platform}:display:common.never`
+    const keyObservations = scan(current, platform, rules)
+    const keyCapabilities = keyObservations.filter((entry) => entry.id === noExpiryId)
+    const beforeKey = compare(keyCapabilities, keyObservations, rules)
+    T(`${platform} no-expiry metadata resolves to the existing key details output`, beforeKey.length === 1 && beforeKey[0].disposition === 'retained' && beforeKey[0].redesign.every((item) => item.file === keyOwner))
+    const originalKeyOwner = files[keyOwner]
+    files[keyOwner] = originalKeyOwner.replace(": t('common.never')}</", ': null}</')
+    T(`${platform} mutation removes no-expiry output while retaining the input placeholder`, files[keyOwner] !== originalKeyOwner && files[keyOwner].includes("placeholder={t('common.never')}"))
+    const afterKey = compare(keyCapabilities, scan(current, platform, rules), rules)
+    T(`${platform} the creation placeholder cannot retain deleted no-expiry metadata`, afterKey.length === 1 && afterKey[0].disposition === 'missing')
+    T(`${platform} removing restored no-expiry metadata blocks parity`, newLosses(afterKey, beforeKey).some((entry) => entry.id === noExpiryId))
+    files[keyOwner] = originalKeyOwner
     const guide = `apps/${platform}/components/profile/profile-mcp-guide.tsx`
     const guideCapabilities = inventory.entries.filter((entry) => entry.platform === platform && rules.tickets[entry.id] === '#1447')
     const beforeGuide = compare(guideCapabilities, scan(current, platform), rules)
