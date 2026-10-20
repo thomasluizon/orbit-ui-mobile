@@ -15,6 +15,7 @@ import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/hab
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitListAllDone } from '@/components/habit-list/empty-state'
 import { SearchEmpty } from '@/components/search/search-results'
@@ -606,6 +607,42 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each([100, 101])('enforces the bulk move boundary for %s selected ids', async (count) => {
+    const ids = Array.from({ length: count }, (_, index) => `habit-${index}`)
+    seedHabits([...ids, 'target'].map((id) => createMockHabit({ id, title: id })))
+    const onBulkMove = vi.fn().mockResolvedValue({ results: ids.map((habitId, index) => ({ index, habitId, status: 'Success' })) })
+    const ref = React.createRef<HabitListHandle>()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<>
+        <SelectionTray count={count} allSelected onSelectAll={vi.fn()} onDeselectAll={vi.fn()}
+          onLog={vi.fn()} onSkip={vi.fn()} onMove={() => ref.current?.openBulkMove()} onDelete={vi.fn()} onClose={vi.fn()}
+          countSuffixLabel="selected" selectAllLabel="Select all" deselectAllLabel="Deselect all"
+          logLabel="Log selected" skipLabel="Skip selected" moveLabel="Move selected" deleteLabel="Delete selected" closeLabel="Cancel" />
+        <HabitList ref={ref} filters={{}} showCompleted onCreatePress={vi.fn()}
+          isSelectMode selectedHabitIds={new Set(ids)} onBulkMove={onBulkMove} />
+      </>)
+    })
+    const move = tree!.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'Move selected')[0]!
+    if (count === 101) {
+      expect.soft(move.props.disabled).toBe(true)
+      expect.soft(flattenRenderedText(tree!.toJSON())).toContain('habits.bulkBar.moveLimit')
+      TestRenderer.act(() => ref.current!.openBulkMove())
+      expect.soft(tree!.root.findByType(MoveParentDialog).props.visible).toBe(false)
+      expect(onBulkMove).not.toHaveBeenCalled()
+      return
+    }
+    expect(move.props.disabled).toBe(false)
+    TestRenderer.act(() => move.props.onPress())
+    const picker = () => tree!.root.findByType(MoveParentDialog)
+    expect(picker().props.visible).toBe(true)
+    TestRenderer.act(() => picker().props.onSelectOption('target'))
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.moveParent.confirm'); await Promise.resolve() })
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(ids, 'target')
+    expect(picker().props.visible).toBe(false)
+  })
+
   it('still moves one habit from its row menu and closes through the picker', async () => {
     seedHabits(['source', 'target'].map((id) => createMockHabit({ id, title: id })))
     moveHabitParentMutateAsync.mockResolvedValue(undefined)

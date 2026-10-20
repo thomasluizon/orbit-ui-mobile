@@ -224,6 +224,7 @@ export function MoveParentDialog({
           ) : null}
 
           <ScrollView ref={scrollRef} testID="move-destinations-scroll" style={{ flexShrink: 1 }}
+            nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
             onLayout={() => { viewportLaidOutRef.current = true; positionOptions() }}
             onContentSizeChange={() => { contentLaidOutRef.current = true; positionOptions() }}

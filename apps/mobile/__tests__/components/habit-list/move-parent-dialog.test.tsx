@@ -432,6 +432,7 @@ describe('move picker initial positioning', () => {
     })
     expect(scrollTo).not.toHaveBeenCalled()
     const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
+    expect(scroll.props.nestedScrollEnabled).toBe(true)
     await TestRenderer.act(() => {
       (scroll.props.onLayout as () => void)()
       expect(scrollTo).not.toHaveBeenCalled()

@@ -668,7 +668,8 @@
       "retryFailed": "Retry failed only",
       "offlineFailure": "Nothing changed because your device is offline.",
       "connectionRefreshed": "The connection dropped. The list was refreshed.",
-      "move": "Move selected"
+      "move": "Move selected",
+      "moveLimit": "Select up to {limit, number} habits to move at once."
     },
     "skipHabit": "Skip",
     "frequency": {

@@ -3,6 +3,21 @@ import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { createTokensV2 } from '@/lib/theme'
+import { IntlMessageFormat } from 'intl-messageformat'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const visibleLocale = vi.hoisted(() => ({ language: 'en' }))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, string | number>) => {
+      const messages = visibleLocale.language === 'pt-BR' ? ptBR : en
+      const message = (messages.habits.bulkBar as Record<string, string>)[key.replace('habits.bulkBar.', '')]
+      return message ? String(new IntlMessageFormat(message, visibleLocale.language).format(values)) : key
+    },
+  }),
+}))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -70,6 +85,19 @@ function findButtonByLabel(tree: RenderedTree, label: string): RenderedNode {
 }
 
 describe('SelectionTray', () => {
+  it.each([
+    ['en', 'Select up to 100 habits to move at once.'],
+    ['pt-BR', 'Selecione até 100 hábitos para mover de uma vez.'],
+  ])('explains an oversized move in %s', async (locale, message) => {
+    visibleLocale.language = locale
+    const { tree, props } = await renderBar({ count: 101 })
+    const move = findButtonByLabel(tree, props.moveLabel)
+    expect(move.props.disabled).toBe(true)
+    expect(move.props.accessibilityState).toEqual({ disabled: true })
+    expect(move.props.accessibilityHint).toBe(message)
+    expect(flattenRenderedText(tree.toJSON())).toContain(message)
+  })
+
   it('paints every action across its whole target without invisible slop', async () => {
     const { tree, props } = await renderBar()
     for (const label of [props.logLabel, props.skipLabel, props.moveLabel, props.deleteLabel, props.closeLabel]) {

@@ -6,9 +6,17 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+const visibleLocale = vi.hoisted(() => ({ language: '' }))
+
+vi.mock('next-intl', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next-intl')>(),
+  useTranslations: () => visibleLocale.language
+    ? createTranslator({ locale: visibleLocale.language, messages: visibleLocale.language === 'pt-BR' ? ptBR : en })
+    : (key: string) => key,
 }))
 
 import { SelectionTray } from '@/components/habits/selection-tray'
@@ -34,6 +42,21 @@ function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {})
 describe('SelectionTray', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    visibleLocale.language = ''
+  })
+
+  it.each([
+    ['en', 'Move selected', 'Select up to 100 habits to move at once.'],
+    ['pt-BR', 'Mover selecionados', 'Selecione até 100 hábitos para mover de uma vez.'],
+  ])('explains an oversized move in %s', (locale, label, message) => {
+    visibleLocale.language = locale
+    const props = renderBar({ selectedCount: 101 })
+    const move = screen.getByRole('button', { name: label })
+    expect(move).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(move).toHaveAccessibleDescription(message)
+    fireEvent.click(move)
+    expect(props.onBulkMove).not.toHaveBeenCalled()
   })
 
   it('labels the action buttons with the selection-scoped accessible names', () => {

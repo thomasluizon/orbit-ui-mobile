@@ -1,4 +1,5 @@
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 import { SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
@@ -1273,7 +1274,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const openBulkMove = useCallback(() => {
       const ids = Array.from(selectedHabitIds ?? [])
-      if (ids.length === 0 || !onBulkMove) return
+      if (ids.length === 0 || ids.length > MAX_BULK_OPERATION_SIZE || !onBulkMove) return
       setBulkMovingIds(ids)
       setMovingHabitId(null)
       setMoveError(null)

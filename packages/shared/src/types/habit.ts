@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_BULK_OPERATION_SIZE } from '../api/constants'
 import { habitLogSchema } from './calendar'
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
@@ -606,7 +607,7 @@ export const bulkSkipResultSchema = z.object({
 export type BulkSkipResult = z.infer<typeof bulkSkipResultSchema>
 
 export const bulkMoveHabitParentRequestSchema = z.object({
-  habitIds: z.array(z.string().uuid()).min(1).max(100),
+  habitIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_OPERATION_SIZE),
   parentId: z.string().uuid().nullable(),
 })
 export type BulkMoveHabitParentRequest = z.infer<typeof bulkMoveHabitParentRequestSchema>

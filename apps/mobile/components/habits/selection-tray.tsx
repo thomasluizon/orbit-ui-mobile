@@ -1,4 +1,6 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
+import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
+import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, ArrowsMove, Trash2, X } from '@/components/ui/icons'
@@ -54,10 +56,14 @@ export function SelectionTray({
   completionReason,
 }: Readonly<SelectionTrayProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
+  const { t } = useTranslation()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
   const disabled = count === 0
   const completionDisabled = disabled || completionReadOnly
+  const moveLimitReason = count > MAX_BULK_OPERATION_SIZE
+    ? t('habits.bulkBar.moveLimit', { limit: MAX_BULK_OPERATION_SIZE }) : undefined
+  const moveDisabled = disabled || Boolean(moveLimitReason)
 
   return (
     <View
@@ -146,14 +152,15 @@ export function SelectionTray({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={moveLabel}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
+          accessibilityHint={moveLimitReason}
+          accessibilityState={{ disabled: moveDisabled }}
+          disabled={moveDisabled}
           onPress={onMove}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
-            pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
-            disabled ? styles.disabled : null,
+            { backgroundColor: pressed && !moveDisabled ? tokens.bgHoverOpaque : 'transparent' },
+            pressed && !moveDisabled && !prefersReducedMotion ? styles.pressedScale : null,
+            moveDisabled ? styles.disabled : null,
           ]}
         >
           <ArrowsMove
@@ -195,6 +202,7 @@ export function SelectionTray({
           <X size={20} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
+      {moveLimitReason ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{moveLimitReason}</Text> : null}
     </View>
   )
 }
@@ -262,5 +270,10 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  moveLimit: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: typeRoles.secondary.size,
+    lineHeight: typeRoles.secondary.size * typeRoles.secondary.lineHeight,
   },
 })

@@ -668,7 +668,8 @@
       "retryFailed": "Tentar de novo",
       "offlineFailure": "Nada mudou porque seu aparelho está sem conexão.",
       "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
-      "move": "Mover selecionados"
+      "move": "Mover selecionados",
+      "moveLimit": "Selecione até {limit, number} hábitos para mover de uma vez."
     },
     "skipHabit": "Pular",
     "frequency": {

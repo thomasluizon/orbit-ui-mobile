@@ -390,6 +390,7 @@ vi.mock('@dnd-kit/utilities', () => ({
 }))
 
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import {
   holdAccount,
@@ -450,6 +451,35 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each([100, 101])('enforces the bulk move boundary for %s selected ids', async (count) => {
+    dragLocale.english = true
+    const ids = Array.from({ length: count }, (_, index) => `habit-${index}`)
+    Object.assign(mockHabitsData, normalizeHabitQueryData([...ids, 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
+    const onBulkMove = vi.fn().mockResolvedValue({ results: ids.map((habitId, index) => ({ index, habitId, status: 'Success' })) })
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<>
+      <SelectionTray selectedCount={count} allSelected onSelectAll={vi.fn()} onDeselectAll={vi.fn()}
+        onBulkLog={vi.fn()} onBulkSkip={vi.fn()} onBulkMove={() => ref.current?.openBulkMove()}
+        onBulkDelete={vi.fn()} onCancel={vi.fn()} />
+      <HabitList ref={ref} filters={{}} isSelectMode selectedHabitIds={new Set(ids)} onBulkMove={onBulkMove} />
+    </>)
+    const move = screen.getByRole('button', { name: 'Move selected' })
+    fireEvent.click(move)
+    if (count === 101) {
+      expect.soft(move).toHaveAttribute('aria-disabled', 'true')
+      expect.soft(screen.queryByText('Select up to 100 habits to move at once.')).toBeInTheDocument()
+      act(() => ref.current!.openBulkMove())
+      expect.soft(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(onBulkMove).not.toHaveBeenCalled()
+      return
+    }
+    expect(move).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(ids, 'target')
+  })
+
   it('still moves one habit from its row menu and closes through the picker', async () => {
     Object.assign(mockHabitsData, normalizeHabitQueryData(['source', 'target'].map((id) => createMockHabitScheduleItem({ id, title: id }))))
     moveHabitParentMutateAsync.mockResolvedValue(undefined)
